@@ -1,0 +1,75 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.11/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"ignoreUnknown": false
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"indentWidth": 2
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"complexity": { "noStaticOnlyClass": "off" }
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double"
+		},
+		"parser": {
+			"unsafeParameterDecoratorsEnabled": true
+		}
+	},
+	"assist": {
+		"enabled": true,
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["apps/admin-web/**", "apps/org-web/**", "packages/ui/**"],
+			"linter": {
+				"rules": {
+					"a11y": {
+						"useKeyWithClickEvents": "off",
+						"noStaticElementInteractions": "off"
+					},
+					"suspicious": {
+						"noUnknownAtRules": "off",
+						"noArrayIndexKey": "off"
+					}
+				},
+				"domains": {
+					"next": "recommended",
+					"react": "recommended"
+				}
+			},
+			"css": {
+				"parser": {
+					"tailwindDirectives": true
+				}
+			}
+		},
+		{
+			"includes": ["apps/server/**"],
+			"linter": {
+				"rules": {
+					"style": {
+						"useImportType": "off"
+					}
+				}
+			}
+		}
+	]
+}

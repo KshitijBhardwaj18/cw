@@ -1,0 +1,142 @@
+"use client";
+
+import { Badge } from "@repo/ui/components/badge";
+import { Button } from "@repo/ui/components/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@repo/ui/components/card";
+import { DetailItem } from "@repo/ui/components/detail-item";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@repo/ui/components/tabs";
+import { PageBackLink } from "@repo/ui/general/PageBackLink";
+import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
+import { cn } from "@repo/ui/lib/utils";
+import { Calendar, Clock, MapPin } from "lucide-react";
+import Link from "next/link";
+import { CANDIDATE_PORTAL_COPY } from "@/constants/candidate-portal";
+import type { CandidatePlacementDetail } from "@/types/candidate-placement-detail";
+import {
+	candidatePlacementsListPath,
+	candidatePlacementTimecardPath,
+} from "@/utils/candidate-portal-routes";
+import { PlacementDetailComplianceTab } from "./placement-detail/PlacementDetailComplianceTab";
+import { PlacementDetailOfferHistoryTab } from "./placement-detail/PlacementDetailOfferHistoryTab";
+import { PlacementDetailOverviewTab } from "./placement-detail/PlacementDetailOverviewTab";
+
+export interface PlacementDetailViewProps {
+	detail: CandidatePlacementDetail;
+	placementId: string;
+}
+
+const STATUS_BADGE_CLASS: Record<CandidatePlacementDetail["kind"], string> = {
+	active:
+		"bg-emerald-100 text-emerald-800 hover:bg-emerald-100/90 dark:bg-emerald-950/40 dark:text-emerald-200",
+	upcoming:
+		"bg-sky-100 text-sky-800 hover:bg-sky-100/90 dark:bg-sky-950/40 dark:text-sky-200",
+	past: "bg-slate-100 text-slate-700 hover:bg-slate-100/90 dark:bg-slate-800 dark:text-slate-200",
+};
+
+export function PlacementDetailView({
+	detail,
+	placementId,
+}: PlacementDetailViewProps) {
+	const badgeClass = STATUS_BADGE_CLASS[detail.kind];
+	const timecardHref = candidatePlacementTimecardPath(placementId);
+
+	return (
+		<div className="space-y-6">
+			<PageBackLink href={candidatePlacementsListPath()}>
+				{CANDIDATE_PORTAL_COPY.backToPlacements}
+			</PageBackLink>
+
+			<Card>
+				<CardHeader className="border-b">
+					<div className="flex items-start justify-between gap-4">
+						<div>
+							<CardTitle className="font-semibold">{detail.jobTitle}</CardTitle>
+							<CardDescription className="text-base">
+								{detail.facilityName}
+							</CardDescription>
+						</div>
+						<Badge
+							variant="secondary"
+							className={cn("w-fit shrink-0 text-xs font-medium", badgeClass)}
+						>
+							{detail.statusLabel}
+						</Badge>
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					<div className="text-muted-foreground flex flex-wrap gap-x-8 gap-y-3 text-sm">
+						<span className="inline-flex items-center gap-1.5">
+							<MapPin className="size-4 shrink-0 opacity-80" aria-hidden />
+							{detail.locationLabel}
+						</span>
+						<span className="inline-flex items-center gap-1.5">
+							<Clock className="size-4 shrink-0 opacity-80" aria-hidden />
+							{detail.shiftLabel}
+						</span>
+						<span className="inline-flex items-center gap-1.5">
+							<Calendar className="size-4 shrink-0 opacity-80" aria-hidden />
+							{detail.dateRangeLabel}
+						</span>
+					</div>
+					<div className="bg-muted/60 rounded-lg px-4 py-4 sm:px-6">
+						<div className="grid gap-6 sm:grid-cols-3">
+							<DetailItem label="Start Date" value={detail.summary.startDate} />
+							<DetailItem label="End Date" value={detail.summary.endDate} />
+							<DetailItem label="Pay Rate" value={detail.summary.payRate} />
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardContent>
+					<Tabs defaultValue="overview" className="flex-col gap-6">
+						<ScrollableLineTabsRow>
+							<TabsList
+								variant="line"
+								className="inline-flex h-auto w-max min-w-full flex-nowrap justify-start gap-6 rounded-none border-0 bg-transparent p-0"
+							>
+								<TabsTrigger value="overview" className="flex-none pb-3">
+									Overview
+								</TabsTrigger>
+								<TabsTrigger value="compliance" className="flex-none pb-3">
+									Compliance
+								</TabsTrigger>
+								<TabsTrigger value="offer-history" className="flex-none pb-3">
+									Offer History
+								</TabsTrigger>
+							</TabsList>
+						</ScrollableLineTabsRow>
+
+						<TabsContent value="overview" className="mt-0">
+							<PlacementDetailOverviewTab detail={detail} />
+						</TabsContent>
+
+						<TabsContent value="compliance" className="mt-0">
+							<PlacementDetailComplianceTab placementId={placementId} />
+						</TabsContent>
+
+						<TabsContent value="offer-history" className="mt-0">
+							<PlacementDetailOfferHistoryTab placementId={placementId} />
+						</TabsContent>
+					</Tabs>
+				</CardContent>
+			</Card>
+
+			<Button variant="outline" asChild>
+				<Link href={timecardHref}>View Timecards</Link>
+			</Button>
+		</div>
+	);
+}

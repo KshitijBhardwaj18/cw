@@ -1,0 +1,25 @@
+export enum OrganizationType {
+	HOSPITAL_NETWORK = "HOSPITAL_NETWORK",
+	CLINIC = "CLINIC",
+	CORPORATE = "CORPORATE",
+	NON_PROFIT = "NON_PROFIT",
+	GOVERNMENT = "GOVERNMENT",
+}
+
+export enum LocationType {
+	HEADQUARTERS = "HEADQUARTERS",
+	BRANCH = "BRANCH",
+	SATELLITE = "SATELLITE",
+	REMOTE = "REMOTE",
+}
+
+export enum DepartmentType {
+	CLINICAL = "CLINICAL",
+	NON_CLINICAL = "NON_CLINICAL",
+	ADMINISTRATIVE = "ADMINISTRATIVE",
+}
+
+export enum OrganizationVendorStatus {
+	PENDING = "PENDING",
+	ACTIVE = "ACTIVE",
+}

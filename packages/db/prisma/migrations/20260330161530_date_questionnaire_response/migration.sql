@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "requisition_acceptance_criterion_requisitionId_complianceListIt" RENAME TO "requisition_acceptance_criterion_requisitionId_complianceLi_key";

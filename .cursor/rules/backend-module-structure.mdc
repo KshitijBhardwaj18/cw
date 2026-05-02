@@ -1,0 +1,119 @@
+---
+alwaysApply: true
+---
+# Backend Module Structure (Responsibility-Based)
+
+Split modules by **responsibility** (what the code does), not by audience (who calls it).
+
+## Folder Layout
+
+```
+<module>/
+├── <module>.module.ts
+├── controllers/
+│   ├── <module>.controller.ts                    ← core CRUD
+│   ├── <module>-<responsibility>.controller.ts   ← heavy sub-domain (5+ endpoints)
+│   ├── <module>-self.controller.ts               ← "my" data (actor-scoped reads)
+│   └── bulk-<module>.controller.ts               ← file upload, async jobs, SSE
+├── services/
+│   ├── <module>.service.ts                       ← shared queries + core logic
+│   ├── <module>-<responsibility>.service.ts      ← sub-domain logic
+│   └── bulk-<module>.service.ts                  ← batch processing
+└── dto/
+    ├── <module>.dto.ts                           ← base response + base input DTOs
+    ├── <module>-<responsibility>.dto.ts          ← sub-domain DTOs
+    ├── <audience>-<module>.dto.ts                ← audience-specific inputs (when shapes differ)
+    └── bulk-<module>.dto.ts                      ← batch DTOs
+```
+
+## When to Split
+
+```
+Sub-area has 5+ endpoints with distinct logic?
+  → Responsibility-split: controller + service  (e.g. placement-compliance)
+
+Just "my view" of the same data?
+  → Self-split: controller only, SAME service   (e.g. placement-self)
+
+File upload / async jobs / SSE streaming?
+  → Bulk-split: controller + service            (e.g. bulk-users)
+
+Audience has different input shape but same logic?
+  → Audience DTO only, no extra service          (e.g. vendor-user.dto.ts)
+
+Audience has different input shape AND different logic?
+  → Audience controller + service               (e.g. vendor-users)
+```
+
+### When NOT to Split
+
+- Controller has < 10 methods → one file
+- Sub-area has < 5 endpoints → keep in core controller
+- "Self" has 1-2 reads → keep in core controller
+- Bulk is just "loop and call create" → single endpoint in relevant controller
+
+## Examples
+
+### Placements (responsibility-split + self-split)
+
+```
+placements/
+  controllers/
+    placements.controller.ts              ← CRUD + notes + tasks + history
+    placement-compliance.controller.ts    ← submit/review/bulk-add compliance items
+    placement-self.controller.ts          ← "my placements" (candidate/vendor reads)
+  services/
+    placements.service.ts                 ← shared queries, core logic
+    placement-compliance.service.ts       ← compliance-specific logic
+  dto/
+    placement.dto.ts
+    placement-compliance.dto.ts
+```
+
+### Users (audience-split + bulk-split)
+
+```
+users/
+  controllers/
+    users.controller.ts                   ← common lookups (MSP options)
+    program-users.controller.ts           ← admin CRUD
+    vendor-users.controller.ts            ← vendor portal CRUD (different route, logic, DTOs)
+    bulk-users.controller.ts              ← CSV import, job streaming
+  services/
+    users.service.ts                      ← shared queries
+    program-users.service.ts              ← admin user logic + CASL checks
+    vendor-users.service.ts               ← vendor-scoped logic + actor resolution
+    bulk-users.service.ts                 ← file upload, background jobs
+  dto/
+    user.dto.ts                           ← base response + base input
+    program-user.dto.ts                   ← extends base (role, status, mspId)
+    vendor-user.dto.ts                    ← standalone (fullName, departmentId)
+    bulk-users.dto.ts                     ← wraps audience DTO in array
+```
+
+## Service Dependency Direction
+
+```
+bulk service       ──→ core service (reuses single-item methods)
+responsibility svc ──→ core service (shared queries/helpers)
+self controller    ──→ core service (direct, no intermediate service)
+audience service   ──→ core service + other domain services
+```
+
+Only the core service is exported from the module for cross-module use.
+
+## DTO Strategy
+
+- **Extend** base DTO when audience adds fields on top of the same shape
+- **Standalone** DTO when audience shape diverges (different field names/types)
+- **Query DTOs** extend `PaginatedQueryDto`; live in the sub-domain's DTO file
+
+## Authorization
+
+- **Controller**: `@Permissions({ action, subject })` — coarse CASL gate
+- **Service**: fine-grained rules — actor resolution, role assertions, self-action prevention
+- Subjects stay generic (`"User"`, `"Placement"`) — not per-responsibility or per-audience
+
+## Module Registration
+
+One `<module>.module.ts` registers all controllers/services. One import in `app.module.ts` per domain — no separate modules for sub-domains or audiences.

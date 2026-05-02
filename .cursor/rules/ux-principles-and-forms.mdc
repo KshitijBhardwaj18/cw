@@ -1,0 +1,773 @@
+---
+description: Use this rule, when you are designing the UI or forms, refer to this UX rules
+alwaysApply: false
+---
+## UX Design Principles
+
+### Button Hierarchy & Placement
+
+**Primary, Secondary, and Tertiary Actions**
+
+- **Primary Action**: One per screen, most prominent (filled button with primary color)
+- **Secondary Actions**: Supporting actions (outlined buttons)
+- **Tertiary Actions**: Less important (ghost/text buttons)
+
+```tsx
+// ✅ DO: Clear button hierarchy
+<div className="flex gap-3 justify-end">
+  <Button variant="ghost" onClick={onCancel}>
+    Cancel
+  </Button>
+  <Button variant="outline" onClick={onSaveDraft}>
+    Save Draft
+  </Button>
+  <Button onClick={onPublish}>
+    Publish
+  </Button>
+</div>
+
+// ❌ DON'T: All buttons look the same
+<div className="flex gap-3">
+  <Button>Cancel</Button>
+  <Button>Save Draft</Button>
+  <Button>Publish</Button>
+</div>
+```
+
+**Button Placement Rules**
+
+- Place primary actions on the **right** in dialogs/forms (natural reading flow)
+- Destructive actions should be **separated** or require confirmation
+- Group related actions together
+- Use consistent placement across the app
+- Mobile: Full-width buttons at bottom, primary action on top
+
+```tsx
+// ✅ DO: Proper destructive action handling
+<AlertDialog>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Delete Account</AlertDialogTitle>
+      <AlertDialogDescription>
+        This action cannot be undone. This will permanently delete your account.
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <AlertDialogAction 
+        className="bg-destructive text-destructive-foreground"
+        onClick={onDelete}
+      >
+        Delete Account
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+```
+
+### Call-to-Action (CTA) Best Practices
+
+**CTA Copy Guidelines**
+
+- Use **action verbs** (Create, Start, Get, Join, etc.)
+- Be **specific** about what happens (not just "Submit" or "Click Here")
+- Keep it **short** (1-3 words)
+- Create **urgency** when appropriate (limited time/spots)
+- Use **first person** for personal actions ("Create My Account" vs "Create Account")
+
+```tsx
+// ✅ DO: Clear, action-oriented CTAs
+<Button>Start Free Trial</Button>
+<Button>Create Project</Button>
+<Button>Download Report</Button>
+<Button>Invite Team Members</Button>
+
+// ❌ DON'T: Vague or passive CTAs
+<Button>Submit</Button>
+<Button>Click Here</Button>
+<Button>Continue</Button>
+<Button>OK</Button>
+```
+
+**CTA Visibility**
+
+- Primary CTAs should be **immediately visible** without scrolling (above the fold)
+- Use **contrasting colors** that stand out from the background
+- Ensure adequate **size** (min 44x44px touch target on mobile)
+- Add appropriate **spacing** around CTAs (not cluttered)
+
+```tsx
+// ✅ DO: Prominent CTA with proper spacing
+<div className="container max-w-4xl py-12">
+  <div className="space-y-8">
+    <div className="space-y-4 text-center">
+      <h1 className="text-4xl font-bold">Ready to get started?</h1>
+      <p className="text-lg text-muted-foreground">
+        Join thousands of teams already using our platform
+      </p>
+    </div>
+    
+    <div className="flex justify-center">
+      <Button size="lg" className="min-w-[200px]">
+        Start Free Trial
+      </Button>
+    </div>
+  </div>
+</div>
+```
+
+### Form UX
+
+**TanStack Form Standards**
+
+- Use TanStack Form + Zod for all forms
+- Follow shadcn TanStack Form patterns: https://ui.shadcn.com/docs/forms/tanstack-form
+- Use `useForm` with `validators` and `form.Field` render props
+- Prefer `onBlur` validation; keep `onSubmit` validation for final checks
+- Always set `data-invalid` on `<Field />` and `aria-invalid` on controls
+- Use `FieldGroup`, `FieldLabel`, `FieldDescription`, `FieldError` for structure
+- Use `mode="array"` for arrays and `pushValue/removeValue` helpers
+
+**Field Organization**
+
+- Group related fields together with clear sections
+- Show only **essential fields** initially (progressive disclosure)
+- Use single-column layouts for forms (easier to scan)
+- Place labels **above** fields (better for mobile)
+- Show field requirements **upfront** (not after error)
+
+```tsx
+// ✅ DO: Well-organized form with clear sections
+<form
+  onSubmit={(e) => {
+    e.preventDefault()
+    form.handleSubmit()
+  }}
+  className="space-y-8"
+>
+  <div className="space-y-4">
+    <h3 className="text-lg font-semibold">Personal Information</h3>
+
+    <FieldGroup>
+      <form.Field
+        name="fullName"
+        children={(field) => {
+          const isInvalid =
+            field.state.meta.isTouched && !field.state.meta.isValid
+          return (
+            <Field data-invalid={isInvalid}>
+              <FieldLabel htmlFor={field.name}>Full Name</FieldLabel>
+              <Input
+                id={field.name}
+                name={field.name}
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                aria-invalid={isInvalid}
+                placeholder="John Doe"
+              />
+              {isInvalid && <FieldError errors={field.state.meta.errors} />}
+            </Field>
+          )
+        }}
+      />
+
+      <form.Field
+        name="email"
+        children={(field) => {
+          const isInvalid =
+            field.state.meta.isTouched && !field.state.meta.isValid
+          return (
+            <Field data-invalid={isInvalid}>
+              <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+              <Input
+                id={field.name}
+                name={field.name}
+                type="email"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                aria-invalid={isInvalid}
+                placeholder="john@example.com"
+              />
+              <FieldDescription>
+                We'll never share your email with anyone else.
+              </FieldDescription>
+              {isInvalid && <FieldError errors={field.state.meta.errors} />}
+            </Field>
+          )
+        }}
+      />
+    </FieldGroup>
+  </div>
+
+  <Separator />
+
+  <div className="space-y-4">
+    <h3 className="text-lg font-semibold">Account Settings</h3>
+    {/* More fields */}
+  </div>
+
+  <div className="flex justify-end gap-3">
+    <Button type="button" variant="outline" onClick={onCancel}>
+      Cancel
+    </Button>
+    <Button type="submit" disabled={form.state.isSubmitting}>
+      {form.state.isSubmitting ? 'Creating Account...' : 'Create Account'}
+    </Button>
+  </div>
+</form>
+```
+
+**Real-time Validation & Feedback**
+
+- Validate **on blur** for most fields (not while typing)
+- Show **success states** for valid fields when appropriate
+- Provide **helpful error messages** (not just "Invalid")
+- Show password strength indicators
+- Display character counts for limited fields
+
+```tsx
+// ✅ DO: Helpful validation feedback
+<form.Field
+  name="username"
+  children={(field) => {
+    const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid
+    return (
+      <Field data-invalid={isInvalid}>
+        <FieldLabel htmlFor={field.name}>Username</FieldLabel>
+        <div className="relative">
+          <Input
+            id={field.name}
+            name={field.name}
+            value={field.state.value}
+            onBlur={field.handleBlur}
+            onChange={(e) => field.handleChange(e.target.value)}
+            aria-invalid={isInvalid}
+          />
+          {field.state.value && !isInvalid && (
+            <CheckCircle className="absolute right-3 top-3 h-4 w-4 text-green-500" />
+          )}
+        </div>
+        <FieldDescription>
+          3-20 characters, letters and numbers only
+        </FieldDescription>
+        {isInvalid && <FieldError errors={field.state.meta.errors} />}
+      </Field>
+    )
+  }}
+/>
+```
+
+### Feedback & States
+
+**User Feedback Patterns**
+
+- Always provide **immediate feedback** for user actions
+- Use **toast notifications** for success/error messages
+- Show **loading states** during async operations
+- Display **progress indicators** for multi-step processes
+- Provide **empty states** with helpful guidance
+
+```tsx
+// ✅ DO: Comprehensive feedback handling
+import { toast } from 'sonner';
+
+const handleSave = async () => {
+  try {
+    setIsLoading(true);
+    await saveDraft();
+    toast.success('Draft saved successfully');
+  } catch (error) {
+    toast.error('Failed to save draft. Please try again.');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+// Empty state example
+{items.length === 0 ? (
+  <div className="flex flex-col items-center justify-center py-12 text-center">
+    <FileQuestion className="h-12 w-12 text-muted-foreground mb-4" />
+    <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
+    <p className="text-sm text-muted-foreground mb-6">
+      Get started by creating your first project
+    </p>
+    <Button onClick={onCreateProject}>
+      <Plus className="h-4 w-4 mr-2" />
+      Create Project
+    </Button>
+  </div>
+) : (
+  <ProjectList items={items} />
+)}
+```
+
+**Loading States**
+
+- Use **skeleton screens** to maintain layout (prevents content jump)
+- Show **progress percentages** for long operations
+- Keep users informed with **status messages**
+- Allow **cancellation** of long-running operations when possible
+- Never block the entire UI unless absolutely necessary
+
+```tsx
+// ✅ DO: Non-blocking loading with context
+<Card>
+  <CardHeader>
+    <CardTitle>Recent Activity</CardTitle>
+  </CardHeader>
+  <CardContent>
+    {isLoading ? (
+      <div className="space-y-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="flex items-center space-x-4">
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <ActivityList items={activities} />
+    )}
+  </CardContent>
+</Card>
+```
+
+### Navigation & Information Architecture
+
+**Navigation Patterns**
+
+- Keep navigation **consistent** across all pages
+- Highlight **current location** (active states)
+- Use **breadcrumbs** for deep hierarchies
+- Provide **clear exit points** from flows
+- Make important actions **easily accessible** (max 2 clicks)
+
+```tsx
+// ✅ DO: Clear navigation with active states
+<nav className="flex items-center space-x-1">
+  <NavigationMenu>
+    <NavigationMenuList>
+      <NavigationMenuItem>
+        <Link href="/dashboard" className={cn(
+          "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+          pathname === "/dashboard" 
+            ? "bg-accent text-accent-foreground" 
+            : "text-muted-foreground hover:text-foreground"
+        )}>
+          Dashboard
+        </Link>
+      </NavigationMenuItem>
+      <NavigationMenuItem>
+        <Link href="/projects" className={cn(
+          "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+          pathname.startsWith("/projects")
+            ? "bg-accent text-accent-foreground"
+            : "text-muted-foreground hover:text-foreground"
+        )}>
+          Projects
+        </Link>
+      </NavigationMenuItem>
+    </NavigationMenuList>
+  </NavigationMenu>
+</nav>
+
+// Breadcrumbs for deep navigation
+<Breadcrumb>
+  <BreadcrumbList>
+    <BreadcrumbItem>
+      <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+    </BreadcrumbItem>
+    <BreadcrumbSeparator />
+    <BreadcrumbItem>
+      <BreadcrumbLink href="/projects">Projects</BreadcrumbLink>
+    </BreadcrumbItem>
+    <BreadcrumbSeparator />
+    <BreadcrumbItem>
+      <BreadcrumbPage>Project Settings</BreadcrumbPage>
+    </BreadcrumbItem>
+  </BreadcrumbList>
+</Breadcrumb>
+```
+
+### Content Hierarchy & Typography
+
+**Visual Hierarchy**
+
+- Use size, weight, and color to establish **importance**
+- Maintain consistent **heading levels** (h1 → h2 → h3)
+- Keep **line length** readable (45-75 characters)
+- Use adequate **line height** (1.5-1.7 for body text)
+- Implement proper **spacing** between sections
+
+```tsx
+// ✅ DO: Clear visual hierarchy
+<div className="space-y-8">
+  <div className="space-y-2">
+    <h1 className="text-4xl font-bold tracking-tight">Page Title</h1>
+    <p className="text-lg text-muted-foreground">
+      Brief description or subtitle providing context
+    </p>
+  </div>
+
+  <Separator />
+
+  <div className="space-y-6">
+    <div className="space-y-4">
+      <h2 className="text-2xl font-semibold">Section Heading</h2>
+      <p className="text-muted-foreground leading-relaxed">
+        Body content with proper line height and spacing for optimal readability.
+        This text should be easy to scan and digest.
+      </p>
+    </div>
+
+    <div className="space-y-4">
+      <h3 className="text-xl font-semibold">Subsection</h3>
+      <p className="text-muted-foreground leading-relaxed">
+        More detailed content...
+      </p>
+    </div>
+  </div>
+</div>
+```
+
+### Interactive Elements
+
+**Hover & Focus States**
+
+- Always provide **clear hover states** for interactive elements
+- Ensure **focus indicators** are visible for keyboard navigation
+- Use **cursor changes** to indicate interactivity (`cursor-pointer`)
+- Add **smooth transitions** for state changes
+- Maintain **adequate touch targets** (min 44x44px on mobile)
+
+```tsx
+// ✅ DO: Clear interactive states
+<Card 
+  className="transition-all hover:shadow-lg hover:border-primary cursor-pointer focus-within:ring-2 focus-within:ring-primary"
+  onClick={onClick}
+  tabIndex={0}
+  onKeyDown={(e) => e.key === 'Enter' && onClick()}
+>
+  <CardContent className="p-6">
+    <h3 className="font-semibold group-hover:text-primary transition-colors">
+      Interactive Card
+    </h3>
+  </CardContent>
+</Card>
+```
+
+**Disabled States**
+
+- Clearly indicate **disabled state** with reduced opacity
+- Provide **tooltip explanation** for why something is disabled
+- Consider using **helpful error messages** instead of just disabling
+- Never disable without communicating why
+
+```tsx
+// ✅ DO: Disabled state with explanation
+<TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <div>
+        <Button disabled={!hasPermission} className="w-full">
+          Delete Project
+        </Button>
+      </div>
+    </TooltipTrigger>
+    {!hasPermission && (
+      <TooltipContent>
+        <p>You don't have permission to delete this project</p>
+      </TooltipContent>
+    )}
+  </Tooltip>
+</TooltipProvider>
+```
+
+### Error Handling & Recovery
+
+**Error Messages**
+
+- Write **human-friendly** error messages (avoid technical jargon)
+- Explain **what went wrong** and **how to fix it**
+- Provide **actionable next steps**
+- Use appropriate **error severity** (info, warning, error)
+- Show errors **inline** near the relevant field/section
+
+```tsx
+// ✅ DO: Helpful error messages
+{error && (
+  <Alert variant="destructive">
+    <AlertCircle className="h-4 w-4" />
+    <AlertTitle>Unable to save changes</AlertTitle>
+    <AlertDescription className="space-y-2">
+      <p>Your session has expired. Please sign in again to continue.</p>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={() => router.push('/sign-in')}
+      >
+        Sign In
+      </Button>
+    </AlertDescription>
+  </Alert>
+)}
+
+// ❌ DON'T: Cryptic error messages
+{error && (
+  <div className="text-red-500">
+    Error 401: Unauthorized
+  </div>
+)}
+```
+
+**Recovery Options**
+
+- Always provide a **way forward** after an error
+- Offer **retry** functionality for failed operations
+- Preserve **user input** when errors occur
+- Provide **help links** or support contact when appropriate
+
+```tsx
+// ✅ DO: Error with recovery options
+{error && (
+  <div className="flex flex-col items-center justify-center py-12 space-y-4">
+    <AlertCircle className="h-12 w-12 text-destructive" />
+    <div className="text-center space-y-2">
+      <h3 className="font-semibold">Failed to load projects</h3>
+      <p className="text-sm text-muted-foreground">
+        We couldn't load your projects. This might be a temporary issue.
+      </p>
+    </div>
+    <div className="flex gap-3">
+      <Button variant="outline" onClick={onRetry}>
+        Try Again
+      </Button>
+      <Button variant="ghost" onClick={onContactSupport}>
+        Contact Support
+      </Button>
+    </div>
+  </div>
+)}
+```
+
+### Mobile-First & Responsive Design
+
+**Mobile Considerations**
+
+- Design for **mobile first**, then enhance for desktop
+- Use **full-width buttons** on mobile when appropriate
+- Ensure **adequate spacing** for touch targets (44x44px minimum)
+- Make **navigation accessible** with hamburger menu when needed
+- Stack elements **vertically** on mobile, horizontal on desktop
+
+```tsx
+// ✅ DO: Responsive layout with mobile-first approach
+<div className="space-y-6">
+  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-1">
+      <h2 className="text-2xl font-semibold">Projects</h2>
+      <p className="text-sm text-muted-foreground">
+        Manage your projects and settings
+      </p>
+    </div>
+    <Button className="w-full sm:w-auto">
+      <Plus className="h-4 w-4 mr-2" />
+      New Project
+    </Button>
+  </div>
+
+  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {projects.map((project) => (
+      <ProjectCard key={project.id} project={project} />
+    ))}
+  </div>
+</div>
+```
+
+### Accessibility (A11y)
+
+**ARIA & Semantic HTML**
+
+- Use **semantic HTML** elements (button, nav, main, article)
+- Add **ARIA labels** for screen readers when needed
+- Ensure **keyboard navigation** works everywhere
+- Provide **alt text** for all images
+- Maintain proper **heading hierarchy**
+
+```tsx
+// ✅ DO: Accessible interactive elements
+<button
+  onClick={onClose}
+  aria-label="Close dialog"
+  className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100"
+>
+  <X className="h-4 w-4" />
+  <span className="sr-only">Close</span>
+</button>
+
+// Accessible form with proper labels
+<form.Field
+  name="email"
+  children={(field) => {
+    const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid
+    return (
+      <Field data-invalid={isInvalid}>
+        <FieldLabel htmlFor={field.name}>Email Address</FieldLabel>
+        <Input
+          id={field.name}
+          name={field.name}
+          type="email"
+          autoComplete="email"
+          value={field.state.value}
+          onBlur={field.handleBlur}
+          onChange={(e) => field.handleChange(e.target.value)}
+          aria-describedby={`${field.name}-description ${field.name}-error`}
+          aria-invalid={isInvalid}
+        />
+        <FieldDescription id={`${field.name}-description`}>
+          We'll use this to contact you
+        </FieldDescription>
+        {isInvalid && (
+          <FieldError id={`${field.name}-error`} errors={field.state.meta.errors} />
+        )}
+      </Field>
+    )
+  }}
+/>
+```
+
+### Confirmation & Destructive Actions
+
+**Confirmation Dialogs**
+
+- Always **confirm destructive actions** (delete, remove, etc.)
+- Clearly state **what will be affected**
+- Explain **consequences** (e.g., "This cannot be undone")
+- Make users **type to confirm** for critical actions
+- Use **appropriate button colors** (destructive red for delete)
+
+```tsx
+// ✅ DO: Proper confirmation for destructive action
+<AlertDialog>
+  <AlertDialogTrigger asChild>
+    <Button variant="destructive" size="sm">
+      <Trash2 className="h-4 w-4 mr-2" />
+      Delete Project
+    </Button>
+  </AlertDialogTrigger>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+      <AlertDialogDescription className="space-y-2">
+        <p>
+          This will permanently delete the <strong>{projectName}</strong> project
+          and all of its data.
+        </p>
+        <p className="text-destructive font-medium">
+          This action cannot be undone.
+        </p>
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <AlertDialogAction
+        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+        onClick={onDelete}
+      >
+        Delete Project
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+```
+
+### Progressive Disclosure
+
+**Show Information Gradually**
+
+- Don't **overwhelm users** with all options at once
+- Use **accordions** for optional/advanced settings
+- Implement **multi-step forms** for complex processes
+- Show **tooltips** for additional context
+- Use **"Show more"** patterns for long lists
+
+```tsx
+// ✅ DO: Progressive disclosure with accordion
+<Accordion type="single" collapsible>
+  <AccordionItem value="basic">
+    <AccordionTrigger>Basic Settings</AccordionTrigger>
+    <AccordionContent>
+      {/* Essential settings */}
+    </AccordionContent>
+  </AccordionItem>
+  
+  <AccordionItem value="advanced">
+    <AccordionTrigger>
+      <div className="flex items-center gap-2">
+        Advanced Settings
+        <Badge variant="outline" className="text-xs">Optional</Badge>
+      </div>
+    </AccordionTrigger>
+    <AccordionContent>
+      {/* Advanced options */}
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+```
+
+### Micro-interactions & Animations
+
+**Purposeful Animations**
+
+- Use animations to **guide attention** and provide feedback
+- Keep animations **subtle and fast** (150-300ms)
+- Animate **meaningful transitions** (page changes, state updates)
+- Provide **reduced motion** option for accessibility
+- Never animate just for decoration
+
+```tsx
+// ✅ DO: Purposeful micro-interactions
+<Button
+  className={cn(
+    "transition-all duration-200",
+    "hover:scale-105 active:scale-95",
+    "hover:shadow-md"
+  )}
+  onClick={onSave}
+>
+  Save Changes
+</Button>
+
+// Animate list items
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  exit={{ opacity: 0, y: -20 }}
+  transition={{ duration: 0.2 }}
+>
+  <Card>{/* content */}</Card>
+</motion.div>
+```
+
+## Best Practices
+
+1. **Use shadcn/ui components** wherever applicable
+2. **Follow the existing component structure** in the project
+3. **Use semantic HTML** and ARIA attributes for accessibility
+4. **Optimize images** with Next.js Image component
+5. **Use server components** by default, client components when needed
+6. **Implement error boundaries** for error handling
+7. **Follow ESLint rules** and Prettier formatting
+8. **Write self-documenting code** with clear naming
+9. **Keep components small** (< 200 lines ideally)
+10. **Extract complex logic** into hooks or utility functions
+11. **Design mobile-first** and enhance progressively for larger screens
+12. **Always provide user feedback** for actions and state changes
+13. **Use clear visual hierarchy** with proper typography and spacing
+14. **Make interactive elements obviously clickable** with proper states
+15. **Confirm destructive actions** and provide recovery options

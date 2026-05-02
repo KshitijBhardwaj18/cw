@@ -1,0 +1,1668 @@
+// =============================================================================
+// Workforce Management - dbdiagram.io Schema (DBML)
+// =============================================================================
+// Based on: packages/db/prisma/schema.prisma + vendor.sql, candidate.sql, adin.sql, Org.sql
+// Best practices: UUID PKs, indexed FKs, explicit refs, extensible for jobs/submissions/placements
+// =============================================================================
+
+Project workforce_schema {
+  database_type: 'PostgreSQL'
+  Note: 'Workforce management: orgs, vendors, MSP, compliance, questionnaires. Extensible to requisitions, submissions, placements.'
+}
+
+// =============================================================================
+// ENUMS (DBML doesn't support enums; use note on columns)
+// =============================================================================
+
+// =============================================================================
+// CORE: Auth & Users
+// =============================================================================
+
+Table user {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  name varchar(255) [not null]
+  email varchar(255) [not null, unique]
+  email_verified boolean [default: false]
+  image varchar(500)
+  role varchar(50) [not null, note: 'UserRole: SUPER_ADMIN, GENERAL_ADMIN, CANDIDATE_USER, etc.']
+  status varchar(20) [default: 'ACTIVE', note: 'UserStatus']
+  title varchar(255)
+  phone_number varchar(50)
+  office_phone varchar(50)
+  time_zone varchar(100)
+  msp_id uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  Note: 'Platform users: program, vendor, org, candidate'
+}
+
+Table session {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  expires_at timestamp [not null]
+  token varchar(500) [not null, unique]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  ip_address varchar(45)
+  user_agent text
+  user_id uuid [not null]
+  active_organization_id uuid
+}
+
+Table account {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  account_id varchar(255) [not null]
+  provider_id varchar(255) [not null]
+  user_id uuid [not null]
+  access_token text
+  refresh_token text
+  id_token text
+  access_token_expires_at timestamp
+  refresh_token_expires_at timestamp
+  scope varchar(255)
+  password varchar(255)
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table verification {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  identifier varchar(255) [not null]
+  value text [not null]
+  expires_at timestamp [not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// CORE: Organizations & Structure
+// =============================================================================
+
+Table organization {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  name varchar(255) [not null]
+  slug varchar(255) [not null, unique]
+  email varchar(255) [not null]
+  phone varchar(50) [not null]
+  industry varchar(50) [not null, note: 'OrganizationIndustry']
+  organization_type varchar(50) [not null, note: 'OrganizationType']
+  timezone varchar(50) [not null, note: 'OrganizationTimezone']
+  website varchar(500)
+  logo varchar(500)
+  metadata text
+  service_agreement text
+  description text
+  agreement_renewal_date timestamp
+  is_active boolean [default: true]
+  expected_annual_spend decimal(15,2)
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table organization_location {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  name varchar(255) [not null]
+  address varchar(500) [not null]
+  city varchar(100) [not null]
+  state varchar(50) [not null]
+  zip_code varchar(20) [not null]
+  location_type varchar(50) [not null, note: 'HEADQUARTERS, BRANCH, SATELLITE, REMOTE']
+  phone varchar(50)
+  email varchar(255)
+  cost_center varchar(100)
+  photo_url varchar(500)
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table department {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  location_id uuid [not null]
+  name varchar(255) [not null]
+  department_type varchar(50) [not null, note: 'CLINICAL, NON_CLINICAL, ADMINISTRATIVE']
+  cost_center varchar(100)
+  organization_occupation_id uuid
+  organization_specialty_id uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table member {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  user_id uuid [not null]
+  role varchar(50) [not null, note: 'MemberRole']
+  status varchar(20) [default: 'ACTIVE']
+  last_invite_status varchar(20) [default: 'NOT_SENT']
+  last_invite_at timestamp
+  last_invite_scheduled_for timestamp
+  last_invite_job_id uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table department_user {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  department_id uuid [not null]
+  user_id uuid [not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table department_timekeeping_approver {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  department_id uuid [not null]
+  user_id uuid [not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// VENDORS & MSP
+// =============================================================================
+
+Table address {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  street varchar(255) [not null]
+  city varchar(100) [not null]
+  state varchar(50) [not null]
+  zip_code varchar(20) [not null]
+  country varchar(100) [not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table vendor {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  logo varchar(500)
+  name varchar(255) [not null]
+  industries varchar(50) [note: 'OrganizationIndustry[]']
+  certified_business_classifications varchar(50) [note: 'CertifiedBusinessClassification[]']
+  about text
+  is_active boolean [default: true]
+  tax_id varchar(50)
+  phone_number varchar(50)
+  website varchar(500)
+  address_id uuid
+  annual_revenue decimal(15,2)
+  employee_count integer
+  internal_id varchar(100) [not null, unique]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table organization_vendor {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  vendor_id uuid [not null]
+  status varchar(20) [default: 'PENDING', note: 'PENDING, ACTIVE']
+  start_date timestamp
+  contract_document_key varchar(255)
+  contract_file_name varchar(255)
+  notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table vendor_user {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [not null, unique]
+  vendor_id uuid [not null]
+  role varchar(50) [not null, note: 'VENDOR_MANAGER, VENDOR_USER, VENDOR_VIEW_ONLY']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table msp {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  name varchar(255) [not null]
+  logo varchar(500)
+  industry varchar(50) [not null]
+  organization_type varchar(50) [not null, note: 'MSPOrganizationType']
+  headquarters_id uuid [not null]
+  billing_id uuid
+  is_billing_same boolean [default: true]
+  phone_number varchar(50) [not null]
+  timezone varchar(50) [not null]
+  msa_document varchar(500) [not null]
+  msa_file_name varchar(255)
+  msa_uploaded_at timestamp
+  msa_agreement_revision_date timestamp
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table msp_linked_orgs {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  msp_id uuid [not null]
+  organization_id uuid [not null]
+  addendum_agreement varchar(500) [not null]
+  start_date timestamp [not null]
+  renewal_date timestamp [not null]
+  possible_cancellation_date timestamp
+  msp_fee_percentage decimal(5,2) [not null]
+  saas_fee_percentage decimal(5,2) [not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// OCCUPATIONS & SPECIALTIES
+// =============================================================================
+
+Table occupation {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  name varchar(255) [not null]
+  code varchar(50) [not null]
+  industry varchar(50)
+  acronym varchar(50) [not null]
+  description text
+  status varchar(20) [default: 'ACTIVE']
+  has_specialty boolean [default: false]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table specialty {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  acronym varchar(50) [not null]
+  name varchar(255) [not null]
+  group varchar(100)
+  description text
+  status varchar(20) [default: 'ACTIVE']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Occupation-Specialty many-to-many (implicit in Prisma via relation table)
+Table occupation_specialties {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  occupation_id uuid [not null]
+  specialty_id uuid [not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table organization_occupation {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  occupation_id uuid [not null]
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table organization_specialty {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  specialty_id uuid [not null]
+  organization_occupation_id uuid [not null]
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table vendor_occupation_specialization {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  vendor_id uuid [not null]
+  occupation_id uuid [not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// COMPLIANCE
+// =============================================================================
+
+Table compliance_list_item {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  name varchar(255) [not null]
+  category varchar(50) [not null]
+  expiration_type varchar(50) [not null]
+  expiration_rule_value integer
+  expiration_rule_unit varchar(20)
+  issuer_requirement boolean [default: false]
+  issuer varchar(255)
+  response_style varchar(50) [not null]
+  file varchar(500)
+  instructional_notes text
+  display_to_candidate boolean [not null]
+  status varchar(20) [default: 'ACTIVE']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table compliance_wallet_template {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  organization_occupation_id uuid [not null]
+  organization_specialty_id uuid
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table compliance_wallet_template_item {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  compliance_wallet_template_id uuid [not null]
+  compliance_list_item_id uuid [not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// QUESTIONNAIRES & TAGGING
+// =============================================================================
+
+// =============================================================================
+
+Table tag {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  name varchar(255) [not null]
+  type varchar(50) [not null, note: 'TagType: SKILL | COMPLIANCE | AVAILABILITY | PRIORITY | FLAG']
+  description text
+  show_on_submission boolean [not null]
+  status varchar(20) [not null, default: 'ACTIVE', note: 'ACTIVE | INACTIVE']
+  created_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table questionnaire {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  active boolean [default: true]
+  organization_id uuid [not null]
+  occupation_id uuid [unique]
+  specialty_id uuid [unique]
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table question {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  order integer
+  question_text text [not null]
+  type varchar(50) [default: 'TEXT']
+  options text [note: 'String[]']
+  required boolean [default: false]
+  include_in_submission boolean [default: true]
+  questionnaire_id uuid [not null]
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table tagging_rule {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  rule_name varchar(255) [not null]
+  category varchar(100) [not null]
+  active boolean [default: true]
+  show_on_submission boolean [default: true]
+  tag_id uuid [not null]
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table tagging_rule_question {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  tagging_rule_id uuid [not null]
+  question_id uuid [not null]
+  condition varchar(50) [not null, note: 'ConditionType']
+  trigger_value varchar(255) [not null]
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table matching_criterion {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  name varchar(255) [not null, unique]
+  description text
+}
+
+Table matching_logic {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  active boolean [default: true]
+  weight integer [default: 0]
+  matching_criterion_id uuid [not null]
+  organization_id uuid [not null]
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// DOCUMENTS & NOTES
+// =============================================================================
+
+Table document {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  name varchar(255) [not null]
+  type varchar(50) [not null, note: 'DocumentType']
+  description text
+  url varchar(500) [not null]
+  uploaded_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  uploaded_by uuid
+  msp_id uuid
+  vendor_id uuid
+  organization_id uuid
+}
+
+Table note {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  type varchar(50) [not null, note: 'NoteType']
+  notes text [not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  created_by uuid
+  msp_id uuid
+  vendor_id uuid
+  organization_id uuid
+}
+
+// =============================================================================
+// EXTENSIBLE: Requisitions / Jobs (from Org.sql, vendor.sql, adin.sql)
+// =============================================================================
+
+// 5-step wizard: Template Details → Shift & Schedule → Compensation → Compliance Checklist → Submission Rules
+Table requisition_template {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+
+  // ── Step 1: Template Details ───────────────────────────────────────────────
+  type varchar(50) [not null, note: 'long_term_order | per_diem | permanent_role | internal_flex_pool']
+  template_name varchar(255) [not null]
+  occupation_id uuid [not null]
+  specialty_id uuid [not null]
+  location_id uuid [not null]
+  department_id uuid [not null]
+  unit_name varchar(255) [note: 'e.g. ICU - Night Unit']
+  job_description text [not null]
+  benefits_perks text [note: 'TEXT[] — free-type tags']
+  status varchar(20) [default: 'draft', note: 'draft | active | inactive']
+
+  // ── Step 2: Shift & Schedule ───────────────────────────────────────────────
+  start_date date
+  end_date date
+  length_weeks integer
+  start_time time
+  end_time time
+  shift_type varchar(50) [note: 'standard | per_diem | overtime | on_call | holiday | weekend']
+  shift_hours decimal(5,2)
+  shifts_per_week integer
+  hours_per_week decimal(5,2)
+
+  // ── Step 3: Compensation & Hiring ─────────────────────────────────────────
+  bill_rate decimal(10,2) [note: 'per hour']
+  number_of_positions integer [default: 1]
+  incentive_type varchar(255)
+  incentive_amount decimal(10,2)
+  interview_required varchar(50) [note: 'required_client | required_program | not_required']
+  hiring_manager_id uuid
+
+  // ── Step 4: Compliance Checklist ──────────────────────────────────────────
+  compliance_checklist_id uuid [note: 'FK to compliance_checklists']
+
+  // ── Step 5: Submission Rules & Approval ───────────────────────────────────
+  requires_approval boolean [default: false, note: 'false = auto-publish; true = needs approval']
+  workflow_type varchar(50) [note: 'vendor_candidate_submission | direct_submission | etc.']
+  who_can_submit varchar(30) [default: 'all_vendors', note: 'all_vendors | selected_vendors']
+  internal_notes text
+
+  // ── Metadata ──────────────────────────────────────────────────────────────
+  usage_count integer [default: 0]
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Selected vendors allowed to submit (only populated when who_can_submit = 'selected_vendors')
+Table requisition_template_vendor {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  template_id uuid [not null]
+  vendor_id uuid [not null]
+  created_at timestamp [default: `now()`]
+}
+
+// 6-step wizard: Requisition Type → Select Template → Job Details → Submission Settings → Publish Settings → Review & Confirm
+Table requisition {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  requisition_number varchar(50) [not null]
+
+  // ── Step 1: Requisition Type ───────────────────────────────────────────────
+  type varchar(50) [not null, note: 'long_term_order | per_diem | permanent_role | internal_flex_pool']
+
+  // ── Step 2: Select Template ────────────────────────────────────────────────
+  template_id uuid [not null]
+
+  // ── Step 3: Job Details ────────────────────────────────────────────────────
+  job_title varchar(255) [not null]
+  occupation_id uuid
+  specialty_id uuid
+  department_id uuid
+  location_id uuid
+  unit_name varchar(255)
+  hiring_manager_id uuid
+  number_of_positions integer [default: 1]
+  positions_filled integer [default: 0]
+  job_summary text
+  bill_rate decimal(10,2)
+  shift_type varchar(50)
+  start_date date
+  end_date date
+  length_weeks integer
+  shift_hours decimal(5,2)
+  shifts_per_week integer
+  hours_per_week decimal(5,2)
+  benefits_perks text [note: 'TEXT[]']
+
+  // ── Step 4: Submission Settings ────────────────────────────────────────────
+  compliance_checklist_id uuid [note: 'overrides template default if set']
+  requires_approval boolean [default: false]
+  workflow_type varchar(50) [note: 'vendor_candidate_submission | direct_submission']
+  who_can_submit varchar(30) [default: 'all_vendors', note: 'all_vendors | selected_vendors']
+  internal_notes text
+
+  // ── Step 5: Publish Settings ───────────────────────────────────────────────
+  publish_mode varchar(30) [default: 'draft', note: 'draft | publish_immediately | scheduled']
+  scheduled_publish_at timestamp [note: 'set when publish_mode = scheduled']
+  published_at timestamp [note: 'actual timestamp when requisition went live']
+
+  // ── Lifecycle & Approval ───────────────────────────────────────────────────
+  status varchar(50) [default: 'draft', note: 'draft | pending_approval | approved | published | active | on_hold | filled | cancelled | closed']
+  approved_by uuid
+  approved_at timestamp
+  total_submissions integer [default: 0]
+  qualified_candidates integer [default: 0]
+  project_id uuid
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Selected vendors for a specific requisition (when who_can_submit = 'selected_vendors')
+Table requisition_vendor {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  requisition_id uuid [not null]
+  vendor_id uuid [not null]
+  created_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// EXTENSIBLE: Candidates (talent community)
+// =============================================================================
+
+Table candidate {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  user_id uuid
+  first_name varchar(100) [not null]
+  last_name varchar(100) [not null]
+  email varchar(255) [not null]
+  phone varchar(50)
+  occupation_id uuid
+  street_address varchar(255)
+  years_of_experience integer
+  workforce_type varchar(50) [note: 'internal_full_time | internal_part_time | internal_prn | external_vendor_lto | external_vendor_per_diem']
+  workforce_group varchar(255) [note: 'e.g. Nursing Staff, Rehabilitation Team']
+  vendor_id uuid [note: 'FK to vendor — populated for external/vendor candidates; null for internal']
+  source varchar(100) [note: 'direct | vendor | previous_worker — shown in Add Existing Talent modal']
+  city varchar(100)
+  state varchar(50)
+  zip_code varchar(20)
+  willing_to_relocate boolean [default: false]
+  resume_url varchar(500)
+  portfolio_url varchar(500)
+  linkedin_url varchar(500)
+  bio text
+  avatar_url varchar(500)
+  skills text [note: 'freeform skill labels stored as PostgreSQL text[]; no FK target']
+  languages text [note: 'freeform language labels stored as PostgreSQL text[]']
+  preferred_shift_types text [note: 'shift type preferences e.g. day,night stored as text[]']
+  desired_bill_rate decimal(10,2)
+  is_active boolean [default: true]
+  is_available boolean [default: true]
+  available_from date
+  source_details text
+
+  // ── Invite flow (Invited Candidates tab) ──────────────────────────────────
+  invite_status varchar(20) [note: 'pending | accepted | expired — null for non-invited candidates']
+  invited_at timestamp
+  invited_by uuid [note: 'FK to user who sent the invite']
+  invite_token varchar(255) [note: 'secure token for the invite email link']
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Candidate → Specialty many-to-many
+Table candidate_specialties {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  candidate_id uuid [not null]
+  specialty_id uuid [not null]
+  created_at timestamp [default: `now()`]
+}
+
+// Candidate → Tag many-to-many (replaces tags text[] on candidate)
+Table candidate_tags {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  candidate_id uuid [not null]
+  tag_id uuid [not null]
+  created_at timestamp [default: `now()`]
+}
+
+// Candidate preferred locations — replaces preferred_locations UUID[] on candidate
+Table candidate_preferred_locations {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  candidate_id uuid [not null]
+  location_id uuid [not null]
+  created_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// EXTENSIBLE: Submissions & Placements
+// =============================================================================
+
+Table submission {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  requisition_id uuid [not null]
+  candidate_id uuid [not null]
+  vendor_id uuid
+  submitted_by_user_id uuid
+  bill_rate decimal(10,2) [not null]
+  overtime_rate decimal(10,2)
+  stage varchar(50) [default: 'submitted', note: 'submitted, qualified, shortlisted, interview_scheduled, interview_completed, offer, accepted, withdrawn, rejected']
+  stage_entered_at timestamp [default: `now()`]
+  submitted_at timestamp [default: `now()`]
+  qualified_at timestamp
+  shortlisted_at timestamp
+  interview_scheduled_at timestamp
+  interview_completed_at timestamp
+  offer_extended_at timestamp
+  accepted_at timestamp
+  withdrawn_at timestamp
+  rejected_at timestamp
+  interview_date timestamp
+  interview_location varchar(255)
+  interview_notes text
+  offer_amount decimal(10,2)
+  offer_letter_url varchar(500)
+  offer_expires_at timestamp
+  offered_without_interview boolean [default: false]
+  rejection_reason text
+  withdrawal_reason text
+  internal_notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Interviewers for a submission — replaces interviewer_ids UUID[] on submission
+Table submission_interviewers {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  submission_id uuid [not null]
+  user_id uuid [not null]
+  created_at timestamp [default: `now()`]
+}
+
+// Auto-created when a candidate accepts a job offer
+Table placement {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  placement_number varchar(50) [not null, note: 'auto-generated display ID e.g. PLC-2025-001']
+
+  // ── Relations ─────────────────────────────────────────────────────────────
+  // requisition / candidate / vendor are NOT stored here — derive from submission
+  submission_id uuid [not null]
+  vendor_contact_id uuid [note: 'FK to user — Vendor Contact shown in Vendor & Contacts section']
+  hiring_manager_id uuid
+  department_id uuid
+  location_id uuid
+
+  // ── Denormalized display fields ────────────────────────────────────────────
+  job_title varchar(255) [note: 'snapshot from requisition at acceptance time']
+  unit_name varchar(255) [note: 'e.g. ICU - Unit 3A; shown in Department/Unit column']
+  workforce_group varchar(255) [note: 'e.g. Nursing Staff']
+
+  // ── Assignment Period ─────────────────────────────────────────────────────
+  start_date date [not null]
+  end_date date
+  actual_end_date date
+  total_weeks integer [note: 'derived from start/end; used for Week X of Y status label']
+  extension_count integer [default: 0]
+
+  // ── Schedule & Shift ─────────────────────────────────────────────────────
+  shift_type varchar(50) [note: 'night | day | evening | on_call']
+  shift_start_time time [note: 'e.g. 7:00 PM']
+  shift_end_time time [note: 'e.g. 7:00 AM']
+  shift_schedule text [note: 'TEXT[] — e.g. Monday, Tuesday, Friday, Saturday']
+  hours_per_week decimal(5,2)
+
+  // ── Rates & Compensation ──────────────────────────────────────────────────
+  bill_rate decimal(10,2) [not null, note: 'rate charged to client; snapshot at acceptance']
+  pay_rate decimal(10,2) [not null, note: 'rate paid to candidate; snapshot at acceptance']
+  overtime_eligible boolean [default: false]
+
+  // ── Offer Acceptance Summary ──────────────────────────────────────────────
+  employment_type varchar(50) [note: 'contract | permanent | per_diem']
+  accepted_by uuid [note: 'FK to user who accepted the offer (candidate user)']
+  accepted_at timestamp [note: 'Acceptance Date in Offer History tab']
+
+  // ── Status & Lifecycle ────────────────────────────────────────────────────
+  status varchar(50) [default: 'upcoming', note: 'upcoming | active | completed | terminated | on_hold']
+  termination_reason text
+  terminated_by uuid
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Compliance tab: per-item compliance status for this placement
+// Compares requisition checklist items against candidate's compliance wallet
+Table placement_compliance_items {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  placement_id uuid [not null]
+  compliance_list_item_id uuid [not null, note: 'the requirement from the requisition checklist']
+  status varchar(20) [not null, default: 'missing', note: 'complete | missing | expired']
+  completion_date date [note: 'set when status = complete']
+  expiry_date date [note: 'set for expirable documents like licenses']
+  is_required boolean [default: true]
+  swapped_from_item_id uuid [note: 'self-ref: tracks Swap Item action']
+  removed_at timestamp [note: 'soft-delete via Remove Item action']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Offer History tab: immutable event log of every offer state change
+Table placement_offer_history {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  placement_id uuid [not null]
+  event_type varchar(50) [not null, note: 'offer_extended | offer_viewed | offer_accepted | offer_declined | offer_expired | offer_modified']
+  description text [note: 'e.g. Initial offer sent to candidate via email']
+  bill_rate_snapshot decimal(10,2)
+  pay_rate_snapshot decimal(10,2)
+  start_date_snapshot date
+  employment_type varchar(50)
+  performed_by uuid [note: 'FK to user who triggered the event']
+  performed_at timestamp [not null, default: `now()`]
+}
+
+// Notes & Tasks tab: tasks specific to this placement
+Table placement_tasks {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  placement_id uuid [not null]
+  title varchar(255) [not null]
+  description text
+  due_date date
+  status varchar(20) [default: 'pending', note: 'pending | completed']
+  assigned_to uuid [note: 'FK to user; shows "Assigned to: Emily Rodriguez"']
+  assigned_role varchar(100) [note: 'role label e.g. Compliance Team']
+  completed_at timestamp
+  created_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Notes & Tasks tab: freeform notes on this placement
+Table placement_notes {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  placement_id uuid [not null]
+  content text [not null]
+  created_by uuid [note: 'FK to user; null = system-generated note']
+  created_by_role varchar(100) [note: 'role snapshot at time of note creation — intentional denormalization for audit display']
+  created_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// EXTENSIBLE: Timekeeping
+// =============================================================================
+
+Table timesheet {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  placement_id uuid [not null]
+  candidate_id uuid [not null, note: 'intentional denormalization — avoids join on every timesheet query']
+  week_ending_date date [not null]
+  regular_hours decimal(5,2) [default: 0]
+  overtime_hours decimal(5,2) [default: 0]
+  total_hours decimal(5,2) [default: 0]
+  regular_amount decimal(10,2)
+  overtime_amount decimal(10,2)
+  total_amount decimal(10,2)
+  status varchar(50) [default: 'draft', note: 'draft, submitted, approved, rejected, paid']
+  submitted_at timestamp
+  approved_by uuid
+  approved_at timestamp
+  rejected_by uuid
+  rejected_at timestamp
+  rejection_reason text
+  paid_at timestamp
+  payment_reference varchar(255)
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table timesheet_entry {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  timesheet_id uuid [not null]
+  work_date date [not null]
+  clock_in time
+  clock_out time
+  break_minutes integer [default: 0]
+  regular_hours decimal(5,2) [default: 0]
+  overtime_hours decimal(5,2) [default: 0]
+  notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// EXTENSIBLE: Compliance per candidate
+// =============================================================================
+
+// Candidate's Document Wallet — documents self-uploaded by the candidate
+Table candidate_compliance {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  candidate_id uuid [not null]
+  document_name varchar(255) [not null, note: 'e.g. Driver\'s License, Passport']
+  category varchar(50) [not null, note: 'background_identity | employee_health | professional_licenses | certifications | other']
+  document_url text [note: 'PDF/JPG/PNG max 10MB']
+  document_file_name varchar(255)
+  expiry_date date [note: 'optional; drives expired status']
+  status varchar(30) [default: 'pending', note: 'approved | pending | expired | missing']
+  verified_by uuid
+  verified_at timestamp
+  notes text
+  uploaded_by uuid
+  uploaded_at timestamp
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// JOBS & ACTIVITY
+// =============================================================================
+
+Table background_job {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  type varchar(50) [not null]
+  status varchar(20) [default: 'PENDING']
+  payload jsonb [not null]
+  result jsonb
+  organization_id uuid
+  scheduled_for timestamp
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  completed_at timestamp
+}
+
+// A project is simply a named group of requisitions for organization and tracking
+Table project {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  name varchar(255) [not null]
+  description text
+  status varchar(20) [not null, default: 'active', note: 'active | inactive']
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Global metric definitions (platform-level, reusable across all orgs)
+Table metric {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  type varchar(50) [not null, note: 'RECRUITMENT_EFFICIENCY | COMPLIANCE | QUALITY_OF_SERVICE']
+  name varchar(255) [not null, unique]
+  formula text [not null]
+  status boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Per-org assignment of a global metric with an org-specific goal value
+Table organization_metric {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  metric_id uuid [not null]
+  goal decimal(10,2) [not null, note: 'org-specific target value for this metric']
+  is_active boolean [default: true]
+  created_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// =============================================================================
+// REFERENCE RELATIONSHIPS
+// =============================================================================
+
+Ref: user.msp_id > msp.id
+Ref: session.user_id > user.id
+Ref: account.user_id > user.id
+
+Ref: organization_location.organization_id > organization.id
+Ref: department.organization_id > organization.id
+Ref: department.location_id > organization_location.id
+Ref: department.organization_occupation_id > organization_occupation.id
+Ref: department.organization_specialty_id > organization_specialty.id
+Ref: member.organization_id > organization.id
+Ref: member.user_id > user.id
+Ref: department_user.department_id > department.id
+Ref: department_user.user_id > user.id
+Ref: department_timekeeping_approver.department_id > department.id
+Ref: department_timekeeping_approver.user_id > user.id
+
+Ref: vendor.address_id > address.id
+Ref: organization_vendor.organization_id > organization.id
+Ref: organization_vendor.vendor_id > vendor.id
+Ref: vendor_user.user_id > user.id
+Ref: vendor_user.vendor_id > vendor.id
+Ref: msp.headquarters_id > address.id
+Ref: msp.billing_id > address.id
+Ref: msp_linked_orgs.msp_id > msp.id
+Ref: msp_linked_orgs.organization_id > organization.id
+
+Ref: organization_occupation.organization_id > organization.id
+Ref: organization_occupation.occupation_id > occupation.id
+Ref: organization_occupation.created_by > user.id
+Ref: organization_occupation.updated_by > user.id
+Ref: organization_specialty.organization_id > organization.id
+Ref: organization_specialty.specialty_id > specialty.id
+Ref: organization_specialty.organization_occupation_id > organization_occupation.id
+Ref: vendor_occupation_specialization.vendor_id > vendor.id
+Ref: vendor_occupation_specialization.occupation_id > occupation.id
+
+Ref: compliance_wallet_template.organization_id > organization.id
+Ref: compliance_wallet_template.organization_occupation_id > organization_occupation.id
+Ref: compliance_wallet_template.organization_specialty_id > organization_specialty.id
+Ref: compliance_wallet_template_item.compliance_wallet_template_id > compliance_wallet_template.id
+Ref: compliance_wallet_template_item.compliance_list_item_id > compliance_list_item.id
+
+Ref: tag.created_by > user.id
+Ref: questionnaire.organization_id > organization.id
+Ref: questionnaire.occupation_id > organization_occupation.id
+Ref: questionnaire.specialty_id > organization_specialty.id
+Ref: question.questionnaire_id > questionnaire.id
+Ref: tagging_rule.organization_id > organization.id
+Ref: tagging_rule.tag_id > tag.id
+Ref: tagging_rule_question.tagging_rule_id > tagging_rule.id
+Ref: tagging_rule_question.question_id > question.id
+Ref: matching_logic.matching_criterion_id > matching_criterion.id
+Ref: matching_logic.organization_id > organization.id
+
+Ref: document.uploaded_by > user.id
+Ref: document.msp_id > msp.id
+Ref: document.vendor_id > vendor.id
+Ref: document.organization_id > organization.id
+Ref: note.created_by > user.id
+Ref: note.msp_id > msp.id
+Ref: note.vendor_id > vendor.id
+Ref: note.organization_id > organization.id
+
+// organization_metric
+Ref: organization_metric.organization_id > organization.id
+Ref: organization_metric.metric_id > metric.id
+Ref: organization_metric.created_by > user.id
+
+// requisition_template
+Ref: requisition_template.organization_id > organization.id
+Ref: requisition_template.occupation_id > occupation.id
+Ref: requisition_template.specialty_id > specialty.id
+Ref: requisition_template.department_id > department.id
+Ref: requisition_template.location_id > organization_location.id
+Ref: requisition_template.hiring_manager_id > user.id
+Ref: requisition_template.compliance_checklist_id > compliance_checklists.id
+Ref: requisition_template_vendor.template_id > requisition_template.id
+Ref: requisition_template_vendor.vendor_id > vendor.id
+
+// compliance_checklists
+Ref: compliance_checklists.organization_id > organization.id
+Ref: compliance_checklists.occupation_id > occupation.id
+Ref: compliance_checklists.specialty_id > specialty.id
+Ref: compliance_checklists.created_by > user.id
+Ref: compliance_checklist_items.checklist_id > compliance_checklists.id
+Ref: compliance_checklist_items.compliance_list_item_id > compliance_list_item.id
+Ref: requisition.organization_id > organization.id
+Ref: requisition.template_id > requisition_template.id
+Ref: requisition.occupation_id > occupation.id
+Ref: requisition.specialty_id > specialty.id
+Ref: requisition.department_id > department.id
+Ref: requisition.location_id > organization_location.id
+Ref: requisition.hiring_manager_id > user.id
+Ref: requisition.compliance_checklist_id > compliance_checklists.id
+Ref: requisition.project_id > project.id
+Ref: requisition.approved_by > user.id
+Ref: requisition.created_by > user.id
+Ref: requisition.updated_by > user.id
+Ref: requisition_vendor.requisition_id > requisition.id
+Ref: requisition_vendor.vendor_id > vendor.id
+
+Ref: candidate.organization_id > organization.id
+Ref: candidate.user_id > user.id
+Ref: candidate.occupation_id > occupation.id
+Ref: candidate.vendor_id > vendor.id
+Ref: candidate.invited_by > user.id
+
+// candidate join tables (replacing array columns)
+Ref: candidate_specialties.candidate_id > candidate.id
+Ref: candidate_specialties.specialty_id > specialty.id
+Ref: candidate_tags.candidate_id > candidate.id
+Ref: candidate_tags.tag_id > tag.id
+Ref: candidate_preferred_locations.candidate_id > candidate.id
+Ref: candidate_preferred_locations.location_id > organization_location.id
+
+// submission interviewers (replacing UUID[] column)
+Ref: submission_interviewers.submission_id > submission.id
+Ref: submission_interviewers.user_id > user.id
+
+// compliance_item_scopes (replacing UUID[] columns on compliance_items)
+Ref: compliance_item_scopes.compliance_item_id > compliance_items.id
+
+Ref: submission.organization_id > organization.id
+Ref: submission.requisition_id > requisition.id
+Ref: submission.candidate_id > candidate.id
+Ref: submission.vendor_id > vendor.id
+Ref: submission.submitted_by_user_id > user.id
+
+Ref: placement.organization_id > organization.id
+Ref: placement.submission_id > submission.id
+// placement.requisition_id / candidate_id / vendor_id removed — derive from submission
+Ref: placement.vendor_contact_id > user.id
+Ref: placement.department_id > department.id
+Ref: placement.location_id > organization_location.id
+Ref: placement.hiring_manager_id > user.id
+Ref: placement.accepted_by > user.id
+Ref: placement.terminated_by > user.id
+
+// placement sub-tables
+Ref: placement_compliance_items.placement_id > placement.id
+Ref: placement_compliance_items.compliance_list_item_id > compliance_list_item.id
+Ref: placement_compliance_items.swapped_from_item_id > compliance_list_item.id
+
+Ref: placement_offer_history.placement_id > placement.id
+Ref: placement_offer_history.performed_by > user.id
+
+Ref: placement_tasks.placement_id > placement.id
+Ref: placement_tasks.assigned_to > user.id
+Ref: placement_tasks.created_by > user.id
+
+Ref: placement_notes.placement_id > placement.id
+Ref: placement_notes.created_by > user.id
+
+Ref: timesheet.organization_id > organization.id
+Ref: timesheet.placement_id > placement.id
+Ref: timesheet.candidate_id > candidate.id
+Ref: timesheet.approved_by > user.id
+Ref: timesheet_entry.timesheet_id > timesheet.id
+
+Ref: candidate_compliance.candidate_id > candidate.id
+Ref: candidate_compliance.verified_by > user.id
+Ref: candidate_compliance.uploaded_by > user.id
+
+Ref: occupation_specialties.occupation_id > occupation.id
+Ref: occupation_specialties.specialty_id > specialty.id
+
+Ref: project.organization_id > organization.id
+
+Ref: requisition_template.created_by > user.id
+Ref: requisition_template.updated_by > user.id
+Ref: compliance_checklists.updated_by > user.id
+Ref: candidate.created_by > user.id
+Ref: candidate.updated_by > user.id
+Ref: placement.created_by > user.id
+Ref: placement.updated_by > user.id
+Ref: project.created_by > user.id
+Ref: project.updated_by > user.id
+
+// INDEXES REMOVED FOR DBML COMPATIBILITY IN DBDIAGRAM.IO
+// If you want to model indexes visually, re-add them using dbdiagram's supported
+// `indexes` blocks inside each `Table` or `Index {}` syntax from the docs.
+
+// =============================================================================
+// ORG PORTAL EXTENSIONS FROM schema.sql (shift templates, per-diem, finance, grievances, analytics)
+// =============================================================================
+
+// Reusable shift config — populated from "Create Shift Template" modal
+Table shift_templates {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+
+  // ── Core Identity ──────────────────────────────────────────────────────────
+  template_name varchar(255) [not null, note: 'e.g. ICU Day Shift - RN']
+  occupation_id uuid [not null, note: 'Role field in UI']
+  department_id uuid [not null]
+  location_id uuid [not null]
+  shift_type varchar(50) [not null, note: 'day | night | evening | on_call | weekend']
+  duration_hours decimal(5,2) [not null, note: 'Duration (hours) field']
+
+  // ── Rates ─────────────────────────────────────────────────────────────────
+  base_rate decimal(10,2) [not null, note: 'Base Rate ($/hour) — candidate-facing rate']
+  base_bill_rate decimal(10,2) [note: 'Base Bill Rate ($/hour) — rate charged to client']
+  vendor_rate_markup_percent decimal(5,2) [note: 'Vendor Rate Markup (%) — added to base rate for vendor rate']
+
+  // ── Visibility ─────────────────────────────────────────────────────────────
+  limit_shift_visibility boolean [default: false, note: 'hide unit/dept details until X hours before start']
+  visibility_unlock_hours integer [note: 'hours before shift start to reveal details; null when limit_shift_visibility = false']
+
+  // ── Incentives ────────────────────────────────────────────────────────────
+  offer_incentive boolean [default: false]
+  incentive_by_hour decimal(10,2) [note: 'Incentive by Hour ($/hour) — added to base rate per hour worked']
+  incentive_by_shift decimal(10,2) [note: 'Incentive by Shift ($/shift) — flat bonus for the entire shift']
+
+  // ── Metadata ──────────────────────────────────────────────────────────────
+  is_active boolean [default: true]
+  usage_count int [default: 0]
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Individual per diem shift posting — created via "Create Per Diem Shift" flow
+Table per_diem_shifts {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  shift_number varchar(50) [note: 'auto-generated display ID']
+
+  // ── Template (auto-populates shift details) ────────────────────────────────
+  shift_template_id uuid [note: 'optional; pre-fills fields when selected']
+
+  // ── Shift Details ─────────────────────────────────────────────────────────
+  shift_date date [not null]
+  start_time time [not null]
+  end_time time [not null]
+  total_shift_hours decimal(5,2) [not null, note: 'Total Shift Hours field; derived from start/end but stored']
+  shift_type varchar(50) [not null, note: 'day | night | evening | on_call | weekend']
+  occupation_id uuid [not null]
+  specialty_id uuid
+  department_id uuid
+  location_id uuid [not null]
+
+  // ── Rates & Cost ──────────────────────────────────────────────────────────
+  shift_rate decimal(10,2) [not null, note: 'Shift Rate ($/hour) — candidate rate; must be >= floor rate']
+  vendor_rate decimal(10,2) [not null, note: 'Vendor Rate ($/hour) — rate paid to the vendor']
+  total_cost decimal(10,2) [note: 'computed: shift_rate × total_shift_hours']
+
+  // ── Notifications ─────────────────────────────────────────────────────────
+  send_personalized_notification boolean [default: false, note: 'Notify specific workforce groups or candidates']
+
+  // ── Status & Visibility ───────────────────────────────────────────────────
+  status varchar(30) [default: 'open', note: 'open | in_progress | completed | cancelled']
+  is_public boolean [default: true, note: 'Public badge in list view; false = private/restricted visibility']
+  is_urgent boolean [default: false]
+  published_at timestamp
+
+  // ── Routing ───────────────────────────────────────────────────────────────
+  routing_rule_id uuid
+
+  // ── Metadata ──────────────────────────────────────────────────────────────
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table per_diem_assignments {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  shift_id uuid [not null]
+  candidate_id uuid [not null]
+  status varchar(50) [default: 'assigned']
+  assigned_at timestamp [default: `now()`]
+  assigned_by uuid
+  confirmed_at timestamp
+  clock_in_time timestamp
+  clock_out_time timestamp
+  break_start_time timestamp
+  break_end_time timestamp
+  actual_hours decimal(5,2)
+  approved_by uuid
+  approved_at timestamp
+  rejection_reason text
+  candidate_rating decimal(3,2)
+  shift_rating decimal(3,2)
+  candidate_feedback text
+  client_feedback text
+  cancelled_at timestamp
+  cancelled_by uuid
+  cancellation_reason text
+  cancellation_fee decimal(10,2)
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table timesheet_disputes {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  timesheet_id uuid [not null]
+  dispute_type varchar(100)
+  description text [not null]
+  original_hours decimal(5,2)
+  disputed_hours decimal(5,2)
+  original_amount decimal(10,2)
+  disputed_amount decimal(10,2)
+  raised_by uuid
+  raised_at timestamp [default: `now()`]
+  assigned_to uuid
+  resolution text
+  resolved_by uuid
+  resolved_at timestamp
+  resolution_category varchar(100)
+  final_hours decimal(5,2)
+  final_amount decimal(10,2)
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table compliance_items {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  name varchar(255) [not null]
+  description text
+  item_code varchar(50)
+  category varchar(50) [default: 'certification']
+  has_expiration boolean [default: true]
+  validity_period_days int
+  renewal_reminder_days int [default: 30]
+  grace_period_days int [default: 0]
+  requires_verification boolean [default: true]
+  verification_authority varchar(255)
+  verification_url text
+  requires_document boolean [default: true]
+  accepted_document_types text
+  is_active boolean [default: true]
+  is_mandatory boolean [default: true]
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// compliance_items scope — which occupations/specialties/locations/depts this item applies to
+Table compliance_item_scopes {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  compliance_item_id uuid [not null]
+  scope_type varchar(30) [not null, note: 'occupation | specialty | location | department']
+  scope_id uuid [not null, note: 'FK to the relevant table determined by scope_type']
+  created_at timestamp [default: `now()`]
+}
+
+// Compliance checklist templates — created in 2-step modal (name/desc → pick items)
+// Linked to requisition_template; show occupation/specialty in list view (via counts)
+Table compliance_checklists {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  name varchar(255) [not null]
+  description text
+  occupation_id uuid [note: 'display label in list view e.g. Registered Nurse']
+  specialty_id uuid [note: 'display label in list view e.g. ICU']
+  is_active boolean [default: true]
+  usage_count int [default: 0]
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Items selected for a checklist — explicit join so required flag can be set per item
+Table compliance_checklist_items {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  checklist_id uuid [not null]
+  compliance_list_item_id uuid [not null]
+  is_required boolean [default: true, note: 'drives required count shown in UI']
+  created_at timestamp [default: `now()`]
+}
+
+Table workforce_lists {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  name varchar(255) [not null]
+  description text
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table workforce_list_members {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  list_id uuid [not null]
+  candidate_id uuid [not null]
+  added_by uuid
+  added_at timestamp [default: `now()`]
+}
+
+// Org-level global routing delay config (Routing Delay tab)
+Table shift_routing_settings {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null, unique, note: 'one config row per org']
+  enable_routing_delay boolean [default: false, note: 'Enable Routing Delay toggle']
+  delay_duration integer [default: 24, note: 'Delay Duration value']
+  delay_unit varchar(20) [default: 'hours', note: 'hours | minutes | days']
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Per-org routing priority for CandidateWorkforceType; labels/descriptions in app (@repo/shared)
+Table shift_routing_tiers {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  workforce_type varchar(50) [not null, note: 'SELF | INTERNAL_FULL_TIME | INTERNAL_PART_TIME | INTERNAL_PRN | INTERNAL_FLOAT_POOL | INTERNAL_VOLUNTEER | EXTERNAL_1099 | EXTERNAL_EOR | EXTERNAL_VENDOR_LTO | EXTERNAL_VENDOR_PER_DIEM']
+  priority_order integer [not null, note: 'drag-and-drop sort order; 1 = highest priority']
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Only 2 fixed types (Behavioral = Conduct Issue, Clinical = Patient Safety)
+// Status is driven automatically by task completion: open → in_progress → resolved
+Table grievances {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  grievance_number varchar(50) [not null, note: 'auto-generated e.g. GRV-001']
+  type varchar(20) [not null, note: 'behavioral | clinical']
+  candidate_id uuid [not null, note: 'linked worker']
+  placement_id uuid [note: 'optional — linked active placement']
+  description text [not null]
+  status varchar(20) [default: 'open', note: 'open | in_progress | resolved — driven by task completion']
+  created_by uuid [not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+// Tasks linked to a grievance — completion drives grievance status automatically
+Table grievance_tasks {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  grievance_id uuid [not null]
+  category varchar(100) [not null, note: 'investigation_required | documentation_review | employee_interview | corrective_action | performance_improvement_plan | policy_review | training_required | followup_meeting']
+  assigned_to_user_id uuid [not null]
+  assigned_role varchar(50) [not null]
+  description text [not null]
+  status varchar(20) [default: 'pending', note: 'pending | in_progress | completed']
+  completed_at timestamp
+  created_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table invoices {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  invoice_number varchar(50) [not null]
+  invoice_type varchar(50)
+  vendor_id uuid
+  bill_to_name varchar(255)
+  bill_to_address text
+  invoice_date date [not null]
+  due_date date [not null]
+  period_start_date date
+  period_end_date date
+  subtotal decimal(15,2) [default: 0]
+  tax_amount decimal(15,2) [default: 0]
+  discount_amount decimal(15,2) [default: 0]
+  adjustment_amount decimal(15,2) [default: 0]
+  total_amount decimal(15,2) [default: 0]
+  amount_paid decimal(15,2) [default: 0]
+  payment_terms varchar(50) [default: 'net_30']
+  payment_method varchar(50)
+  payment_reference varchar(255)
+  paid_date date
+  status varchar(50) [default: 'draft']
+  submitted_by uuid
+  submitted_at timestamp
+  reviewed_by uuid
+  reviewed_at timestamp
+  review_notes text
+  approved_by uuid
+  approved_at timestamp
+  approval_notes text
+  sent_to_client_at timestamp
+  invoice_pdf_url text
+  backup_documents jsonb
+  internal_notes text
+  client_notes text
+  created_by uuid
+  updated_by uuid
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table invoice_line_items {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  invoice_id uuid [not null]
+  timesheet_id uuid
+  placement_id uuid
+  candidate_id uuid
+  description text [not null]
+  quantity decimal(10,2) [default: 1]
+  unit_price decimal(10,2) [not null]
+  line_item_type varchar(100)
+  created_at timestamp [default: `now()`]
+}
+
+Table spend_analytics {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  period_start date [not null]
+  period_end date [not null]
+  period_type varchar(20) [not null]
+  department_id uuid
+  location_id uuid
+  vendor_id uuid
+  occupation_id uuid
+  project_id uuid
+  total_spend decimal(15,2) [default: 0]
+  regular_hours decimal(10,2) [default: 0]
+  overtime_hours decimal(10,2) [default: 0]
+  total_hours decimal(10,2) [default: 0]
+  active_placements int [default: 0]
+  total_invoices int [default: 0]
+  average_bill_rate decimal(10,2) [default: 0]
+  permanent_headcount int [default: 0]
+  contingent_headcount int [default: 0]
+  contractor_headcount int [default: 0]
+  calculated_at timestamp [default: `now()`]
+}
+
+Table command_center_metrics {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  metric_date date [not null]
+  overdue_submissions int [default: 0]
+  aging_qualified int [default: 0]
+  aging_shortlisted int [default: 0]
+  overdue_offers int [default: 0]
+  delayed_onboarding int [default: 0]
+  active_requisitions int [default: 0]
+  open_positions int [default: 0]
+  filled_positions_mtd int [default: 0]
+  total_submissions int [default: 0]
+  submissions_submitted int [default: 0]
+  submissions_qualified int [default: 0]
+  submissions_shortlisted int [default: 0]
+  submissions_interview_scheduled int [default: 0]
+  submissions_interview_completed int [default: 0]
+  submissions_offer int [default: 0]
+  submissions_accepted int [default: 0]
+  submissions_withdrawn int [default: 0]
+  submissions_rejected int [default: 0]
+  total_active_workforce int [default: 0]
+  permanent_count int [default: 0]
+  contingent_count int [default: 0]
+  contractor_count int [default: 0]
+  fill_rate decimal(5,2) [default: 0]
+  time_to_fill_avg decimal(5,2) [default: 0]
+  retention_rate decimal(5,2) [default: 0]
+  candidate_satisfaction decimal(3,2) [default: 0]
+  client_satisfaction decimal(3,2) [default: 0]
+  compliance_rate decimal(5,2) [default: 0]
+  expiring_credentials int [default: 0]
+  pending_timesheets int [default: 0]
+  disputed_timesheets int [default: 0]
+  spend_mtd decimal(15,2) [default: 0]
+  hours_worked_mtd decimal(10,2) [default: 0]
+  calculated_at timestamp [default: `now()`]
+}
+
+Table billing_configs {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  vendor_id uuid
+  client_name varchar(255)
+  billing_frequency varchar(50) [default: 'weekly']
+  payment_terms varchar(50) [default: 'net_30']
+  invoice_format varchar(50)
+  rate_card jsonb
+  markup_type varchar(50)
+  markup_value decimal(10,2)
+  invoice_delivery_method varchar(50)
+  invoice_email_recipients text
+  requires_po boolean [default: false]
+  po_number varchar(100)
+  po_expiry_date date
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table notifications_org {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  user_id uuid [not null]
+  type varchar(100) [not null]
+  title varchar(255) [not null]
+  message text
+  entity_type varchar(50)
+  entity_id uuid
+  action_url text
+  delivery_method varchar(50)
+  sent_at timestamp
+  is_read boolean [default: false]
+  read_at timestamp
+  priority varchar(20) [default: 'normal']
+  created_at timestamp [default: `now()`]
+}
+
+Table activity_log_org {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  organization_id uuid [not null]
+  user_id uuid
+  user_email varchar(255)
+  user_name varchar(255)
+  action varchar(100) [not null]
+  entity_type varchar(50) [not null]
+  entity_id uuid [not null]
+  entity_name varchar(255)
+  description text
+  changes jsonb
+  ip_address varchar(50)
+  user_agent text
+  session_id varchar(255)
+  created_at timestamp [default: `now()`]
+}
+
+// Refs for new org-portal tables
+
+// shift_templates
+Ref: shift_templates.organization_id > organization.id
+Ref: shift_templates.occupation_id > occupation.id
+Ref: shift_templates.department_id > department.id
+Ref: shift_templates.location_id > organization_location.id
+Ref: shift_templates.created_by > user.id
+Ref: shift_templates.updated_by > user.id
+
+// per_diem_shifts
+Ref: per_diem_shifts.organization_id > organization.id
+Ref: per_diem_shifts.shift_template_id > shift_templates.id
+Ref: per_diem_shifts.location_id > organization_location.id
+Ref: per_diem_shifts.department_id > department.id
+Ref: per_diem_shifts.occupation_id > occupation.id
+Ref: per_diem_shifts.specialty_id > specialty.id
+Ref: per_diem_shifts.routing_rule_id > shift_routing_settings.id
+Ref: per_diem_shifts.created_by > user.id
+Ref: per_diem_shifts.updated_by > user.id
+
+// shift_routing_settings & tiers
+Ref: shift_routing_settings.organization_id > organization.id
+Ref: shift_routing_settings.created_by > user.id
+Ref: shift_routing_settings.updated_by > user.id
+Ref: shift_routing_tiers.organization_id > organization.id
+
+Ref: per_diem_assignments.shift_id > per_diem_shifts.id
+Ref: per_diem_assignments.candidate_id > candidate.id
+Ref: per_diem_assignments.assigned_by > user.id
+Ref: per_diem_assignments.approved_by > user.id
+Ref: per_diem_assignments.cancelled_by > user.id
+
+Ref: timesheet_disputes.timesheet_id > timesheet.id
+Ref: timesheet_disputes.raised_by > user.id
+Ref: timesheet_disputes.assigned_to > user.id
+Ref: timesheet_disputes.resolved_by > user.id
+
+Ref: compliance_items.organization_id > organization.id
+Ref: compliance_items.created_by > user.id
+Ref: compliance_items.updated_by > user.id
+
+
+Ref: workforce_lists.organization_id > organization.id
+Ref: workforce_lists.created_by > user.id
+Ref: workforce_lists.updated_by > user.id
+Ref: workforce_list_members.list_id > workforce_lists.id
+Ref: workforce_list_members.candidate_id > candidate.id
+Ref: workforce_list_members.added_by > user.id
+
+
+Ref: grievances.organization_id > organization.id
+Ref: grievances.candidate_id > candidate.id
+Ref: grievances.placement_id > placement.id
+Ref: grievances.created_by > user.id
+Ref: grievance_tasks.grievance_id > grievances.id
+Ref: grievance_tasks.assigned_to_user_id > user.id
+Ref: grievance_tasks.created_by > user.id
+
+Ref: invoices.organization_id > organization.id
+Ref: invoices.vendor_id > vendor.id
+Ref: invoices.submitted_by > user.id
+Ref: invoices.reviewed_by > user.id
+Ref: invoices.approved_by > user.id
+Ref: invoice_line_items.invoice_id > invoices.id
+Ref: invoice_line_items.timesheet_id > timesheet.id
+Ref: invoice_line_items.placement_id > placement.id
+Ref: invoice_line_items.candidate_id > candidate.id
+
+Ref: spend_analytics.organization_id > organization.id
+Ref: spend_analytics.department_id > department.id
+Ref: spend_analytics.location_id > organization_location.id
+Ref: spend_analytics.vendor_id > vendor.id
+Ref: spend_analytics.occupation_id > occupation.id
+Ref: spend_analytics.project_id > project.id
+
+Ref: command_center_metrics.organization_id > organization.id
+
+Ref: billing_configs.organization_id > organization.id
+Ref: billing_configs.vendor_id > vendor.id
+
+Ref: notifications_org.organization_id > organization.id
+Ref: notifications_org.user_id > user.id
+
+Ref: activity_log_org.organization_id > organization.id
+Ref: activity_log_org.user_id > user.id

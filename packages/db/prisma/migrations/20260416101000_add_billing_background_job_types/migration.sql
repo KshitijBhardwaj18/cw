@@ -1,0 +1,16 @@
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'BackGroundJobType') THEN
+    BEGIN
+      ALTER TYPE "BackGroundJobType" ADD VALUE IF NOT EXISTS 'BILLING_INVOICE_GENERATION';
+    EXCEPTION WHEN duplicate_object THEN
+      NULL;
+    END;
+    BEGIN
+      ALTER TYPE "BackGroundJobType" ADD VALUE IF NOT EXISTS 'BILLING_SPEND_ANALYTICS_REFRESH';
+    EXCEPTION WHEN duplicate_object THEN
+      NULL;
+    END;
+  END IF;
+END $$;
+

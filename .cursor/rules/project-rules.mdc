@@ -1,0 +1,316 @@
+---
+alwaysApply: true
+---
+
+# Project Cursor Rules
+
+## 🏗️ Tech Stack & Architecture
+
+- **Apps**: `admin-web`, `org-web`, `server` (main-api)
+- **Frontend**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, internal UI kit (`@repo/ui`, shadcn-derived)
+- **State & Data**: TanStack Query (fetch/cache) + Zustand (stores) + Better Auth (sessions)
+- **Forms**: TanStack Form + Zod (shadcn integration)
+- **Tables**: TanStack Table integrated with shadcn; use existing `CustomTable` components
+- **HTTP Client**: Axios via a single `ApiClient` abstraction
+- **Validation**: Zod (frontend) + class-validator/class-transformer (backend DTOs)
+- **Backend**: NestJS 11 (modules/services/controllers), Prisma ORM, Better Auth
+- **Docs**: Swagger/OpenAPI (auto via `@nestjs/swagger` plugin)
+- **Email**: SMTP via `@nestjs-modules/mailer`
+- **DB**: PostgreSQL via Prisma; shared enums/types in `@repo/db` and `@repo/shared`
+- **Tooling**: Bun workspaces, Turborepo, Biome (VSCode), Bun runtime (Next.js)
+
+## 📋 General Coding Standards
+
+### Code Quality Requirements
+- ALWAYS write TypeScript
+- Follow Biome; fix all warnings where feasible
+- Follow Conventional Commits (commitlint config)
+- Defensive programming: null/undefined guards, explicit return types on APIs
+- Keep functions small and single-purpose; prefer composition over inheritance
+- Centralize side-effects (API, storage, navigation) in services/hooks
+- Write meaningful logs and errors with context; never swallow errors silently
+
+### Naming & Style Conventions
+- Variables, functions: `camelCase`
+- Classes, React components, types, interfaces, DTO classes: `PascalCase`
+- Constants: `UPPER_SNAKE_CASE`
+- Enums: `PascalCase` enum name with `UPPER_SNAKE_CASE` members (e.g., `RoleEnum.ADMIN`)
+- File names:
+  - React components: `PascalCase.tsx` (e.g., `AppSidebar.tsx`)
+  - Other TS/logic files: `kebab-case.ts` (e.g., `auth.service.ts`, `orders.module.ts`)
+  - DTOs: `kebab-case.dto.ts` (e.g., `login.dto.ts`)
+  - Tests: `*.spec.ts` or `*.spec.tsx`
+- Directory names: `kebab-case`
+- Barrel exports allowed for UI libs; avoid deep barrel chains in app code
+
+### Import Conventions
+- Group: node/std, third-party, workspace packages, absolute (`@/...`), relative
+- No circular deps; prefer passing dependencies explicitly
+- Use absolute `@/...` paths in `apps/...`; use relative inside Nest feature modules
+
+## 🚀 Turborepo & Workspace Rules
+
+- Keep shared, reusable code in packages (`@repo/shared`, `@repo/ui`, `@repo/db`)
+- Do not import across apps (`apps/admin-web` -> `apps/org-web`); use packages instead
+- Prefer `*` for internal deps and keep versions aligned
+- Avoid app-specific logic in shared packages; keep shared packages domain-agnostic
+- Keep exports shallow in packages; avoid deep barrel chains
+- Add new shared utilities/types/enums to `@repo/shared`
+- Zod schemas are app-local (`apps/.../schemas/`); do NOT put them in `@repo/shared` (backend uses class-validator DTOs, not Zod)
+- If a change touches multiple apps, extract to packages first
+
+## 🧩 MCP Usage Rules
+
+- Use **Better Auth MCP** for auth-related queries and changes
+- Use **Next Devtools MCP** for Next.js diagnostics, routing, and rendering questions
+- Use **TanStack MCP** for TanStack Query/Table/Form guidance and patterns
+- Use **shadcn MCP** for component usage, variants, and design system guidance
+
+## 🎯 Frontend Standards (Next.js 16 + React)
+
+### Component Architecture
+- Functional components only; hooks for state/effects
+- Keep components presentational; push data-fetching to hooks/queries; push mutations to services
+- Co-locate small components; extract reusable parts to `apps/.../components`
+- Use `@repo/ui` primitives for consistent UI; extend with composition, not overrides
+- Use existing general components in `apps/.../components/general` before creating new ones
+- Prefer shared components (`DetailItem`, etc.) and utils (`getLabel` from `@repo/shared`) over app-local equivalents
+
+### Data Fetching & Caching
+- Use TanStack Query provider (`ReactQueryClientProvider` in `app/layout.tsx`)
+- Queries: colocate in `apps/.../queries/*`, use descriptive `queryKey`s, keep options in queries folder
+- Configure `refetchOnMount: 'always'` where freshness matters
+- Mutations: return server shape; invalidate or update relevant caches
+- **List / config routes (Next.js App Router)**: For the primary server-backed list on a page, prefer `useSuspenseQuery` (often exposed as a `*Suspense` query hook) plus a route-level `loading.tsx` so loading is centralized—avoid duplicating main-content skeletons driven by `isLoading` when the route can suspend. Keep plain `useQuery` for dialogs, secondary fetches, or any case that must show inline loading without suspending the tree. **Do not wrap `page.tsx` content in `<Suspense>` when that segment already has `loading.tsx`**—Next.js provides the Suspense boundary for the route segment; a second `<Suspense>` in `page.tsx` is redundant (and duplicates the same fallback UI).
+- **Tabbed or high-churn list queries**: When the list query’s `queryKey` changes frequently (e.g. switching tabs that change `tab` in the key), prefer **`useQuery`** with inline loading/error for the table/list region instead of **`useSuspenseQuery`**—suspending would re-trigger the route `loading.tsx` on every tab change and feel like a full-page reload.
+- **Search in the query key + suspense**: If the list uses `useSuspenseQuery` and URL-driven search (`useConfigPageSearch`), pass **`searchFromUrl`** (and `hasActiveSearch ? searchFromUrl : undefined`) into the query—**not** `localSearch`—so the key updates with the **debounced URL**, not every keystroke. Matches `apps/admin-web/components/msps/MspsPageContent.tsx` + `useMsps`.
+- **Org app shells**: Feature layouts under `apps/org-web/app/org/...` should wrap children in `PageContainer` (`@repo/ui/general/PageContainer`) unless the route intentionally opts out; do not add redundant outer padding (`p-6`, etc.) on page content when the layout already uses `PageContainer`.
+- **List page chrome**: Use `ConfigPageHeader` (`@repo/ui/general/ConfigPageHeader`) for title, optional description or filtered count (`countText`), primary actions, and built-in search via the `search` prop (which uses `SearchBar`). Do not hand-roll duplicate headers or search fields unless the design requires something `ConfigPageHeader` cannot express (e.g. `SearchWithFilters`).
+- **Empty states**: Prefer the shared `Empty` family (`@repo/ui/components/empty`) for list empty/error-of-empty UX instead of ad-hoc bordered boxes.
+
+#### TanStack Query: mutation pattern (authoritative)
+- **Query hooks** (`apps/.../queries/*.ts`): define `useMutation` with `mutationFn` and use **`onSuccess`** (and optionally `onError`) for **cache work only**—typically `queryClient.invalidateQueries` / `setQueryData`. Keep query hooks free of UI toasts or navigation.
+- **Call sites** (page hooks, form hooks, dialogs): trigger mutations with **`mutate(variables, { onSuccess, onError })`**, not `mutateAsync` + `async`/`try`/`catch`. Put user-facing feedback in those callbacks: `sonner` toasts, closing dialogs, resetting local state, `router.push`, etc. Use `onError` with `err instanceof Error ? err.message : '…'` (or the feature’s copy) so failures are visible.
+- **`Promise<void>` contract**: If a parent types `onSubmit` (or similar) as `(...) => Promise<void>` and **`await`s** it (common with TanStack Form submit handlers), return a **`new Promise<void>((resolve, reject) => { mutate(..., { onSuccess: () => resolve(), onError: (e) => reject(...) }) })`** so the caller still gets resolve/reject semantics. Reject after surfacing the error (e.g. toast in `onError`) so callers don’t duplicate messages unless they add their own `try`/`catch`.
+- Avoid **`mutateAsync`** in app code unless there is a clear reason; prefer **`mutate` + callbacks** for consistency with the rest of the codebase.
+
+### State Management
+- Use Zustand for client-side stores; keep stores in `apps/.../stores`
+- Avoid duplicating server state in stores; prefer TanStack Query cache
+
+### Service Layer (authoritative pattern)
+- Never call HTTP in components. Use services under `apps/.../services/*`.
+- Each service exposes `static async` methods and delegates to `ApiClient`.
+
+```typescript
+// apps/web/services/auth.service.ts (pattern)
+export class AuthService {
+  static async login(credentials: LoginInput) {
+    return ApiClient.post<LoginResponse>('/api/auth/login', credentials);
+  }
+  static async me() {
+    return ApiClient.get<AuthContextType>('/api/auth/me');
+  }
+}
+```
+
+### HTTP Client (`ApiClient`)
+- Base URL from `envConfig.apiUrl`
+- Automatically deep-trims `data` and `params`
+- Throws `Error(message)` with server-provided `message` if Axios error
+- Prefer `get/post/put/patch/delete` helpers
+
+```typescript
+// Minimal usage
+const user = await ApiClient.get<User>('/api/auth/me');
+```
+
+### Auth (Better Auth)
+- Auth instance is defined in `apps/server/src/common/auth.ts`
+- Portal auth clients live in `apps/admin-web/lib/auth-client.ts` and `apps/org-web/lib/auth-client.ts`
+- Use Better Auth MCP server for any auth-related queries and changes
+- Cookie strategy via Better Auth; default-protected routes and `@Public()` for public
+- Use `@Session()` decorator to get the current user session which include session object and user object both
+- Use `@AllowAnonymous()` decorator to allow anonymous access (no authentication required)
+- Use `@OptionalAuth()` decorator to make the route optional authentication required
+
+
+### Forms & Validation
+- Use TanStack Form + Zod; Zod schemas live in `apps/.../schemas/` (app-local, NOT in `@repo/shared`)
+- Follow shadcn TanStack Form patterns: https://ui.shadcn.com/docs/forms/tanstack-form
+- Show inline validation messages; avoid alert()s; use `sonner` toasts for global errors
+
+### Tables
+- Use TanStack Table with shadcn integration
+- Reuse existing `CustomTable` components in `apps/.../components/general/CustomTable.tsx`
+
+### Styling & UX
+- Tailwind CSS 4; mobile-first responsive
+- Sort classes via Biome; prefer utility-first with small component APIs
+- Accessibility: semantic HTML, ARIA where needed, keyboard navigation support
+- Loading skeletons/spinners for all async states; empty/error UI states are mandatory
+
+## 🔧 Backend Standards (NestJS + Prisma)
+
+### Architecture
+- Strict module boundaries: `Module -> Controller -> Service`
+- Controllers thin; services hold business logic
+- All DB access through `PrismaService`
+- Expose only necessary providers via `exports`
+
+### Global App Configuration (authoritative)
+- CORS from env (`CORS_URLS`)
+- Global prefix: `api`
+- Global `ValidationPipe` with `{ whitelist: true, transform: true }` and custom `exceptionFactory`
+- Global `GlobalExceptionFilter` normalizes Prisma and HTTP errors
+- Swagger initialized at `/docs` with cookie auth
+- All envs are defined in `apps/server/src/common/config.ts`
+
+### DTOs & Validation
+- DTOs in `feature/dto/*.dto.ts`
+- Use `class-validator` with strong messages; transform inputs (lowercase/trim) via `class-transformer`
+- DTOs must be referenced in controller method params
+
+```typescript
+export class LoginDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.toLowerCase().trim() : value))
+  @IsString()
+  @IsNotEmpty()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  password: string;
+}
+```
+
+### Authentication & Authorization
+- cookie strategy via Better Auth
+- Default-protected; use `@Public()` for public routes
+- Access current user via `@CurrentUser()`
+
+### Mail
+- Mail service lives in `apps/server/src/mail`
+- Email templates are simple functions returning HTML strings
+
+```typescript
+// Example: simple OTP mail template
+export const otpMail = ({ otp, expiry }: OtpMailInput) =>
+  `
+    <div style="font-family: sans-serif; line-height: 1.6;">
+      <h2>Your One-Time Passcode</h2>
+      <p>Here is your OTP code:</p>
+      <div style="font-size: 2rem; font-weight: bold; margin: 1rem 0;">${otp}</div>
+      <p>This code will expire at: <strong>${expiry}</strong>.</p>
+      <p>If you did not request this, you can ignore this email.</p>
+    </div>
+  `;
+```
+
+```typescript
+await mailService.sendMail({
+  to: 'user@example.com',
+  subject: 'Hello',
+  html: otpMail({ otp: 42323, expiry: '...' }),
+});
+```
+
+## 🗄️ Database Standards (Prisma)
+- Keep schema normalized; use relations with proper `onDelete`/`onUpdate`
+- Add indexes for frequent query filters
+- Use `$transaction` for multi-entity writes
+- Avoid N+1 queries; prefer `include` or batch calls
+- Use enums from `@repo/db` where applicable; mirror values in `@repo/shared/enums` when needed on FE
+
+## 🔒 Security Standards
+- Validate all inputs (DTOs/backend, Zod/frontend)
+- `ValidationPipe` with `whitelist: true` to strip unknown fields
+- Secrets only from environment; never commit
+- CORS restricted by env; avoid `*` in production
+- File uploads: validate MIME/size; strip metadata; use S3 creds from env
+- Rate limit sensitive endpoints (recommended to add if traffic warrants)
+
+## 📁 Project Structure (Compliance)
+
+### Backend (`apps/server/src`)
+```
+src/
+├── auth/                 # decorators/guards/strategies/dto
+├── common/               # config, filters, utilities, auth instance
+├── prisma/               # Prisma module/service
+├── mail/                 # Mail module/service/templates
+├── [feature]/            # feature modules (controller/service/module + dto)
+```
+
+### Frontend (`apps/admin-web`, `apps/org-web`)
+```
+app/                      # App Router routes
+components/               # Reusable components (PascalCase)
+lib/                      # Core libs (api-client, auth-client, providers)
+schemas/                  # Zod form schemas (app-local, NOT in @repo/shared)
+services/                 # HTTP service classes
+types/                    # App-specific local types only (callback types, table row shapes, etc.)
+queries/                  # TanStack Query hooks
+stores/                   # Zustand stores
+utils/                    # Utilities (e.g., deepTrim)
+config/                   # env config, routes
+contexts/                 # React contexts (AuthContext)
+```
+
+### Shared Packages
+```
+packages/
+├── shared/               # enums, Prisma-driven types, utils (NO Zod schemas)
+├── ui/                   # shadcn-derived components
+├── db/                   # Prisma enums/types
+```
+
+### Types & Schemas Placement
+
+| What | Where | Why |
+|------|-------|-----|
+| Prisma-driven response/row types | `@repo/shared/types/` (`Prisma.XGetPayload<...>`) | Domain contracts reusable across apps |
+| Enums | `@repo/shared/enums/` | Shared between frontend and can be used by backend |
+| Zod form schemas | `apps/.../schemas/` (app-local) | UI-only form validation; backend uses class-validator DTOs |
+| App-specific local types (callback types, composite DTOs) | `apps/.../types/` (app-local) | React-dependent or app-specific types that don't belong in shared |
+
+- **Prisma types** -> derive from schema using `Prisma.XGetPayload<{...}>` in `@repo/shared/types/`; never hand-write types that mirror DB models
+- **Import shared types directly** from `@repo/shared` in consuming files; do NOT re-export shared types through `apps/.../types/`
+- **Import Zod-inferred types directly** from `apps/.../schemas/` in consuming files; do NOT re-export them through `apps/.../types/`
+- **App type files** (`apps/.../types/`) are only for genuinely app-local types (e.g. table column callback types, composite DTOs built from `@repo/db` primitives)
+- **Zod schemas** stay app-local because backend validation uses class-validator DTOs, not Zod -- there is no cross-boundary sharing
+- Do NOT add Zod schemas or React-dependent types to `@repo/shared`
+
+### Shared UI Components & Utils (use these before creating app-local equivalents)
+- **DetailItem** (`@repo/ui/components/detail-item`): Label + value display for read-only data. Use instead of read-only Inputs for detail/profile views.
+- **getLabel** (`@repo/shared`): Get display label from `{ value, label }[]` options by value. Use for enum/option display (e.g. industry, organization type).
+
+## 📊 Performance
+- Frontend: memoize expensive components; stabilize props; prefer query caching over local duplication
+- Use pagination and server-side filtering for large lists
+- Backend: add DB indexes; avoid heavy work in request path; schedule cron jobs for background work
+
+## 📝 Documentation & DX
+- Swagger docs with summaries and examples for controllers
+- Comment non-obvious logic only; keep comments concise and high-signal
+- Keep README and environment docs up to date
+
+## ✅ Do/Don't Quick Reference
+- Do keep controllers thin; put logic in services
+- Do use `ApiClient` from services; don't fetch in components
+- Do type all public APIs and component props
+- Do use `enum` and shared types; don't hardcode magic strings
+- Do derive response types from Prisma (`Prisma.XGetPayload`) in `@repo/shared/types/`
+- Do import shared types directly from `@repo/shared`; don't re-export them through `apps/.../types/`
+- Do import Zod-inferred types directly from `apps/.../schemas/`; don't re-export them through `apps/.../types/`
+- Do keep Zod schemas in `apps/.../schemas/` (app-local)
+- Do handle loading/empty/error states explicitly
+- Do use `mutate` with `onSuccess` / `onError` at mutation call sites; put cache invalidation in query-hook `useMutation` `onSuccess`
+- Do use `DetailItem` for read-only label/value display; do use `getLabel` for option labels
+- Don't put Zod schemas or React-dependent types in `@repo/shared`
+- Don't hand-write types that mirror DB models; use Prisma-driven types instead
+- Don't catch and ignore errors; rethrow with context or show user feedback
+- Don't bypass DTO/Zod validation
+- Don't use `mutateAsync` + scattered `try`/`catch` for routine UI mutations when `mutate` + callbacks (or a `Promise` wrapper for `await`ing callers) matches the pattern above
+
+Remember: Follow existing patterns first. When in doubt, prefer consistency, clarity, and explicitness. Ensure new code compiles, lints cleanly, and has useful logs and errors.

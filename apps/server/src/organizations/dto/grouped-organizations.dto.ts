@@ -1,0 +1,18 @@
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
+import { IsInt, IsOptional, Max, Min } from "class-validator";
+
+export class GroupedOrganizationsQueryDto {
+	@ApiPropertyOptional({
+		default: 8,
+		minimum: 1,
+		maximum: 50,
+		description: "Number of organizations per group",
+	})
+	@IsOptional()
+	@Type(() => Number)
+	@IsInt()
+	@Min(1)
+	@Max(50)
+	limitPerGroup = 8;
+}

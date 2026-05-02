@@ -1,0 +1,5 @@
+-- Ensure OfferEventType has all extended values (idempotent; fixes DBs that drifted).
+ALTER TYPE "OfferEventType" ADD VALUE IF NOT EXISTS 'PLACEMENT_CREATED';
+ALTER TYPE "OfferEventType" ADD VALUE IF NOT EXISTS 'START_DATE_ADJUSTED';
+ALTER TYPE "OfferEventType" ADD VALUE IF NOT EXISTS 'ASSIGNMENT_STARTED';
+ALTER TYPE "OfferEventType" ADD VALUE IF NOT EXISTS 'PLACEMENT_TERMINATED';

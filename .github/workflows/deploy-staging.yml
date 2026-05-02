@@ -1,0 +1,120 @@
+name: Deploy to Main
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  DEPLOYING-WEBSITE:
+    runs-on: self-hosted
+    if: github.event_name == 'workflow_dispatch' || (github.event.head_commit != null && contains(github.event.head_commit.message, 'DEPLOY'))
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS CLI
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Create Admin Web.env file
+        run: |
+          echo "${{ secrets.PROJECT_ENV_ADMIN_WEB_STAGING }}" > ./apps/admin-web/.env
+          echo "✅ Web .env file created"
+          
+      - name: Create Org Web .env file
+        run: |
+          echo "${{ secrets.PROJECT_ENV_ORG_WEB_STAGING }}" > ./apps/org-web/.env
+          echo "✅ Org Web .env file created"
+
+      - name: Create Server .env file
+        run: |
+          echo "${{ secrets.PROJECT_ENV_SERVER_STAGING }}" > ./apps/server/.env
+          echo "✅ Server .env file created"
+  
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Debug ECR values
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        run: |
+          echo "Registry: $ECR_REGISTRY"
+          echo "Repository: $ECR_REPOSITORY"
+          echo "Full URI: $ECR_REGISTRY/$ECR_REPOSITORY"
+          aws ecr describe-repositories --repository-names $ECR_REPOSITORY
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "✅ Image pushed to ECR"
+
+      - name: Get Instance Public IP
+        id: get_ip
+        run: |
+          INSTANCE_NAME="workforce"
+          INSTANCE_IP=$(aws lightsail get-instance --instance-name $INSTANCE_NAME --query 'instance.publicIpAddress' --output text)
+          echo "INSTANCE_IP=${INSTANCE_IP}" >> $GITHUB_ENV
+
+      - name: SSH into Lightsail Instance and Deploy
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+          AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          # Copy the SSH key
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEFAULT_SSH_PRIVATE_KEY }}" > ~/.ssh/github
+          chmod 600 ~/.ssh/github
+
+          echo "INSTANCE_IP: $INSTANCE_IP"
+          echo "ECR_IMAGE: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+          # Deploying Now..!!
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/github ubuntu@${{ env.INSTANCE_IP }} bash -s << EOF
+            set -e
+            
+            echo "⚙️ Configuring AWS CLI..."
+            mkdir -p ~/.aws
+            printf '[default]\naws_access_key_id = %s\naws_secret_access_key = %s\n' "${AWS_ACCESS_KEY_ID}" "${AWS_SECRET_ACCESS_KEY}" > ~/.aws/credentials
+            printf '[default]\nregion = %s\noutput = json\n' "${AWS_REGION}" > ~/.aws/config
+            chmod 600 ~/.aws/credentials
+            chmod 600 ~/.aws/config
+            echo "✅ AWS CLI configured"
+            
+            echo "🔐 Logging into ECR..."
+            aws ecr get-login-password --region ${AWS_REGION} | sudo docker login --username AWS --password-stdin ${ECR_REGISTRY}
+            
+            echo "📥 Pulling Docker image from ECR..."
+            sudo docker pull ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+            sudo docker tag ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
+            
+            echo "🔍 Checking for server/.env file..."
+            if [ ! -f "/home/ubuntu/workforce/apps/server/.env" ]; then
+              echo "❌ Error: apps/server/.env file not found!"
+              exit 1
+            fi
+            echo "✅ Server .env file found"
+            
+            echo "🚀 Running deploy-staging script..."
+            cd /home/ubuntu/workforce
+            sudo ECR_REGISTRY=${ECR_REGISTRY} ECR_REPOSITORY=${ECR_REPOSITORY} TAG=latest bash ./deploy-staging.sh
+          EOF
