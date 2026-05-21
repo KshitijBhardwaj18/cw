@@ -161,6 +161,12 @@ export type SpendOpenCommittedBreakdownRow = {
 
 export type SpendOpenCommittedBreakdownResponse = {
 	data: SpendOpenCommittedBreakdownRow[];
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+	totalOpenSpend: number;
+	totalCommittedSpend: number;
 };
 
 export type UpdateBillingConfigPayload = {
@@ -199,6 +205,15 @@ export type UpdateBillingConfigPayload = {
 	saasPercent?: number;
 	markupType?: string;
 	markupValue?: number;
+};
+
+export type TriggerBillingCycleRunResponse = {
+	jobId: string;
+	organizationId: string;
+	billingFrequency: string;
+	cycleStartDay: string | null;
+	delayMinutes: number;
+	scheduledFor: string;
 };
 
 const BASE = "/api/org/billing";
@@ -253,6 +268,13 @@ export class BillingService {
 
 	static async updateConfig(payload: UpdateBillingConfigPayload) {
 		return ApiClient.put<ApiBillingConfig>(`${BASE}/config`, payload);
+	}
+
+	static async triggerBillingCycleRun(delayMinutes: number) {
+		return ApiClient.post<TriggerBillingCycleRunResponse>(
+			`${BASE}/config/test/run-cycle-now`,
+			{ delayMinutes },
+		);
 	}
 
 	static async getPendingInvoiceCount() {

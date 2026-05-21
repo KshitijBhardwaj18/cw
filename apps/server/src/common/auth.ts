@@ -80,10 +80,10 @@ function createAuthOptions(overrides: {
 				disableSignUp: true,
 			}),
 			emailOTP({
-				generateOTP:
-					process.env.QA_MODE === "true" || config.environment === "development"
-						? () => "123456" // Hardcoded qa code
-						: undefined,
+				...(process.env.QA_MODE === "true" ||
+				config.environment === "development"
+					? { generateOTP: () => "123456" } // Hardcoded qa code
+					: {}),
 				async sendVerificationOTP({ email, otp, type }) {
 					const subject = {
 						"sign-in": "Sign In OTP",

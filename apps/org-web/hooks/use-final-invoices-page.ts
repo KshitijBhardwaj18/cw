@@ -1,9 +1,8 @@
 "use client";
 
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useMemo, useState } from "react";
 import { FINAL_INVOICE_STATUS_FILTER_OPTIONS } from "@/constants/final-invoices";
 import {
 	useFinalInvoiceSummary,
@@ -12,42 +11,52 @@ import {
 
 export const FINAL_INVOICES_PAGE_SIZE = 10;
 
-export function useFinalInvoicesPage(orgId: string) {
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "finvSearch", pageParamKey: "finvPage" },
-	);
+const FINAL_INVOICE_PARAMS = {
+	SEARCH: "finvSearch",
+	PAGE: "finvPage",
+	LIMIT: "fil",
+	STATUS: "finalInvStatus",
+} as const;
 
-	const pageParam = Number(searchParams.get("finvPage") ?? "1");
-	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-	const statusFilter = searchParams.get("finalInvStatus") ?? "all";
+export function useFinalInvoicesPage(orgId: string) {
+	const { page, limit, setPage, setLimit } = usePaginationControls({
+		pageParamKey: FINAL_INVOICE_PARAMS.PAGE,
+		limitParamKey: FINAL_INVOICE_PARAMS.LIMIT,
+		defaultLimit: FINAL_INVOICES_PAGE_SIZE,
+	});
+
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		search: { paramKey: FINAL_INVOICE_PARAMS.SEARCH },
+		pagination: { pageParamKey: FINAL_INVOICE_PARAMS.PAGE },
+		filters: [
+			{
+				id: FINAL_INVOICE_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				options: [...FINAL_INVOICE_STATUS_FILTER_OPTIONS],
+			},
+		],
+	});
 
 	const [filtersExpanded, setFiltersExpanded] = useState(true);
 
-	const setPage = useCallback(
-		(p: number) => {
-			pushParams({ finvPage: String(p) });
-		},
-		[pushParams],
-	);
-
-	const setStatusFilter = useCallback(
-		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ finalInvStatus: clear ? null : v, finvPage: null });
-		},
-		[pushParams],
-	);
-
+	const statusFilter = values[FINAL_INVOICE_PARAMS.STATUS] || "all";
 	const query = useMemo(
 		() => ({
 			page,
-			limit: FINAL_INVOICES_PAGE_SIZE,
+			limit,
 			...(searchFromUrl.trim() ? { search: searchFromUrl.trim() } : {}),
 			...(statusFilter !== "all" ? { status: statusFilter } : {}),
 		}),
-		[page, searchFromUrl, statusFilter],
+		[page, limit, searchFromUrl, statusFilter],
 	);
 
 	const listQuery = useFinalInvoices(orgId, query);
@@ -55,30 +64,19 @@ export function useFinalInvoicesPage(orgId: string) {
 		...(searchFromUrl.trim() ? { search: searchFromUrl.trim() } : {}),
 	});
 
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "final-invoice-status",
-				label: "Status",
-				value: statusFilter,
-				onValueChange: setStatusFilter,
-				placeholder: "All",
-				options: [...FINAL_INVOICE_STATUS_FILTER_OPTIONS],
-			},
-		],
-		[setStatusFilter, statusFilter],
-	);
-
 	return {
-		search: localSearch,
-		setSearch: handleSearchChange,
+		localSearch,
+		handleSearchChange,
 		filtersExpanded,
 		setFiltersExpanded,
 		page,
 		setPage,
+		limit,
+		setLimit,
 		query,
 		listQuery,
 		summaryQuery,
-		filterConfigs,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
 	};
 }

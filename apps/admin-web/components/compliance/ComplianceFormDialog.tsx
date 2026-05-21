@@ -37,6 +37,8 @@ import {
 } from "@repo/ui/components/select";
 import { Textarea } from "@repo/ui/components/textarea";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import {
 	Download,
 	ExternalLink,
@@ -82,6 +84,11 @@ export function ComplianceFormDialog({
 		clearFileOnResponseStyleChange,
 	} = useComplianceFormDialog({ open, onOpenChange, item });
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<input
@@ -109,14 +116,17 @@ export function ComplianceFormDialog({
 						className="space-y-5"
 					>
 						<FieldGroup>
-							<div className="grid grid-cols-2 gap-4">
+							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<form.Field
 									name="name"
 									validators={{ onChange: ComplianceFormBaseSchema.shape.name }}
 								>
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel htmlFor={field.name}>
@@ -142,8 +152,11 @@ export function ComplianceFormDialog({
 
 								<form.Field name="category">
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel htmlFor={field.name}>
@@ -183,8 +196,11 @@ export function ComplianceFormDialog({
 
 							<form.Field name="expirationType">
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -237,9 +253,11 @@ export function ComplianceFormDialog({
 												</span>
 												<form.Field name="expirationRuleValue">
 													{(field) => {
-														const isInvalid =
-															field.state.meta.isTouched &&
-															!field.state.meta.isValid;
+														const isInvalid = formFieldShowInvalid(
+															field.state.meta.isTouched,
+															field.state.meta.isValid,
+															submissionAttempts,
+														);
 														return (
 															<Field data-invalid={isInvalid} className="w-24">
 																<Input
@@ -274,9 +292,11 @@ export function ComplianceFormDialog({
 												</span>
 												<form.Field name="expirationRuleUnit">
 													{(field) => {
-														const isInvalid =
-															field.state.meta.isTouched &&
-															!field.state.meta.isValid;
+														const isInvalid = formFieldShowInvalid(
+															field.state.meta.isTouched,
+															field.state.meta.isValid,
+															submissionAttempts,
+														);
 														return (
 															<Field data-invalid={isInvalid} className="w-36">
 																<Select
@@ -353,9 +373,11 @@ export function ComplianceFormDialog({
 									issuerRequirement ? (
 										<form.Field name="issuer">
 											{(field) => {
-												const isInvalid =
-													field.state.meta.isTouched &&
-													!field.state.meta.isValid;
+												const isInvalid = formFieldShowInvalid(
+													field.state.meta.isTouched,
+													field.state.meta.isValid,
+													submissionAttempts,
+												);
 												return (
 													<Field data-invalid={isInvalid}>
 														<FieldLabel htmlFor={field.name}>
@@ -387,8 +409,11 @@ export function ComplianceFormDialog({
 							{/* Response Style - own row */}
 							<form.Field name="responseStyle">
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -453,9 +478,11 @@ export function ComplianceFormDialog({
 											{showLinkOnly ? (
 												<form.Field name="file">
 													{(field) => {
-														const isInvalid =
-															field.state.meta.isTouched &&
-															!field.state.meta.isValid;
+														const isInvalid = formFieldShowInvalid(
+															field.state.meta.isTouched,
+															field.state.meta.isValid,
+															submissionAttempts,
+														);
 														return (
 															<Field data-invalid={isInvalid}>
 																<Input
@@ -500,9 +527,11 @@ export function ComplianceFormDialog({
 													</p>
 													<form.Field name="file">
 														{(field) => {
-															const isInvalid =
-																field.state.meta.isTouched &&
-																!field.state.meta.isValid;
+															const isInvalid = formFieldShowInvalid(
+																field.state.meta.isTouched,
+																field.state.meta.isValid,
+																submissionAttempts,
+															);
 															return (
 																<Field data-invalid={isInvalid}>
 																	<Input
@@ -536,7 +565,7 @@ export function ComplianceFormDialog({
 												<Card>
 													<CardContent>
 														<div className="space-y-4">
-															<div className="grid gap-4 sm:grid-cols-2">
+															<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 																<div>
 																	<p className="text-muted-foreground text-xs">
 																		Document

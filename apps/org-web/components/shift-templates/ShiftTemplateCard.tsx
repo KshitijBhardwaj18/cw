@@ -1,5 +1,6 @@
 "use client";
 
+import { formatUsdPerHour } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { Pencil, Settings, Trash2 } from "lucide-react";
@@ -91,10 +92,12 @@ export function ShiftTemplateCard({
 					</p>
 				</div>
 
-				<div className="grid grid-cols-2 gap-3">
+				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 					<div className="rounded-lg bg-emerald-500/10 px-3 py-2">
 						<p className="text-muted-foreground text-xs">Shift Rate</p>
-						<p className="font-semibold">${template.baseRate}/hr</p>
+						<p className="font-semibold">
+							{formatUsdPerHour(template.baseRate)}
+						</p>
 					</div>
 					<div className="rounded-lg bg-sky-500/10 px-3 py-2">
 						<p className="text-muted-foreground text-xs">Duration</p>

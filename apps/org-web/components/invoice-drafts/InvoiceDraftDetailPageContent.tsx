@@ -32,6 +32,7 @@ import {
 	TINTED_METRIC_TONE_STYLES,
 	TintedMetricCard,
 } from "@repo/ui/general/TintedMetricCard";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { cn } from "@repo/ui/lib/utils";
 import {
 	AlertTriangle,
@@ -97,6 +98,12 @@ export function InvoiceDraftDetailPageContent({
 	const submitInvoice = useSubmitInvoice(orgId);
 	const approveInvoice = useApproveInvoice(orgId);
 	const { data: invoice } = useInvoice(orgId, draftId);
+	const [activeTab, setActiveTab] = useTabSwitch([
+		"all",
+		"approved",
+		"disputed",
+	]);
+
 	const [isDisputeOpen, setIsDisputeOpen] = useState(false);
 	const [selectedLine, setSelectedLine] =
 		useState<InvoiceDraftDetailLineItem | null>(null);
@@ -231,7 +238,7 @@ export function InvoiceDraftDetailPageContent({
 							}
 						/>
 					</div>
-					<div className="grid gap-4 border-t pt-6 sm:grid-cols-2 lg:grid-cols-4">
+					<div className="grid grid-cols-1 gap-4 border-t pt-6 sm:grid-cols-2 lg:grid-cols-4">
 						<DetailItem label="Vendor" value={detail.vendor} />
 						<DetailItem label="Period" value={detail.periodLabel} />
 						<DetailItem
@@ -254,7 +261,7 @@ export function InvoiceDraftDetailPageContent({
 				</CardContent>
 			</Card>
 
-			<Tabs defaultValue="all" className="flex-col">
+			<Tabs value={activeTab} onValueChange={setActiveTab} className="flex-col">
 				<ScrollableLineTabsRow>
 					<TabsList
 						variant="line"

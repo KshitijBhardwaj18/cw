@@ -6,6 +6,7 @@ import type {
 	useCreateVendorMutation,
 	useUpdateVendorMutation,
 } from "@/queries/vendor.queries";
+import { vendorProfileSchema } from "@/schemas/vendor.schema";
 import type { VendorDetail } from "@/types/vendor";
 
 export interface UseVendorProfileReturn {
@@ -46,6 +47,7 @@ export function useVendorProfile({
 	const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
 	const form = useForm({
+		validators: { onSubmit: vendorProfileSchema },
 		defaultValues: {
 			logoUrl: vendor?.logo ?? "",
 			name: vendor?.name ?? "",
@@ -55,11 +57,17 @@ export function useVendorProfile({
 			about: vendor?.about ?? "",
 			isActive: vendor?.isActive ?? true,
 			internalId: vendor?.internalId ?? generatedInternalId,
-			createdDate: vendor?.createdAt ?? new Date().toISOString(),
+			createdDate: vendor?.createdAt
+				? new Date(vendor.createdAt).toISOString()
+				: new Date().toISOString(),
 			taxId: vendor?.taxId ?? "",
 			phoneNumber: vendor?.phoneNumber ?? "",
 			website: vendor?.website ?? "",
 			addressStreet: vendor?.address?.street ?? "",
+			addressCity: vendor?.address?.city ?? "",
+			addressState: vendor?.address?.state ?? "",
+			addressZipCode: vendor?.address?.zipCode ?? "",
+			addressCountry: vendor?.address?.country ?? "",
 			annualRevenue: vendor?.annualRevenue ?? null,
 			employeeCount: vendor?.employeeCount ?? null,
 		},
@@ -67,6 +75,16 @@ export function useVendorProfile({
 			toast.error("Please fill in all required fields");
 		},
 		onSubmit: ({ value }) => {
+			const street = value.addressStreet?.trim() ?? "";
+			const city = value.addressCity?.trim() ?? "";
+			const state = value.addressState?.trim() ?? "";
+			const zipCode = value.addressZipCode?.trim() ?? "";
+			const country = value.addressCountry?.trim() ?? "";
+			const address =
+				street && city && state && zipCode
+					? { street, city, state, zipCode, country: country || "USA" }
+					: undefined;
+
 			const payload = {
 				name: value.name,
 				industries: value.industries,
@@ -79,6 +97,7 @@ export function useVendorProfile({
 				taxId: value.taxId || undefined,
 				phoneNumber: value.phoneNumber || undefined,
 				website: value.website || undefined,
+				address,
 				annualRevenue: value.annualRevenue,
 				employeeCount: value.employeeCount,
 			};

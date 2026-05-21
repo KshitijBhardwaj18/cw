@@ -18,7 +18,8 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { Textarea } from "@repo/ui/components/textarea";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 import { useEffect } from "react";
 import type { NoteWithUser } from "@/types/vendor";
 
@@ -53,6 +54,11 @@ export function NoteEditDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	useEffect(() => {
 		if (note) {
 			form.reset({
@@ -69,7 +75,7 @@ export function NoteEditDialog({
 
 	return (
 		<Dialog open={!!note} onOpenChange={handleOpenChange}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>{readOnly ? "Note Details" : "Edit Note"}</DialogTitle>
 				</DialogHeader>
@@ -104,7 +110,7 @@ export function NoteEditDialog({
 							readOnly
 								? undefined
 								: {
-										onChange: ({ value }) =>
+										onBlur: ({ value }) =>
 											!value || value.length === 0
 												? "Notes type is required"
 												: undefined,
@@ -114,14 +120,20 @@ export function NoteEditDialog({
 						{(field) => {
 							const isInvalid =
 								!readOnly &&
-								field.state.meta.isTouched &&
-								(!field.state.value || field.state.value.length === 0);
+								formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel>Notes Type</FieldLabel>
 									<Select
 										value={field.state.value}
-										onValueChange={(value) => field.handleChange(value)}
+										onValueChange={(value) => {
+											field.handleChange(value);
+											field.handleBlur();
+										}}
 										disabled={readOnly}
 									>
 										<SelectTrigger>
@@ -147,7 +159,7 @@ export function NoteEditDialog({
 							readOnly
 								? undefined
 								: {
-										onChange: ({ value }) =>
+										onBlur: ({ value }) =>
 											!value || value.trim().length === 0
 												? "Notes are required"
 												: undefined,
@@ -157,8 +169,11 @@ export function NoteEditDialog({
 						{(field) => {
 							const isInvalid =
 								!readOnly &&
-								field.state.meta.isTouched &&
-								(!field.state.value || field.state.value.trim().length === 0);
+								formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>Notes</FieldLabel>

@@ -42,6 +42,7 @@ export function DocumentsList({
 	dateTo: dateToProp,
 	onDateFromChange,
 	onDateToChange,
+	isLoading,
 	vendorId,
 	mspId,
 	organizationId,
@@ -146,16 +147,18 @@ export function DocumentsList({
 						</div>
 					</div>
 
-					<CustomTable
-						columns={columns}
-						data={documents}
-						enableSorting={false}
-						emptyState={
-							<p className="text-muted-foreground py-8 text-center text-sm">
-								No documents added yet.
-							</p>
-						}
-					/>
+					<div className={isLoading ? "pointer-events-none opacity-50" : ""}>
+						<CustomTable
+							columns={columns}
+							data={documents}
+							enableSorting={false}
+							emptyState={
+								<p className="text-muted-foreground py-8 text-center text-sm">
+									No documents added yet.
+								</p>
+							}
+						/>
+					</div>
 				</CardContent>
 			</Card>
 			<DocumentDeleteDialog

@@ -104,6 +104,65 @@ export class PerDiemShiftsService {
 		return d.toISOString().slice(0, 10);
 	}
 
+	private async detectConflicts(
+		claimed: Array<{
+			shiftId: string;
+			candidateId: string;
+			shiftDate: Date;
+			shiftType: string;
+		}>,
+	): Promise<Set<string>> {
+		if (claimed.length === 0) return new Set();
+
+		const candidateIds = [...new Set(claimed.map((c) => c.candidateId))];
+		const shiftDates = [...new Set(claimed.map((c) => c.shiftDate))];
+
+		const allAssignments = await this.prisma.perDiemAssignment.findMany({
+			where: {
+				candidateId: { in: candidateIds },
+				status: { not: "cancelled" },
+				shift: { shiftDate: { in: shiftDates } },
+			},
+			select: {
+				candidateId: true,
+				shiftId: true,
+				shift: { select: { shiftDate: true, shiftType: true } },
+			},
+		});
+
+		// candidateId → [{shiftId, dateKey, shiftType}]
+		const byCandidate = new Map<
+			string,
+			Array<{ shiftId: string; dateKey: string; shiftType: string }>
+		>();
+		for (const a of allAssignments) {
+			const dateKey = a.shift.shiftDate.toISOString().slice(0, 10);
+			const list = byCandidate.get(a.candidateId) ?? [];
+			list.push({ shiftId: a.shiftId, dateKey, shiftType: a.shift.shiftType });
+			byCandidate.set(a.candidateId, list);
+		}
+
+		// Only Day↔Night patterns are flagged as safety conflicts
+		const OPPOSING: Record<string, string> = { DAYS: "NIGHTS", NIGHTS: "DAYS" };
+
+		const conflictSet = new Set<string>();
+		for (const item of claimed) {
+			const opposing = OPPOSING[item.shiftType];
+			if (!opposing) continue;
+			const itemDateKey = item.shiftDate.toISOString().slice(0, 10);
+			const candidateShifts = byCandidate.get(item.candidateId) ?? [];
+			const hasConflict = candidateShifts.some(
+				(a) =>
+					a.shiftId !== item.shiftId &&
+					a.dateKey === itemDateKey &&
+					a.shiftType === opposing,
+			);
+			if (hasConflict) conflictSet.add(item.shiftId);
+		}
+
+		return conflictSet;
+	}
+
 	async list(orgId: string, query: PerDiemShiftsQueryDto) {
 		const org = await this.prisma.organization.findUnique({
 			where: { id: orgId },
@@ -227,6 +286,7 @@ export class PerDiemShiftsService {
 					shiftTemplate: { select: { templateName: true } },
 					assignments: {
 						select: {
+							candidateId: true,
 							candidate: { select: { user: { select: { name: true } } } },
 							assignedAt: true,
 						},
@@ -252,9 +312,29 @@ export class PerDiemShiftsService {
 			return acc;
 		}, {});
 
+		const claimedForConflict = items
+			.map((s) => ({
+				shiftId: s.id,
+				candidateId: s.assignments[0]?.candidateId ?? null,
+				shiftDate: s.shiftDate,
+				shiftType: s.shiftType as string,
+			}))
+			.filter(
+				(
+					x,
+				): x is {
+					shiftId: string;
+					candidateId: string;
+					shiftDate: Date;
+					shiftType: string;
+				} => x.candidateId != null,
+			);
+		const conflictSet = await this.detectConflicts(claimedForConflict);
+
 		return {
 			data: items.map((s) => {
 				const claimed = s.assignments[0];
+				const hasConflict = conflictSet.has(s.id);
 				return {
 					id: s.id,
 					title: `${s.shiftTemplate?.templateName ?? "Per Diem Shift"} - ${s.occupation.name}`,
@@ -276,6 +356,10 @@ export class PerDiemShiftsService {
 					notifications: 0,
 					createdBy: s.createdBy?.name ?? "—",
 					createdAt: s.createdAt.toISOString(),
+					hasConflict,
+					conflictReason: hasConflict
+						? "Safety Conflict: Consecutive Day/Night shifts detected"
+						: null,
 				};
 			}),
 			total,
@@ -303,19 +387,27 @@ export class PerDiemShiftsService {
 
 	async getCommandCenterLocations(
 		orgId: string,
-		query: { search?: string; department?: string; occupation?: string },
+		query: {
+			search?: string;
+			department?: string;
+			occupation?: string;
+			page: number;
+			limit: number;
+		},
 	) {
-		const org = await this.prisma.organization.findUnique({
-			where: { id: orgId },
-			select: { id: true },
-		});
-		if (!org) throw new NotFoundException("Organization not found");
-
 		const { start, end } = this.getNextThreeDaysRange();
+		const skip = (query.page - 1) * query.limit;
 
 		const where: Prisma.PerDiemShiftWhereInput = {
 			organizationId: orgId,
 			shiftDate: { gte: start, lte: end },
+			...(query.search?.trim()
+				? {
+						location: {
+							name: { contains: query.search.trim(), mode: "insensitive" },
+						},
+					}
+				: {}),
 			...(query.department
 				? {
 						department: {
@@ -332,41 +424,75 @@ export class PerDiemShiftsService {
 				: {}),
 		};
 
-		const shifts = await this.prisma.perDiemShift.findMany({
-			where,
-			select: {
-				id: true,
-				status: true,
-				isPublic: true,
-				shiftDate: true,
-				startTime: true,
-				endTime: true,
-				shiftRate: true,
-				vendorRate: true,
-				shiftType: true,
-				totalShiftHours: true,
-				totalCost: true,
-				createdAt: true,
-				occupation: { select: { name: true } },
-				specialty: { select: { name: true } },
-				department: { select: { name: true } },
-				location: { select: { id: true, name: true } },
-				shiftTemplate: { select: { templateName: true } },
-				assignments: {
-					select: {
-						candidate: { select: { user: { select: { name: true } } } },
-						assignedAt: true,
-					},
-					orderBy: { assignedAt: "desc" },
-					take: 1,
-				},
-			},
-			orderBy: [
-				{ locationId: "asc" },
-				{ shiftDate: "asc" },
-				{ startTime: "asc" },
+		const [summary, pagedLocationIds, totalLocationsResult] = await Promise.all(
+			[
+				this.prisma.perDiemShift.groupBy({
+					by: ["status"],
+					where,
+					_count: { _all: true },
+				}),
+				this.prisma.perDiemShift.findMany({
+					where,
+					select: { locationId: true },
+					distinct: ["locationId"],
+					orderBy: { locationId: "asc" },
+					skip,
+					take: query.limit,
+				}),
+				this.prisma.$queryRaw<Array<{ count: number }>>`
+				SELECT COUNT(DISTINCT "locationId")::int AS count
+				FROM per_diem_shifts
+				WHERE "organizationId" = ${orgId}::uuid
+					AND "shiftDate" >= ${start}
+					AND "shiftDate" <= ${end}
+			`,
 			],
-		});
+		);
+
+		const locationIds = pagedLocationIds.map((r) => r.locationId);
+		const totalLocations = Number(totalLocationsResult[0]?.count ?? 0);
+
+		const shifts =
+			locationIds.length === 0
+				? []
+				: await this.prisma.perDiemShift.findMany({
+						where: { ...where, locationId: { in: locationIds } },
+						select: {
+							id: true,
+							status: true,
+							isPublic: true,
+							shiftDate: true,
+							startTime: true,
+							endTime: true,
+							shiftRate: true,
+							vendorRate: true,
+							shiftType: true,
+							totalShiftHours: true,
+							totalCost: true,
+							createdAt: true,
+							occupation: { select: { name: true } },
+							specialty: { select: { name: true } },
+							department: { select: { name: true } },
+							location: { select: { id: true, name: true } },
+							shiftTemplate: { select: { templateName: true } },
+							createdBy: { select: { name: true } },
+							assignments: {
+								where: { status: { not: "cancelled" } },
+								select: {
+									candidateId: true,
+									candidate: { select: { user: { select: { name: true } } } },
+									assignedAt: true,
+								},
+								orderBy: { assignedAt: "desc" },
+								take: 1,
+							},
+						},
+						orderBy: [
+							{ locationId: "asc" },
+							{ shiftDate: "asc" },
+							{ startTime: "asc" },
+						],
+					});
 
 		type CommandCenterShiftItem = {
 			id: string;
@@ -389,15 +515,37 @@ export class PerDiemShiftsService {
 			notifications: number;
 			createdBy: string;
 			createdAt: string;
+			hasConflict: boolean;
+			conflictReason: string | null;
 		};
+
+		const ccClaimedForConflict = shifts
+			.map((s) => ({
+				shiftId: s.id,
+				candidateId: s.assignments[0]?.candidateId ?? null,
+				shiftDate: s.shiftDate,
+				shiftType: s.shiftType as string,
+			}))
+			.filter(
+				(
+					x,
+				): x is {
+					shiftId: string;
+					candidateId: string;
+					shiftDate: Date;
+					shiftType: string;
+				} => x.candidateId != null,
+			);
+		const ccConflictSet = await this.detectConflicts(ccClaimedForConflict);
 
 		const locationsMap = new Map<
 			string,
 			{ id: string; name: string; shifts: CommandCenterShiftItem[] }
 		>();
 		for (const s of shifts) {
-			const claimed = s.assignments[0];
-			const shiftItem = {
+			const claimed = s.assignments[0] ?? null;
+			const hasConflict = ccConflictSet.has(s.id);
+			const shiftItem: CommandCenterShiftItem = {
 				id: s.id,
 				title: `${s.shiftTemplate?.templateName ?? "Per Diem Shift"} - ${s.occupation.name}`,
 				status: s.status,
@@ -416,8 +564,12 @@ export class PerDiemShiftsService {
 				totalHours: s.totalShiftHours,
 				totalCost: s.totalCost ?? s.totalShiftHours * s.shiftRate,
 				notifications: 0,
-				createdBy: "—",
+				createdBy: s.createdBy?.name ?? "—",
 				createdAt: s.createdAt.toISOString(),
+				hasConflict,
+				conflictReason: hasConflict
+					? "Safety Conflict: Consecutive Day/Night shifts detected"
+					: null,
 			};
 
 			const loc = locationsMap.get(s.location.id) ?? {
@@ -429,52 +581,51 @@ export class PerDiemShiftsService {
 			locationsMap.set(s.location.id, loc);
 		}
 
-		let locations = Array.from(locationsMap.values());
-		if (query.search?.trim()) {
-			const q = query.search.trim().toLowerCase();
-			locations = locations.filter((l) => l.name.toLowerCase().includes(q));
-		}
-
-		const allShifts = locations.flatMap((l) => l.shifts);
+		const countByStatus = Object.fromEntries(
+			summary.map((r) => [r.status, r._count._all]),
+		);
 		const counts = {
-			"total-shifts": allShifts.length,
-			filled: allShifts.filter((s) => s.claimedBy != null).length,
-			open: allShifts.filter((s) => s.status === "OPEN").length,
-			"in-progress": allShifts.filter((s) => s.status === "IN_PROGRESS").length,
+			"total-shifts": summary.reduce((a, r) => a + r._count._all, 0),
+			filled: (countByStatus.IN_PROGRESS ?? 0) + (countByStatus.COMPLETED ?? 0),
+			open: countByStatus.OPEN ?? 0,
+			"in-progress": countByStatus.IN_PROGRESS ?? 0,
 		};
 
-		const departments = Array.from(
-			new Set(
-				shifts
-					.map((s) => s.department?.name)
-					.filter((n): n is string => Boolean(n)),
-			),
-		).sort();
-		const occupations = Array.from(
-			new Set(shifts.map((s) => s.occupation.name)),
-		).sort();
+		const filtersMeta = await this.prisma.perDiemShift.findMany({
+			where,
+			select: {
+				department: { select: { name: true } },
+				occupation: { select: { name: true } },
+			},
+			distinct: ["departmentId", "occupationId"],
+		});
+
 		const departmentOccupationsMap = new Map<string, Set<string>>();
-		for (const s of shifts) {
-			const dept = s.department?.name;
+		for (const r of filtersMeta) {
+			const dept = r.department?.name;
 			if (!dept) continue;
 			const set = departmentOccupationsMap.get(dept) ?? new Set<string>();
-			set.add(s.occupation.name);
+			set.add(r.occupation.name);
 			departmentOccupationsMap.set(dept, set);
 		}
-		const departmentOccupations = Array.from(departmentOccupationsMap.entries())
-			.map(([department, set]) => ({
-				department,
-				occupations: Array.from(set.values()).sort(),
-			}))
-			.sort((a, b) => a.department.localeCompare(b.department));
 
 		return {
-			locations,
+			locations: Array.from(locationsMap.values()),
+			page: query.page,
+			limit: query.limit,
+			totalLocations,
 			counts,
 			filtersMeta: {
-				departments,
-				occupations,
-				departmentOccupations,
+				departments: Array.from(departmentOccupationsMap.keys()).sort(),
+				occupations: Array.from(
+					new Set(filtersMeta.map((r) => r.occupation.name)),
+				).sort(),
+				departmentOccupations: Array.from(departmentOccupationsMap.entries())
+					.map(([department, set]) => ({
+						department,
+						occupations: Array.from(set).sort(),
+					}))
+					.sort((a, b) => a.department.localeCompare(b.department)),
 			},
 		};
 	}

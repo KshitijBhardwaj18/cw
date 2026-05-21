@@ -21,7 +21,8 @@ import {
 } from "@repo/ui/components/select";
 import { Textarea } from "@repo/ui/components/textarea";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 export type CreatePlacementTaskFormPayload = {
 	title: string;
 	description?: string;
@@ -70,6 +71,11 @@ export function AddTaskDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	const handleOpenChange = (next: boolean) => {
 		if (!next) {
 			form.reset();
@@ -79,7 +85,7 @@ export function AddTaskDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-md">
+			<DialogContent className="max-h-[90dvh] max-w-md overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Create Task</DialogTitle>
 					<DialogDescription>
@@ -97,16 +103,18 @@ export function AddTaskDialog({
 					<form.Field
 						name="title"
 						validators={{
-							onChange: ({ value }) =>
+							onBlur: ({ value }) =>
 								!value || value.trim().length === 0
 									? "Task title is required"
 									: undefined,
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched &&
-								(!field.state.value || field.state.value.trim().length === 0);
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>Task Title</FieldLabel>
@@ -141,16 +149,18 @@ export function AddTaskDialog({
 					<form.Field
 						name="assigneeId"
 						validators={{
-							onChange: ({ value }) =>
+							onBlur: ({ value }) =>
 								!value || value.length === 0
 									? "Assignee is required"
 									: undefined,
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched &&
-								(!field.state.value || field.state.value.length === 0);
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>
@@ -158,7 +168,10 @@ export function AddTaskDialog({
 									</FieldLabel>
 									<Select
 										value={field.state.value}
-										onValueChange={(value) => field.handleChange(value)}
+										onValueChange={(value) => {
+											field.handleChange(value);
+											field.handleBlur();
+										}}
 									>
 										<SelectTrigger id={field.name}>
 											<SelectValue placeholder="Select assignee" />

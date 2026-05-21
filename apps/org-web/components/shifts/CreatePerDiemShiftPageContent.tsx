@@ -23,9 +23,11 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { ArrowLeft, CalendarDays } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { ShiftType } from "@/constants/shifts";
@@ -53,6 +55,7 @@ const INITIAL_FORM_VALUES: CreateShiftFormValues = {
 
 export function CreatePerDiemShiftPageContent() {
 	const { id: orgId } = useOrgContext();
+	const router = useRouter();
 	const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
 	const [selectedTemplate, setSelectedTemplate] =
 		useState<ShiftTemplateListItem | null>(null);
@@ -89,6 +92,7 @@ export function CreatePerDiemShiftPageContent() {
 				{
 					onSuccess: () => {
 						toast.success("Shift created successfully.");
+						router.push("/org/shifts");
 					},
 					onError: (err) => {
 						toast.error(
@@ -101,6 +105,10 @@ export function CreatePerDiemShiftPageContent() {
 	});
 
 	const values = useStore(form.store, (state) => state.values);
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 	const canCreate = Boolean(
 		selectedTemplate &&
 			values.date &&
@@ -197,9 +205,11 @@ export function CreatePerDiemShiftPageContent() {
 											validators={{ onBlur: createShiftSchema.shape.date }}
 										>
 											{(field) => {
-												const isInvalid =
-													field.state.meta.isTouched &&
-													!field.state.meta.isValid;
+												const isInvalid = formFieldShowInvalid(
+													field.state.meta.isTouched,
+													field.state.meta.isValid,
+													submissionAttempts,
+												);
 												return (
 													<Field data-invalid={isInvalid}>
 														<FieldLabel htmlFor={field.name}>
@@ -229,9 +239,11 @@ export function CreatePerDiemShiftPageContent() {
 												}}
 											>
 												{(field) => {
-													const isInvalid =
-														field.state.meta.isTouched &&
-														!field.state.meta.isValid;
+													const isInvalid = formFieldShowInvalid(
+														field.state.meta.isTouched,
+														field.state.meta.isValid,
+														submissionAttempts,
+													);
 													return (
 														<Field data-invalid={isInvalid}>
 															<FieldLabel htmlFor={field.name}>
@@ -259,9 +271,11 @@ export function CreatePerDiemShiftPageContent() {
 												validators={{ onBlur: createShiftSchema.shape.endTime }}
 											>
 												{(field) => {
-													const isInvalid =
-														field.state.meta.isTouched &&
-														!field.state.meta.isValid;
+													const isInvalid = formFieldShowInvalid(
+														field.state.meta.isTouched,
+														field.state.meta.isValid,
+														submissionAttempts,
+													);
 													return (
 														<Field data-invalid={isInvalid}>
 															<FieldLabel htmlFor={field.name}>
@@ -294,9 +308,11 @@ export function CreatePerDiemShiftPageContent() {
 												}}
 											>
 												{(field) => {
-													const isInvalid =
-														field.state.meta.isTouched &&
-														!field.state.meta.isValid;
+													const isInvalid = formFieldShowInvalid(
+														field.state.meta.isTouched,
+														field.state.meta.isValid,
+														submissionAttempts,
+													);
 													return (
 														<Field data-invalid={isInvalid}>
 															<FieldLabel htmlFor={field.name}>
@@ -352,9 +368,11 @@ export function CreatePerDiemShiftPageContent() {
 											}}
 										>
 											{(field) => {
-												const isInvalid =
-													field.state.meta.isTouched &&
-													!field.state.meta.isValid;
+												const isInvalid = formFieldShowInvalid(
+													field.state.meta.isTouched,
+													field.state.meta.isValid,
+													submissionAttempts,
+												);
 												return (
 													<Field data-invalid={isInvalid}>
 														<FieldLabel htmlFor={field.name}>
@@ -392,9 +410,11 @@ export function CreatePerDiemShiftPageContent() {
 											}}
 										>
 											{(field) => {
-												const isInvalid =
-													field.state.meta.isTouched &&
-													!field.state.meta.isValid;
+												const isInvalid = formFieldShowInvalid(
+													field.state.meta.isTouched,
+													field.state.meta.isValid,
+													submissionAttempts,
+												);
 												return (
 													<Field data-invalid={isInvalid}>
 														<FieldLabel htmlFor={field.name}>
@@ -432,9 +452,11 @@ export function CreatePerDiemShiftPageContent() {
 												}}
 											>
 												{(field) => {
-													const isInvalid =
-														field.state.meta.isTouched &&
-														!field.state.meta.isValid;
+													const isInvalid = formFieldShowInvalid(
+														field.state.meta.isTouched,
+														field.state.meta.isValid,
+														submissionAttempts,
+													);
 													return (
 														<Field data-invalid={isInvalid}>
 															<FieldLabel htmlFor={field.name}>
@@ -477,9 +499,11 @@ export function CreatePerDiemShiftPageContent() {
 												}}
 											>
 												{(field) => {
-													const isInvalid =
-														field.state.meta.isTouched &&
-														!field.state.meta.isValid;
+													const isInvalid = formFieldShowInvalid(
+														field.state.meta.isTouched,
+														field.state.meta.isValid,
+														submissionAttempts,
+													);
 													return (
 														<Field data-invalid={isInvalid}>
 															<FieldLabel htmlFor={field.name}>

@@ -7,6 +7,7 @@ import {
 	SubmissionStage,
 } from "@repo/db";
 import {
+	CandidateWorkforceType,
 	COMMAND_CENTER_EMPTY_WORKFORCE_COUNTS,
 	type CommandCenterWorkforceTypeKey,
 	formatMetricValue,
@@ -337,7 +338,9 @@ export class CommandCenterService {
 							'PENDING_APPROVAL'::"RequisitionStatus"
 						)
 						AND r."createdAt" < ${noSubmissionThreshold}
-						AND r."totalSubmissions" = 0
+						AND NOT EXISTS (
+							SELECT 1 FROM submission s WHERE s."requisitionId" = r.id
+						)
 				) AS "noSubmissionsCount",
 				(
 					SELECT COUNT(*)::int
@@ -350,7 +353,9 @@ export class CommandCenterService {
 							'FILLED'::"RequisitionStatus",
 							'PENDING_APPROVAL'::"RequisitionStatus"
 						)
-						AND r."totalSubmissions" < 3
+						AND (
+							SELECT COUNT(*) FROM submission s WHERE s."requisitionId" = r.id
+						) < 3
 				) AS "lowSubmissionsCount"
 		`;
 
@@ -410,6 +415,47 @@ export class CommandCenterService {
 			activeFilterKey &&
 			REQUISITION_FILTERS.includes(activeFilterKey as RequisitionFilterKey)
 		) {
+			let requisitionIdSubset: string[] | null = null;
+			if (activeFilterKey === "low-submissions") {
+				const [totalRow] = await this.prisma.$queryRaw<
+					Array<{ count: number }>
+				>`
+					SELECT COUNT(*)::int AS count
+					FROM requisition r
+					WHERE r."organizationId" = ${organizationId}::uuid
+						AND r.status NOT IN (
+							'DRAFT'::"RequisitionStatus",
+							'CANCELLED'::"RequisitionStatus",
+							'CLOSED'::"RequisitionStatus",
+							'FILLED'::"RequisitionStatus",
+							'PENDING_APPROVAL'::"RequisitionStatus"
+						)
+						AND (
+							SELECT COUNT(*) FROM submission s WHERE s."requisitionId" = r.id
+						) < 3
+				`;
+				rowsTotal = Number(totalRow?.count ?? 0);
+				const idRows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+					SELECT r.id
+					FROM requisition r
+					WHERE r."organizationId" = ${organizationId}::uuid
+						AND r.status NOT IN (
+							'DRAFT'::"RequisitionStatus",
+							'CANCELLED'::"RequisitionStatus",
+							'CLOSED'::"RequisitionStatus",
+							'FILLED'::"RequisitionStatus",
+							'PENDING_APPROVAL'::"RequisitionStatus"
+						)
+						AND (
+							SELECT COUNT(*) FROM submission s WHERE s."requisitionId" = r.id
+						) < 3
+					ORDER BY r."createdAt" DESC
+					OFFSET ${skip}
+					LIMIT ${limit}
+				`;
+				requisitionIdSubset = idRows.map((row) => row.id);
+			}
+
 			const requisitionFilterWhere =
 				activeFilterKey === "slow-time-to-fill"
 					? { ...openRequisitionWhere, createdAt: { lt: slowThreshold } }
@@ -417,39 +463,62 @@ export class CommandCenterService {
 						? {
 								...openRequisitionWhere,
 								createdAt: { lt: noSubmissionThreshold },
-								totalSubmissions: 0,
+								submissions: { none: {} },
 							}
-						: { ...openRequisitionWhere, totalSubmissions: { lt: 3 } };
+						: {
+								...openRequisitionWhere,
+								id: { in: requisitionIdSubset ?? [] },
+							};
 
-			rowsTotal = await this.prisma.requisition.count({
-				where: requisitionFilterWhere,
-			});
-			const requisitions = await this.prisma.requisition.findMany({
-				where: requisitionFilterWhere,
-				orderBy: { createdAt: "desc" },
-				skip,
-				take: limit,
-				select: {
-					id: true,
-					requisitionNumber: true,
-					jobTitle: true,
-					createdAt: true,
-					status: true,
-					type: true,
-					totalSubmissions: true,
-					numberOfPositions: true,
-					positionsFilled: true,
-					hiringManager: { select: { name: true } },
-					startDate: true,
-					acceptanceCriteria: {
-						select: {
-							complianceListItem: { select: { id: true, name: true } },
-						},
-						orderBy: { createdAt: "asc" },
-						take: 20,
-					},
-				},
-			});
+			if (activeFilterKey !== "low-submissions") {
+				rowsTotal = await this.prisma.requisition.count({
+					where: requisitionFilterWhere,
+				});
+			}
+			const requisitions =
+				activeFilterKey === "low-submissions" &&
+				(requisitionIdSubset?.length ?? 0) === 0
+					? []
+					: await this.prisma.requisition.findMany({
+							where: requisitionFilterWhere,
+							orderBy: { createdAt: "desc" },
+							...(activeFilterKey === "low-submissions"
+								? {}
+								: { skip, take: limit }),
+							select: {
+								id: true,
+								requisitionNumber: true,
+								jobTitle: true,
+								createdAt: true,
+								status: true,
+								type: true,
+								numberOfPositions: true,
+								hiringManager: { select: { name: true } },
+								startDate: true,
+								_count: {
+									select: {
+										submissions: true,
+										placements: {
+											where: {
+												status: {
+													in: [
+														PlacementStatus.ACTIVE,
+														PlacementStatus.COMPLETED,
+													],
+												},
+											},
+										},
+									},
+								},
+								acceptanceCriteria: {
+									select: {
+										complianceListItem: { select: { id: true, name: true } },
+									},
+									orderBy: { createdAt: "asc" },
+									take: 20,
+								},
+							},
+						});
 			const requisitionIds = requisitions.map((row) => row.id);
 			const placementSummaryAgg = await this.prisma.placementSummary.groupBy({
 				by: ["requisitionId"],
@@ -536,7 +605,7 @@ export class CommandCenterService {
 						row.acceptanceCriteria[0]?.complianceListItem.name ??
 						"Compliance Review",
 					daysOpen,
-					submissions: row.totalSubmissions,
+					submissions: row._count.submissions,
 					status: row.status,
 					category:
 						row.type === RequisitionType.LONG_TERM_ORDER
@@ -550,7 +619,7 @@ export class CommandCenterService {
 								? Math.min(
 										100,
 										Math.round(
-											(row.positionsFilled / row.numberOfPositions) * 100,
+											(row._count.placements / row.numberOfPositions) * 100,
 										),
 									)
 								: 0,
@@ -559,7 +628,7 @@ export class CommandCenterService {
 						: "No start date",
 					daysOverdue: Math.max(0, daysOpen - 14),
 					priority:
-						daysOpen > 14 || row.totalSubmissions === 0
+						daysOpen > 14 || row._count.submissions === 0
 							? "High Priority"
 							: "Medium Priority",
 					documents,
@@ -719,7 +788,7 @@ export class CommandCenterService {
 		organizationId: string,
 		query: QueryCommandCenterPerformanceDto,
 	) {
-		const { periodType, startDate, endDate } = performancePeriod(query);
+		const { startDate, endDate } = performancePeriod(query);
 		const perfSummaryRows = await this.prisma.$queryRaw<
 			Array<{
 				activeCandidates: number;
@@ -742,6 +811,8 @@ export class CommandCenterService {
 				) FILTER (
 					WHERE s."qualifiedAt" IS NOT NULL
 					AND s."submittedAt" IS NOT NULL
+					AND s."submittedAt" >= ${startDate}
+					AND s."submittedAt" < ${endDate}
 					AND s."qualifiedAt" >= ${startDate}
 					AND s."qualifiedAt" < ${endDate}
 				)::float AS "avgResponseDays"
@@ -750,26 +821,34 @@ export class CommandCenterService {
 		`;
 		const perfSummary = perfSummaryRows[0];
 
-		const [openLongTermReqs, filledLongTermReqs] = await Promise.all([
+		const [totalOpenedReqs, filledReqs] = await Promise.all([
 			this.prisma.requisition.count({
 				where: {
 					organizationId,
 					type: RequisitionType.LONG_TERM_ORDER,
-					publishedAt: { gte: startDate, lt: endDate },
+					publishedAt: { lt: endDate },
+					status: {
+						notIn: [
+							RequisitionStatus.DRAFT,
+							RequisitionStatus.PENDING_APPROVAL,
+							RequisitionStatus.CANCELLED,
+						],
+					},
 				},
 			}),
-			this.prisma.placement.count({
+			this.prisma.requisition.count({
 				where: {
 					organizationId,
-					requisition: { type: RequisitionType.LONG_TERM_ORDER },
-					acceptedAt: { gte: startDate, lt: endDate },
+					type: RequisitionType.LONG_TERM_ORDER,
+					status: RequisitionStatus.FILLED,
+					updatedAt: { gte: startDate, lt: endDate },
 				},
 			}),
 		]);
 
 		const avgResponseDays = perfSummary?.avgResponseDays ?? 0;
 
-		const fillRate = safePercent(filledLongTermReqs, openLongTermReqs);
+		const fillRate = safePercent(filledReqs, totalOpenedReqs);
 
 		const orgMetrics = await this.prisma.organizationMetric.findMany({
 			where: { organizationId, isActive: true, metric: { status: true } },
@@ -777,24 +856,29 @@ export class CommandCenterService {
 		});
 		const metrics = orgMetrics.map((row) => row.metric);
 		const metricIds = metrics.map((m) => m.id);
+		// Pick the best snapshot per metric:
+		//   1. Prefer snapshots whose period overlaps the requested window (any periodType)
+		//   2. Fall back to the most recent snapshot computed before the window ends
+		// This ensures custom date ranges always show data even when only MONTHLY snapshots exist.
 		const snapshots =
 			metricIds.length === 0
 				? []
-				: await this.prisma.organizationMetricSnapshot.findMany({
-						where: {
-							organizationId,
-							metricId: { in: metricIds },
-							periodType,
-							periodStart: { gte: startDate },
-							periodEnd: { lte: endDate },
-						},
-						orderBy: [
-							{ metricId: "asc" },
-							{ periodStart: "desc" },
-							{ computedAt: "desc" },
-						],
-						distinct: ["metricId"],
-					});
+				: await this.prisma.$queryRaw<
+						Array<{ metricId: string; value: number }>
+					>`
+						SELECT DISTINCT ON (ms."metricId")
+							ms."metricId",
+							ms.value
+						FROM organization_metric_snapshot ms
+						WHERE ms."organizationId" = ${organizationId}::uuid
+							AND ms."metricId" = ANY(${metricIds}::uuid[])
+							AND ms."periodStart" < ${endDate}
+						ORDER BY
+							ms."metricId",
+							(ms."periodEnd" > ${startDate}) DESC,
+							ms."periodStart" DESC,
+							ms."computedAt" DESC
+					`;
 
 		const orgMetricMap = new Map(orgMetrics.map((row) => [row.metricId, row]));
 		const latestSnapshotByMetric = new Map(
@@ -894,59 +978,43 @@ export class CommandCenterService {
 				? selectedOccupationId
 				: null;
 		const workforceRows = await this.prisma.$queryRaw<
-			Array<{ workforceKey: string; count: number }>
+			Array<{ workforceType: string; count: number }>
 		>`
-			WITH classified AS (
-				SELECT
-					p."candidateId",
-					CASE
-						WHEN c."workforceType" = 'INTERNAL_FULL_TIME'::"CandidateWorkforceType" THEN 'internal-full-time'
-						WHEN c."workforceType" = 'INTERNAL_PART_TIME'::"CandidateWorkforceType" THEN 'internal-part-time'
-						WHEN c."workforceType" = 'INTERNAL_PRN'::"CandidateWorkforceType" THEN 'internal-prn'
-						WHEN c."workforceType" = 'INTERNAL_FLOAT_POOL'::"CandidateWorkforceType" THEN 'internal-float-pool'
-						WHEN c."workforceType" = 'INTERNAL_VOLUNTEER'::"CandidateWorkforceType" THEN 'internal-volunteer'
-						WHEN c."workforceType" = 'EXTERNAL_1099'::"CandidateWorkforceType" THEN 'external-1099'
-						WHEN c."workforceType" = 'EXTERNAL_EOR'::"CandidateWorkforceType" THEN 'external-eor'
-						WHEN c."workforceType" = 'EXTERNAL_VENDOR_PER_DIEM'::"CandidateWorkforceType" THEN 'external-vendor-per-diem'
-						WHEN c."workforceType" = 'EXTERNAL_VENDOR_LTO'::"CandidateWorkforceType" THEN 'external-vendor-lto'
-						WHEN c."workforceType" = 'SELF'::"CandidateWorkforceType" AND c."organizationId" = ${organizationId}::uuid THEN 'internal-full-time'
-						WHEN c."workforceType" = 'SELF'::"CandidateWorkforceType" AND (c."vendorId" IS NOT NULL OR p."vendorId" IS NOT NULL) THEN 'external-vendor-lto'
-						WHEN c."workforceType" = 'SELF'::"CandidateWorkforceType" THEN 'external-1099'
-						WHEN LOWER(COALESCE(p."workforceGroup", '')) LIKE '%float%' THEN 'internal-float-pool'
-						WHEN LOWER(COALESCE(p."workforceGroup", '')) LIKE '%volunteer%' THEN 'internal-volunteer'
-						WHEN LOWER(COALESCE(p."workforceGroup", '')) LIKE '%part%' THEN 'internal-part-time'
-						WHEN LOWER(COALESCE(p."workforceGroup", '')) LIKE '%prn%' THEN 'internal-prn'
-						WHEN LOWER(COALESCE(p."workforceGroup", '')) LIKE '%per diem%' THEN 'external-vendor-per-diem'
-						WHEN LOWER(COALESCE(p."workforceGroup", '')) LIKE '%vendor%' AND LOWER(COALESCE(p."workforceGroup", '')) LIKE '%lto%' THEN 'external-vendor-lto'
-						WHEN LOWER(COALESCE(p."workforceGroup", '')) LIKE '%eor%' THEN 'external-eor'
-						WHEN LOWER(COALESCE(p."workforceGroup", '')) LIKE '%1099%' THEN 'external-1099'
-						WHEN p."employmentType" = 'PERMANENT'::"EmploymentType" THEN 'internal-full-time'
-						WHEN p."employmentType" = 'PER_DIEM'::"EmploymentType" AND p."vendorId" IS NOT NULL THEN 'external-vendor-per-diem'
-						WHEN p."employmentType" = 'PER_DIEM'::"EmploymentType" THEN 'internal-prn'
-						WHEN p."employmentType" = 'CONTRACT'::"EmploymentType" AND p."vendorId" IS NOT NULL THEN 'external-vendor-lto'
-						WHEN p."employmentType" = 'CONTRACT'::"EmploymentType" THEN 'external-1099'
-						ELSE NULL
-					END AS "workforceKey"
-				FROM placement p
-				INNER JOIN candidate c ON c.id = p."candidateId"
-				INNER JOIN requisition r ON r.id = p."requisitionId"
-				WHERE p."organizationId" = ${organizationId}::uuid
-					AND p.status = 'ACTIVE'::"PlacementStatus"
-					AND (
-						${occupationFilterId}::uuid IS NULL
-						OR r."organizationOccupationId" = ${occupationFilterId}::uuid
-					)
-			)
 			SELECT
-				"workforceKey",
-				COUNT(DISTINCT "candidateId")::int AS count
-			FROM classified
-			WHERE "workforceKey" IS NOT NULL
-			GROUP BY "workforceKey"
+				c."workforceType"::text,
+				COUNT(*)::int AS count
+			FROM candidate c
+			WHERE c."workforceType" IS NOT NULL
+				AND c."workforceType" != 'SELF'::"CandidateWorkforceType"
+				AND (
+					c."organizationId" = ${organizationId}::uuid
+					OR c."vendorId" IN (
+						SELECT ov."vendorId"
+						FROM organization_vendor ov
+						WHERE ov."organizationId" = ${organizationId}::uuid
+					)
+				)
+				AND (
+					${occupationFilterId}::uuid IS NULL
+					OR c."occupationId" = (
+						SELECT oo."occupationId"
+						FROM organization_occupation oo
+						WHERE oo.id = ${occupationFilterId}::uuid
+					)
+				)
+			GROUP BY c."workforceType"
 		`;
 		const workforceCountsByType = { ...COMMAND_CENTER_EMPTY_WORKFORCE_COUNTS };
 		for (const row of workforceRows) {
-			const key = row.workforceKey as CommandCenterWorkforceTypeKey;
+			if (
+				!(Object.values(CandidateWorkforceType) as string[]).includes(
+					row.workforceType,
+				)
+			)
+				continue;
+			const key = row.workforceType
+				.toLowerCase()
+				.replace(/_/g, "-") as CommandCenterWorkforceTypeKey;
 			if (key in workforceCountsByType) {
 				workforceCountsByType[key] = Number(row.count);
 			}
@@ -966,99 +1034,179 @@ export class CommandCenterService {
 		const search = query.search?.trim() || null;
 		const location = query.location || null;
 		const department = query.department || null;
+		const page = query.page ?? 1;
+		const limit = query.limit ?? 20;
+		const skip = (page - 1) * limit;
 
-		const [locationRows, departmentRows, listingRows] = await Promise.all([
-			this.prisma.$queryRaw<Array<{ value: string }>>`
-				SELECT DISTINCT loc.name AS value
-				FROM requisition r
-				LEFT JOIN organization_location loc ON loc.id = r."locationId"
-				WHERE r."organizationId" = ${organizationId}::uuid
-					AND (
-						${search}::text IS NULL
-						OR r."jobTitle" ILIKE CONCAT('%', ${search}::text, '%')
-						OR COALESCE(loc.name, '') ILIKE CONCAT('%', ${search}::text, '%')
-					)
-					AND loc.name IS NOT NULL
-				ORDER BY loc.name
-			`,
-			this.prisma.$queryRaw<Array<{ value: string }>>`
-				SELECT DISTINCT d.name AS value
-				FROM requisition r
-				LEFT JOIN department d ON d.id = r."departmentId"
-				LEFT JOIN organization_location loc ON loc.id = r."locationId"
-				WHERE r."organizationId" = ${organizationId}::uuid
-					AND (
-						${search}::text IS NULL
-						OR r."jobTitle" ILIKE CONCAT('%', ${search}::text, '%')
-						OR COALESCE(loc.name, '') ILIKE CONCAT('%', ${search}::text, '%')
-						OR COALESCE(d.name, '') ILIKE CONCAT('%', ${search}::text, '%')
-					)
-					AND d.name IS NOT NULL
-				ORDER BY d.name
-			`,
-			this.prisma.$queryRaw<
-				Array<{
-					id: string;
-					jobTitle: string | null;
-					status: string;
-					location: string | null;
-					department: string | null;
-					submitted: number;
-					qualified: number;
-					shortlisted: number;
-					offers: number;
-					rejected: number;
-					placed: number;
-				}>
-			>`
-				SELECT
-					r.id,
-					r."jobTitle",
-					r.status::text AS status,
-					loc.name AS location,
-					d.name AS department,
-					COUNT(*) FILTER (
-						WHERE s.stage = 'SUBMITTED'::"SubmissionStage"
-					)::int AS submitted,
-					COUNT(*) FILTER (
-						WHERE s.stage = 'QUALIFIED'::"SubmissionStage"
-					)::int AS qualified,
-					COUNT(*) FILTER (
-						WHERE s.stage IN (
-							'SHORTLISTED'::"SubmissionStage",
-							'INTERVIEW_SCHEDULED'::"SubmissionStage",
-							'INTERVIEW_COMPLETED'::"SubmissionStage"
+		const [locationRows, departmentRows, listingRows, summaryRow] =
+			await Promise.all([
+				this.prisma.$queryRaw<Array<{ value: string }>>`
+					SELECT DISTINCT loc.name AS value
+					FROM requisition r
+					LEFT JOIN organization_location loc ON loc.id = r."locationId"
+					WHERE r."organizationId" = ${organizationId}::uuid
+						AND r.status NOT IN (
+							'DRAFT'::"RequisitionStatus",
+							'CANCELLED'::"RequisitionStatus",
+							'PENDING_APPROVAL'::"RequisitionStatus"
 						)
-					)::int AS shortlisted,
-					COUNT(*) FILTER (
-						WHERE s.stage = 'OFFERED'::"SubmissionStage"
-					)::int AS offers,
-					COUNT(*) FILTER (
-						WHERE s.stage IN (
-							'REJECTED'::"SubmissionStage",
-							'WITHDRAWN'::"SubmissionStage"
+						AND (
+							${search}::text IS NULL
+							OR r."jobTitle" ILIKE CONCAT('%', ${search}::text, '%')
+							OR COALESCE(loc.name, '') ILIKE CONCAT('%', ${search}::text, '%')
 						)
-					)::int AS rejected,
-					COUNT(*) FILTER (
-						WHERE s.stage = 'ACCEPTED'::"SubmissionStage"
-					)::int AS placed
-				FROM requisition r
-				LEFT JOIN organization_location loc ON loc.id = r."locationId"
-				LEFT JOIN department d ON d.id = r."departmentId"
-				LEFT JOIN submission s ON s."requisitionId" = r.id
-				WHERE r."organizationId" = ${organizationId}::uuid
-					AND (
-						${search}::text IS NULL
-						OR r."jobTitle" ILIKE CONCAT('%', ${search}::text, '%')
-						OR COALESCE(loc.name, '') ILIKE CONCAT('%', ${search}::text, '%')
-						OR COALESCE(d.name, '') ILIKE CONCAT('%', ${search}::text, '%')
-					)
-					AND (${location}::text IS NULL OR loc.name = ${location}::text)
-					AND (${department}::text IS NULL OR d.name = ${department}::text)
-				GROUP BY r.id, r."jobTitle", r.status, loc.name, d.name, r."createdAt"
-				ORDER BY r."createdAt" DESC
-			`,
-		]);
+						AND loc.name IS NOT NULL
+					ORDER BY loc.name
+				`,
+				this.prisma.$queryRaw<Array<{ value: string }>>`
+					SELECT DISTINCT d.name AS value
+					FROM requisition r
+					LEFT JOIN department d ON d.id = r."departmentId"
+					LEFT JOIN organization_location loc ON loc.id = r."locationId"
+					WHERE r."organizationId" = ${organizationId}::uuid
+						AND r.status NOT IN (
+							'DRAFT'::"RequisitionStatus",
+							'CANCELLED'::"RequisitionStatus",
+							'PENDING_APPROVAL'::"RequisitionStatus"
+						)
+						AND (
+							${search}::text IS NULL
+							OR r."jobTitle" ILIKE CONCAT('%', ${search}::text, '%')
+							OR COALESCE(loc.name, '') ILIKE CONCAT('%', ${search}::text, '%')
+							OR COALESCE(d.name, '') ILIKE CONCAT('%', ${search}::text, '%')
+						)
+						AND d.name IS NOT NULL
+					ORDER BY d.name
+				`,
+				this.prisma.$queryRaw<
+					Array<{
+						id: string;
+						jobTitle: string | null;
+						status: string;
+						location: string | null;
+						department: string | null;
+						submitted: number;
+						qualified: number;
+						shortlisted: number;
+						offers: number;
+						rejected: number;
+						placed: number;
+					}>
+				>`
+					SELECT
+						r.id,
+						r."jobTitle",
+						r.status::text AS status,
+						loc.name AS location,
+						d.name AS department,
+						COUNT(s.id) FILTER (
+							WHERE s.stage = 'SUBMITTED'::"SubmissionStage"
+						)::int AS submitted,
+						COUNT(s.id) FILTER (
+							WHERE s.stage = 'QUALIFIED'::"SubmissionStage"
+						)::int AS qualified,
+						COUNT(s.id) FILTER (
+							WHERE s.stage IN (
+								'SHORTLISTED'::"SubmissionStage",
+								'INTERVIEW_SCHEDULED'::"SubmissionStage",
+								'INTERVIEW_COMPLETED'::"SubmissionStage"
+							)
+						)::int AS shortlisted,
+						COUNT(s.id) FILTER (
+							WHERE s.stage = 'OFFERED'::"SubmissionStage"
+						)::int AS offers,
+						COUNT(s.id) FILTER (
+							WHERE s.stage IN (
+								'REJECTED'::"SubmissionStage",
+								'WITHDRAWN'::"SubmissionStage"
+							)
+						)::int AS rejected,
+						COUNT(s.id) FILTER (
+							WHERE s.stage = 'ACCEPTED'::"SubmissionStage"
+						)::int AS placed
+					FROM requisition r
+					LEFT JOIN organization_location loc ON loc.id = r."locationId"
+					LEFT JOIN department d ON d.id = r."departmentId"
+					LEFT JOIN submission s ON s."requisitionId" = r.id
+						AND s."organizationId" = ${organizationId}::uuid
+					WHERE r."organizationId" = ${organizationId}::uuid
+						AND r.status NOT IN (
+							'DRAFT'::"RequisitionStatus",
+							'CANCELLED'::"RequisitionStatus",
+							'PENDING_APPROVAL'::"RequisitionStatus"
+						)
+						AND (
+							${search}::text IS NULL
+							OR r."jobTitle" ILIKE CONCAT('%', ${search}::text, '%')
+							OR COALESCE(loc.name, '') ILIKE CONCAT('%', ${search}::text, '%')
+							OR COALESCE(d.name, '') ILIKE CONCAT('%', ${search}::text, '%')
+						)
+						AND (${location}::text IS NULL OR loc.name = ${location}::text)
+						AND (${department}::text IS NULL OR d.name = ${department}::text)
+					GROUP BY r.id, r."jobTitle", r.status, loc.name, d.name, r."createdAt"
+					ORDER BY r."createdAt" DESC
+					OFFSET ${skip}
+					LIMIT ${limit}
+				`,
+				this.prisma.$queryRaw<
+					Array<{
+						total: number;
+						submitted: number;
+						qualified: number;
+						shortlisted: number;
+						offers: number;
+						rejected: number;
+						placed: number;
+					}>
+				>`
+					SELECT
+						COUNT(DISTINCT r.id)::int AS total,
+						COUNT(s.id) FILTER (
+							WHERE s.stage = 'SUBMITTED'::"SubmissionStage"
+						)::int AS submitted,
+						COUNT(s.id) FILTER (
+							WHERE s.stage = 'QUALIFIED'::"SubmissionStage"
+						)::int AS qualified,
+						COUNT(s.id) FILTER (
+							WHERE s.stage IN (
+								'SHORTLISTED'::"SubmissionStage",
+								'INTERVIEW_SCHEDULED'::"SubmissionStage",
+								'INTERVIEW_COMPLETED'::"SubmissionStage"
+							)
+						)::int AS shortlisted,
+						COUNT(s.id) FILTER (
+							WHERE s.stage = 'OFFERED'::"SubmissionStage"
+						)::int AS offers,
+						COUNT(s.id) FILTER (
+							WHERE s.stage IN (
+								'REJECTED'::"SubmissionStage",
+								'WITHDRAWN'::"SubmissionStage"
+							)
+						)::int AS rejected,
+						COUNT(s.id) FILTER (
+							WHERE s.stage = 'ACCEPTED'::"SubmissionStage"
+						)::int AS placed
+					FROM requisition r
+					LEFT JOIN submission s ON s."requisitionId" = r.id
+						AND s."organizationId" = ${organizationId}::uuid
+					LEFT JOIN organization_location loc ON loc.id = r."locationId"
+					LEFT JOIN department d ON d.id = r."departmentId"
+					WHERE r."organizationId" = ${organizationId}::uuid
+						AND r.status NOT IN (
+							'DRAFT'::"RequisitionStatus",
+							'CANCELLED'::"RequisitionStatus",
+							'PENDING_APPROVAL'::"RequisitionStatus"
+						)
+						AND (
+							${search}::text IS NULL
+							OR r."jobTitle" ILIKE CONCAT('%', ${search}::text, '%')
+							OR COALESCE(loc.name, '') ILIKE CONCAT('%', ${search}::text, '%')
+							OR COALESCE(d.name, '') ILIKE CONCAT('%', ${search}::text, '%')
+						)
+						AND (${location}::text IS NULL OR loc.name = ${location}::text)
+						AND (${department}::text IS NULL OR d.name = ${department}::text)
+				`,
+			]);
 
 		const locationOptions = locationRows.map((row) => ({
 			value: row.value,
@@ -1086,19 +1234,17 @@ export class CommandCenterService {
 			shortlisted: stageMetric(Number(row.shortlisted), Number(row.qualified)),
 			offers: stageMetric(Number(row.offers), Number(row.shortlisted)),
 			rejected: stageMetric(Number(row.rejected), Number(row.submitted)),
-			placed: stageMetric(Number(row.placed), Number(row.qualified)),
+			placed: stageMetric(Number(row.placed), Number(row.offers)),
 		}));
 
-		const submitted = listingRows.reduce((a, j) => a + Number(j.submitted), 0);
-		const qualified = listingRows.reduce((a, j) => a + Number(j.qualified), 0);
-		const shortlisted = listingRows.reduce(
-			(a, j) => a + Number(j.shortlisted),
-			0,
-		);
-		const offers = listingRows.reduce((a, j) => a + Number(j.offers), 0);
-		const rejected = listingRows.reduce((a, j) => a + Number(j.rejected), 0);
-		const placed = listingRows.reduce((a, j) => a + Number(j.placed), 0);
-		const jobCount = listingRows.length;
+		const agg = summaryRow[0];
+		const jobCount = Number(agg?.total ?? 0);
+		const submitted = Number(agg?.submitted ?? 0);
+		const qualified = Number(agg?.qualified ?? 0);
+		const shortlisted = Number(agg?.shortlisted ?? 0);
+		const offers = Number(agg?.offers ?? 0);
+		const rejected = Number(agg?.rejected ?? 0);
+		const placed = Number(agg?.placed ?? 0);
 		const pct = (n: number, d: number) =>
 			d > 0 ? `${Math.round((n / d) * 100)}%` : "0%";
 
@@ -1106,6 +1252,9 @@ export class CommandCenterService {
 			locationOptions,
 			departmentOptions,
 			jobListings,
+			page,
+			limit,
+			total: jobCount,
 			summaryByKey: {
 				submitted: {
 					value: submitted,
@@ -1136,8 +1285,7 @@ export class CommandCenterService {
 				},
 				placed: {
 					value: placed,
-					helperText:
-						qualified > 0 ? `${pct(placed, qualified)} of qualified` : "",
+					helperText: offers > 0 ? `${pct(placed, offers)} of offers` : "",
 				},
 			},
 		};

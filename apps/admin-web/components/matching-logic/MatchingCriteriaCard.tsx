@@ -1,3 +1,5 @@
+"use client";
+
 import {
 	Card,
 	CardContent,
@@ -6,6 +8,8 @@ import {
 } from "@repo/ui/components/card";
 import { Input } from "@repo/ui/components/input";
 import { Switch } from "@repo/ui/components/switch";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import type { MatchingLogicFormApi } from "@/hooks/use-matching-logic-form";
 import type { MatchingCriterionItemFormValues } from "@/schemas/matching-logic.schema";
 
@@ -16,6 +20,10 @@ type CriterionRowProps = {
 };
 
 function CriterionRow({ form, criterion, index }: CriterionRowProps) {
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 	return (
 		<div className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
 			<div className="flex flex-1 flex-col gap-1">
@@ -51,8 +59,11 @@ function CriterionRow({ form, criterion, index }: CriterionRowProps) {
 				</label>
 				<form.Field name={`criteria[${index}].weight`}>
 					{(field) => {
-						const isInvalid =
-							field.state.meta.isTouched && !field.state.meta.isValid;
+						const isInvalid = formFieldShowInvalid(
+							field.state.meta.isTouched,
+							field.state.meta.isValid,
+							submissionAttempts,
+						);
 						return (
 							<Input
 								id={`weight-${criterion.matchingCriterionId}`}

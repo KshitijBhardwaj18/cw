@@ -54,6 +54,9 @@ export type CommandCenterHiringFunnelResponse = {
 		HiringFunnelSummaryKey,
 		{ value: number; helperText: string }
 	>;
+	page: number;
+	limit: number;
+	total: number;
 };
 
 const BASE = "/api/org/command-center";
@@ -96,6 +99,8 @@ export class CommandCenterService {
 		search?: string;
 		location?: string;
 		department?: string;
+		page?: number;
+		limit?: number;
 	}) {
 		return ApiClient.get<CommandCenterHiringFunnelResponse>(
 			`${BASE}/hiring-funnel`,

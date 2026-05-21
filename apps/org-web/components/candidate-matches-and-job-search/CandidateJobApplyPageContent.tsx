@@ -31,7 +31,7 @@ export function CandidateJobApplyPageContent(
 				isSubmitting={apply.isSubmitting}
 			/>
 
-			<div className="grid gap-4 sm:grid-cols-2">
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<CandidateJobApplySectionCard icon={User} title="Candidate Information">
 					<DetailItem label="Name" value={apply.candidate.name} />
 					<DetailItem label="Email" value={apply.candidate.email} />

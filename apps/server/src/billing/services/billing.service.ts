@@ -191,6 +191,7 @@ export class BillingService {
 				data: {
 					organizationId: orgId,
 					clientBillingId: this.generateClientBillingId(),
+					invoiceDeliveryEmail: true,
 				},
 			});
 			await this.backgroundJobs.scheduleBillingCycleRun({
@@ -207,19 +208,23 @@ export class BillingService {
 		const config = await this.prisma.billingConfig.findFirst({
 			where: { organizationId: orgId, isActive: true },
 		});
-		const nextConfig = {
-			invoiceDeliveryEmail: config?.invoiceDeliveryEmail ?? false,
-			invoiceDeliverySftp: config?.invoiceDeliverySftp ?? false,
-			invoiceDeliveryDownload: config?.invoiceDeliveryDownload ?? false,
-			...dto,
-		};
-		const nextDeliveryEmail = nextConfig.invoiceDeliveryEmail ?? false;
-		const nextDeliverySftp = nextConfig.invoiceDeliverySftp ?? false;
-		const nextDeliveryDownload = nextConfig.invoiceDeliveryDownload ?? false;
-		if (!nextDeliveryEmail && !nextDeliverySftp && !nextDeliveryDownload) {
-			throw new BadRequestException(
-				"At least one invoice delivery method must be enabled",
-			);
+		const deliveryFieldsInDto =
+			dto.invoiceDeliveryEmail !== undefined ||
+			dto.invoiceDeliverySftp !== undefined ||
+			dto.invoiceDeliveryDownload !== undefined;
+
+		if (deliveryFieldsInDto) {
+			const nextDeliveryEmail =
+				dto.invoiceDeliveryEmail ?? config?.invoiceDeliveryEmail ?? false;
+			const nextDeliverySftp =
+				dto.invoiceDeliverySftp ?? config?.invoiceDeliverySftp ?? false;
+			const nextDeliveryDownload =
+				dto.invoiceDeliveryDownload ?? config?.invoiceDeliveryDownload ?? false;
+			if (!nextDeliveryEmail && !nextDeliverySftp && !nextDeliveryDownload) {
+				throw new BadRequestException(
+					"At least one invoice delivery method must be enabled",
+				);
+			}
 		}
 		if (!config) {
 			const created = await this.prisma.billingConfig.create({
@@ -248,14 +253,20 @@ export class BillingService {
 		return updated;
 	}
 
-	async triggerBillingCycleRunNow(orgId: string) {
+	async triggerBillingCycleRunNow(orgId: string, delayMinutes = 0) {
 		const config = await this.getConfig(orgId);
-		const job = await this.backgroundJobs.enqueueBillingCycleRunNow(orgId);
+		const delayMs = Math.max(0, Math.floor(delayMinutes * 60_000));
+		const job = await this.backgroundJobs.enqueueBillingCycleRunWithDelay(
+			orgId,
+			delayMs,
+		);
 		return {
 			jobId: job.id,
 			organizationId: orgId,
 			billingFrequency: config.billingFrequency,
 			cycleStartDay: config.cycleStartDay,
+			delayMinutes: delayMs / 60_000,
+			scheduledFor: new Date(Date.now() + delayMs).toISOString(),
 		};
 	}
 

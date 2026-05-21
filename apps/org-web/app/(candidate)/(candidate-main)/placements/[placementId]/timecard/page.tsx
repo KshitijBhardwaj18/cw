@@ -22,8 +22,13 @@ export default async function PlacementTimecardPage({ params }: PageProps) {
 
 	return (
 		<div className="space-y-6">
-			<div className="flex flex-wrap items-center gap-3">
-				<Button variant="ghost" size="sm" className="-ml-2 gap-1.5" asChild>
+			<div className="flex flex-wrap items-center gap-2 sm:gap-3">
+				<Button
+					variant="ghost"
+					size="sm"
+					className="-ml-1 gap-1.5 sm:-ml-2"
+					asChild
+				>
 					<Link href={candidatePlacementsListPath()}>
 						<ArrowLeft className="size-4" aria-hidden />
 						{CANDIDATE_PORTAL_COPY.backToPlacements}

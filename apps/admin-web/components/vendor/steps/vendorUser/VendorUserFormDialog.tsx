@@ -26,7 +26,8 @@ import {
 } from "@repo/ui/components/select";
 import { PhoneInput } from "@repo/ui/general/PhoneInput";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -104,6 +105,11 @@ export function VendorUserFormDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	useEffect(() => {
 		if (open && vendorUser) {
 			form.reset({
@@ -128,7 +134,7 @@ export function VendorUserFormDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Edit Vendor User</DialogTitle>
 					<DialogDescription>
@@ -144,7 +150,7 @@ export function VendorUserFormDialog({
 					className="space-y-5"
 				>
 					<FieldGroup>
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<form.Field
 								name="firstName"
 								validators={{
@@ -152,8 +158,11 @@ export function VendorUserFormDialog({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -184,8 +193,11 @@ export function VendorUserFormDialog({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -217,8 +229,11 @@ export function VendorUserFormDialog({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -247,44 +262,68 @@ export function VendorUserFormDialog({
 							<Input value={vendorUser.email} disabled className="bg-muted" />
 						</Field>
 
-						<div className="grid grid-cols-2 gap-4">
-							<form.Field name="officePhone">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+							<form.Field
+								name="officePhone"
+								validators={{
+									onChange: vendorUserEditFormSchema.shape.officePhone,
+								}}
+							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
-										<Field>
+										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>Office Phone</FieldLabel>
 											<PhoneInput
 												id={field.name}
 												name={field.name}
-												placeholder="Office phone"
+												placeholder="+19876543210"
+												disabled={isPending}
 												value={field.state.value}
 												onBlur={field.handleBlur}
 												onChange={(value) => field.handleChange(value)}
 												aria-invalid={isInvalid}
 											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
 										</Field>
 									);
 								}}
 							</form.Field>
 
-							<form.Field name="phoneNumber">
+							<form.Field
+								name="phoneNumber"
+								validators={{
+									onChange: vendorUserEditFormSchema.shape.phoneNumber,
+								}}
+							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
-										<Field>
+										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>Mobile Phone</FieldLabel>
 											<PhoneInput
 												id={field.name}
 												name={field.name}
-												placeholder="Mobile phone"
+												placeholder="+19876543210"
+												disabled={isPending}
 												value={field.state.value}
 												onBlur={field.handleBlur}
 												onChange={(value) => field.handleChange(value)}
 												aria-invalid={isInvalid}
 											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
 										</Field>
 									);
 								}}

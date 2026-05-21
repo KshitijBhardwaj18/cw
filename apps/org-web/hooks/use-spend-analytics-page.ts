@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
+import { parseAsString, useQueryStates } from "nuqs";
+import { useCallback, useMemo } from "react";
 import type { FilterFieldConfig } from "@/components/general/FilterBar";
 import type { SpendTrendChartPoint } from "@/components/spend-analytics/SpendTrendComparisonCard";
-import {
-	SPEND_ANALYTICS_DEFAULT_FILTERS,
-	SPEND_ANALYTICS_FILTER_FIELDS,
-} from "@/constants/spend-analytics";
+import { SPEND_ANALYTICS_FILTER_FIELDS } from "@/constants/spend-analytics";
 import { useOrgContext } from "@/contexts/org-context";
 import {
 	useSpendAnalyticsList,
@@ -25,8 +25,6 @@ import {
 	spendAnalyticsScopeFromFilters,
 } from "@/utils/spend-analytics-api-query";
 
-const DETAIL_LIST_LIMIT = 500;
-
 function uniqueCostCenterOptions(
 	departments: { costCenter?: string | null }[],
 ): { value: string; label: string }[] {
@@ -44,21 +42,66 @@ function uniqueCostCenterOptions(
 		.map(([, label]) => ({ value: label, label }));
 }
 
+export const SPEND_ANALYTICS_PARAMS = {
+	DATE_RANGE: "dateRange",
+	DATE_FROM: "dateFrom",
+	DATE_TO: "dateTo",
+	DEPARTMENT: "department",
+	COST_CENTER: "costCenter",
+	BREAKDOWN_PAGE: "bp",
+	BREAKDOWN_LIMIT: "bl",
+	SAVINGS_COST_CENTER: "sc",
+} as const;
+
 export function useSpendAnalyticsPage() {
 	const { id: orgId } = useOrgContext();
-	const [filterValues, setFilterValues] = useState<Record<string, string>>(
-		SPEND_ANALYTICS_DEFAULT_FILTERS,
+
+	const [activeTab, setActiveTab] = useTabSwitch(
+		["open-committed", "savings"],
+		{
+			alsoClearParamKeys: [
+				SPEND_ANALYTICS_PARAMS.BREAKDOWN_PAGE,
+				SPEND_ANALYTICS_PARAMS.BREAKDOWN_LIMIT,
+				SPEND_ANALYTICS_PARAMS.SAVINGS_COST_CENTER,
+			],
+		},
 	);
+
+	const {
+		page: breakdownPage,
+		limit: breakdownLimit,
+		setPage: setBreakdownPage,
+		setLimit: setBreakdownLimit,
+	} = usePaginationControls({
+		pageParamKey: SPEND_ANALYTICS_PARAMS.BREAKDOWN_PAGE,
+		limitParamKey: SPEND_ANALYTICS_PARAMS.BREAKDOWN_LIMIT,
+		defaultLimit: 10,
+	});
+
+	const [params, setParams] = useQueryStates({
+		[SPEND_ANALYTICS_PARAMS.DATE_RANGE]:
+			parseAsString.withDefault("current-quarter"),
+		[SPEND_ANALYTICS_PARAMS.DATE_FROM]: parseAsString.withDefault(""),
+		[SPEND_ANALYTICS_PARAMS.DATE_TO]: parseAsString.withDefault(""),
+		[SPEND_ANALYTICS_PARAMS.DEPARTMENT]: parseAsString.withDefault("all"),
+		[SPEND_ANALYTICS_PARAMS.COST_CENTER]: parseAsString.withDefault("all"),
+		[SPEND_ANALYTICS_PARAMS.SAVINGS_COST_CENTER]:
+			parseAsString.withDefault("all"),
+	});
 
 	const { data: departments = [] } = useOrgDepartmentsForUsers(orgId);
 
 	const dateFilterInput = useMemo(
 		() => ({
-			dateRange: filterValues.dateRange ?? "current-quarter",
-			dateFrom: filterValues.dateFrom,
-			dateTo: filterValues.dateTo,
+			dateRange: params[SPEND_ANALYTICS_PARAMS.DATE_RANGE] ?? "current-quarter",
+			dateFrom: params[SPEND_ANALYTICS_PARAMS.DATE_FROM],
+			dateTo: params[SPEND_ANALYTICS_PARAMS.DATE_TO],
 		}),
-		[filterValues.dateRange, filterValues.dateFrom, filterValues.dateTo],
+		[
+			params[SPEND_ANALYTICS_PARAMS.DATE_RANGE],
+			params[SPEND_ANALYTICS_PARAMS.DATE_FROM],
+			params[SPEND_ANALYTICS_PARAMS.DATE_TO],
+		],
 	);
 
 	const spendRangeReady = useMemo(
@@ -79,23 +122,24 @@ export function useSpendAnalyticsPage() {
 			...uniqueCostCenterOptions(departments),
 		];
 		const customDateFields: FilterFieldConfig[] =
-			filterValues.dateRange === "custom"
+			params[SPEND_ANALYTICS_PARAMS.DATE_RANGE] === "custom"
 				? [
 						{
-							key: "dateFrom",
+							key: SPEND_ANALYTICS_PARAMS.DATE_FROM,
 							label: "Start date",
-							type: "date",
+							type: "date" as const,
 							primary: true,
 							placeholder: "Start date",
-							max: filterValues.dateTo?.trim() || undefined,
+							max: params[SPEND_ANALYTICS_PARAMS.DATE_TO]?.trim() || undefined,
 						},
 						{
-							key: "dateTo",
+							key: SPEND_ANALYTICS_PARAMS.DATE_TO,
 							label: "End date",
-							type: "date",
+							type: "date" as const,
 							primary: true,
 							placeholder: "End date",
-							min: filterValues.dateFrom?.trim() || undefined,
+							min:
+								params[SPEND_ANALYTICS_PARAMS.DATE_FROM]?.trim() || undefined,
 						},
 					]
 				: [];
@@ -103,46 +147,53 @@ export function useSpendAnalyticsPage() {
 			...[...SPEND_ANALYTICS_FILTER_FIELDS],
 			...customDateFields,
 			{
-				key: "department",
+				key: SPEND_ANALYTICS_PARAMS.DEPARTMENT,
 				label: "Department",
-				type: "select",
+				type: "select" as const,
 				primary: true,
 				options: deptOptions,
 			},
 			{
-				key: "costCenter",
+				key: SPEND_ANALYTICS_PARAMS.COST_CENTER,
 				label: "Cost Center",
-				type: "select",
+				type: "select" as const,
 				primary: true,
 				options: ccOptions,
 			},
 		];
 	}, [
 		departments,
-		filterValues.dateFrom,
-		filterValues.dateRange,
-		filterValues.dateTo,
+		params[SPEND_ANALYTICS_PARAMS.DATE_RANGE],
+		params[SPEND_ANALYTICS_PARAMS.DATE_TO],
+		params[SPEND_ANALYTICS_PARAMS.DATE_FROM],
 	]);
 
 	const scope = useMemo(
 		() =>
 			spendAnalyticsScopeFromFilters({
-				department: filterValues.department,
-				costCenter: filterValues.costCenter,
+				department: params[SPEND_ANALYTICS_PARAMS.DEPARTMENT],
+				costCenter: params[SPEND_ANALYTICS_PARAMS.COST_CENTER],
 			}),
-		[filterValues.department, filterValues.costCenter],
+		[
+			params[SPEND_ANALYTICS_PARAMS.DEPARTMENT],
+			params[SPEND_ANALYTICS_PARAMS.COST_CENTER],
+		],
 	);
 
-	const onFilterChange = useCallback((key: string, value: string) => {
-		setFilterValues((prev) => {
-			const next = { ...prev, [key]: value };
-			if (key === "dateRange" && value !== "custom") {
-				next.dateFrom = "";
-				next.dateTo = "";
+	const onFilterChange = useCallback(
+		(key: string, value: string) => {
+			if (key === SPEND_ANALYTICS_PARAMS.DATE_RANGE && value !== "custom") {
+				setParams({
+					[key]: value,
+					[SPEND_ANALYTICS_PARAMS.DATE_FROM]: null,
+					[SPEND_ANALYTICS_PARAMS.DATE_TO]: null,
+				});
+			} else {
+				setParams({ [key]: value });
 			}
-			return next;
-		});
-	}, []);
+		},
+		[setParams],
+	);
 
 	const summaryQuery = useMemo(
 		() => ({
@@ -183,8 +234,7 @@ export function useSpendAnalyticsPage() {
 		return {
 			...period,
 			...scope,
-			page: 1,
-			limit: DETAIL_LIST_LIMIT,
+			all: true,
 		};
 	}, [dateFilterInput, scope]);
 
@@ -212,26 +262,23 @@ export function useSpendAnalyticsPage() {
 		return {
 			...period,
 			...scope,
-			limit: 50,
+			page: breakdownPage,
+			limit: breakdownLimit,
 		};
-	}, [dateFilterInput, scope]);
+	}, [dateFilterInput, scope, breakdownPage, breakdownLimit]);
 
 	const { data: breakdown, isLoading: breakdownLoading } =
 		useSpendOpenCommittedBreakdown(orgId, breakdownQuery, {
 			enabled: spendRangeReady,
 		});
 
-	const openCommittedTotals = useMemo(() => {
-		const rows = breakdown?.data ?? [];
-		return rows.reduce(
-			(acc, r) => {
-				acc.open += r.openSpend ?? 0;
-				acc.committed += r.committedSpend ?? 0;
-				return acc;
-			},
-			{ open: 0, committed: 0 },
-		);
-	}, [breakdown?.data]);
+	const openCommittedTotals = useMemo(
+		() => ({
+			open: breakdown?.totalOpenSpend ?? 0,
+			committed: breakdown?.totalCommittedSpend ?? 0,
+		}),
+		[breakdown?.totalOpenSpend, breakdown?.totalCommittedSpend],
+	);
 
 	const trendChartData = useMemo((): SpendTrendChartPoint[] => {
 		const curStart = quarterStartFromPeriodFrom(trendCurPeriod.periodFrom);
@@ -271,10 +318,13 @@ export function useSpendAnalyticsPage() {
 		return ((trendTotals.current - trendTotals.last) / trendTotals.last) * 100;
 	}, [trendTotals.current, trendTotals.last]);
 
-	const totalSavings = useMemo(
-		() => (detailList?.data ?? []).reduce((sum, r) => sum + r.totalSpend, 0),
-		[detailList?.data],
-	);
+	const totalSavings = summary?.totalSpend ?? 0;
+
+	const filterValues = useMemo(() => {
+		const { [SPEND_ANALYTICS_PARAMS.SAVINGS_COST_CENTER]: sc, ...rest } =
+			params;
+		return rest as Record<string, string>;
+	}, [params]);
 
 	return {
 		orgId,
@@ -293,5 +343,14 @@ export function useSpendAnalyticsPage() {
 		openCommittedTotals,
 		spendDeltaPct,
 		totalSavings,
+		activeTab,
+		setActiveTab,
+		breakdownPage,
+		setBreakdownPage,
+		breakdownLimit,
+		setBreakdownLimit,
+		savingsCostCenter: params[SPEND_ANALYTICS_PARAMS.SAVINGS_COST_CENTER],
+		setSavingsCostCenter: (sc: string) =>
+			setParams({ [SPEND_ANALYTICS_PARAMS.SAVINGS_COST_CENTER]: sc }),
 	};
 }

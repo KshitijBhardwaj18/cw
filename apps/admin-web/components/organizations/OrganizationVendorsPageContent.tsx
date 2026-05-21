@@ -1,10 +1,15 @@
 "use client";
 
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useOrganizationVendorsQuery } from "@/queries/organizations.query";
 import { OrganizationVendorsList } from "./OrganizationVendorsList";
 
 const PAGE_SIZE = 8;
+const VND_PARAMS = {
+	PAGE: "vndPage",
+	SEARCH: "vndSearch",
+} as const;
 
 type OrganizationVendorsPageContentProps = {
 	organizationId: string;
@@ -13,13 +18,18 @@ type OrganizationVendorsPageContentProps = {
 export function OrganizationVendorsPageContent({
 	organizationId,
 }: OrganizationVendorsPageContentProps) {
-	const {
-		page,
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-	} = useConfigPageSearch();
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: VND_PARAMS.PAGE,
+	});
+
+	const { localSearch, handleSearchChange, searchFromUrl } = useDebouncedSearch(
+		{
+			paramKey: VND_PARAMS.SEARCH,
+			pageParamKey: VND_PARAMS.PAGE,
+		},
+	);
+
+	const hasActiveSearch = !!searchFromUrl.trim();
 
 	const { data: response } = useOrganizationVendorsQuery(
 		organizationId,
@@ -31,13 +41,14 @@ export function OrganizationVendorsPageContent({
 	return (
 		<OrganizationVendorsList
 			organizationId={organizationId}
-			vendors={response.data}
-			total={response.total}
-			totalPages={response.totalPages}
+			vendors={response?.data ?? []}
+			total={response?.total ?? 0}
+			totalPages={response?.totalPages ?? 1}
 			page={page}
 			search={localSearch}
 			onSearchChange={handleSearchChange}
 			hasActiveSearch={hasActiveSearch}
+			onPageChange={setPage}
 		/>
 	);
 }

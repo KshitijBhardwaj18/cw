@@ -109,7 +109,7 @@ export function RoutingDelayTab({
 					enabled && (
 						<div className="rounded-xl border p-4">
 							<h3 className="mb-4 text-sm font-semibold">Delay Duration</h3>
-							<div className="grid grid-cols-2 gap-4">
+							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<form.Field name="delayDuration">
 									{(field) => (
 										<Field>

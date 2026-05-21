@@ -78,8 +78,8 @@ function CandidateDashboardPageContent() {
 
 	if (profileQuery.isPending) {
 		return (
-			<div className="space-y-6">
-				<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+			<div className="space-y-4 sm:space-y-6">
+				<div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
 					{Array.from({ length: 4 }).map((_, i) => (
 						<StatCardSkeleton key={i} />
 					))}
@@ -116,8 +116,8 @@ function CandidateDashboardPageContent() {
 		(summary?.pendingVerification ?? 0) + (summary?.pendingUpload ?? 0);
 
 	return (
-		<div className="space-y-6">
-			<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+		<div className="space-y-4 sm:space-y-6">
+			<div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
 				<DashboardStat
 					label="Open Jobs"
 					value={matchesQuery.data?.total ?? 0}

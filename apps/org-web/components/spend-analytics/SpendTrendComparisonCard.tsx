@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency } from "@repo/shared";
+import { formatUsdAxisTick, formatUsdLedger } from "@repo/shared";
 import {
 	Card,
 	CardContent,
@@ -103,11 +103,7 @@ export function SpendTrendComparisonCard({
 								tickLine={false}
 								axisLine={false}
 								tickMargin={8}
-								tickFormatter={(v) =>
-									v >= 1_000_000
-										? `$${(v / 1_000_000).toFixed(1)}M`
-										: `$${Math.round(v / 1000)}K`
-								}
+								tickFormatter={(v) => formatUsdAxisTick(v)}
 							/>
 							<ChartTooltip
 								cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
@@ -134,7 +130,7 @@ export function SpendTrendComparisonCard({
 															: "font-medium text-slate-400 dark:text-slate-500"
 													}
 												>
-													{seriesLabel} : {formatCurrency(Number(value))}
+													{seriesLabel} : {formatUsdLedger(Number(value))}
 												</span>
 											);
 										}}

@@ -45,7 +45,7 @@ export function JobCandidateSubmissionRow({
 	);
 
 	return (
-		<div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+		<div className="flex flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
 			<div className="flex min-w-0 flex-1 gap-3">
 				<Avatar className="size-10">
 					<AvatarFallback>
@@ -79,7 +79,7 @@ export function JobCandidateSubmissionRow({
 				<Button type="button" size="sm" variant="default" asChild>
 					<Link href={`/org/submissions/${row.id}`}>
 						<Eye className="size-3.5" />
-						View submission
+						View
 					</Link>
 				</Button>
 				{advance && canAct ? (

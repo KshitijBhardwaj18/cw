@@ -16,8 +16,10 @@ import {
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { CustomTable } from "@repo/ui/general/CustomTable";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { Filter } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useQueryState } from "nuqs";
+import { useMemo } from "react";
 import type { InvoiceDraftProjectOption } from "@/constants/invoice-drafts";
 import { useOrgContext } from "@/contexts/org-context";
 import { useInvoiceDraftListColumns } from "@/hooks/tables/use-invoice-draft-list-columns";
@@ -27,14 +29,35 @@ import {
 } from "@/queries/billing.queries";
 import { InvoiceDraftsMetricCards } from "./InvoiceDraftsMetricCards";
 
+const DRAFT_PARAMS = {
+	PAGE: "ip",
+	LIMIT: "il",
+	PROJECT: "project",
+} as const;
+
 export function InvoiceDraftsPageContent() {
 	const { id: orgId } = useOrgContext();
-	const [projectFilter, setProjectFilter] = useState<string>("all");
+
+	const { page, setPage, limit, setLimit } = usePaginationControls({
+		pageParamKey: DRAFT_PARAMS.PAGE,
+		limitParamKey: DRAFT_PARAMS.LIMIT,
+		defaultLimit: 10,
+	});
+
+	const [projectFilter, setProjectFilter] = useQueryState(
+		DRAFT_PARAMS.PROJECT,
+		{ defaultValue: "all" },
+	);
+
+	const handleProjectChange = (v: string) => {
+		setProjectFilter(v || "all");
+		setPage(1);
+	};
+
 	const { data, isLoading } = useInvoiceDraftMetrics(orgId, {
 		status: "DRAFT",
-		page: 1,
-		limit: 500,
-		all: true,
+		page,
+		limit,
 		...(projectFilter !== "all" ? { projectId: projectFilter } : {}),
 	});
 	const { data: summary } = useInvoiceDraftSummary(orgId, {
@@ -75,7 +98,7 @@ export function InvoiceDraftsPageContent() {
 		<div className="space-y-6">
 			<ConfigPageHeader
 				title="Invoice drafts"
-				total={rows.length}
+				total={data?.total ?? 0}
 				itemLabel="draft"
 				itemLabelPlural="drafts"
 				description="Review and manage draft invoices from approved timekeeping entries"
@@ -84,11 +107,11 @@ export function InvoiceDraftsPageContent() {
 			<InvoiceDraftsMetricCards summary={summary} />
 
 			<Card>
-				<CardHeader className="flex flex-row items-center justify-between">
+				<CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<CardTitle className="text-lg font-semibold">
 						All invoice drafts
 					</CardTitle>
-					<div className="flex  items-center gap-2 sm:justify-end">
+					<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
 						<Filter
 							className="text-muted-foreground size-4 shrink-0"
 							aria-hidden
@@ -96,11 +119,8 @@ export function InvoiceDraftsPageContent() {
 						<span className="text-muted-foreground text-sm font-medium">
 							Project:
 						</span>
-						<Select
-							value={projectFilter}
-							onValueChange={(v) => setProjectFilter(v)}
-						>
-							<SelectTrigger className="w-[min(100%,220px)]">
+						<Select value={projectFilter} onValueChange={handleProjectChange}>
+							<SelectTrigger className="w-full min-w-0 sm:w-[min(100%,220px)]">
 								<SelectValue placeholder="All projects" />
 							</SelectTrigger>
 							<SelectContent>
@@ -122,6 +142,14 @@ export function InvoiceDraftsPageContent() {
 							columns={columns}
 							enableSorting
 							enablePagination
+							paginationMode="server"
+							totalCount={data?.total ?? 0}
+							pageSize={limit}
+							currentPage={page}
+							onPaginationChange={(nextPage: number, nextLimit: number) => {
+								setPage(nextPage);
+								setLimit(nextLimit);
+							}}
 							className="rounded-none border-0 border-b-0"
 						/>
 					)}

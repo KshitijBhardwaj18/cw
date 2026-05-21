@@ -56,10 +56,17 @@ export function useInfiniteVendors(
 	});
 }
 
+function vendorDetailEnabledId(id: string | null | undefined): string | null {
+	const t = id?.trim() ?? "";
+	return t.length > 0 ? t : null;
+}
+
 export function useVendorDetailQuery(id: string | null) {
-	return useSuspenseQuery({
-		queryKey: vendorDetailKey(id ?? ""),
-		queryFn: () => VendorService.getById(id as string),
+	const effectiveId = vendorDetailEnabledId(id);
+	return useQuery({
+		queryKey: vendorDetailKey(effectiveId ?? "__skip__"),
+		queryFn: () => VendorService.getById(effectiveId as string),
+		enabled: effectiveId !== null,
 	});
 }
 

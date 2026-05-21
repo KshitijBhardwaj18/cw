@@ -3,6 +3,7 @@ import {
 	MetricKey,
 	PlacementStatus,
 	type PrismaClient,
+	RequisitionStatus,
 	RequisitionType,
 	SubmissionStage,
 } from "@repo/db";
@@ -108,53 +109,67 @@ async function computeMetric(
 			};
 		}
 		case MetricKey.FILL_RATE_LONG_TERM_REQS: {
-			const [totalOpenPositions, filledPositions] = await Promise.all([
+			// Denominator: all LTO reqs that were active (published) before this period ended.
+			// Numerator: those that moved to FILLED status within the period.
+			// Both reference the same requisition lifecycle, keeping the rate in [0, 100].
+			const [totalActive, filledCount] = await Promise.all([
 				prisma.requisition.count({
 					where: {
 						organizationId,
 						type: RequisitionType.LONG_TERM_ORDER,
-						publishedAt: { gte: periodStart, lt: periodEnd },
+						publishedAt: { lt: periodEnd },
+						status: {
+							notIn: [
+								RequisitionStatus.DRAFT,
+								RequisitionStatus.CANCELLED,
+								RequisitionStatus.PENDING_APPROVAL,
+							],
+						},
 					},
 				}),
-				prisma.placement.count({
+				prisma.requisition.count({
 					where: {
 						organizationId,
-						requisition: { type: RequisitionType.LONG_TERM_ORDER },
-						acceptedAt: { gte: periodStart, lt: periodEnd },
+						type: RequisitionType.LONG_TERM_ORDER,
+						status: RequisitionStatus.FILLED,
+						updatedAt: { gte: periodStart, lt: periodEnd },
 					},
 				}),
 			]);
 			return {
-				value: safePercent(filledPositions, totalOpenPositions),
-				numerator: filledPositions,
-				denominator: totalOpenPositions,
+				value: safePercent(filledCount, totalActive),
+				numerator: filledCount,
+				denominator: totalActive,
 			};
 		}
 		case MetricKey.FILL_RATE_SHIFTS: {
-			const [totalShiftOpenings, filledShifts] = await Promise.all([
+			// Denominator: shifts published in the period.
+			// Numerator: of those shifts, how many were filled (IN_PROGRESS or COMPLETED).
+			// Using shift status avoids the temporal mismatch of cross-period assignment timestamps.
+			const [totalShifts, filledShifts] = await Promise.all([
 				prisma.perDiemShift.count({
 					where: {
 						organizationId,
 						publishedAt: { gte: periodStart, lt: periodEnd },
 					},
 				}),
-				prisma.perDiemAssignment.count({
+				prisma.perDiemShift.count({
 					where: {
-						shift: { organizationId },
-						OR: [
-							{ confirmedAt: { gte: periodStart, lt: periodEnd } },
-							{ approvedAt: { gte: periodStart, lt: periodEnd } },
-						],
+						organizationId,
+						publishedAt: { gte: periodStart, lt: periodEnd },
+						status: { in: ["IN_PROGRESS", "COMPLETED"] },
 					},
 				}),
 			]);
 			return {
-				value: safePercent(filledShifts, totalShiftOpenings),
+				value: safePercent(filledShifts, totalShifts),
 				numerator: filledShifts,
-				denominator: totalShiftOpenings,
+				denominator: totalShifts,
 			};
 		}
 		case MetricKey.SUBMIT_TO_OFFER_RATIO: {
+			// submissions / offers = how many submits it takes to generate one offer.
+			// Lower is better (goal e.g. 12 means ≤12 submits per offer). direction: lower_is_better.
 			const [totalSubmissions, totalOffers] = await Promise.all([
 				prisma.submission.count({
 					where: {
@@ -170,9 +185,9 @@ async function computeMetric(
 				}),
 			]);
 			return {
-				value: safeRatio(totalOffers, totalSubmissions),
-				numerator: totalOffers,
-				denominator: totalSubmissions,
+				value: safeRatio(totalSubmissions, totalOffers),
+				numerator: totalSubmissions,
+				denominator: totalOffers,
 			};
 		}
 		case MetricKey.AVG_TIME_TO_FIRST_SUBMISSION: {
@@ -206,10 +221,13 @@ async function computeMetric(
 				if (!first) continue;
 				totalDays += daysBetween(req.publishedAt, first);
 			}
+			// Denominator = only reqs that received at least one submission.
+			// Reqs with no submissions are excluded so they don't pull the average toward 0.
+			const recsWithSubmissions = firstMap.size;
 			return {
-				value: safeRatio(totalDays, requisitions.length),
+				value: safeRatio(totalDays, recsWithSubmissions),
 				numerator: totalDays,
-				denominator: requisitions.length,
+				denominator: recsWithSubmissions,
 			};
 		}
 		case MetricKey.AVG_TIME_PUBLISH_TO_ACCEPT: {
@@ -250,7 +268,14 @@ async function computeMetric(
 					where: {
 						organizationId,
 						startDate: { gte: periodStart, lt: periodEnd },
-						status: { in: [PlacementStatus.UPCOMING, PlacementStatus.PENDING] },
+						// TERMINATED = ended before completion; UPCOMING/PENDING = not yet started
+						status: {
+							in: [
+								PlacementStatus.TERMINATED,
+								PlacementStatus.UPCOMING,
+								PlacementStatus.PENDING,
+							],
+						},
 					},
 				}),
 			]);
@@ -276,10 +301,13 @@ async function computeMetric(
 			};
 		}
 		case MetricKey.ON_TIME_STARTS_PERCENT: {
+			// Only count placements where acceptedAt is known — rows without it are excluded
+			// from both numerator and denominator so they don't deflate the percentage.
 			const starts = await prisma.placement.findMany({
 				where: {
 					organizationId,
 					startDate: { gte: periodStart, lt: periodEnd },
+					acceptedAt: { not: null },
 				},
 				select: { startDate: true, acceptedAt: true },
 			});
@@ -295,7 +323,10 @@ async function computeMetric(
 			};
 		}
 		case MetricKey.BACK_OUT_PERCENTAGE: {
-			const [totalAcceptedOffers, backedOut] = await Promise.all([
+			// Cohort: submissions accepted in the period.
+			// Numerator: of those, how many subsequently withdrew (at any point).
+			// Using the same cohort for both keeps the rate meaningful and in [0, 100].
+			const [totalAccepted, backedOut] = await Promise.all([
 				prisma.submission.count({
 					where: {
 						organizationId,
@@ -305,15 +336,15 @@ async function computeMetric(
 				prisma.submission.count({
 					where: {
 						organizationId,
-						acceptedAt: { not: null },
-						withdrawnAt: { gte: periodStart, lt: periodEnd },
+						acceptedAt: { gte: periodStart, lt: periodEnd },
+						withdrawnAt: { not: null },
 					},
 				}),
 			]);
 			return {
-				value: safePercent(backedOut, totalAcceptedOffers),
+				value: safePercent(backedOut, totalAccepted),
 				numerator: backedOut,
-				denominator: totalAcceptedOffers,
+				denominator: totalAccepted,
 			};
 		}
 		case MetricKey.PERFORMANCE_GRIEVANCE_PERCENT: {
@@ -362,6 +393,21 @@ export async function runMetricSnapshotRecomputeProcessor(
 	prisma: PrismaClient,
 	payload: MetricSnapshotRecomputePayload,
 ): Promise<void> {
+	if (!payload.organizationId) {
+		const orgs = await prisma.organizationMetric.findMany({
+			where: { isActive: true, metric: { status: true } },
+			select: { organizationId: true },
+			distinct: ["organizationId"],
+		});
+		for (const { organizationId } of orgs) {
+			await runMetricSnapshotRecomputeProcessor(prisma, {
+				...payload,
+				organizationId,
+			});
+		}
+		return;
+	}
+
 	const result: MetricSnapshotRecomputeJobResult = {
 		periodType: payload.periodType,
 		periodStart: "",

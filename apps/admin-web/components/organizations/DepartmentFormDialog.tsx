@@ -30,6 +30,8 @@ import {
 } from "@repo/ui/components/select";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { DEPARTMENT_TYPE_OPTIONS } from "@/constants/organization";
 import { useDepartmentFormDialog } from "@/hooks/use-department-form-dialog";
 import { departmentFormSchema } from "@/schemas/department.schema";
@@ -61,9 +63,14 @@ export function DepartmentFormDialog({
 		organizationId,
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-lg">
+			<DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Add Department</DialogTitle>
 					<DialogDescription>
@@ -84,8 +91,11 @@ export function DepartmentFormDialog({
 							validators={{ onChange: departmentFormSchema.shape.locationId }}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -130,8 +140,11 @@ export function DepartmentFormDialog({
 							validators={{ onChange: departmentFormSchema.shape.name }}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -161,8 +174,11 @@ export function DepartmentFormDialog({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>

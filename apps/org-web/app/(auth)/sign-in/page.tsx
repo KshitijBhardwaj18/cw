@@ -7,8 +7,7 @@ import { ApiClient } from "@/lib/api-client";
 import { authClient } from "@/lib/auth-client";
 
 export const metadata: Metadata = {
-	title: "Sign In",
-	description: "Sign in to your organization portal",
+	description: "Sign in to your Staff Logic organization portal",
 };
 
 export default async function SignInPage() {

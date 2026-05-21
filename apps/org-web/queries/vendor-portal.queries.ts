@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type {
 	VendorContextResponse,
 	VendorPortalCreateUserInput,
@@ -13,11 +13,23 @@ import type {
 
 export const vendorContextKey = ["vendor-portal", "context"] as const;
 
+const vendorContextQueryOptions = {
+	queryKey: vendorContextKey,
+	queryFn: () => VendorPortalService.getVendorContext(),
+	staleTime: 5 * 60_000,
+} as const;
+
+/** Vendor context for inline loading (e.g. layout chrome, VendorOrgBridge). */
 export function useVendorContextQuery() {
 	return useQuery<VendorContextResponse>({
-		queryKey: vendorContextKey,
-		queryFn: () => VendorPortalService.getVendorContext(),
-		staleTime: 5 * 60_000,
+		...vendorContextQueryOptions,
+	});
+}
+
+/** Same cache as `useVendorContextQuery`; use in segments with `loading.tsx`. */
+export function useVendorContextSuspense() {
+	return useSuspenseQuery<VendorContextResponse>({
+		...vendorContextQueryOptions,
 	});
 }
 

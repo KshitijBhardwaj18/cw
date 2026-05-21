@@ -19,6 +19,7 @@ import { PermissionsGuard } from "src/common/guards/permissions.guard";
 import { requireActiveOrganizationId } from "src/common/utils/require-active-organization-id";
 import { CreatePayCodeDto } from "../dto/create-pay-code.dto";
 import { QueryPayCodesDto } from "../dto/query-pay-codes.dto";
+import { TriggerBillingCycleRunDto } from "../dto/trigger-billing-cycle-run.dto";
 import { UpdateBillingConfigDto } from "../dto/update-billing-config.dto";
 import { UpdatePayCodeDto } from "../dto/update-pay-code.dto";
 import { UpdateWorkforceBillingRateDto } from "../dto/update-workforce-billing-rate.dto";
@@ -100,6 +101,22 @@ export class BillingController {
 	) {
 		const orgId = requireActiveOrganizationId(session);
 		return this.billingService.updateConfig(orgId, dto);
+	}
+
+	@Post("config/test/run-cycle-now")
+	@ApiOperation({
+		summary: "Dev test: enqueue billing cycle run with optional delay",
+	})
+	@Permissions({ action: Action.Update, subject: "Billing" })
+	triggerBillingCycleRunNow(
+		@Session() session: UserSession,
+		@Body() dto: TriggerBillingCycleRunDto,
+	) {
+		const orgId = requireActiveOrganizationId(session);
+		return this.billingService.triggerBillingCycleRunNow(
+			orgId,
+			dto.delayMinutes ?? 0,
+		);
 	}
 
 	@Get("workforce-rates")

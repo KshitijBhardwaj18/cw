@@ -102,6 +102,8 @@ export function InvoicesPageContent() {
 				currentPage={page}
 				onPaginationChange={(nextPage) => setPage(nextPage)}
 				emptyState={null}
+				isLoading={listQuery.isLoading}
+				loadingLabel="Loading invoices..."
 			/>
 
 			<InvoiceBreakdownDialog

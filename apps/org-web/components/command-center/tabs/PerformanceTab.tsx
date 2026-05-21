@@ -41,6 +41,7 @@ export const PerformanceTab = () => {
 		groupedMetrics,
 		showCustomDateInputs,
 		isLoading,
+		isError,
 	} = usePerformanceMetrics();
 
 	const todayYmd = todayYmdLocal();
@@ -164,6 +165,15 @@ export const PerformanceTab = () => {
 
 			{isLoading ? (
 				<PerformanceMetricsCardsSkeleton />
+			) : isError ? (
+				<div className="border-destructive/30 bg-destructive/5 rounded-md border p-6 text-center">
+					<p className="text-destructive font-medium">
+						Failed to load performance data
+					</p>
+					<p className="text-muted-foreground mt-1 text-sm">
+						Try changing the date range or refreshing the page.
+					</p>
+				</div>
 			) : (
 				<>
 					<div className="space-y-3">
@@ -182,21 +192,28 @@ export const PerformanceTab = () => {
 						</div>
 					</div>
 
-					{groupedMetrics.map((group) => (
-						<div key={group.type} className="space-y-3">
-							<div className="flex items-center gap-3">
-								<p className="text-lg font-semibold">
-									{PERFORMANCE_METRIC_TYPE_LABELS[group.type]}
-								</p>
-								<div className="bg-primary/60 h-px flex-1" />
-							</div>
-							<div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
-								{group.metrics.map((metric) => (
-									<PerformanceMetricCard key={metric.id} metric={metric} />
-								))}
-							</div>
+					{groupedMetrics.length === 0 ? (
+						<div className="border-muted/50 text-muted-foreground rounded-md border p-8 text-center text-sm">
+							No performance metrics have been configured for your organization
+							yet.
 						</div>
-					))}
+					) : (
+						groupedMetrics.map((group) => (
+							<div key={group.type} className="space-y-3">
+								<div className="flex items-center gap-3">
+									<p className="text-lg font-semibold">
+										{PERFORMANCE_METRIC_TYPE_LABELS[group.type]}
+									</p>
+									<div className="bg-primary/60 h-px flex-1" />
+								</div>
+								<div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+									{group.metrics.map((metric) => (
+										<PerformanceMetricCard key={metric.id} metric={metric} />
+									))}
+								</div>
+							</div>
+						))
+					)}
 				</>
 			)}
 		</div>

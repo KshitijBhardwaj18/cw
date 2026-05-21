@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import {
 	PRIORITY_READY_APPROVED_PCT,
 	SUBMISSION_READY_APPROVED_PCT,
@@ -80,11 +80,14 @@ export function useCandidateDashboard(matchesLimit = 5) {
 	const profileQuery = useCandidateMeProfile();
 	const organizationId = profileQuery.data?.organizationId?.trim() || null;
 
-	const [matchesPage, setMatchesPage] = useState(1);
+	const { page: matchesPage, setPage: setMatchesPage } = usePaginationControls({
+		pageParamKey: "matchesPage",
+		defaultLimit: matchesLimit,
+	});
 
 	const matchesQuery = useCandidateMatches(
 		{
-			page: matchesPage,
+			page: Math.max(matchesPage, 1),
 			limit: matchesLimit,
 		},
 		{ enabled: Boolean(organizationId) },

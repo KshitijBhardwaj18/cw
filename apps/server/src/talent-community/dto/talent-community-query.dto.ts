@@ -1,4 +1,9 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
+import {
+	CandidateInviteStatus,
+	CandidateWorkforceType,
+	PlacementStatus,
+} from "@repo/db";
 import { Transform, Type } from "class-transformer";
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
 
@@ -22,6 +27,21 @@ export class TalentCommunityQueryDto {
 	@Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
 	@IsString()
 	search?: string;
+
+	@ApiPropertyOptional({ enum: CandidateWorkforceType })
+	@IsOptional()
+	@IsEnum(CandidateWorkforceType)
+	workforceType?: CandidateWorkforceType;
+
+	@ApiPropertyOptional({ enum: CandidateInviteStatus })
+	@IsOptional()
+	@IsEnum(CandidateInviteStatus)
+	inviteStatus?: CandidateInviteStatus;
+
+	@ApiPropertyOptional({ enum: PlacementStatus })
+	@IsOptional()
+	@IsEnum(PlacementStatus)
+	placementStatus?: PlacementStatus;
 
 	@ApiPropertyOptional({ default: 1 })
 	@IsOptional()

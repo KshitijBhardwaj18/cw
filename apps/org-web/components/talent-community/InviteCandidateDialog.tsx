@@ -30,8 +30,10 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
+import { PhoneInput } from "@repo/ui/general/PhoneInput";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { Mail, Phone, User } from "lucide-react";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { Mail, User } from "lucide-react";
 import { useInviteCandidateDialog } from "@/hooks/candidate/use-invite-candidate-dialog";
 import { inviteCandidateSchema } from "@/schemas/talent-community.schema";
 
@@ -60,7 +62,7 @@ export function InviteCandidateDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-lg">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Add Candidate</DialogTitle>
 					<DialogDescription>
@@ -83,8 +85,11 @@ export function InviteCandidateDialog({
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								submissionAttempts > 0 && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>
@@ -116,8 +121,11 @@ export function InviteCandidateDialog({
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								submissionAttempts > 0 && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel>
@@ -125,9 +133,10 @@ export function InviteCandidateDialog({
 									</FieldLabel>
 									<Select
 										value={field.state.value}
-										onValueChange={(val) =>
-											field.handleChange(val as CandidateWorkforceType)
-										}
+										onValueChange={(val) => {
+											field.handleChange(val as CandidateWorkforceType);
+											field.handleBlur();
+										}}
 									>
 										<SelectTrigger aria-invalid={isInvalid}>
 											<SelectValue placeholder="Select workforce type" />
@@ -160,8 +169,11 @@ export function InviteCandidateDialog({
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								submissionAttempts > 0 && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel>
@@ -172,6 +184,7 @@ export function InviteCandidateDialog({
 										onValueChange={(val) => {
 											field.handleChange(val);
 											form.setFieldValue("specialtyIds", []);
+											field.handleBlur();
 										}}
 										disabled={isLoadingOccupations}
 									>
@@ -234,8 +247,11 @@ export function InviteCandidateDialog({
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								submissionAttempts > 0 && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>
@@ -268,27 +284,27 @@ export function InviteCandidateDialog({
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								submissionAttempts > 0 && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>
 										Phone Number <RequiredStar />
 									</FieldLabel>
-									<div className="relative">
-										<Phone className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-										<Input
-											id={field.name}
-											name={field.name}
-											type="tel"
-											placeholder="(555) 123-4567"
-											className="pl-9"
-											value={field.state.value}
-											onBlur={field.handleBlur}
-											onChange={(e) => field.handleChange(e.target.value)}
-											aria-invalid={isInvalid}
-										/>
-									</div>
+									<PhoneInput
+										id={field.name}
+										name={field.name}
+										autoComplete="tel"
+										placeholder="+19876543210"
+										className="w-full"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(value) => field.handleChange(value)}
+										aria-invalid={isInvalid}
+									/>
 									{isInvalid && <FieldError errors={field.state.meta.errors} />}
 								</Field>
 							);

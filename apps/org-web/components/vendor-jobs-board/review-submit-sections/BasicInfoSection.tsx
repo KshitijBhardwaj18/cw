@@ -18,6 +18,7 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { DetailInputField } from "@repo/ui/general/DetailInputField";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { cn } from "@repo/ui/lib/utils";
 import { useStore } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
@@ -39,6 +40,10 @@ export function BasicInfoSection({
 	specialtiesDisplayLabel,
 }: BasicInfoSectionProps) {
 	const occupationId = useStore(form.store, (s) => s.values.occupationId);
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 
 	const occupationsQuery = useQuery({
 		queryKey: ["vendor-job-board-org-occupations"],
@@ -189,8 +194,11 @@ export function BasicInfoSection({
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
 					<form.Field name="occupationId">
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel className="font-medium">Occupation</FieldLabel>
@@ -203,6 +211,7 @@ export function BasicInfoSection({
 											value={field.state.value}
 											onValueChange={(v) => {
 												field.handleChange(v);
+												field.handleBlur();
 												form.setFieldValue("specialtyIds", []);
 											}}
 											disabled={occupationsQuery.isLoading}
@@ -233,8 +242,11 @@ export function BasicInfoSection({
 
 					<form.Field name="specialtyIds">
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel className="font-medium">Specialties</FieldLabel>
@@ -243,7 +255,10 @@ export function BasicInfoSection({
 									) : (
 										<MultiSelect
 											values={field.state.value ?? []}
-											onValuesChange={(v) => field.handleChange(v)}
+											onValuesChange={(v) => {
+												field.handleChange(v);
+												field.handleBlur();
+											}}
 										>
 											<MultiSelectTrigger
 												className={cn(

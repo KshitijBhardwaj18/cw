@@ -25,7 +25,7 @@ export function PlacementBottomSummaryCard({
 				<CardTitle className="text-lg">Placement Summary</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<div className="grid gap-4 md:grid-cols-3">
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
 					<MetricCard
 						title="Active assignments"
 						value={stats.active}

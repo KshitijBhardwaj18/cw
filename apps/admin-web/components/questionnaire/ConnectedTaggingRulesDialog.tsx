@@ -31,7 +31,7 @@ export function ConnectedTaggingRulesDialog({
 
 	return (
 		<Dialog open={!!question} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Connected Tagging Rules</DialogTitle>
 					<DialogDescription>Tags linked to this question</DialogDescription>

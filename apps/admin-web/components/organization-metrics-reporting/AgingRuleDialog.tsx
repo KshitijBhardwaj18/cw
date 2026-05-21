@@ -95,7 +95,10 @@ export function AgingRuleDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="gap-6 sm:max-w-md" showCloseButton>
+			<DialogContent
+				className="max-h-[90dvh] gap-6 overflow-y-auto sm:max-w-md"
+				showCloseButton
+			>
 				<DialogHeader>
 					<DialogTitle>
 						{mode === "create" ? "Create Rule" : "Edit Rule"}

@@ -1,11 +1,11 @@
 "use client";
 
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { AlertCircle, CheckCircle2, Clock, LayoutGrid } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { URGENCY_OPTIONS } from "@/constants/vendor/shift-claiming";
@@ -18,36 +18,103 @@ import {
 import { PerDiemShiftsService } from "@/services/per-diem-shifts.service";
 import type { ClaimableShift } from "@/types/vendor-claim-shifts";
 
+export const VENDOR_CLAIM_SHIFTS_PARAMS = {
+	SEARCH: "vcsSearch",
+	TAB: "vcsTab",
+	URGENCY: "vcsUrg",
+	SPECIALTY: "vcsSpec",
+	AVAILABLE_PAGE: "vcsAvPg",
+	ASSIGNED_PAGE: "vcsAsPg",
+	AVAILABLE_LIMIT: "vcsAvLim",
+	ASSIGNED_LIMIT: "vcsAsLim",
+} as const;
+
 export function useVendorClaimShifts() {
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{
-			paramKey: "vcsSearch",
-			pageParamKey: null,
-			alsoClearParamKeys: ["vcsAvPg", "vcsAsPg"],
+	const {
+		page: availablePage,
+		setPage: setAvailablePage,
+		limit: availableLimit,
+		setLimit: setAvailableLimit,
+	} = usePaginationControls({
+		pageParamKey: VENDOR_CLAIM_SHIFTS_PARAMS.AVAILABLE_PAGE,
+		limitParamKey: VENDOR_CLAIM_SHIFTS_PARAMS.AVAILABLE_LIMIT,
+		defaultLimit: 10,
+	});
+
+	const {
+		page: assignedPage,
+		setPage: setAssignedPage,
+		limit: assignedLimit,
+		setLimit: setAssignedLimit,
+	} = usePaginationControls({
+		pageParamKey: VENDOR_CLAIM_SHIFTS_PARAMS.ASSIGNED_PAGE,
+		limitParamKey: VENDOR_CLAIM_SHIFTS_PARAMS.ASSIGNED_LIMIT,
+		defaultLimit: 10,
+	});
+
+	const [activeTab, setActiveTab] = useTabSwitch(["available", "assigned"], {
+		alsoClearParamKeys: [
+			VENDOR_CLAIM_SHIFTS_PARAMS.AVAILABLE_PAGE,
+			VENDOR_CLAIM_SHIFTS_PARAMS.ASSIGNED_PAGE,
+		],
+		paramKey: VENDOR_CLAIM_SHIFTS_PARAMS.TAB,
+	});
+
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange: handleSearchChangeRaw,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange: onFilterChangeRaw,
+	} = useSearchWithFilters({
+		pagination: { pageParamKey: VENDOR_CLAIM_SHIFTS_PARAMS.AVAILABLE_PAGE },
+		search: {
+			paramKey: VENDOR_CLAIM_SHIFTS_PARAMS.SEARCH,
+			alsoClearParamKeys: [VENDOR_CLAIM_SHIFTS_PARAMS.ASSIGNED_PAGE],
 		},
+		filters: [
+			{
+				id: VENDOR_CLAIM_SHIFTS_PARAMS.URGENCY,
+				label: "Urgency",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All",
+				options: URGENCY_OPTIONS,
+			},
+			{
+				id: VENDOR_CLAIM_SHIFTS_PARAMS.SPECIALTY,
+				label: "Specialty",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Specialties",
+			},
+		],
+	});
+
+	const handleSearchChange = useCallback(
+		(v: string) => {
+			handleSearchChangeRaw(v);
+			setAssignedPage(1);
+		},
+		[handleSearchChangeRaw, setAssignedPage],
 	);
 
+	const onFilterChange = useCallback(
+		(
+			keyOrUpdates: string | Record<string, string | null>,
+			value?: string | null,
+		) => {
+			onFilterChangeRaw(keyOrUpdates, value);
+			setAssignedPage(1);
+		},
+		[onFilterChangeRaw, setAssignedPage],
+	);
+
+	const urgency = values[VENDOR_CLAIM_SHIFTS_PARAMS.URGENCY] || "all";
+	const specialty = values[VENDOR_CLAIM_SHIFTS_PARAMS.SPECIALTY] || "all";
+
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
-	const activeTab =
-		searchParams.get("vcsTab") === "assigned" ? "assigned" : "available";
-	const urgency = searchParams.get("vcsUrg") ?? "all";
-	const specialty = searchParams.get("vcsSpec") ?? "all";
-
-	const avPageParam = Number(searchParams.get("vcsAvPg") ?? "1");
-	const availablePage =
-		Number.isFinite(avPageParam) && avPageParam > 0 ? avPageParam : 1;
-	const asPageParam = Number(searchParams.get("vcsAsPg") ?? "1");
-	const assignedPage =
-		Number.isFinite(asPageParam) && asPageParam > 0 ? asPageParam : 1;
-
-	const avLimitParam = Number(searchParams.get("vcsAvLim") ?? "10");
-	const availableLimit =
-		Number.isFinite(avLimitParam) && avLimitParam > 0 ? avLimitParam : 10;
-	const asLimitParam = Number(searchParams.get("vcsAsLim") ?? "10");
-	const assignedLimit =
-		Number.isFinite(asLimitParam) && asLimitParam > 0 ? asLimitParam : 10;
 
 	const [selectedShift, setSelectedShift] = useState<ClaimableShift | null>(
 		null,
@@ -57,13 +124,6 @@ export function useVendorClaimShifts() {
 
 	const { data: sessionData } = authClient.useSession();
 	const orgId = sessionData?.session?.activeOrganizationId ?? undefined;
-
-	const setActiveTab = useCallback(
-		(tab: string) => {
-			pushParams({ vcsTab: tab === "available" ? null : tab });
-		},
-		[pushParams],
-	);
 
 	const availableParams = useMemo(
 		() => ({
@@ -208,51 +268,6 @@ export function useVendorClaimShifts() {
 		];
 	}, [metricsQuery.data]);
 
-	const setAvailablePage = useCallback(
-		(p: number) => {
-			pushParams({ vcsAvPg: String(p) });
-		},
-		[pushParams],
-	);
-	const setAssignedPage = useCallback(
-		(p: number) => {
-			pushParams({ vcsAsPg: String(p) });
-		},
-		[pushParams],
-	);
-	const setAvailableLimit = useCallback(
-		(l: number) => {
-			pushParams({ vcsAvLim: String(l), vcsAvPg: null });
-		},
-		[pushParams],
-	);
-	const setAssignedLimit = useCallback(
-		(l: number) => {
-			pushParams({ vcsAsLim: String(l), vcsAsPg: null });
-		},
-		[pushParams],
-	);
-
-	const handleFilterChange = useCallback(
-		(key: "urgency" | "specialty", value: string) => {
-			const clear = !value || value === "all";
-			if (key === "urgency") {
-				pushParams({
-					vcsUrg: clear ? null : value,
-					vcsAvPg: null,
-					vcsAsPg: null,
-				});
-			} else {
-				pushParams({
-					vcsSpec: clear ? null : value,
-					vcsAvPg: null,
-					vcsAsPg: null,
-				});
-			}
-		},
-		[pushParams],
-	);
-
 	const handleAction = useCallback((shift: ClaimableShift) => {
 		setSelectedShift(shift);
 		setIsClaimDialogOpen(true);
@@ -302,27 +317,26 @@ export function useVendorClaimShifts() {
 	const hasActiveFilters =
 		Boolean(searchFromUrl?.trim()) || urgency !== "all" || specialty !== "all";
 
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "vendor-claim-urgency",
-				label: "Urgency",
-				value: urgency,
-				onValueChange: (v: string) => handleFilterChange("urgency", v),
-				placeholder: "All",
-				options: URGENCY_OPTIONS,
-			},
-			{
-				id: "vendor-claim-specialty",
-				label: "Specialty",
-				value: specialty,
-				onValueChange: (v: string) => handleFilterChange("specialty", v),
-				placeholder: "All Specialties",
-				options: specialtyOptions,
-			},
-		],
-		[handleFilterChange, specialty, specialtyOptions, urgency],
-	);
+	const filterConfigs = useMemo(() => {
+		return hookFilterConfigs.map((cfg) => {
+			if (cfg.id === VENDOR_CLAIM_SHIFTS_PARAMS.SPECIALTY) {
+				return {
+					...cfg,
+					options: specialtyOptions,
+					onValueChange: (v: string) =>
+						onFilterChange(VENDOR_CLAIM_SHIFTS_PARAMS.SPECIALTY, v),
+				};
+			}
+			if (cfg.id === VENDOR_CLAIM_SHIFTS_PARAMS.URGENCY) {
+				return {
+					...cfg,
+					onValueChange: (v: string) =>
+						onFilterChange(VENDOR_CLAIM_SHIFTS_PARAMS.URGENCY, v),
+				};
+			}
+			return cfg;
+		});
+	}, [hookFilterConfigs, onFilterChange, specialtyOptions]);
 
 	return {
 		organizationId: orgId,
@@ -333,7 +347,7 @@ export function useVendorClaimShifts() {
 		activeTab,
 		setActiveTab,
 		filters: { urgency, specialty },
-		handleFilterChange,
+		handleFilterChange: (key: string, v: string) => onFilterChange(key, v),
 		filteredAvailableShifts: availableShifts,
 		filteredAssignedShifts: assignedShifts,
 		selectedShift,

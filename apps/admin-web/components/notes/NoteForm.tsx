@@ -13,7 +13,8 @@ import {
 } from "@repo/ui/components/select";
 import { Textarea } from "@repo/ui/components/textarea";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 import type { AddNotePayload } from "@/types/vendor";
 
 export interface NoteFormProps {
@@ -36,6 +37,11 @@ export function NoteForm({ onSubmit, isPending }: NoteFormProps) {
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<Card>
 			<CardContent className="px-6">
@@ -57,9 +63,11 @@ export function NoteForm({ onSubmit, isPending }: NoteFormProps) {
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched &&
-									(!field.state.value || field.state.value.length === 0);
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel>
@@ -98,9 +106,11 @@ export function NoteForm({ onSubmit, isPending }: NoteFormProps) {
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched &&
-									(!field.state.value || field.state.value.trim().length === 0);
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>

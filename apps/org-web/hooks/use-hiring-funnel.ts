@@ -1,62 +1,54 @@
 "use client";
 
-import { useDebouncedCallback } from "@tanstack/react-pacer";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useUrlFilters } from "@/hooks/use-url-filters";
+import { useMemo, useState } from "react";
 import { CommandCenterService } from "@/services/command-center.service";
 import type { HiringFunnelSummaryKey } from "@/types/command-center";
 
-type HiringFunnelFilterKey = "search" | "location" | "department";
-
-const PARAM_MAP: Record<HiringFunnelFilterKey, string> = {
-	search: "hiringFunnelSearch",
-	location: "hiringFunnelLocation",
-	department: "hiringFunnelDepartment",
-};
+export const HIRING_FUNNEL_PARAMS = {
+	PAGE: "hiringFunnelPage",
+	SEARCH: "hiringFunnelSearch",
+	LOCATION: "hiringFunnelLocation",
+	DEPARTMENT: "hiringFunnelDepartment",
+} as const;
 
 export function useHiringFunnel() {
-	const { getValue, setValue } = useUrlFilters<HiringFunnelFilterKey>({
-		paramMap: PARAM_MAP,
+	const { page, limit, setPage, setLimit } = usePaginationControls({
+		pageParamKey: HIRING_FUNNEL_PARAMS.PAGE,
+		defaultLimit: 10,
 	});
 
-	const searchFromUrl = getValue("search");
-	const location = getValue("location");
-	const department = getValue("department");
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+	} = useSearchWithFilters({
+		search: { paramKey: HIRING_FUNNEL_PARAMS.SEARCH },
+		pagination: { pageParamKey: HIRING_FUNNEL_PARAMS.PAGE },
+		filters: [
+			{
+				id: HIRING_FUNNEL_PARAMS.LOCATION,
+				label: "Location",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: HIRING_FUNNEL_PARAMS.DEPARTMENT,
+				label: "Department",
+				type: "select",
+				defaultValue: "all",
+			},
+		],
+	});
 
-	const [localSearch, setLocalSearch] = useState(searchFromUrl);
+	const location = values[HIRING_FUNNEL_PARAMS.LOCATION] || "all";
+	const department = values[HIRING_FUNNEL_PARAMS.DEPARTMENT] || "all";
+
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
-
-	useEffect(() => {
-		setLocalSearch(searchFromUrl);
-	}, [searchFromUrl]);
-
-	const debouncedReplaceSearch = useDebouncedCallback(
-		(value: string) =>
-			setValue("search", value || undefined, {
-				navigation: "replace",
-			}),
-		{ wait: 250 },
-	);
-
-	const handleSearchChange = (value: string) => {
-		setLocalSearch(value);
-		debouncedReplaceSearch(value);
-	};
-
-	const setLocation = useCallback(
-		(value: string) => {
-			setValue("location", value && value !== "all" ? value : undefined);
-		},
-		[setValue],
-	);
-
-	const setDepartment = useCallback(
-		(value: string) => {
-			setValue("department", value && value !== "all" ? value : undefined);
-		},
-		[setValue],
-	);
 
 	const listQuery = useQuery({
 		queryKey: [
@@ -65,12 +57,16 @@ export function useHiringFunnel() {
 			searchFromUrl,
 			location,
 			department,
+			page,
+			limit,
 		],
 		queryFn: () =>
 			CommandCenterService.getHiringFunnel({
 				search: searchFromUrl.trim() || undefined,
-				location: location || undefined,
-				department: department || undefined,
+				location: location === "all" ? undefined : location || undefined,
+				department: department === "all" ? undefined : department || undefined,
+				page,
+				limit,
 			}),
 	});
 
@@ -94,47 +90,40 @@ export function useHiringFunnel() {
 			? listQuery.error.message
 			: "Could not load job pipeline";
 
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "hiring-funnel-location",
-				label: "Location",
-				value: location || "all",
-				onValueChange: setLocation,
-				placeholder: "All",
-				options: [{ value: "all", label: "All Locations" }, ...locationOptions],
-			},
-			{
-				id: "hiring-funnel-department",
-				label: "Department",
-				value: department || "all",
-				onValueChange: setDepartment,
-				placeholder: "All Departments",
-				options: [
-					{ value: "all", label: "All Departments" },
-					...departmentOptions,
-				],
-			},
-		],
-		[
-			department,
-			departmentOptions,
-			location,
-			locationOptions,
-			setDepartment,
-			setLocation,
-		],
-	);
+	const filterConfigs = useMemo(() => {
+		return hookFilterConfigs.map((cfg) => {
+			if (cfg.id === HIRING_FUNNEL_PARAMS.LOCATION) {
+				return {
+					...cfg,
+					options: [
+						{ value: "all", label: "All Locations" },
+						...locationOptions,
+					],
+				};
+			}
+			if (cfg.id === HIRING_FUNNEL_PARAMS.DEPARTMENT) {
+				return {
+					...cfg,
+					options: [
+						{ value: "all", label: "All Departments" },
+						...departmentOptions,
+					],
+				};
+			}
+			return cfg;
+		});
+	}, [hookFilterConfigs, locationOptions, departmentOptions]);
+
+	const total = listQuery.data?.total ?? 0;
+	const totalPages = Math.ceil(total / limit);
 
 	return {
 		localSearch,
+		handleSearchChange,
 		filtersExpanded,
 		setFiltersExpanded,
-		handleSearchChange,
 		location,
 		department,
-		setLocation,
-		setDepartment,
 		locationOptions,
 		departmentOptions,
 		jobListings,
@@ -144,5 +133,11 @@ export function useHiringFunnel() {
 		listErrorMessage,
 		refetchJobs: listQuery.refetch,
 		filterConfigs,
+		page,
+		limit,
+		totalPages,
+		total,
+		setPage,
+		setLimit,
 	};
 }

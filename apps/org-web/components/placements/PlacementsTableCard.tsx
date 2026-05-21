@@ -17,14 +17,16 @@ export type PlacementsTableCardProps = {
 	rows: PlacementListMockRow[];
 	columns: ColumnDef<PlacementListMockRow, unknown>[];
 	totalFiltered: number;
+	isLoading: boolean;
 };
 
 export function PlacementsTableCard({
 	rows,
 	columns,
 	totalFiltered,
+	isLoading,
 }: PlacementsTableCardProps) {
-	if (totalFiltered === 0) {
+	if (totalFiltered === 0 && !isLoading) {
 		return (
 			<Empty className="border-muted/50 py-12">
 				<EmptyHeader>
@@ -49,6 +51,8 @@ export function PlacementsTableCard({
 			paginationMode="client"
 			pageSize={PLACEMENTS_PAGE_SIZE}
 			emptyState={null}
+			isLoading={isLoading}
+			loadingLabel="Loading placements..."
 		/>
 	);
 }

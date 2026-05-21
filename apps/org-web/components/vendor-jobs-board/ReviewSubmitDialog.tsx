@@ -82,9 +82,12 @@ export function ReviewSubmitDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				{savedProfileQuery.isLoading && (
 					<div className="space-y-4 py-4">
+						<DialogTitle className="sr-only">
+							Review & Submit Application
+						</DialogTitle>
 						<Skeleton className="h-8 w-2/3" />
 						<Skeleton className="h-32 w-full" />
 						<Skeleton className="h-32 w-full" />
@@ -92,11 +95,16 @@ export function ReviewSubmitDialog({
 				)}
 
 				{savedProfileQuery.isError && (
-					<p className="text-destructive text-sm py-6">
-						{savedProfileQuery.error instanceof Error
-							? savedProfileQuery.error.message
-							: "Could not load candidate profile."}
-					</p>
+					<div className="py-6">
+						<DialogTitle className="sr-only">
+							Review & Submit Application
+						</DialogTitle>
+						<p className="text-destructive text-sm">
+							{savedProfileQuery.error instanceof Error
+								? savedProfileQuery.error.message
+								: "Could not load candidate profile."}
+						</p>
+					</div>
 				)}
 
 				{savedProfileQuery.data && (

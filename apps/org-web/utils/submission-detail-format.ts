@@ -1,4 +1,4 @@
-/** YYYY-MM-DD for employment-style fields (matches design spec). */
+import { formatUsdPerHour } from "@repo/shared";
 export function formatIsoDateOnly(iso: string | null | undefined): string {
 	if (!iso || iso === "—") {
 		return "—";
@@ -35,10 +35,7 @@ export function formatSubmissionDetailDate(
 }
 
 export function formatBillRateDisplay(rate: number | null | undefined): string {
-	if (rate == null) {
-		return "—";
-	}
-	return `$${Math.round(rate)}/hr`;
+	return formatUsdPerHour(rate, { round: true, fractionDigits: 0 });
 }
 
 export function formatShiftTypeLabel(raw: string | null | undefined): string {

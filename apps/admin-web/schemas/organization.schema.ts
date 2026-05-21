@@ -42,6 +42,20 @@ export const locationFormSchema = z.object({
 
 export type LocationFormSchemaValues = z.infer<typeof locationFormSchema>;
 
+export const locationFormPostalAutosuggestValidators = {
+	street: locationFormSchema.shape.address,
+	city: locationFormSchema.shape.city,
+	state: locationFormSchema.shape.state,
+	zipCode: locationFormSchema.shape.zipCode,
+} as const;
+
+export const organizationLocationPostalAutosuggestValidators = {
+	street: locationSchemaBase.shape.address,
+	city: locationSchemaBase.shape.city,
+	state: locationSchemaBase.shape.state,
+	zipCode: locationSchemaBase.shape.zipCode,
+} as const;
+
 export const createOrganizationSchema = z.object({
 	organizationName: z.string().trim().min(1, "Organization name is required"),
 	email: z.string().trim().min(1, "Email is required").email("Invalid email"),

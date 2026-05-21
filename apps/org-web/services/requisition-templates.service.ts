@@ -147,6 +147,8 @@ export class RequisitionTemplatesService {
 		query: {
 			search?: string;
 			status?: string;
+			organizationOccupationId?: string;
+			organizationSpecialtyId?: string;
 			page?: number;
 			limit?: number;
 		} = {},

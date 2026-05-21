@@ -101,7 +101,7 @@ export function EditCandidateProfileDialog({
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>{trigger}</DialogTrigger>
-			<DialogContent className="sm:max-w-xl">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Edit Profile</DialogTitle>
 					<DialogDescription>
@@ -134,7 +134,7 @@ export function EditCandidateProfileDialog({
 							)}
 						</form.Field>
 
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<Field>
 								<FieldLabel>Email (Read-Only)</FieldLabel>
 								<div className="relative">
@@ -181,7 +181,7 @@ export function EditCandidateProfileDialog({
 							)}
 						</form.Field>
 
-						<div className="grid grid-cols-3 gap-4">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 							<form.Field name="city">
 								{(field) => (
 									<Field>

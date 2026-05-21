@@ -49,7 +49,7 @@ export function useTalentCommunityColumns(
 			},
 		];
 
-		if (activeTab !== "invited") {
+		if (activeTab === "talent-community") {
 			baseColumns.push({
 				id: "workforceType",
 				header: "Workforce Type",
@@ -60,6 +60,67 @@ export function useTalentCommunityColumns(
 					return (
 						<Badge variant="outline" className="text-xs">
 							{getLabel(CANDIDATE_WORKFORCE_TYPE_OPTIONS, wt)}
+						</Badge>
+					);
+				},
+			});
+
+			baseColumns.push({
+				id: "placementStatus",
+				header: "Placement Status",
+				cell: ({ row }) => {
+					const status = row.original.placements[0]?.status ?? null;
+					if (!status) {
+						return (
+							<Badge
+								variant="outline"
+								className="text-muted-foreground border-muted-foreground/30 text-xs"
+							>
+								Not Assigned
+							</Badge>
+						);
+					}
+					const config: Record<string, { label: string; className: string }> = {
+						ACTIVE: {
+							label: "Active",
+							className: "border-green-300 bg-green-50 text-green-700",
+						},
+						UPCOMING: {
+							label: "Upcoming",
+							className: "border-blue-300 bg-blue-50 text-blue-700",
+						},
+						ENDING_SOON: {
+							label: "Ending Soon",
+							className: "border-orange-300 bg-orange-50 text-orange-700",
+						},
+						COMPLETED: {
+							label: "Completed",
+							className: "border-slate-300 bg-slate-50 text-slate-600",
+						},
+						TERMINATED: {
+							label: "Terminated",
+							className: "border-red-300 bg-red-50 text-red-700",
+						},
+						ON_HOLD: {
+							label: "On Hold",
+							className: "border-yellow-300 bg-yellow-50 text-yellow-700",
+						},
+						PENDING: {
+							label: "Pending",
+							className: "border-purple-300 bg-purple-50 text-purple-700",
+						},
+						INACTIVE: {
+							label: "Inactive",
+							className: "text-muted-foreground border-muted-foreground/30",
+						},
+					};
+					const { label, className } = config[status] ?? {
+						label: status,
+						className: "text-muted-foreground border-muted-foreground/30",
+					};
+					return (
+						<Badge variant="outline" className={`text-xs ${className}`}>
+							{label}
 						</Badge>
 					);
 				},
@@ -77,18 +138,6 @@ export function useTalentCommunityColumns(
 		}
 
 		baseColumns.push(
-			{
-				id: "placementStatus",
-				header: "Placement Status",
-				cell: () => (
-					<Badge
-						variant="outline"
-						className="text-muted-foreground border-muted-foreground/30 text-xs"
-					>
-						Not Assigned
-					</Badge>
-				),
-			},
 			{
 				id: "vendor",
 				header: "Vendor",

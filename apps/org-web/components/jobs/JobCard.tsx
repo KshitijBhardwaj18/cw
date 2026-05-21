@@ -109,7 +109,7 @@ export function JobCard({
 
 				{(showView || showEdit) && (
 					<div
-						className={`mt-auto grid gap-3 pt-1 ${showView && showEdit ? "grid-cols-2" : "grid-cols-1"}`}
+						className={`mt-auto grid gap-3 pt-1 ${showView && showEdit ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}
 					>
 						{showView ? (
 							<Button

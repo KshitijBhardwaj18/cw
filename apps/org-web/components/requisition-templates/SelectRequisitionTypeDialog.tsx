@@ -32,7 +32,7 @@ export function SelectRequisitionTypeDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-h-[90vh] min-w-[60vw] overflow-hidden p-0">
+			<DialogContent className="max-h-[90dvh] min-w-0 w-full max-w-5xl overflow-hidden p-0 sm:min-w-[60vw]">
 				<DialogHeader className="px-6 pt-6">
 					<DialogTitle className="text-xl">
 						Create Requisition Template – Select Type

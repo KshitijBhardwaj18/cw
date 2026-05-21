@@ -11,17 +11,27 @@ const TASK_CATEGORY_VALUES = [
 	"FOLLOW_UP_MEETING",
 ] as const;
 
-export const createGrievanceTaskSchema = z
-	.object({
-		category: z.string(),
-		assignTo: z.string().min(1, "Select a user"),
-		description: z
-			.string()
-			.min(1, "Task description is required")
-			.max(8000, "Description must be 8000 characters or less")
-			.trim(),
-	})
-	.superRefine((data, ctx) => {
+export const createGrievanceTaskCategorySchema = z
+	.string()
+	.trim()
+	.refine(
+		(v) =>
+			v.length > 0 && (TASK_CATEGORY_VALUES as readonly string[]).includes(v),
+		{ message: "Select a task category" },
+	);
+
+const createGrievanceTaskObjectSchema = z.object({
+	category: z.string(),
+	assignTo: z.string().min(1, "Select a user"),
+	description: z
+		.string()
+		.min(1, "Task description is required")
+		.max(8000, "Description must be 8000 characters or less")
+		.trim(),
+});
+
+export const createGrievanceTaskSchema =
+	createGrievanceTaskObjectSchema.superRefine((data, ctx) => {
 		if (!data.category.trim()) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
@@ -38,6 +48,10 @@ export const createGrievanceTaskSchema = z
 			});
 		}
 	});
+
+/** Field-level validators (object schema before `superRefine`). */
+export const createGrievanceTaskFieldSchemas =
+	createGrievanceTaskObjectSchema.shape;
 
 export type CreateGrievanceTaskFormValues = z.infer<
 	typeof createGrievanceTaskSchema

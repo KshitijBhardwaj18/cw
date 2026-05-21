@@ -86,7 +86,7 @@ export function ClaimShiftDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader className="border-b pb-4">
 					<DialogTitle className="text-xl font-bold">
 						Claim Shift & Assign Candidate
@@ -101,7 +101,7 @@ export function ClaimShiftDialog({
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
-							<div className="grid grid-cols-2 gap-x-12 gap-y-4">
+							<div className="grid grid-cols-1 gap-x-12 gap-y-4 sm:grid-cols-2">
 								<DetailItem
 									label="Organization:"
 									value={shift.facilityName.split("-")[0].trim()}

@@ -35,11 +35,12 @@ export function CandidateListItem({
 			className="gap-4 hover:bg-muted/50 transition-colors duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
 		>
 			<CardHeader className="pb-2">
-				<CardTitle className="flex items-center gap-2">
-					<h4 className="font-bold text-foreground text-base">
+				<CardTitle className="flex min-w-0 flex-wrap items-center gap-2">
+					<h4 className="min-w-0 wrap-break-word font-bold text-base text-foreground">
 						{candidate.name}
 					</h4>
 					<Badge
+						className="shrink-0"
 						variant={
 							candidate.status === "Available" ||
 							candidate.status === "Shortlisted"
@@ -79,7 +80,7 @@ export function CandidateListItem({
 					<p className="text-muted-foreground text-sm">{candidate.role}</p>
 				</div>
 			</CardHeader>
-			<CardContent className="grid grid-cols-3 gap-4">
+			<CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 				<DetailItem
 					label="Location"
 					value={candidate.location}

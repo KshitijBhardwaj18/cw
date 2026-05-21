@@ -205,7 +205,7 @@ export function ManageSubmissionReadinessOrderDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-2xl">
+			<DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Submission Readiness Order</DialogTitle>
 					<p className="text-muted-foreground text-sm">

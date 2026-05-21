@@ -344,6 +344,13 @@ export function useRouteInvoiceForApproval(orgId: string) {
 	});
 }
 
+export function useTriggerBillingCycleRun() {
+	return useMutation({
+		mutationFn: (minutesFromNow: number) =>
+			BillingService.triggerBillingCycleRun(minutesFromNow),
+	});
+}
+
 export function useSpendAnalyticsSummary(
 	orgId: string,
 	query: SpendAnalyticsQuery = {},

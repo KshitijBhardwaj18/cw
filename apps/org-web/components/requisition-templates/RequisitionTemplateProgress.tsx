@@ -2,6 +2,7 @@
 
 import { Badge } from "@repo/ui/components/badge";
 import { Separator } from "@repo/ui/components/separator";
+import { cn } from "@repo/ui/lib/utils";
 import {
 	Calendar,
 	CheckCircle,
@@ -23,10 +24,14 @@ const STEP_ICONS = [FileText, Calendar, DollarSign, Shield, Users] as const;
 
 interface RequisitionTemplateProgressProps {
 	currentStep: number;
+	onClickStep: (step: number) => void;
+	canJumpToStep: (step: number) => boolean;
 }
 
 export function RequisitionTemplateProgress({
 	currentStep,
+	onClickStep,
+	canJumpToStep,
 }: RequisitionTemplateProgressProps) {
 	return (
 		<div className="flex w-full items-center py-4 px-2">
@@ -35,21 +40,34 @@ export function RequisitionTemplateProgress({
 				const isCompleted = index < currentStep;
 				const isCurrent = currentStep === index;
 				const isLast = index === REQUISITION_TEMPLATE_STEPS.length - 1;
+				const canJump = canJumpToStep(index);
 
 				return (
-					<div
+					<button
 						key={step.key}
-						className={`flex items-center ${isLast ? "" : "flex-1"}`}
+						type="button"
+						className={cn("flex items-center group", !isLast && "flex-1")}
+						onClick={() => onClickStep(index)}
+						disabled={!canJump}
 					>
 						<div className="flex shrink-0 flex-col items-center gap-1 p-2">
 							<Badge
 								variant={isCompleted || isCurrent ? "default" : "secondary"}
-								className={`size-12 rounded-full [&>svg]:size-5`}
+								className={cn(
+									"size-12 rounded-full [&>svg]:size-5 transition-colors",
+									canJump && index > currentStep && "group-hover:text-primary",
+								)}
 							>
 								{isCompleted ? <CheckCircle /> : <Icon />}
 							</Badge>
 							<span
-								className={`hidden max-w-24 text-center text-xs font-semibold sm:block ${isCurrent || isCompleted ? "text-primary" : "text-muted-foreground"}`}
+								className={cn(
+									"hidden max-w-24 text-center text-xs font-semibold sm:block transition-colors",
+									canJump && index > currentStep && "group-hover:text-primary",
+									isCurrent || isCompleted
+										? "text-primary"
+										: "text-muted-foreground",
+								)}
 							>
 								{step.label}
 							</span>
@@ -60,7 +78,7 @@ export function RequisitionTemplateProgress({
 								className={`mx-1 h-px flex-1 ${isCompleted ? "bg-primary" : ""}`}
 							/>
 						)}
-					</div>
+					</button>
 				);
 			})}
 		</div>

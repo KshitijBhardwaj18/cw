@@ -1,6 +1,10 @@
 "use client";
 
 import {
+	COMPLIANCE_LIST_ITEM_CATEGORIES,
+	getComplianceListItemCategoryLabel,
+} from "@repo/shared";
+import {
 	Empty,
 	EmptyDescription,
 	EmptyHeader,
@@ -8,20 +12,30 @@ import {
 	EmptyTitle,
 } from "@repo/ui/components/empty";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
+import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { FolderOpen } from "lucide-react";
+import { useState } from "react";
 import { DocumentWalletCategoryCollapsible } from "@/components/document-wallet/DocumentWalletCategoryCollapsible";
-import { DocumentWalletListFilters } from "@/components/document-wallet/DocumentWalletListFilters";
 import { DocumentWalletSummaryCard } from "@/components/document-wallet/DocumentWalletSummaryCard";
 import { DocumentWalletUploadDialog } from "@/components/document-wallet/DocumentWalletUploadDialog";
 import { useDocumentWalletPage } from "@/hooks/candidate/use-document-wallet-page";
 import type { CandidateDocumentWalletItem } from "@/types/candidate-document-wallet";
+import {
+	DocumentWalletSkeleton,
+	ItemsSkeleton,
+	SummarySkeleton,
+} from "./DocumentWalletSkeleton";
 
 export function DocumentWalletPageContent() {
+	const [filtersExpanded, setFiltersExpanded] = useState(false);
+
 	const {
 		onboardingLoading,
 		organizationId,
 		summary,
+		isSummaryLoading,
 		items,
+		isItemsLoading,
 		setPage,
 		search,
 		setSearch,
@@ -36,33 +50,54 @@ export function DocumentWalletPageContent() {
 		defaultComplianceListItemId,
 	} = useDocumentWalletPage();
 
-	if (onboardingLoading) {
-		return null;
-	}
-
-	if (!organizationId || !summary || !items) {
-		return null;
+	if (onboardingLoading || !organizationId) {
+		return <DocumentWalletSkeleton />;
 	}
 
 	const handleItemAction = (item: CandidateDocumentWalletItem) => {
 		openUpload(item.complianceListItemId);
 	};
 
+	const filterConfigs = [
+		{
+			id: "category",
+			label: "Category",
+			value: categoryKey ?? "all",
+			onValueChange: (v: string) => setCategoryKey(v === "all" ? undefined : v),
+			placeholder: "All Categories",
+			options: [
+				{ value: "all", label: "All Categories" },
+				...COMPLIANCE_LIST_ITEM_CATEGORIES.map((c) => ({
+					value: c,
+					label: getComplianceListItemCategoryLabel(c),
+				})),
+			],
+		},
+	];
+
 	return (
 		<div className="space-y-6">
-			<DocumentWalletSummaryCard
-				summary={summary}
-				onUploadClick={() => openUpload()}
-			/>
+			{isSummaryLoading || !summary ? (
+				<SummarySkeleton />
+			) : (
+				<DocumentWalletSummaryCard
+					summary={summary}
+					onUploadClick={() => openUpload()}
+				/>
+			)}
 
-			<DocumentWalletListFilters
-				search={search}
+			<SearchWithFilters
+				searchPlaceholder="Search requirements…"
+				searchValue={search}
 				onSearchChange={setSearch}
-				categoryKey={categoryKey}
-				onCategoryKeyChange={setCategoryKey}
+				filtersExpanded={filtersExpanded}
+				onFiltersExpandedChange={setFiltersExpanded}
+				filterConfigs={filterConfigs}
 			/>
 
-			{items.total === 0 ? (
+			{isItemsLoading || !items ? (
+				<ItemsSkeleton />
+			) : items.total === 0 ? (
 				<Empty className="border-muted/50 py-12">
 					<EmptyHeader>
 						<EmptyMedia variant="icon">

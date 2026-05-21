@@ -10,7 +10,14 @@ export const requisitionTemplatesKeys = {
 		[...requisitionTemplatesKeys.all, "list", orgId] as const,
 	list: (
 		orgId: string,
-		params: { search?: string; status?: string; page?: number; limit?: number },
+		params: {
+			search?: string;
+			status?: string;
+			organizationOccupationId?: string;
+			organizationSpecialtyId?: string;
+			page?: number;
+			limit?: number;
+		},
 	) => [...requisitionTemplatesKeys.lists(orgId), params] as const,
 	detail: (orgId: string, id: string) =>
 		[...requisitionTemplatesKeys.all, "detail", orgId, id] as const,
@@ -18,7 +25,14 @@ export const requisitionTemplatesKeys = {
 
 export function useRequisitionTemplates(
 	orgId: string,
-	params: { search?: string; status?: string; page?: number; limit?: number },
+	params: {
+		search?: string;
+		status?: string;
+		organizationOccupationId?: string;
+		organizationSpecialtyId?: string;
+		page?: number;
+		limit?: number;
+	},
 	options?: { enabled?: boolean },
 ) {
 	return useQuery({

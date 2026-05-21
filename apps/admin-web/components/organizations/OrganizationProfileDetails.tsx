@@ -23,6 +23,8 @@ import {
 import { Switch } from "@repo/ui/components/switch";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import { PhoneInput } from "@repo/ui/general/PhoneInput";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { ImagePlus } from "lucide-react";
 import {
 	ORGANIZATION_INDUSTRY_OPTIONS,
@@ -62,6 +64,11 @@ export function OrganizationProfileDetails({
 		handleAgreementReplace,
 	} = useOrganizationProfileForm({ organization });
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<Card>
 			<CardContent className="px-6">
@@ -90,7 +97,7 @@ export function OrganizationProfileDetails({
 					}}
 				>
 					<div className="space-y-6">
-						<div className="flex items-center justify-between">
+						<div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
 							{/* Logo */}
 							<div className="space-y-2">
 								<FieldLabel>Organization Logo</FieldLabel>
@@ -140,7 +147,7 @@ export function OrganizationProfileDetails({
 						</div>
 
 						{/* Form fields */}
-						<div className="grid gap-4 sm:grid-cols-2">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<form.Field
 								name="name"
 								validators={{
@@ -151,10 +158,11 @@ export function OrganizationProfileDetails({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched &&
-										(!field.state.value ||
-											field.state.value.trim().length === 0);
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -186,9 +194,11 @@ export function OrganizationProfileDetails({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched &&
-										(!field.state.value || field.state.value.length === 0);
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel>
@@ -228,9 +238,11 @@ export function OrganizationProfileDetails({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched &&
-										(!field.state.value || field.state.value.length === 0);
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel>
@@ -270,10 +282,11 @@ export function OrganizationProfileDetails({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched &&
-										(!field.state.value ||
-											field.state.value.trim().length === 0);
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -303,10 +316,11 @@ export function OrganizationProfileDetails({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched &&
-										(!field.state.value ||
-											field.state.value.trim().length === 0);
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -340,9 +354,11 @@ export function OrganizationProfileDetails({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched &&
-										(!field.state.value || field.state.value.length === 0);
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel>

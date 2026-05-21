@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Action } from "@repo/casl";
 import { Session, type UserSession } from "@thallesp/nestjs-better-auth";
@@ -6,6 +6,7 @@ import { Permissions } from "src/common/decorators/permissions.decorator";
 import { PermissionsGuard } from "src/common/guards/permissions.guard";
 import { requireActiveOrganizationId } from "src/common/utils/require-active-organization-id";
 import { requireVendorPortalActor } from "src/common/utils/resolve-vendor-actor";
+import { VendorDashboardFinancialQueryDto } from "./dto/vendor-dashboard-financial-query.dto";
 import { VendorDashboardService } from "./vendor-dashboard.service";
 
 @ApiTags("vendor-dashboard")
@@ -59,20 +60,31 @@ export class VendorDashboardController {
 		description: "Vendor dashboard financial metrics",
 	})
 	@Permissions({ action: Action.Read, subject: "Dashboard" })
-	getFinancial(@Session() session: UserSession) {
+	getFinancial(
+		@Session() session: UserSession,
+		@Query() query: VendorDashboardFinancialQueryDto,
+	) {
 		const { organizationId, vendorId } = this.resolveContext(session);
-		return this.vendorDashboardService.getFinancial(organizationId, vendorId);
+		return this.vendorDashboardService.getFinancial(
+			organizationId,
+			vendorId,
+			query.period,
+		);
 	}
 
 	@Get("invoice-status")
 	@ApiOperation({ summary: "Vendor dashboard invoice status buckets" })
 	@ApiResponse({ status: 200, description: "Vendor dashboard invoice status" })
 	@Permissions({ action: Action.List, subject: "Dashboard" })
-	getInvoiceStatus(@Session() session: UserSession) {
+	getInvoiceStatus(
+		@Session() session: UserSession,
+		@Query() query: VendorDashboardFinancialQueryDto,
+	) {
 		const { organizationId, vendorId } = this.resolveContext(session);
 		return this.vendorDashboardService.getInvoiceStatus(
 			organizationId,
 			vendorId,
+			query.period,
 		);
 	}
 

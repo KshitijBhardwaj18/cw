@@ -12,6 +12,7 @@ import {
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import LoadingScreen from "@repo/ui/general/LoadingScreen";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -36,6 +37,12 @@ export const HiringFunnelTab = () => {
 		isError,
 		listErrorMessage,
 		refetchJobs,
+		total,
+		page,
+		totalPages,
+		setPage,
+		limit,
+		setLimit,
 	} = useHiringFunnel();
 	const { columns } = useHiringFunnelJobListingColumns();
 
@@ -50,7 +57,7 @@ export const HiringFunnelTab = () => {
 			<ConfigPageHeader
 				title="Hiring Funnel"
 				description="Cross-job submission pipeline and conversion tracking"
-				total={jobListings.length}
+				total={total}
 				itemLabel="job"
 				itemLabelPlural="jobs"
 			/>
@@ -69,9 +76,7 @@ export const HiringFunnelTab = () => {
 
 			<div className="space-y-3">
 				<div className="flex items-center justify-between gap-3">
-					<p className="text-lg font-semibold">
-						Job Listings ({jobListings.length})
-					</p>
+					<p className="text-lg font-semibold">Job Listings ({total})</p>
 				</div>
 
 				<SearchWithFilters
@@ -107,13 +112,21 @@ export const HiringFunnelTab = () => {
 						<LoadingScreen message="Loading job pipeline…" />
 					</div>
 				) : (
-					<CustomTable
-						data={jobListings}
-						columns={columns}
-						enableSorting={false}
-						enablePagination
-						onRowClick={handleRowClick}
-					/>
+					<>
+						<CustomTable
+							data={jobListings}
+							columns={columns}
+							enableSorting={false}
+							onRowClick={handleRowClick}
+						/>
+						<PaginationControls
+							currentPage={page}
+							pageCount={totalPages}
+							goToPage={setPage}
+							limit={limit}
+							setLimit={setLimit}
+						/>
+					</>
 				)}
 			</div>
 		</div>

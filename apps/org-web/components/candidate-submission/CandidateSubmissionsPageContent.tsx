@@ -44,7 +44,7 @@ export default function CandidateSubmissionsPageContent() {
 
 	if (isLoading) {
 		return (
-			<div className="mx-auto w-full max-w-6xl space-y-6">
+			<div className="w-full space-y-6">
 				<Skeleton className="h-10 w-full max-w-md" />
 				<Skeleton className="h-48 w-full rounded-lg" />
 			</div>
@@ -53,14 +53,14 @@ export default function CandidateSubmissionsPageContent() {
 
 	if (!organizationId) {
 		return (
-			<div className="mx-auto max-w-6xl py-12 text-center text-muted-foreground text-sm">
+			<div className="py-12 text-center text-muted-foreground text-sm">
 				Complete onboarding with an organization to view your applications.
 			</div>
 		);
 	}
 
 	return (
-		<div className="mx-auto w-full max-w-6xl space-y-6">
+		<div className="w-full space-y-6">
 			<Tabs
 				value={activeTab}
 				onValueChange={(v) => setActiveTab(v as SubmissionTabValue)}
@@ -78,7 +78,7 @@ export default function CandidateSubmissionsPageContent() {
 								<TabsTrigger
 									key={tab.value}
 									value={tab.value}
-									className="group flex-none gap-2 px-3"
+									className="group inline-flex flex-none items-center gap-1.5 px-2 text-sm sm:gap-2 sm:px-3"
 								>
 									<tab.icon className="size-4" />
 									{tab.label}

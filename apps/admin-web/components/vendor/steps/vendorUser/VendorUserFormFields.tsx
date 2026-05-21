@@ -11,6 +11,8 @@ import {
 } from "@repo/ui/components/select";
 import { FormInput } from "@repo/ui/general/FormFields";
 import { PhoneInput } from "@repo/ui/general/PhoneInput";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import type { VendorUserFormApi } from "@/hooks/use-vendor-user-form";
 
 interface VendorUserFormFieldsProps {
@@ -26,6 +28,10 @@ export function VendorUserFormFields({
 	form,
 	validators,
 }: VendorUserFormFieldsProps) {
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 	return (
 		<>
 			<form.Field
@@ -96,8 +102,11 @@ export function VendorUserFormFields({
 				}}
 			>
 				{(field) => {
-					const isInvalid =
-						field.state.meta.isTouched && !field.state.meta.isValid;
+					const isInvalid = formFieldShowInvalid(
+						field.state.meta.isTouched,
+						field.state.meta.isValid,
+						submissionAttempts,
+					);
 					return (
 						<Field>
 							<FieldLabel htmlFor={field.name}>Office Phone</FieldLabel>
@@ -122,8 +131,11 @@ export function VendorUserFormFields({
 				}}
 			>
 				{(field) => {
-					const isInvalid =
-						field.state.meta.isTouched && !field.state.meta.isValid;
+					const isInvalid = formFieldShowInvalid(
+						field.state.meta.isTouched,
+						field.state.meta.isValid,
+						submissionAttempts,
+					);
 					return (
 						<Field>
 							<FieldLabel htmlFor={field.name}>Mobile Phone</FieldLabel>

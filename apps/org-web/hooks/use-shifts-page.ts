@@ -1,10 +1,10 @@
 "use client";
 
 import { toIsoDateString } from "@repo/shared";
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useMemo, useState } from "react";
 import type { Shift, ShiftStatus } from "@/constants/shifts";
 import { SHIFT_LIST_PAGE_SIZE, SHIFT_TYPE_OPTIONS } from "@/constants/shifts";
@@ -39,70 +39,125 @@ const perDiemShiftsKeys = {
 		[...perDiemShiftsKeys.all, "list", params] as const,
 };
 
+export const SHIFTS_PARAMS = {
+	PAGE: "pdPage",
+	SEARCH: "pdSearch",
+	STATUS: "status",
+	DATE: "date",
+	SHIFT_TYPE: "shiftType",
+	DEPARTMENT: "department",
+	LOCATION: "location",
+	OCCUPATION: "occupation",
+	SPECIALTY: "specialty",
+} as const;
+
 export function useShiftsPage() {
 	const { id: orgId } = useOrgContext();
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "pdSearch", pageParamKey: "pdPage" },
+
+	const { page, setPage, resetPage } = usePaginationControls({
+		pageParamKey: SHIFTS_PARAMS.PAGE,
+		defaultLimit: SHIFT_LIST_PAGE_SIZE,
+	});
+
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		search: { paramKey: SHIFTS_PARAMS.SEARCH },
+		pagination: { pageParamKey: SHIFTS_PARAMS.PAGE },
+		filters: [
+			{
+				id: SHIFTS_PARAMS.DATE,
+				label: "Date",
+				type: "date",
+				defaultValue: "",
+				placeholder: "Pick a date",
+			},
+			{
+				id: SHIFTS_PARAMS.SHIFT_TYPE,
+				label: "Shift Type",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All",
+				options: [
+					{ value: "all", label: "All Shift Types" },
+					...SHIFT_TYPE_OPTIONS,
+				],
+			},
+			{
+				id: SHIFTS_PARAMS.DEPARTMENT,
+				label: "Department",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Departments",
+			},
+			{
+				id: SHIFTS_PARAMS.LOCATION,
+				label: "Location",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Locations",
+			},
+			{
+				id: SHIFTS_PARAMS.OCCUPATION,
+				label: "Occupation",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Occupations",
+			},
+			{
+				id: SHIFTS_PARAMS.SPECIALTY,
+				label: "Specialty",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Specialties",
+			},
+		],
+	});
+
+	const [statusFilter, setStatusFilterState] = useQueryState(
+		SHIFTS_PARAMS.STATUS,
+		parseAsStringLiteral([...VALID_STATUSES, "ALL"]).withDefault("ALL"),
 	);
-
-	const pageParam = Number(searchParams.get("pdPage") ?? "1");
-	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-
-	const statusParam = searchParams.get("status");
-	const statusFilter: ShiftStatus | "ALL" =
-		statusParam && VALID_STATUSES.includes(statusParam as ShiftStatus)
-			? (statusParam as ShiftStatus)
-			: "ALL";
 
 	const filters = useMemo(() => {
 		return {
-			date: searchParams.get("date") ?? "",
-			shiftType: searchParams.get("shiftType") ?? "all",
-			department: searchParams.get("department") ?? "all",
-			location: searchParams.get("location") ?? "all",
-			occupation: searchParams.get("occupation") ?? "all",
-			specialty: searchParams.get("specialty") ?? "all",
+			date: values[SHIFTS_PARAMS.DATE] ?? "",
+			shiftType: values[SHIFTS_PARAMS.SHIFT_TYPE] || "all",
+			department: values[SHIFTS_PARAMS.DEPARTMENT] || "all",
+			location: values[SHIFTS_PARAMS.LOCATION] || "all",
+			occupation: values[SHIFTS_PARAMS.OCCUPATION] || "all",
+			specialty: values[SHIFTS_PARAMS.SPECIALTY] || "all",
 		};
-	}, [searchParams]);
-
-	const setFilter = useCallback(
-		(key: string, value: string) => {
-			const clear =
-				!value || value === "all" || (key === "date" && value === "");
-			const updates: Record<string, string | null> = {
-				[key]: clear ? null : value,
-				pdPage: null,
-			};
-
-			if (key === "occupation") {
-				const prevOcc = searchParams.get("occupation") ?? "all";
-				const nextOcc = clear ? "all" : value;
-				if (prevOcc !== nextOcc) {
-					updates.specialty = null;
-				}
-			}
-			pushParams(updates);
-		},
-		[pushParams, searchParams],
-	);
+	}, [values]);
 
 	const setStatusFilter = useCallback(
 		(value: ShiftStatus | "ALL") => {
-			pushParams({
-				status: value === "ALL" ? null : value,
-				pdPage: null,
-			});
+			void setStatusFilterState(value);
+			resetPage();
 		},
-		[pushParams],
+		[setStatusFilterState, resetPage],
 	);
 
-	const setPage = useCallback(
-		(nextPage: number) => {
-			pushParams({ pdPage: String(nextPage) });
+	const setFilter = useCallback(
+		(key: string, value: string) => {
+			if (key === SHIFTS_PARAMS.OCCUPATION) {
+				const updates: Record<string, string | null> = {
+					[SHIFTS_PARAMS.OCCUPATION]: value === "all" ? null : value,
+				};
+				if (values[SHIFTS_PARAMS.OCCUPATION] !== value) {
+					updates[SHIFTS_PARAMS.SPECIALTY] = null;
+				}
+				onFilterChange(updates);
+			} else {
+				onFilterChange({ [key]: value === "all" ? null : value });
+			}
 		},
-		[pushParams],
+		[onFilterChange, values],
 	);
 
 	const departmentsQuery = useShiftTemplateDepartments();
@@ -117,7 +172,7 @@ export function useShiftsPage() {
 		activeOccupationId,
 	);
 
-	const params = useMemo(() => {
+	const queryParams = useMemo(() => {
 		const date = filters.date ? toIsoDateString(filters.date) : null;
 		return {
 			search: searchFromUrl.trim() || undefined,
@@ -144,21 +199,11 @@ export function useShiftsPage() {
 			page,
 			limit: SHIFT_LIST_PAGE_SIZE,
 		};
-	}, [
-		filters.date,
-		filters.department,
-		filters.location,
-		filters.occupation,
-		filters.shiftType,
-		filters.specialty,
-		page,
-		searchFromUrl,
-		statusFilter,
-	]);
+	}, [filters, page, searchFromUrl, statusFilter]);
 
 	const listQuery = useQuery({
-		queryKey: perDiemShiftsKeys.list(params),
-		queryFn: () => PerDiemShiftsService.list(params),
+		queryKey: perDiemShiftsKeys.list(queryParams),
+		queryFn: () => PerDiemShiftsService.list(queryParams),
 		refetchOnMount: "always",
 	});
 
@@ -225,80 +270,34 @@ export function useShiftsPage() {
 		];
 	}, [filters.occupation, specialtiesForOccupation]);
 
-	const shiftTypeFilterOptions = useMemo(
-		() => [
-			{ value: "all", label: "All Shift Types" },
-			...SHIFT_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
-		],
-		[],
-	);
-
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "shifts-filter-date",
-				label: "Date",
-				type: "date" as const,
-				value: filters.date,
-				onValueChange: (value: string) => setFilter("date", value),
-				placeholder: "Pick a date",
-			},
-			{
-				id: "shifts-filter-shiftType",
-				label: "Shift Type",
-				value: filters.shiftType,
-				onValueChange: (value: string) => setFilter("shiftType", value),
-				placeholder: "All",
-				options: shiftTypeFilterOptions,
-			},
-			{
-				id: "shifts-filter-department",
-				label: "Department",
-				value: filters.department,
-				onValueChange: (value: string) => setFilter("department", value),
-				placeholder: "All Departments",
-				options: departmentOptions,
-			},
-			{
-				id: "shifts-filter-location",
-				label: "Location",
-				value: filters.location,
-				onValueChange: (value: string) => setFilter("location", value),
-				placeholder: "All Locations",
-				options: locationOptions,
-			},
-			{
-				id: "shifts-filter-occupation",
-				label: "Occupation",
-				value: filters.occupation,
-				onValueChange: (value: string) => setFilter("occupation", value),
-				placeholder: "All Occupations",
-				options: occupationOptions,
-			},
-			{
-				id: "shifts-filter-specialty",
-				label: "Specialty",
-				value: filters.specialty,
-				onValueChange: (value: string) => setFilter("specialty", value),
-				placeholder: "All Specialties",
-				options: specialtyOptions,
-			},
-		],
-		[
-			departmentOptions,
-			filters.date,
-			filters.department,
-			filters.location,
-			filters.occupation,
-			filters.shiftType,
-			filters.specialty,
-			locationOptions,
-			occupationOptions,
-			setFilter,
-			shiftTypeFilterOptions,
-			specialtyOptions,
-		],
-	);
+	const filterConfigs = useMemo(() => {
+		return hookFilterConfigs.map((cfg) => {
+			switch (cfg.id) {
+				case SHIFTS_PARAMS.DEPARTMENT:
+					return { ...cfg, options: departmentOptions };
+				case SHIFTS_PARAMS.LOCATION:
+					return { ...cfg, options: locationOptions };
+				case SHIFTS_PARAMS.OCCUPATION:
+					return {
+						...cfg,
+						options: occupationOptions,
+						onValueChange: (v: string) =>
+							setFilter(SHIFTS_PARAMS.OCCUPATION, v),
+					};
+				case SHIFTS_PARAMS.SPECIALTY:
+					return { ...cfg, options: specialtyOptions };
+				default:
+					return cfg;
+			}
+		});
+	}, [
+		hookFilterConfigs,
+		departmentOptions,
+		locationOptions,
+		occupationOptions,
+		specialtyOptions,
+		setFilter,
+	]);
 
 	return {
 		isLoading: listQuery.isLoading,

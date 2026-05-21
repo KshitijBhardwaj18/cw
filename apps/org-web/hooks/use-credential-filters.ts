@@ -1,9 +1,9 @@
 "use client";
 
-import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useCallback, useMemo, useState } from "react";
 import { useOrgContext } from "@/contexts/org-context";
-import { useUrlFilters } from "@/hooks/use-url-filters";
 import {
 	useOrganizationLocationsForOnboarding,
 	useOrgDepartmentsForUsers,
@@ -24,57 +24,82 @@ const VALID_STATUSES: CredentialStatus[] = [
 
 const DEFAULT_PAGE_SIZE = 10;
 
+export const CRED_PARAMS = {
+	SEARCH: "credSearch",
+	PAGE: "credPage",
+	LIMIT: "credLimit",
+	LOCATION: "location",
+	DEPARTMENT: "department",
+	VENDOR: "vendor",
+	HIRING_MANAGER: "hiringManager",
+	STATUS: "status",
+} as const;
+
 export function useCredentialFilters() {
 	const { id: orgId } = useOrgContext();
-	const [page, setPage] = useState(1);
-	const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
 
-	const { getValue, updateValues } = useUrlFilters({
-		paramMap: {
-			search: "search",
-			location: "location",
-			department: "department",
-			vendor: "vendor",
-			hiringManager: "hiringManager",
-			status: "status",
-		},
-		resetOnChange: ["page"],
+	const { page, limit, setPage, setLimit } = usePaginationControls({
+		pageParamKey: CRED_PARAMS.PAGE,
+		limitParamKey: CRED_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_PAGE_SIZE,
 	});
 
-	const searchFromUrl = getValue("search", "");
-	const [search, setSearch] = useState(searchFromUrl);
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		search: { paramKey: CRED_PARAMS.SEARCH },
+		pagination: { pageParamKey: CRED_PARAMS.PAGE },
+		filters: [
+			{
+				id: CRED_PARAMS.LOCATION,
+				label: "Location",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: CRED_PARAMS.DEPARTMENT,
+				label: "Department",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: CRED_PARAMS.VENDOR,
+				label: "Vendor",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: CRED_PARAMS.HIRING_MANAGER,
+				label: "Hiring Manager",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: CRED_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+			},
+		],
+	});
+
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-	useEffect(() => {
-		setSearch(searchFromUrl);
-	}, [searchFromUrl]);
-
-	const locationFilter = getValue("location", "all");
-	const departmentFilter = getValue("department", "all");
-	const vendorFilter = getValue("vendor", "all");
-	const hiringManagerFilter = getValue("hiringManager", "all");
-
-	const statusParam = getValue("status", "");
+	const locationFilter = values[CRED_PARAMS.LOCATION] || "all";
+	const departmentFilter = values[CRED_PARAMS.DEPARTMENT] || "all";
+	const vendorFilter = values[CRED_PARAMS.VENDOR] || "all";
+	const hiringManagerFilter = values[CRED_PARAMS.HIRING_MANAGER] || "all";
+	const statusFilterRaw = values[CRED_PARAMS.STATUS];
 	const statusFilter =
-		statusParam && VALID_STATUSES.includes(statusParam as CredentialStatus)
-			? (statusParam as CredentialStatus)
+		statusFilterRaw &&
+		VALID_STATUSES.includes(statusFilterRaw as CredentialStatus)
+			? (statusFilterRaw as CredentialStatus)
 			: null;
-
-	const debouncedReplaceSearch = useDebouncedCallback(
-		(value: string) => {
-			setPage(1);
-			updateValues({ search: value || undefined }, { navigation: "replace" });
-		},
-		{ wait: 300 },
-	);
-
-	const handleSearchChange = useCallback(
-		(value: string) => {
-			setSearch(value);
-			debouncedReplaceSearch(value);
-		},
-		[debouncedReplaceSearch],
-	);
 
 	const baseFilters = {
 		locationId: locationFilter !== "all" ? locationFilter : undefined,
@@ -147,118 +172,63 @@ export function useCredentialFilters() {
 		[membersQuery.data],
 	);
 
-	const setLocationFilter = useCallback(
-		(value: string) => {
-			setPage(1);
-			updateValues({ location: value === "all" ? undefined : value });
-		},
-		[updateValues],
-	);
-
-	const setDepartmentFilter = useCallback(
-		(value: string) => {
-			setPage(1);
-			updateValues({ department: value === "all" ? undefined : value });
-		},
-		[updateValues],
-	);
-
-	const setVendorFilter = useCallback(
-		(value: string) => {
-			setPage(1);
-			updateValues({ vendor: value === "all" ? undefined : value });
-		},
-		[updateValues],
-	);
-
-	const setHiringManagerFilter = useCallback(
-		(value: string) => {
-			setPage(1);
-			updateValues({ hiringManager: value === "all" ? undefined : value });
-		},
-		[updateValues],
-	);
-
 	const toggleStatusFilter = useCallback(
 		(nextStatus: CredentialStatus) => {
-			setPage(1);
-			updateValues({
-				status: statusFilter === nextStatus ? undefined : nextStatus,
-			});
+			onFilterChange(
+				CRED_PARAMS.STATUS,
+				statusFilter === nextStatus ? "all" : nextStatus,
+			);
 		},
-		[statusFilter, updateValues],
+		[statusFilter, onFilterChange],
 	);
 
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "credentials-filter-location",
-				label: "Location",
-				value: locationFilter,
-				onValueChange: setLocationFilter,
-				placeholder: "All Locations",
-				options: locationOptions,
-			},
-			{
-				id: "credentials-filter-department",
-				label: "Department",
-				value: departmentFilter,
-				onValueChange: setDepartmentFilter,
-				placeholder: "All Departments",
-				options: departmentOptions,
-			},
-			{
-				id: "credentials-filter-vendor",
-				label: "Vendor",
-				value: vendorFilter,
-				onValueChange: setVendorFilter,
-				placeholder: "All Vendors",
-				options: vendorOptions,
-			},
-			{
-				id: "credentials-filter-hiring-manager",
-				label: "Hiring Manager",
-				value: hiringManagerFilter,
-				onValueChange: setHiringManagerFilter,
-				placeholder: "All Hiring Managers",
-				options: hiringManagerOptions,
-			},
-		],
-		[
-			departmentFilter,
-			departmentOptions,
-			hiringManagerFilter,
-			hiringManagerOptions,
-			locationFilter,
-			locationOptions,
-			setDepartmentFilter,
-			setHiringManagerFilter,
-			setLocationFilter,
-			setVendorFilter,
-			vendorFilter,
-			vendorOptions,
-		],
-	);
+	const filterConfigs = useMemo(() => {
+		return hookFilterConfigs
+			.filter((cfg) => cfg.id !== CRED_PARAMS.STATUS)
+			.map((cfg) => {
+				switch (cfg.id) {
+					case CRED_PARAMS.LOCATION:
+						return {
+							...cfg,
+							options: locationOptions,
+							placeholder: "All Locations",
+						};
+					case CRED_PARAMS.DEPARTMENT:
+						return {
+							...cfg,
+							options: departmentOptions,
+							placeholder: "All Departments",
+						};
+					case CRED_PARAMS.VENDOR:
+						return {
+							...cfg,
+							options: vendorOptions,
+							placeholder: "All Vendors",
+						};
+					case CRED_PARAMS.HIRING_MANAGER:
+						return {
+							...cfg,
+							options: hiringManagerOptions,
+							placeholder: "All Hiring Managers",
+						};
+					default:
+						return cfg;
+				}
+			});
+	}, [
+		hookFilterConfigs,
+		locationOptions,
+		departmentOptions,
+		vendorOptions,
+		hiringManagerOptions,
+	]);
 
 	return {
-		search,
-		setSearch: handleSearchChange,
+		localSearch,
+		handleSearchChange,
 		filtersExpanded,
 		setFiltersExpanded,
-		locationFilter,
-		setLocationFilter,
-		locationOptions,
-		departmentFilter,
-		setDepartmentFilter,
-		departmentOptions,
-		vendorFilter,
-		setVendorFilter,
-		vendorOptions,
-		hiringManagerFilter,
-		setHiringManagerFilter,
-		hiringManagerOptions,
-		statusFilter,
-		toggleStatusFilter,
+		filterConfigs,
 		countsByStatus: countsData ?? {
 			EXPIRING_SOON: 0,
 			EXPIRED: 0,
@@ -269,11 +239,11 @@ export function useCredentialFilters() {
 		page,
 		pageCount,
 		limit,
-		onPaginationChange: (p: number, size: number) => {
-			setPage(p);
-			setLimit(size);
-		},
+		setPage,
+		setLimit,
 		isLoading,
-		filterConfigs,
+		statusFilter,
+		toggleStatusFilter,
+		onFilterChange,
 	};
 }

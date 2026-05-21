@@ -45,7 +45,7 @@ export function LocationsSection({
 }: LocationsSectionProps) {
 	return (
 		<div className="space-y-4">
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<h3 className="text-base font-semibold">
 					Locations (at least one required)
 				</h3>

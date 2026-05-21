@@ -26,6 +26,8 @@ import { ScrollArea } from "@repo/ui/components/scroll-area";
 import { Textarea } from "@repo/ui/components/textarea";
 import RequiredStar from "@repo/ui/general/RequiredStar";
 import { SearchBar } from "@repo/ui/general/SearchBar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { ChevronRight, Save } from "lucide-react";
 import { useCreateChecklistTemplateDialog } from "@/hooks/use-create-checklist-template-dialog";
 
@@ -86,6 +88,11 @@ export function CreateChecklistTemplateDialog({
 		viewMode,
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent className="flex max-h-[72vh] max-w-2xl flex-col overflow-hidden p-0">
@@ -117,9 +124,11 @@ export function CreateChecklistTemplateDialog({
 								<form.Field name="templateName">
 									{(field) => (
 										<Field
-											data-invalid={
-												field.state.meta.isTouched && !field.state.meta.isValid
-											}
+											data-invalid={formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											)}
 										>
 											<FieldLabel htmlFor={field.name}>
 												Template Name <RequiredStar />

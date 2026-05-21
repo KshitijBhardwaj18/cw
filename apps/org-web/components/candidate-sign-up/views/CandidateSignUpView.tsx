@@ -4,13 +4,17 @@ import { OTPForm } from "@repo/ui/components/auth-otp-form";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { Separator } from "@repo/ui/components/separator";
 import Link from "next/link";
+import { useMemo } from "react";
 import { AuthLayout } from "@/components/auth/components/AuthLayout";
 import { CandidateSignUpProgress } from "@/components/candidate-sign-up/CandidateSignUpProgress";
 import { ContactInformationStep } from "@/components/candidate-sign-up/steps/ContactInformationStep";
 import { CreateAccountStep } from "@/components/candidate-sign-up/steps/CreateAccountStep";
 import { LocationPreferencesStep } from "@/components/candidate-sign-up/steps/LocationPreferencesStep";
+import { PreferencesQuestionnairesStep } from "@/components/candidate-sign-up/steps/PreferencesQuestionnairesStep";
 import { ProfessionalDetailsStep } from "@/components/candidate-sign-up/steps/ProfessionalDetailsStep";
+import { SubmissionReadinessStep } from "@/components/candidate-sign-up/steps/SubmissionReadinessStep";
 import { useCandidateSignUp } from "@/hooks/candidate/use-candidate-sign-up";
+import { yearsOfExperienceToProfessionalBand } from "@/schemas/candidate-sign-up.schema";
 
 export function CandidateSignUpView() {
 	const {
@@ -24,10 +28,14 @@ export function CandidateSignUpView() {
 		step1Values,
 		step2Values,
 		step3Values,
+		step4Values,
+		step5Values,
 		setStep0Values,
 		setStep1Values,
 		setStep2Values,
 		setStep3Values,
+		setStep4Values,
+		setStep5Values,
 		selfOtpEmail,
 		selfOtpSent,
 		selfResumeKey,
@@ -38,6 +46,12 @@ export function CandidateSignUpView() {
 		handleStep2Continue,
 		handleStep3Back,
 		handleStep3Submit,
+		handlePreferencesStepBack,
+		handlePreferencesStepContinue,
+		handleSubmissionReadinessBack,
+		handleSelfSubmissionFinalize,
+		handleInviteSubmissionFinalize,
+		inviteFinalizePending,
 		handleInviteStep0Continue,
 		handleInviteContactContinue,
 		handleInviteProfessionalContinue,
@@ -48,6 +62,25 @@ export function CandidateSignUpView() {
 		requestResumeSignedUrl,
 		pushStep,
 	} = useCandidateSignUp();
+
+	const preferencesDefaultValues = useMemo(
+		() => ({
+			...step4Values,
+			preferredContractLengths: step4Values.preferredContractLengths?.length
+				? step4Values.preferredContractLengths
+				: (step2Values.preferredContractLengths ?? []),
+			totalProfessionalExperienceBand:
+				step4Values.totalProfessionalExperienceBand ??
+				yearsOfExperienceToProfessionalBand(step2Values.yearsOfExperience),
+		}),
+		[
+			step4Values,
+			step2Values.preferredContractLengths,
+			step2Values.yearsOfExperience,
+		],
+	);
+
+	const occupationLabel = useMemo(() => meData?.occupationName ?? "", [meData]);
 
 	if (isInviteMode && meLoading) {
 		return (
@@ -132,6 +165,24 @@ export function CandidateSignUpView() {
 										orgId={meData.organizationId}
 									/>
 								)}
+								{step === 4 && (
+									<PreferencesQuestionnairesStep
+										defaultValues={preferencesDefaultValues}
+										occupationName={occupationLabel}
+										onBack={handlePreferencesStepBack}
+										onContinue={handlePreferencesStepContinue}
+										onValuesChange={setStep4Values}
+									/>
+								)}
+								{step === 5 && (
+									<SubmissionReadinessStep
+										defaultValues={step5Values}
+										onValuesChange={setStep5Values}
+										onBack={handleSubmissionReadinessBack}
+										onContinue={handleInviteSubmissionFinalize}
+										isSubmitting={inviteFinalizePending}
+									/>
+								)}
 							</>
 						) : (
 							<>
@@ -176,6 +227,23 @@ export function CandidateSignUpView() {
 										onSubmit={handleStep3Submit}
 										onValuesChange={setStep3Values}
 										orgId={orgId ?? ""}
+									/>
+								)}
+								{step === 4 && (
+									<PreferencesQuestionnairesStep
+										defaultValues={preferencesDefaultValues}
+										occupationName={occupationLabel}
+										onBack={handlePreferencesStepBack}
+										onContinue={handlePreferencesStepContinue}
+										onValuesChange={setStep4Values}
+									/>
+								)}
+								{step === 5 && (
+									<SubmissionReadinessStep
+										defaultValues={step5Values}
+										onValuesChange={setStep5Values}
+										onBack={handleSubmissionReadinessBack}
+										onContinue={handleSelfSubmissionFinalize}
 									/>
 								)}
 							</>

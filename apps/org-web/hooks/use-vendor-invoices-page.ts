@@ -1,9 +1,8 @@
 "use client";
 
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useMemo, useState } from "react";
 import { VENDOR_INVOICE_STATUS_FILTER_OPTIONS } from "@/constants/vendor-invoices";
 import {
 	useVendorInvoiceSummary,
@@ -12,40 +11,49 @@ import {
 
 const PAGE_SIZE = 10;
 
-export function useVendorInvoicesPage() {
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "vinvSearch", pageParamKey: "vinvPage" },
-	);
+export const VENDOR_INVOICES_PARAMS = {
+	PAGE: "vinvPage",
+	SEARCH: "vinvSearch",
+	STATUS: "vendorInvStatus",
+} as const;
 
-	const pageParam = Number(searchParams.get("vinvPage") ?? "1");
-	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-	const statusFilter = searchParams.get("vendorInvStatus") ?? "all";
+export function useVendorInvoicesPage() {
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: VENDOR_INVOICES_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+	} = useSearchWithFilters({
+		pagination: { pageParamKey: VENDOR_INVOICES_PARAMS.PAGE },
+		search: { paramKey: VENDOR_INVOICES_PARAMS.SEARCH },
+		filters: [
+			{
+				id: VENDOR_INVOICES_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All",
+				options: [...VENDOR_INVOICE_STATUS_FILTER_OPTIONS],
+			},
+		],
+	});
+
+	const statusFilter = values[VENDOR_INVOICES_PARAMS.STATUS] || "all";
 
 	const [filtersExpanded, setFiltersExpanded] = useState(true);
-
-	const setPage = useCallback(
-		(p: number) => {
-			pushParams({ vinvPage: String(p) });
-		},
-		[pushParams],
-	);
-
-	const setStatusFilter = useCallback(
-		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ vendorInvStatus: clear ? null : v, vinvPage: null });
-		},
-		[pushParams],
-	);
 
 	const query = useMemo(
 		() => ({
 			page,
 			limit: PAGE_SIZE,
 			...(searchFromUrl.trim() ? { search: searchFromUrl.trim() } : {}),
-			...(statusFilter !== "all" ? { status: statusFilter } : {}),
+			...(statusFilter !== "all" ? { status: statusFilter.toUpperCase() } : {}),
 		}),
 		[page, searchFromUrl, statusFilter],
 	);
@@ -54,20 +62,6 @@ export function useVendorInvoicesPage() {
 	const summaryQuery = useVendorInvoiceSummary({
 		...(searchFromUrl.trim() ? { search: searchFromUrl.trim() } : {}),
 	});
-
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "vendor-invoice-status",
-				label: "Status",
-				value: statusFilter,
-				onValueChange: setStatusFilter,
-				placeholder: "All",
-				options: [...VENDOR_INVOICE_STATUS_FILTER_OPTIONS],
-			},
-		],
-		[setStatusFilter, statusFilter],
-	);
 
 	return {
 		search: localSearch,
@@ -79,6 +73,6 @@ export function useVendorInvoicesPage() {
 		query,
 		listQuery,
 		summaryQuery,
-		filterConfigs,
+		filterConfigs: hookFilterConfigs,
 	};
 }

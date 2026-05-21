@@ -71,7 +71,7 @@ export function CandidateJobApplyTimeOffCard({
 								onValueChange={(v) => {
 									if (v === "single" || v === "range") t.setType(v);
 								}}
-								className="grid w-full max-w-md grid-cols-2"
+								className="grid w-full max-w-md grid-cols-1 sm:grid-cols-2"
 							>
 								<ToggleGroupItem value="single" className="px-3">
 									Single Date
@@ -81,7 +81,7 @@ export function CandidateJobApplyTimeOffCard({
 								</ToggleGroupItem>
 							</ToggleGroup>
 						</div>
-						<div className="grid gap-4 sm:grid-cols-2">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<div className="space-y-2">
 								<Label htmlFor={t.startId}>Start Date</Label>
 								<DatePicker

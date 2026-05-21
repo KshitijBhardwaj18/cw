@@ -1,20 +1,23 @@
 "use client";
 
-import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useCallback, useMemo, useState } from "react";
 import { useOrgContext } from "@/contexts/org-context";
-import { useUrlFilters } from "@/hooks/use-url-filters";
-import { PerDiemShiftsService } from "@/services/per-diem-shifts.service";
+import {
+	useCommandCenterShifts,
+	useCommandCenterShiftsMeta,
+} from "@/queries/per-diem-shifts.queries";
 import type { CommandCenterShiftSummaryKey } from "@/types/command-center";
 
-type ShiftTabFilterKey = "search" | "department" | "occupation";
+export const SHIFT_TAB_PARAMS = {
+	PAGE: "shiftLocationPage",
+	SEARCH: "shiftLocationSearch",
+	DEPARTMENT: "shiftDepartment",
+	OCCUPATION: "shiftOccupation",
+} as const;
 
-const PARAM_MAP: Record<ShiftTabFilterKey, string> = {
-	search: "shiftLocationSearch",
-	department: "shiftDepartment",
-	occupation: "shiftOccupation",
-};
+export const SHIFT_PAGE_SIZE_OPTIONS = [5, 10, 20, 30];
 
 function toOption(value: string) {
 	return { value, label: value };
@@ -22,57 +25,64 @@ function toOption(value: string) {
 
 export function useCommandCenterShiftsTab() {
 	const { id: orgId } = useOrgContext();
-	const { getValue, setValue, updateValues } = useUrlFilters<ShiftTabFilterKey>(
-		{
-			paramMap: PARAM_MAP,
-		},
-	);
 
-	const searchFromUrl = getValue("search");
-	const department = getValue("department");
-	const occupation = getValue("occupation");
+	const { page, limit, setPage, setLimit } = usePaginationControls({
+		pageParamKey: SHIFT_TAB_PARAMS.PAGE,
+		defaultLimit: 2,
+		pageSizeOptions: SHIFT_PAGE_SIZE_OPTIONS,
+	});
 
-	const [localSearch, setLocalSearch] = useState(searchFromUrl);
+	const {
+		searchValue: localSearch,
+		handleSearchChange,
+		searchFromUrl,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		search: { paramKey: SHIFT_TAB_PARAMS.SEARCH },
+		pagination: { pageParamKey: SHIFT_TAB_PARAMS.PAGE },
+		filters: [
+			{
+				id: SHIFT_TAB_PARAMS.DEPARTMENT,
+				label: "Department",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: SHIFT_TAB_PARAMS.OCCUPATION,
+				label: "Occupation",
+				type: "select",
+				defaultValue: "all",
+			},
+		],
+	});
+
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-	useEffect(() => {
-		setLocalSearch(searchFromUrl);
-	}, [searchFromUrl]);
-
-	const debouncedReplaceSearch = useDebouncedCallback(
-		(value: string) =>
-			setValue("search", value || undefined, {
-				navigation: "replace",
-			}),
-		{ wait: 250 },
-	);
-
-	const handleSearchChange = (value: string) => {
-		setLocalSearch(value);
-		debouncedReplaceSearch(value);
-	};
+	const department = values[SHIFT_TAB_PARAMS.DEPARTMENT] || "all";
+	const occupation = values[SHIFT_TAB_PARAMS.OCCUPATION] || "all";
 
 	const query = useMemo(
 		() => ({
 			search: searchFromUrl?.trim() || undefined,
-			department: department?.trim() || undefined,
-			occupation: occupation?.trim() || undefined,
+			department: department === "all" ? undefined : department.trim(),
+			occupation: occupation === "all" ? undefined : occupation.trim(),
+			page,
+			limit,
 		}),
-		[department, occupation, searchFromUrl],
+		[department, occupation, page, limit, searchFromUrl],
 	);
 
-	const locationsQuery = useQuery({
-		queryKey: ["command-center-shifts", orgId, query],
-		queryFn: () => PerDiemShiftsService.getCommandCenterLocations(query),
-		enabled: !!orgId,
-		refetchOnMount: "always",
-	});
+	const locationsQuery = useCommandCenterShifts(orgId, query);
+	const filtersMetaQuery = useCommandCenterShiftsMeta(orgId);
 
 	const departmentOccupationMap =
-		locationsQuery.data?.filtersMeta.departmentOccupations ?? [];
+		filtersMetaQuery.data?.filtersMeta.departmentOccupations ?? [];
 
 	const availableOccupations = useMemo(() => {
-		if (!department) return locationsQuery.data?.filtersMeta.occupations ?? [];
+		if (!department || department === "all")
+			return filtersMetaQuery.data?.filtersMeta.occupations ?? [];
 		return (
 			departmentOccupationMap.find((item) => item.department === department)
 				?.occupations ?? []
@@ -80,36 +90,34 @@ export function useCommandCenterShiftsTab() {
 	}, [
 		department,
 		departmentOccupationMap,
-		locationsQuery.data?.filtersMeta.occupations,
+		filtersMetaQuery.data?.filtersMeta.occupations,
 	]);
 
 	const setDepartment = useCallback(
 		(value: string) => {
-			const nextDepartment = value && value !== "all" ? value : undefined;
-			const stillValidOccupation = nextDepartment
-				? (departmentOccupationMap
-						.find((item) => item.department === nextDepartment)
-						?.occupations.includes(occupation) ?? false)
-				: true;
+			const nextDepartment = value && value !== "all" ? value : "all";
+			const stillValidOccupation =
+				nextDepartment !== "all"
+					? (departmentOccupationMap
+							.find((item) => item.department === nextDepartment)
+							?.occupations.includes(occupation) ?? false)
+					: true;
 
-			updateValues(
-				{
-					department: nextDepartment,
-					occupation: stillValidOccupation
-						? occupation || undefined
-						: undefined,
-				},
-				{ navigation: "push" },
-			);
+			onFilterChange({
+				[SHIFT_TAB_PARAMS.DEPARTMENT]: nextDepartment,
+				[SHIFT_TAB_PARAMS.OCCUPATION]: stillValidOccupation
+					? occupation
+					: "all",
+			});
 		},
-		[departmentOccupationMap, occupation, updateValues],
+		[departmentOccupationMap, occupation, onFilterChange],
 	);
 
 	const setOccupation = useCallback(
 		(value: string) => {
-			setValue("occupation", value && value !== "all" ? value : undefined);
+			onFilterChange(SHIFT_TAB_PARAMS.OCCUPATION, value || "all");
 		},
-		[setValue],
+		[onFilterChange],
 	);
 
 	const summaryCounts = useMemo<Record<CommandCenterShiftSummaryKey, number>>(
@@ -124,8 +132,8 @@ export function useCommandCenterShiftsTab() {
 	);
 
 	const departmentOptions = useMemo(
-		() => (locationsQuery.data?.filtersMeta.departments ?? []).map(toOption),
-		[locationsQuery.data?.filtersMeta.departments],
+		() => (filtersMetaQuery.data?.filtersMeta.departments ?? []).map(toOption),
+		[filtersMetaQuery.data?.filtersMeta.departments],
 	);
 
 	const occupationOptions = useMemo(
@@ -133,40 +141,41 @@ export function useCommandCenterShiftsTab() {
 		[availableOccupations],
 	);
 
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "command-center-shifts-occupation",
-				label: "Occupation",
-				value: occupation || "all",
-				onValueChange: setOccupation,
-				placeholder: "All",
-				options: [
-					{ value: "all", label: "All Occupations" },
-					...occupationOptions,
-				],
-			},
-			{
-				id: "command-center-shifts-department",
-				label: "Department",
-				value: department || "all",
-				onValueChange: setDepartment,
-				placeholder: "All Departments",
-				options: [
-					{ value: "all", label: "All Departments" },
-					...departmentOptions,
-				],
-			},
-		],
-		[
-			department,
-			departmentOptions,
-			occupation,
-			occupationOptions,
-			setDepartment,
-			setOccupation,
-		],
-	);
+	const filterConfigs = useMemo(() => {
+		return hookFilterConfigs.map((cfg) => {
+			if (cfg.id === SHIFT_TAB_PARAMS.DEPARTMENT) {
+				return {
+					...cfg,
+					onValueChange: setDepartment,
+					options: [
+						{ value: "all", label: "All Departments" },
+						...departmentOptions,
+					],
+				};
+			}
+			if (cfg.id === SHIFT_TAB_PARAMS.OCCUPATION) {
+				return {
+					...cfg,
+					onValueChange: setOccupation,
+					options: [
+						{ value: "all", label: "All Occupations" },
+						...occupationOptions,
+					],
+				};
+			}
+			return cfg;
+		});
+	}, [
+		hookFilterConfigs,
+		setDepartment,
+		departmentOptions,
+		setOccupation,
+		occupationOptions,
+	]);
+
+	const locations = locationsQuery.data?.locations ?? [];
+	const totalLocations = locationsQuery.data?.totalLocations ?? 0;
+	const totalPages = Math.ceil(totalLocations / limit);
 
 	return {
 		localSearch,
@@ -181,7 +190,13 @@ export function useCommandCenterShiftsTab() {
 		departmentOptions,
 		occupationOptions,
 		summaryCounts,
-		locations: locationsQuery.data?.locations ?? [],
+		locations,
 		filterConfigs,
+		page,
+		limit,
+		totalLocations,
+		totalPages,
+		setPage,
+		setLimit,
 	};
 }

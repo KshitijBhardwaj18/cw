@@ -14,6 +14,8 @@ import { RadioGroup } from "@repo/ui/components/radio-group";
 import { RadioOptionCard } from "@repo/ui/components/radio-option-card";
 import { TimePicker } from "@repo/ui/components/time-picker";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { JOB_POSTING_PUBLISH_MODE_OPTIONS } from "@/constants/job-posting-flow";
 import { useJobPostingPublishSettingsStepForm } from "@/hooks/job-posting/use-job-posting-publish-settings-step-form";
 import type { JobPostingPublishValues } from "@/schemas/job-posting-publish.schema";
@@ -40,6 +42,11 @@ export function PublishSettingsStep({
 			isPending,
 		});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<Card>
 			<CardHeader>
@@ -52,8 +59,11 @@ export function PublishSettingsStep({
 				<form className="space-y-6" onSubmit={handleFormSubmit}>
 					<form.Field name="publishMode">
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel>
@@ -94,8 +104,11 @@ export function PublishSettingsStep({
 								<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 									<form.Field name="scheduledPublishDate">
 										{(field) => {
-											const isInvalid =
-												field.state.meta.isTouched && !field.state.meta.isValid;
+											const isInvalid = formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											);
 											return (
 												<Field data-invalid={isInvalid}>
 													<FieldLabel>
@@ -121,8 +134,11 @@ export function PublishSettingsStep({
 
 									<form.Field name="scheduledPublishTime">
 										{(field) => {
-											const isInvalid =
-												field.state.meta.isTouched && !field.state.meta.isValid;
+											const isInvalid = formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											);
 											return (
 												<Field data-invalid={isInvalid}>
 													<FieldLabel>

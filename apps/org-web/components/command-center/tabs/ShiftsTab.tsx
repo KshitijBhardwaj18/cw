@@ -2,11 +2,15 @@
 
 import { Accordion } from "@repo/ui/components/accordion";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { toast } from "sonner";
 import { COMMAND_CENTER_SHIFT_SUMMARY_CARDS } from "@/constants/command-center.shifts.configs";
 import type { Shift } from "@/constants/shifts";
-import { useCommandCenterShiftsTab } from "@/hooks/use-command-center-shifts-tab";
+import {
+	SHIFT_PAGE_SIZE_OPTIONS,
+	useCommandCenterShiftsTab,
+} from "@/hooks/use-command-center-shifts-tab";
 import { ShiftsLocationAccordionItem } from "./ShiftsLocationAccordionItem";
 import { ShiftsSummaryStatCard } from "./ShiftsSummaryStatCard";
 
@@ -19,6 +23,12 @@ export const ShiftsTab = () => {
 		summaryCounts,
 		locations,
 		filterConfigs,
+		page,
+		totalLocations,
+		totalPages,
+		setPage,
+		limit,
+		setLimit,
 	} = useCommandCenterShiftsTab();
 
 	const handleViewDetails = (shift: Shift) => {
@@ -59,9 +69,7 @@ export const ShiftsTab = () => {
 
 			<div className="space-y-3">
 				<div className="flex items-center justify-between gap-3">
-					<p className="text-lg font-semibold">
-						Locations ({locations.length})
-					</p>
+					<p className="text-lg font-semibold">Locations ({totalLocations})</p>
 					<p className="text-muted-foreground text-xs">
 						Click to expand and view individual shifts
 					</p>
@@ -76,22 +84,32 @@ export const ShiftsTab = () => {
 						emptyMessage="No shift locations in this time window. Try a different search or check back later."
 					/>
 				) : (
-					<Accordion
-						type="multiple"
-						defaultValue={locations.length > 0 ? [locations[0].id] : []}
-						className="space-y-3"
-					>
-						{locations.map((location) => (
-							<ShiftsLocationAccordionItem
-								key={location.id}
-								locationId={location.id}
-								locationName={location.name}
-								shifts={location.shifts}
-								onViewDetails={handleViewDetails}
-								onCancelShift={handleCancelShift}
-							/>
-						))}
-					</Accordion>
+					<>
+						<Accordion
+							type="multiple"
+							defaultValue={locations.length > 0 ? [locations[0].id] : []}
+							className="space-y-3"
+						>
+							{locations.map((location) => (
+								<ShiftsLocationAccordionItem
+									key={location.id}
+									locationId={location.id}
+									locationName={location.name}
+									shifts={location.shifts}
+									onViewDetails={handleViewDetails}
+									onCancelShift={handleCancelShift}
+								/>
+							))}
+						</Accordion>
+						<PaginationControls
+							currentPage={page}
+							pageCount={totalPages}
+							goToPage={setPage}
+							limit={limit}
+							setLimit={setLimit}
+							pageSizeOptions={SHIFT_PAGE_SIZE_OPTIONS}
+						/>
+					</>
 				)}
 			</div>
 		</div>

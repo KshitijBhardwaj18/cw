@@ -1,5 +1,10 @@
 "use client";
 
+import type {
+	PostalAddressValue,
+	PostalFormBindingsNoCountry,
+} from "@repo/shared";
+import { postalSnapshotFromForm } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Field,
@@ -7,27 +12,51 @@ import {
 	FieldGroup,
 	FieldLabel,
 } from "@repo/ui/components/field";
-import {
-	InputGroup,
-	InputGroupAddon,
-	InputGroupInput,
-} from "@repo/ui/components/input-group";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@repo/ui/components/select";
 import { PhoneInput } from "@repo/ui/general/PhoneInput";
+import {
+	PostalCitySearchInput,
+	PostalStateSearchInput,
+	PostalStreetSearchInput,
+	PostalZipSearchInput,
+} from "@repo/ui/general/PostalAddressSearchFields";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { Loader2, MapPin } from "lucide-react";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
+import { Loader2 } from "lucide-react";
 import { useContactInformationStepForm } from "@/hooks/candidate/use-contact-information-step-form";
 import {
 	type ContactInformationFormValues,
+	contactInformationPostalAutosuggestValidators,
 	contactInformationSchema,
-	US_STATES,
 } from "@/schemas/candidate-sign-up.schema";
+
+const CONTACT_INFORMATION_POSTAL_FIELDS: PostalFormBindingsNoCountry<ContactInformationFormValues> =
+	{
+		street: "streetAddress",
+		city: "city",
+		state: "state",
+		zipCode: "zipCode",
+	};
+
+function buildPostalOnChangeValidator(validator: unknown) {
+	return validator ? { onChange: validator as never } : undefined;
+}
+
+function applyResolvedContactPostalFields(
+	formApi: {
+		setFieldValue: (
+			name: keyof ContactInformationFormValues,
+			value: string,
+		) => void;
+	},
+	fields: PostalFormBindingsNoCountry<ContactInformationFormValues>,
+	address: PostalAddressValue,
+): void {
+	formApi.setFieldValue(fields.street, address.street);
+	formApi.setFieldValue(fields.city, address.city);
+	formApi.setFieldValue(fields.state, address.state);
+	formApi.setFieldValue(fields.zipCode, address.zipCode);
+}
 
 interface ContactInformationStepProps {
 	defaultValues: Partial<ContactInformationFormValues>;
@@ -47,6 +76,11 @@ export function ContactInformationStep({
 		onContinue,
 		onValuesChange,
 	});
+
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 
 	return (
 		<>
@@ -68,8 +102,11 @@ export function ContactInformationStep({
 						validators={{ onChange: contactInformationSchema.shape.phone }}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel
@@ -93,146 +130,193 @@ export function ContactInformationStep({
 						}}
 					</form.Field>
 
-					<form.Field
-						name="streetAddress"
-						validators={{
-							onChange: contactInformationSchema.shape.streetAddress,
-						}}
+					<form.Subscribe
+						selector={(state) =>
+							postalSnapshotFromForm(
+								state.values as ContactInformationFormValues,
+								CONTACT_INFORMATION_POSTAL_FIELDS,
+							)
+						}
 					>
-						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
-							return (
-								<Field data-invalid={isInvalid}>
-									<FieldLabel
-										htmlFor={field.name}
-										className="text-sm font-medium"
-									>
-										Street Address <RequiredStar />
-									</FieldLabel>
-									<InputGroup>
-										<InputGroupAddon>
-											<MapPin />
-										</InputGroupAddon>
-										<InputGroupInput
-											id={field.name}
-											name={field.name}
-											placeholder="Street Address"
-											value={field.state.value}
-											onBlur={field.handleBlur}
-											onChange={(e) => field.handleChange(e.target.value)}
-											aria-invalid={isInvalid}
-										/>
-									</InputGroup>
-									{isInvalid && <FieldError errors={field.state.meta.errors} />}
-								</Field>
-							);
-						}}
-					</form.Field>
+						{(postal) => (
+							<>
+								<form.Field
+									name="streetAddress"
+									validators={buildPostalOnChangeValidator(
+										contactInformationPostalAutosuggestValidators.street,
+									)}
+								>
+									{(field) => {
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
+										return (
+											<Field data-invalid={isInvalid}>
+												<FieldLabel
+													htmlFor={field.name}
+													className="text-sm font-medium"
+												>
+													Street Address <RequiredStar />
+												</FieldLabel>
+												<PostalStreetSearchInput
+													inputId={field.name}
+													postalContext={postal}
+													value={String(field.state.value ?? "")}
+													onChange={(v) => field.handleChange(v)}
+													onBlur={field.handleBlur}
+													placeholder="Street address — start typing for suggestions"
+													autoComplete="street-address"
+													onResolvedAddress={(addr) =>
+														applyResolvedContactPostalFields(
+															form,
+															CONTACT_INFORMATION_POSTAL_FIELDS,
+															addr,
+														)
+													}
+												/>
+												{isInvalid && (
+													<FieldError errors={field.state.meta.errors} />
+												)}
+											</Field>
+										);
+									}}
+								</form.Field>
 
-					<form.Field
-						name="city"
-						validators={{ onChange: contactInformationSchema.shape.city }}
-					>
-						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
-							return (
-								<Field data-invalid={isInvalid}>
-									<FieldLabel
-										htmlFor={field.name}
-										className="text-sm font-medium"
+								<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+									<form.Field
+										name="city"
+										validators={buildPostalOnChangeValidator(
+											contactInformationPostalAutosuggestValidators.city,
+										)}
 									>
-										City <RequiredStar />
-									</FieldLabel>
-									<InputGroup>
-										<InputGroupInput
-											id={field.name}
-											name={field.name}
-											placeholder="City"
-											value={field.state.value}
-											onBlur={field.handleBlur}
-											onChange={(e) => field.handleChange(e.target.value)}
-											aria-invalid={isInvalid}
-										/>
-									</InputGroup>
-									{isInvalid && <FieldError errors={field.state.meta.errors} />}
-								</Field>
-							);
-						}}
-					</form.Field>
+										{(field) => {
+											const isInvalid = formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											);
+											return (
+												<Field data-invalid={isInvalid}>
+													<FieldLabel
+														htmlFor={field.name}
+														className="text-sm font-medium"
+													>
+														City <RequiredStar />
+													</FieldLabel>
+													<PostalCitySearchInput
+														inputId={field.name}
+														postalContext={postal}
+														value={String(field.state.value ?? "")}
+														onChange={(v) => field.handleChange(v)}
+														onBlur={field.handleBlur}
+														placeholder="City"
+														onResolvedAddress={(addr) =>
+															applyResolvedContactPostalFields(
+																form,
+																CONTACT_INFORMATION_POSTAL_FIELDS,
+																addr,
+															)
+														}
+													/>
+													{isInvalid && (
+														<FieldError errors={field.state.meta.errors} />
+													)}
+												</Field>
+											);
+										}}
+									</form.Field>
 
-					<form.Field
-						name="state"
-						validators={{ onChange: contactInformationSchema.shape.state }}
-					>
-						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
-							return (
-								<Field data-invalid={isInvalid}>
-									<FieldLabel
-										htmlFor={field.name}
-										className="text-sm font-medium"
+									<form.Field
+										name="state"
+										validators={buildPostalOnChangeValidator(
+											contactInformationPostalAutosuggestValidators.state,
+										)}
 									>
-										State <RequiredStar />
-									</FieldLabel>
-									<Select
-										value={field.state.value}
-										onValueChange={(v) => field.handleChange(v)}
-									>
-										<SelectTrigger
-											id={field.name}
-											className="w-full"
-											aria-invalid={isInvalid}
-										>
-											<SelectValue placeholder="State" />
-										</SelectTrigger>
-										<SelectContent>
-											{US_STATES.map((state) => (
-												<SelectItem key={state} value={state}>
-													{state}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									{isInvalid && <FieldError errors={field.state.meta.errors} />}
-								</Field>
-							);
-						}}
-					</form.Field>
+										{(field) => {
+											const isInvalid = formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											);
+											return (
+												<Field data-invalid={isInvalid}>
+													<FieldLabel
+														htmlFor={field.name}
+														className="text-sm font-medium"
+													>
+														State <RequiredStar />
+													</FieldLabel>
+													<PostalStateSearchInput
+														inputId={field.name}
+														postalContext={postal}
+														value={String(field.state.value ?? "")}
+														onChange={(v) => field.handleChange(v)}
+														onBlur={field.handleBlur}
+														placeholder="State"
+														onResolvedAddress={(addr) =>
+															applyResolvedContactPostalFields(
+																form,
+																CONTACT_INFORMATION_POSTAL_FIELDS,
+																addr,
+															)
+														}
+													/>
+													{isInvalid && (
+														<FieldError errors={field.state.meta.errors} />
+													)}
+												</Field>
+											);
+										}}
+									</form.Field>
 
-					<form.Field
-						name="zipCode"
-						validators={{ onChange: contactInformationSchema.shape.zipCode }}
-					>
-						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
-							return (
-								<Field data-invalid={isInvalid}>
-									<FieldLabel
-										htmlFor={field.name}
-										className="text-sm font-medium"
+									<form.Field
+										name="zipCode"
+										validators={buildPostalOnChangeValidator(
+											contactInformationPostalAutosuggestValidators.zipCode,
+										)}
 									>
-										ZIP Code <RequiredStar />
-									</FieldLabel>
-									<InputGroup>
-										<InputGroupInput
-											id={field.name}
-											name={field.name}
-											placeholder="12345"
-											value={field.state.value}
-											onBlur={field.handleBlur}
-											onChange={(e) => field.handleChange(e.target.value)}
-											aria-invalid={isInvalid}
-										/>
-									</InputGroup>
-									{isInvalid && <FieldError errors={field.state.meta.errors} />}
-								</Field>
-							);
-						}}
-					</form.Field>
+										{(field) => {
+											const isInvalid = formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											);
+											return (
+												<Field data-invalid={isInvalid}>
+													<FieldLabel
+														htmlFor={field.name}
+														className="text-sm font-medium"
+													>
+														ZIP Code <RequiredStar />
+													</FieldLabel>
+													<PostalZipSearchInput
+														inputId={field.name}
+														postalContext={postal}
+														value={String(field.state.value ?? "")}
+														onChange={(v) => field.handleChange(v)}
+														onBlur={field.handleBlur}
+														placeholder="12345"
+														onResolvedAddress={(addr) =>
+															applyResolvedContactPostalFields(
+																form,
+																CONTACT_INFORMATION_POSTAL_FIELDS,
+																addr,
+															)
+														}
+													/>
+													{isInvalid && (
+														<FieldError errors={field.state.meta.errors} />
+													)}
+												</Field>
+											);
+										}}
+									</form.Field>
+								</div>
+							</>
+						)}
+					</form.Subscribe>
 				</FieldGroup>
 
 				<div className="flex items-center justify-between pt-6">

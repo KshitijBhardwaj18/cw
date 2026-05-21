@@ -37,6 +37,12 @@ const CHECKLIST_SELECT = {
 			},
 		},
 	},
+	_count: {
+		select: {
+			requisitions: true,
+			requisitionTemplates: true,
+		},
+	},
 } as const;
 
 @Injectable()

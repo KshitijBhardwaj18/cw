@@ -1,3 +1,7 @@
+import {
+	formatStaffLogicDocumentTitle,
+	VENDOR_PORTAL_DISPLAY_NAME,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Empty,
@@ -8,7 +12,16 @@ import {
 	EmptyTitle,
 } from "@repo/ui/components/empty";
 import { AlertCircle, ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+	title: formatStaffLogicDocumentTitle(
+		"Page not found",
+		VENDOR_PORTAL_DISPLAY_NAME,
+	),
+	robots: { index: false, follow: false },
+};
 
 export default function NotFound() {
 	return (

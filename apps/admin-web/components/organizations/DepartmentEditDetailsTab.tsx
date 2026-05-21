@@ -31,6 +31,8 @@ import {
 	TableRow,
 } from "@repo/ui/components/table";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { Loader2, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { DEPARTMENT_TYPE_OPTIONS } from "@/constants/organization";
@@ -72,6 +74,10 @@ export function DepartmentEditDetailsTab({
 	onOccupationsScrollToBottom,
 }: DepartmentEditDetailsTabProps) {
 	const [addUserOpen, setAddUserOpen] = useState(false);
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 
 	const handleAddRelatedUsers = (members: { user: { id: string } }[]) => {
 		const newIds = members.map((m) => m.user.id);
@@ -98,7 +104,7 @@ export function DepartmentEditDetailsTab({
 			>
 				<div>
 					<h3 className="mb-4 font-semibold">Department Information</h3>
-					<FieldGroup className="grid gap-4 sm:grid-cols-2">
+					<FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<form.Field
 							name="locationId"
 							validators={{
@@ -106,8 +112,11 @@ export function DepartmentEditDetailsTab({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -154,8 +163,11 @@ export function DepartmentEditDetailsTab({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -185,8 +197,11 @@ export function DepartmentEditDetailsTab({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>

@@ -6,10 +6,10 @@ import { Button } from "@repo/ui/components/button";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ORGANIZATION_TYPE_OPTIONS } from "@/constants/organization";
 import { useAuth } from "@/contexts";
 import {
@@ -21,17 +21,24 @@ import { OrganizationCard } from "./OrganizationCard";
 const ORGS_PER_GROUP = 4;
 const PAGE_SIZE = 12;
 
+export const ORG_PARAMS = {
+	PAGE: "orgPage",
+	SEARCH: "orgSearch",
+} as const;
+
 export function OrganizationPageContent() {
-	const router = useRouter();
 	const { ability } = useAuth();
-	const {
-		page,
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
+
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: ORG_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange, hasActiveSearch } =
+		useDebouncedSearch({
+			paramKey: ORG_PARAMS.SEARCH,
+			pageParamKey: ORG_PARAMS.PAGE,
+		});
 
 	const { data: groupedData } = useOrganizationsGrouped(ORGS_PER_GROUP);
 	const { data: paginatedData } = useOrganizations(
@@ -100,9 +107,7 @@ export function OrganizationPageContent() {
 						<ConfigPagePagination
 							page={page}
 							totalPages={paginatedData.totalPages}
-							onPageChange={(p) =>
-								router.push(`/organizations${buildSearchParams({ page: p })}`)
-							}
+							onPageChange={setPage}
 						/>
 					)}
 				</>
@@ -118,7 +123,7 @@ export function OrganizationPageContent() {
 
 							return (
 								<section key={organizationType}>
-									<div className="mb-4 flex items-center justify-between">
+									<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 										<h3 className="text-lg font-semibold">{typeLabel}</h3>
 										{hasMore && (
 											<Button variant="link" size="sm" asChild>

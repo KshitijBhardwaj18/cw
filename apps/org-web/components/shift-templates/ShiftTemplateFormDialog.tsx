@@ -27,6 +27,8 @@ import { Skeleton } from "@repo/ui/components/skeleton";
 import { Switch } from "@repo/ui/components/switch";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { SHIFT_TYPE_OPTIONS } from "@/constants/shifts";
 import { useShiftTemplateFormDialog } from "@/hooks/use-shift-template-form-dialog";
 import {
@@ -57,6 +59,11 @@ export function ShiftTemplateFormDialog({
 		initialValues,
 		onSubmit,
 	});
+
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 
 	const { data: occupations = [], isLoading: loadingOccupations } =
 		useShiftTemplateOccupations();
@@ -89,9 +96,11 @@ export function ShiftTemplateFormDialog({
 								<form.Field name="templateName">
 									{(field) => (
 										<Field
-											data-invalid={
-												field.state.meta.isTouched && !field.state.meta.isValid
-											}
+											data-invalid={formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											)}
 										>
 											<FieldLabel htmlFor={field.name}>
 												Template Name <RequiredStar />
@@ -111,9 +120,11 @@ export function ShiftTemplateFormDialog({
 								<form.Field name="occupationId">
 									{(field) => (
 										<Field
-											data-invalid={
-												field.state.meta.isTouched && !field.state.meta.isValid
-											}
+											data-invalid={formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											)}
 										>
 											<FieldLabel>
 												Occupation <RequiredStar />
@@ -146,9 +157,11 @@ export function ShiftTemplateFormDialog({
 								<form.Field name="locationId">
 									{(field) => (
 										<Field
-											data-invalid={
-												field.state.meta.isTouched && !field.state.meta.isValid
-											}
+											data-invalid={formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											)}
 										>
 											<FieldLabel>
 												Location <RequiredStar />
@@ -180,9 +193,11 @@ export function ShiftTemplateFormDialog({
 								<form.Field name="departmentId">
 									{(field) => (
 										<Field
-											data-invalid={
-												field.state.meta.isTouched && !field.state.meta.isValid
-											}
+											data-invalid={formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											)}
 										>
 											<FieldLabel>
 												Department <RequiredStar />
@@ -214,9 +229,11 @@ export function ShiftTemplateFormDialog({
 								<form.Field name="shiftType">
 									{(field) => (
 										<Field
-											data-invalid={
-												field.state.meta.isTouched && !field.state.meta.isValid
-											}
+											data-invalid={formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											)}
 										>
 											<FieldLabel>
 												Shift Type <RequiredStar />
@@ -248,9 +265,11 @@ export function ShiftTemplateFormDialog({
 								<form.Field name="durationHours">
 									{(field) => (
 										<Field
-											data-invalid={
-												field.state.meta.isTouched && !field.state.meta.isValid
-											}
+											data-invalid={formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											)}
 										>
 											<FieldLabel htmlFor={field.name}>
 												Duration (hours) <RequiredStar />
@@ -277,9 +296,11 @@ export function ShiftTemplateFormDialog({
 								<form.Field name="baseRate">
 									{(field) => (
 										<Field
-											data-invalid={
-												field.state.meta.isTouched && !field.state.meta.isValid
-											}
+											data-invalid={formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											)}
 										>
 											<FieldLabel htmlFor={field.name}>
 												Base Rate ($/hour) <RequiredStar />

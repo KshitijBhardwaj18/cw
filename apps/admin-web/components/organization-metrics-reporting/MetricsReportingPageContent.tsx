@@ -8,9 +8,13 @@ import {
 } from "@repo/ui/components/tabs";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { Calendar, LineChart } from "lucide-react";
 import { AgingRulesTabContent } from "./AgingRulesTabContent";
-import { MetricsReportingKpisTabContent } from "./MetricsReportingKpisTabContent";
+import {
+	METRICS_REPORTING_PARAMS,
+	MetricsReportingKpisTabContent,
+} from "./MetricsReportingKpisTabContent";
 
 type MetricsReportingPageContentProps = {
 	organizationId: string;
@@ -19,6 +23,10 @@ type MetricsReportingPageContentProps = {
 function MetricsReportingPageContent({
 	organizationId,
 }: MetricsReportingPageContentProps) {
+	const [tab, setTab] = useTabSwitch(["kpis", "aging-rules"], {
+		alsoClearParamKeys: [METRICS_REPORTING_PARAMS.SEARCH],
+	});
+
 	return (
 		<div className="space-y-6">
 			<ConfigPageHeader
@@ -29,7 +37,11 @@ function MetricsReportingPageContent({
 				itemLabelPlural=""
 			/>
 
-			<Tabs defaultValue="kpis" className="w-full flex-col space-y-6">
+			<Tabs
+				value={tab}
+				onValueChange={setTab}
+				className="w-full flex-col space-y-6"
+			>
 				<ScrollableLineTabsRow>
 					<TabsList
 						variant="line"

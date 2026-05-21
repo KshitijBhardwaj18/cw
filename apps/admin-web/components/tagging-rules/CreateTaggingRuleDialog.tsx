@@ -25,6 +25,7 @@ import {
 } from "@repo/ui/components/select";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -189,6 +190,11 @@ export function CreateTaggingRuleDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	useEffect(() => {
 		if (!open) {
 			form.reset();
@@ -285,8 +291,11 @@ export function CreateTaggingRuleDialog({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -318,8 +327,11 @@ export function CreateTaggingRuleDialog({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -371,8 +383,11 @@ export function CreateTaggingRuleDialog({
 									}}
 								>
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel htmlFor={field.name}>
@@ -427,8 +442,11 @@ export function CreateTaggingRuleDialog({
 									}}
 								>
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel htmlFor={field.name}>
@@ -481,8 +499,11 @@ export function CreateTaggingRuleDialog({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									const disabled =
 										!(
 											(formValues.sourceType === "OCCUPATION" &&
@@ -553,7 +574,7 @@ export function CreateTaggingRuleDialog({
 								}}
 							</form.Field>
 
-							<div className="grid grid-cols-2 gap-4">
+							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<form.Field
 									name="condition"
 									validators={{
@@ -561,8 +582,11 @@ export function CreateTaggingRuleDialog({
 									}}
 								>
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel htmlFor={field.name}>
@@ -604,8 +628,11 @@ export function CreateTaggingRuleDialog({
 									}}
 								>
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel htmlFor={field.name}>
@@ -639,8 +666,11 @@ export function CreateTaggingRuleDialog({
 								validators={{ onChange: taggingRuleFormBaseSchema.shape.tagId }}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -692,8 +722,11 @@ export function CreateTaggingRuleDialog({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>

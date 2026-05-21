@@ -54,7 +54,7 @@ export function ManageOfferDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>
 						{isAccept ? "Accept Offer" : "Withdraw from Offer"}
@@ -90,7 +90,7 @@ export function ManageOfferDialog({
 								</div>
 							</div>
 
-							<div className="grid grid-cols-3 gap-2">
+							<div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
 								<DetailItem
 									label="Facility"
 									value={offer.location}

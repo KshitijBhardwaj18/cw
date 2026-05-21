@@ -2,7 +2,7 @@
 
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, Row } from "@tanstack/react-table";
 import { Edit } from "lucide-react";
 import { useMemo } from "react";
 import {
@@ -88,22 +88,26 @@ export const useVendorUserColumns = (
 					</Badge>
 				),
 			},
-			{
-				id: VENDOR_USERS_COLUMN_KEYS.actions,
-				header: VENDOR_USERS_COLUMN_HEADERS.actions,
-				cell: ({ row }) => (
-					<div className="flex items-center gap-2">
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={() => onEdit?.(row.original)}
-							className="h-8 w-8"
-						>
-							<Edit className="size-4" />
-						</Button>
-					</div>
-				),
-			},
+			...(onEdit
+				? [
+						{
+							id: VENDOR_USERS_COLUMN_KEYS.actions,
+							header: VENDOR_USERS_COLUMN_HEADERS.actions,
+							cell: ({ row }: { row: Row<VendorUserTableRow> }) => (
+								<div className="flex items-center gap-2">
+									<Button
+										variant="ghost"
+										size="icon"
+										onClick={() => onEdit?.(row.original)}
+										className="h-8 w-8"
+									>
+										<Edit className="size-4" />
+									</Button>
+								</div>
+							),
+						},
+					]
+				: []),
 		],
 		[onEdit],
 	);

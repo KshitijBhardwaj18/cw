@@ -47,6 +47,7 @@ export function useVendorCandidateDocumentWalletItems(
 			),
 		enabled: (options?.enabled ?? true) && !!candidateId,
 		refetchOnMount: "always",
+		placeholderData: (previousData) => previousData,
 	});
 }
 

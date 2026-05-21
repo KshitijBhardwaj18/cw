@@ -2,7 +2,7 @@
 
 import { getLabel, type OrganizationResponseType } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
-import UserAvatar from "@repo/ui/general/UserAvatar";
+import { OrganizationBrandBlock } from "@repo/ui/general/OrganizationBrandBlock";
 import { ArrowLeft, Globe } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -63,18 +63,11 @@ export function OrganizationHeader({ organization }: OrganizationHeaderProps) {
 						<ArrowLeft className="size-4" />
 					</Link>
 				</Button>
-				<div className="flex min-w-0 flex-1 flex-wrap items-center gap-4">
-					<UserAvatar
-						avatarUrl={organization.logo ?? ""}
-						name={organization.name}
-						className="size-16 shrink-0 rounded-xl"
-						fallbackClassName="rounded-xl"
-					/>
-					<div className="min-w-0">
-						<h1 className="truncate text-2xl font-bold">{organization.name}</h1>
-						<p className="text-muted-foreground text-sm">{orgTypeLabel}</p>
-					</div>
-				</div>
+				<OrganizationBrandBlock
+					name={organization.name}
+					avatarUrl={organization.logo ?? ""}
+					subtitle={orgTypeLabel}
+				/>
 			</div>
 			<Button
 				className="self-end"

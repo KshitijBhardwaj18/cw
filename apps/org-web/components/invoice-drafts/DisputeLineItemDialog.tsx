@@ -61,13 +61,13 @@ export function DisputeLineItemDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-2xl">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
 				<DialogHeader>
 					<DialogTitle>Dispute Line Item</DialogTitle>
 				</DialogHeader>
 				{lineItem ? (
 					<div className="space-y-4">
-						<div className="grid grid-cols-2 gap-3 rounded-lg border p-3 text-sm">
+						<div className="grid grid-cols-1 gap-3 rounded-lg border p-3 text-sm sm:grid-cols-2">
 							<div>
 								<span className="text-muted-foreground">Worker:</span>{" "}
 								<span className="font-medium">{lineItem.workerName}</span>

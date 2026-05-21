@@ -21,6 +21,7 @@ import {
 import { Textarea } from "@repo/ui/components/textarea";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { cn } from "@repo/ui/lib/utils";
 import { useForm, useStore } from "@tanstack/react-form";
 import { TriangleAlert } from "lucide-react";
@@ -138,10 +139,18 @@ export function LogGrievanceDialog({
 				>
 					<div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-4">
 						<div className="bg-card space-y-5 rounded-xl border p-4 shadow-sm sm:p-5">
-							<form.Field name="type">
+							<form.Field
+								name="type"
+								validators={{
+									onBlur: logGrievanceSchema.shape.type,
+								}}
+							>
 								{(field) => {
-									const isInvalid =
-										submissionAttempts > 0 && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel>
@@ -153,12 +162,13 @@ export function LogGrievanceDialog({
 											</p>
 											<RadioGroup
 												value={field.state.value}
-												onValueChange={(v) =>
+												onValueChange={(v) => {
 													field.handleChange(
 														v as LogGrievanceFormValues["type"],
-													)
-												}
-												className="grid gap-3 sm:grid-cols-2"
+													);
+													field.handleBlur();
+												}}
+												className="grid grid-cols-1 gap-3 sm:grid-cols-2"
 											>
 												<label
 													htmlFor="grievance-type-behavioral"
@@ -234,8 +244,11 @@ export function LogGrievanceDialog({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										submissionAttempts > 0 && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel>
@@ -246,6 +259,7 @@ export function LogGrievanceDialog({
 												onValueChange={(v) => {
 													field.handleChange(v);
 													form.setFieldValue("placementId", "none");
+													field.handleBlur();
 												}}
 												disabled={optionsLoading}
 											>
@@ -306,8 +320,11 @@ export function LogGrievanceDialog({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										submissionAttempts > 0 && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>

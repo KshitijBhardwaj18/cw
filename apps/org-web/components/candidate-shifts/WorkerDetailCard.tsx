@@ -39,7 +39,7 @@ export function WorkerDetailCard({
 					<Skeleton className="h-4 w-64" />
 				</CardHeader>
 				<CardContent>
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<Skeleton className="h-20 rounded-xl" />
 						<Skeleton className="h-20 rounded-xl" />
 					</div>
@@ -52,8 +52,8 @@ export function WorkerDetailCard({
 
 	return (
 		<Card>
-			<CardHeader>
-				<CardTitle>{name}</CardTitle>
+			<CardHeader className="space-y-1">
+				<CardTitle className="text-lg sm:text-xl">{name}</CardTitle>
 				<CardDescription>
 					<div className="flex flex-wrap items-center gap-2">
 						{subtitle && <span>{subtitle}</span>}

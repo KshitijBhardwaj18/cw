@@ -11,7 +11,6 @@ import {
 	StickyNote,
 	Users,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 const VENDOR_ONBOARDING_STEPS = [
 	{ key: "vendor-profile", label: "Vendor Profile" },
@@ -26,23 +25,21 @@ const STEP_ICONS = [Briefcase, Settings, Users, FileText, StickyNote] as const;
 interface VendorProgressBarProps {
 	currentStep: number;
 	vendorId?: string;
+	onStepChange: (index: number) => void;
 }
 
 export function VendorProgressBar({
 	currentStep,
 	vendorId = "",
+	onStepChange,
 }: VendorProgressBarProps) {
-	const router = useRouter();
-	const isEditMode = !!vendorId;
+	const normalizedVendorId = vendorId.trim();
+	const isEditMode = normalizedVendorId.length > 0;
 
 	const handleStepClick = (index: number) => {
 		const isClickable = isEditMode || index <= currentStep;
 		if (!isClickable) return;
-
-		const params = new URLSearchParams();
-		params.set("step", String(index));
-		if (vendorId) params.set("vendorId", vendorId);
-		router.push(`/vendors/create?${params.toString()}`);
+		onStepChange(index);
 	};
 
 	return (

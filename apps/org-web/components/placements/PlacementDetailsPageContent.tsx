@@ -26,6 +26,7 @@ import {
 } from "@repo/ui/components/tabs";
 import { PageBackLink } from "@repo/ui/general/PageBackLink";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { FileText, Shield, StickyNote, User } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -62,6 +63,14 @@ export function PlacementDetailsPageContent({
 	const { data: placement } = usePlacementDetailSuspense(orgId, placementId);
 	const { data: notesForTabBadge = [] } = usePlacementNotes(orgId, placementId);
 	const { data: tasksForTabBadge = [] } = usePlacementTasks(orgId, placementId);
+
+	const [tab, setTab] = useTabSwitch([
+		"placement-details",
+		"compliance",
+		"offer-history",
+		"notes-tasks",
+	]);
+
 	const notesTasksBadgeCount =
 		notesForTabBadge.length +
 		tasksForTabBadge.filter((t) => t.status === "pending").length;
@@ -96,23 +105,25 @@ export function PlacementDetailsPageContent({
 
 			<Card>
 				<CardHeader>
-					<div className="flex flex-wrap items-start gap-3">
-						<div>
-							<CardTitle className="text-2xl">Placement Details</CardTitle>
-							<CardDescription className="mt-1">
+					<div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:gap-3">
+						<div className="min-w-0">
+							<CardTitle className="text-xl sm:text-2xl">
+								Placement Details
+							</CardTitle>
+							<CardDescription className="mt-1 wrap-break-word">
 								{placement.statusSubtext}
 							</CardDescription>
 						</div>
 						<Badge
 							variant="secondary"
-							className={`shrink-0 text-xs font-medium ${statusConfig.className}`}
+							className={`w-fit shrink-0 self-start text-xs font-medium ${statusConfig.className}`}
 						>
 							{statusConfig.label}
 						</Badge>
 					</div>
 				</CardHeader>
 				<CardContent>
-					<div className="grid gap-8 md:grid-cols-2">
+					<div className="grid grid-cols-1 gap-8 md:grid-cols-2">
 						<PlacementDetailSection
 							icon={<User className="text-primary size-4" />}
 							title="Candidate Information"
@@ -145,7 +156,8 @@ export function PlacementDetailsPageContent({
 			</Card>
 
 			<Tabs
-				defaultValue="placement-details"
+				value={tab}
+				onValueChange={setTab}
 				className="w-full flex-col space-y-6"
 			>
 				<ScrollableLineTabsRow>
@@ -155,28 +167,28 @@ export function PlacementDetailsPageContent({
 					>
 						<TabsTrigger
 							value="placement-details"
-							className="flex flex-none items-center gap-2 rounded-none border-0 px-4 py-3"
+							className="flex flex-none items-center gap-1.5 rounded-none border-0 px-2 py-3 text-sm sm:gap-2 sm:px-4"
 						>
 							<FileText className="size-4" />
 							Placement Details
 						</TabsTrigger>
 						<TabsTrigger
 							value="compliance"
-							className="flex flex-none items-center gap-2 rounded-none border-0 px-4 py-3"
+							className="flex flex-none items-center gap-1.5 rounded-none border-0 px-2 py-3 text-sm sm:gap-2 sm:px-4"
 						>
 							<Shield className="size-4" />
 							Compliance
 						</TabsTrigger>
 						<TabsTrigger
 							value="offer-history"
-							className="flex flex-none items-center gap-2 rounded-none border-0 px-4 py-3"
+							className="flex flex-none items-center gap-1.5 rounded-none border-0 px-2 py-3 text-sm sm:gap-2 sm:px-4"
 						>
 							<FileText className="size-4" />
 							Offer History
 						</TabsTrigger>
 						<TabsTrigger
 							value="notes-tasks"
-							className="flex flex-none items-center gap-2 rounded-none border-0 px-4 py-3"
+							className="flex flex-none items-center gap-1.5 rounded-none border-0 px-2 py-3 text-sm sm:gap-2 sm:px-4"
 						>
 							<StickyNote className="size-4" />
 							Notes & Tasks

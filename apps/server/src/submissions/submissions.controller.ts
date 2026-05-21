@@ -40,6 +40,24 @@ export class SubmissionsController {
 		return this.submissionsService.getOrgSubmissionStageCounts(orgId);
 	}
 
+	@Get("stats/by-requisition")
+	@ApiOperation({
+		summary:
+			"Per-stage submission counts for a single requisition (job details tab badges)",
+	})
+	@ApiResponse({ status: 404, description: "Organization not found" })
+	@Permissions({ action: Action.List, subject: "Submission" })
+	requisitionStageCounts(
+		@Session() session: UserSession,
+		@Query("requisitionId", ParseUUIDPipe) requisitionId: string,
+	) {
+		const orgId = requireActiveOrganizationId(session);
+		return this.submissionsService.getRequisitionStageCounts(
+			orgId,
+			requisitionId,
+		);
+	}
+
 	@Get("stats/aging")
 	@ApiOperation({
 		summary:

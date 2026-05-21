@@ -1,7 +1,12 @@
 import { Action } from "@repo/casl";
 import PageContainer from "@repo/ui/general/PageContainer";
 import PermissionsGuard from "@repo/ui/general/PermissionsGuard";
+import type { Metadata } from "next";
 import { VendorOrgBridge } from "@/components/vendor-layout/VendorOrgBridge";
+
+export const metadata: Metadata = {
+	title: "Timekeeping",
+};
 
 const TimekeepingLayout = ({ children }: { children: React.ReactNode }) => {
 	return (

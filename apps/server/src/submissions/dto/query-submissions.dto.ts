@@ -19,6 +19,11 @@ export class QuerySubmissionsDto extends PaginatedQueryDto {
 	@ApiPropertyOptional()
 	@IsOptional()
 	@IsUUID()
+	requisitionId?: string;
+
+	@ApiPropertyOptional()
+	@IsOptional()
+	@IsUUID()
 	vendorId?: string;
 
 	@ApiPropertyOptional()

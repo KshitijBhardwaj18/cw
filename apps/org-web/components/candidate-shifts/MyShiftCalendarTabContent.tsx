@@ -1,5 +1,6 @@
 "use client";
 
+import { formatUsdPerHour } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Calendar } from "@repo/ui/components/calendar";
@@ -61,7 +62,7 @@ export function MyShiftCalendarTabContent() {
 						</CardTitle>
 						<CardDescription>View your scheduled shifts</CardDescription>
 					</div>
-					<CardAction className="flex items-center gap-1">
+					<CardAction className="flex items-center justify-end gap-1">
 						<Button
 							variant="ghost"
 							size="icon"
@@ -256,7 +257,7 @@ export function MyShiftCalendarTabContent() {
 											</Badge>
 										)}
 										<Badge variant="success" className="text-xs">
-											${shift.ratePerHour}/hr
+											{formatUsdPerHour(shift.ratePerHour)}
 										</Badge>
 									</div>
 								</div>

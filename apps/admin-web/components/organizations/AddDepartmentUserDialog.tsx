@@ -84,7 +84,7 @@ export function AddDepartmentUserDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-xl">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Add User</DialogTitle>
 					<DialogDescription>

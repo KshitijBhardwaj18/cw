@@ -11,6 +11,7 @@ import {
 } from "@repo/ui/components/card";
 import { Banner } from "@repo/ui/general/Banner";
 import { AlertCircle } from "lucide-react";
+import Link from "next/link";
 
 type ComplianceAlertItem = {
 	id: string;
@@ -67,8 +68,8 @@ export function ComplianceAlerts({
 					);
 				})}
 
-				<Button variant="outline" className="w-full">
-					View All Compliance Issues
+				<Button variant="outline" className="w-full" asChild>
+					<Link href="/vendor/onboarding">View All Compliance Issues</Link>
 				</Button>
 			</CardContent>
 		</Card>

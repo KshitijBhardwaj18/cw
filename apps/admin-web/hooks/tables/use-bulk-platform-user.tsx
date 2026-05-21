@@ -8,6 +8,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
+import { PhoneInput } from "@repo/ui/general/PhoneInput";
 import type { ColumnDef } from "@tanstack/react-table";
 import { X } from "lucide-react";
 import { useMemo } from "react";
@@ -91,12 +92,12 @@ export const useBulkPlatformUserColumns = ({
 				accessorKey: "officePhone",
 				header: "Office Phone",
 				cell: ({ row }) => (
-					<Input
+					<PhoneInput
 						value={row.original.officePhone}
-						onChange={(e) =>
-							updateUser(row.original.id, "officePhone", e.target.value)
+						onChange={(value) =>
+							updateUser(row.original.id, "officePhone", value ?? "")
 						}
-						className="min-w-[130px]"
+						className="min-w-[220px]"
 					/>
 				),
 			},
@@ -104,12 +105,12 @@ export const useBulkPlatformUserColumns = ({
 				accessorKey: "phoneNumber",
 				header: "Mobile Phone",
 				cell: ({ row }) => (
-					<Input
+					<PhoneInput
 						value={row.original.phoneNumber}
-						onChange={(e) =>
-							updateUser(row.original.id, "phoneNumber", e.target.value)
+						onChange={(value) =>
+							updateUser(row.original.id, "phoneNumber", value ?? "")
 						}
-						className="min-w-[130px]"
+						className="min-w-[220px]"
 					/>
 				),
 			},

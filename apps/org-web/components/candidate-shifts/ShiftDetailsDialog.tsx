@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate } from "@repo/shared";
+import { formatDate, formatUsdPerHour } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
@@ -58,7 +58,7 @@ export function ShiftDetailsDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader>
 					<div className="space-y-1">
 						<DialogTitle className="text-xl font-bold">
@@ -126,7 +126,7 @@ export function ShiftDetailsDialog({
 						<Card>
 							<CardContent>
 								<div className="space-y-6">
-									<div className="grid grid-cols-2 gap-6">
+									<div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 										<DetailItem
 											label="Date"
 											icon={CalendarIcon}
@@ -138,14 +138,14 @@ export function ShiftDetailsDialog({
 											value={`${shift.startTime} – ${shift.endTime}`}
 										/>
 									</div>
-									<div className="grid grid-cols-2 gap-6">
+									<div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 										<DetailItem
 											label="Total Hours"
 											value={`${shift.totalHours} hrs`}
 										/>
 										<DetailItem
 											label="Rate"
-											value={`$${shift.ratePerHour}/hr`}
+											value={formatUsdPerHour(shift.ratePerHour)}
 										/>
 									</div>
 									<DetailItem

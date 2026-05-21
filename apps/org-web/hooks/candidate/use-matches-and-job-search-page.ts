@@ -1,8 +1,7 @@
 "use client";
 
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useCallback, useMemo, useState } from "react";
 import {
 	buildContractTypeOptions,
@@ -21,23 +20,53 @@ import { useCandidateOrganizationId } from "./use-candidate-organization-id";
 
 export function useMatchesAndJobSearchPage() {
 	const { organizationId, occupationId } = useCandidateOrganizationId();
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
 
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{
-			paramKey: U.search,
-			pageParamKey: U.page,
-		},
-	);
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: U.page,
+		defaultLimit: CANDIDATE_JOB_SEARCH_PAGE_SIZE,
+	});
 
-	const pageParam = Number(searchParams.get(U.page) ?? "1");
-	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		onFilterChange,
+	} = useSearchWithFilters({
+		pagination: { pageParamKey: U.page },
+		search: { paramKey: U.search },
+		filters: [
+			{
+				id: U.specialty,
+				label: "Specialty",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: U.location,
+				label: "Location",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: U.shiftType,
+				label: "Shift type",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: U.contractType,
+				label: "Contract type",
+				type: "select",
+				defaultValue: "all",
+			},
+		],
+	});
 
-	const specialtyId = searchParams.get(U.specialty) ?? "all";
-	const locationId = searchParams.get(U.location) ?? "all";
-	const shiftType = searchParams.get(U.shiftType) ?? "all";
-	const contractType = searchParams.get(U.contractType) ?? "all";
+	const specialtyId = values[U.specialty] || "all";
+	const locationId = values[U.location] || "all";
+	const shiftType = values[U.shiftType] || "all";
+	const contractType = values[U.contractType] || "all";
 
 	const [filtersExpanded, setFiltersExpanded] = useState(true);
 
@@ -66,55 +95,32 @@ export function useMatchesAndJobSearchPage() {
 		enabled: Boolean(organizationId),
 	});
 
-	const setPage = useCallback(
-		(p: number) => {
-			pushParams({ [U.page]: String(p) });
-		},
-		[pushParams],
-	);
-
 	const handleSpecialtyChange = useCallback(
-		(value: string) => {
-			const clear = !value || value === "all";
-			pushParams({
-				[U.specialty]: clear ? null : value,
-				[U.page]: null,
-			});
+		(v: string) => {
+			onFilterChange(U.specialty, v || "all");
 		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const handleLocationChange = useCallback(
-		(value: string) => {
-			const clear = !value || value === "all";
-			pushParams({
-				[U.location]: clear ? null : value,
-				[U.page]: null,
-			});
+		(v: string) => {
+			onFilterChange(U.location, v || "all");
 		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const handleShiftTypeChange = useCallback(
-		(value: string) => {
-			const clear = !value || value === "all";
-			pushParams({
-				[U.shiftType]: clear ? null : value,
-				[U.page]: null,
-			});
+		(v: string) => {
+			onFilterChange(U.shiftType, v || "all");
 		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const handleContractTypeChange = useCallback(
-		(value: string) => {
-			const clear = !value || value === "all";
-			pushParams({
-				[U.contractType]: clear ? null : value,
-				[U.page]: null,
-			});
+		(v: string) => {
+			onFilterChange(U.contractType, v || "all");
 		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const filterConfigs = useMemo(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate } from "@repo/shared";
+import { formatDate, formatUsdPerHour } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -38,7 +38,7 @@ export function ShiftDetailDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-lg">
+			<DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle className="text-xl">{shift.title}</DialogTitle>
 					<div className="mt-1">
@@ -47,7 +47,7 @@ export function ShiftDetailDialog({
 				</DialogHeader>
 
 				<div className="space-y-5 py-2">
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<DetailSection label="Date & Time">
 							<p className="font-medium text-sm">
 								<span className="flex items-center gap-1.5">
@@ -62,11 +62,13 @@ export function ShiftDetailDialog({
 						</DetailSection>
 
 						<DetailSection label="Shift Rate">
-							<p className="text-xl font-bold">${shift.ratePerHour}/hour</p>
+							<p className="text-xl font-bold">
+								{formatUsdPerHour(shift.ratePerHour)}
+							</p>
 						</DetailSection>
 					</div>
 
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<DetailSection label="Occupation">
 							<p className="flex items-center gap-1.5 text-sm font-medium">
 								<Briefcase className="text-muted-foreground size-4 shrink-0" />
@@ -83,7 +85,7 @@ export function ShiftDetailDialog({
 						</DetailSection>
 					</div>
 
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<DetailSection label="Location">
 							<p className="flex items-center gap-1.5 text-sm font-medium">
 								<MapPin className="text-muted-foreground size-4 shrink-0" />
@@ -99,7 +101,7 @@ export function ShiftDetailDialog({
 					Created by {shift.createdBy} on {shift.createdAt}
 				</p>
 
-				<DialogFooter className="gap-2">
+				<DialogFooter className="flex-col gap-2 sm:flex-row">
 					{isCancellable && (
 						<Button
 							variant="outline"

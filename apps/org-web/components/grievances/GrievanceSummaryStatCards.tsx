@@ -21,7 +21,7 @@ export function GrievanceSummaryStatCards({
 	onFilterChange,
 }: GrievanceSummaryStatCardsProps) {
 	return (
-		<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+		<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 			{GRIEVANCE_STAT_CARDS.map((card) => {
 				const count =
 					card.key === "ALL"

@@ -86,16 +86,22 @@ export function CandidatePlacementCard({
 			) : null}
 
 			{placement.kind !== "past" ? (
-				<div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+				<div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
 					{showTimecard ? (
-						<Button type="button" variant="outline" size="sm" asChild>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="w-full sm:w-auto"
+							asChild
+						>
 							<Link href={candidatePlacementTimecardPath(placement.id)}>
 								Submit Timecard
 							</Link>
 						</Button>
 					) : null}
 					{viewDetailsHref ? (
-						<Button size="sm" asChild>
+						<Button size="sm" className="w-full sm:w-auto" asChild>
 							<Link href={viewDetailsHref}>
 								View Details
 								<span aria-hidden className="ml-1">

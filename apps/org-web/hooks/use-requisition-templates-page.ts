@@ -1,86 +1,102 @@
 "use client";
 
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { REQUISITION_STATUS_FILTER_OPTIONS } from "@/constants/requisition-templates";
 import { useOrgContext } from "@/contexts/org-context";
 import { useRequisitionTemplates } from "@/queries/requisition-templates.queries";
 import { useShiftTemplateOccupations } from "@/queries/shift-templates.queries";
-import { useSpecialtiesForOccupation } from "@/queries/talent-community.queries";
 import type { RequisitionTemplateType } from "@/types/requisition-template";
+
+const REQUISITION_TEMPLATES_PAGE_SIZE = 12;
+
+const RT_PARAMS = {
+	SEARCH: "rtSearch",
+	PAGE: "rtPage",
+	OCCUPATION: "rtOcc",
+	SPECIALTY: "rtSpec",
+	STATUS: "rtStatus",
+} as const;
 
 export function useRequisitionTemplatesPage() {
 	const { id: orgId } = useOrgContext();
 	const router = useRouter();
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "rtSearch", pageParamKey: null },
-	);
 
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-	const occupationFilter = searchParams.get("rtOcc") ?? "all";
-	const specialtyFilter = searchParams.get("rtSpec") ?? "all";
-	const statusFilter = searchParams.get("rtStatus") ?? "all";
-
-	const setOccupationFilter = useCallback(
-		(v: string) => {
-			const clear = !v || v === "all";
-			const prevOcc = searchParams.get("rtOcc") ?? "all";
-			const nextOcc = clear ? "all" : v;
-			const updates: Record<string, string | null> = {
-				rtOcc: clear ? null : v,
-			};
-			if (prevOcc !== nextOcc) {
-				updates.rtSpec = null;
-			}
-			pushParams(updates);
-		},
-		[pushParams, searchParams],
-	);
-
-	const setSpecialtyFilter = useCallback(
-		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ rtSpec: clear ? null : v });
-		},
-		[pushParams],
-	);
-
-	const setStatusFilter = useCallback(
-		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ rtStatus: clear ? null : v });
-		},
-		[pushParams],
-	);
-
-	const templatesQuery = useRequisitionTemplates(orgId, {
-		search: searchFromUrl.trim() || undefined,
-		status: statusFilter === "all" ? undefined : statusFilter,
-		page: 1,
-		limit: 50,
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: RT_PARAMS.PAGE,
+		defaultLimit: REQUISITION_TEMPLATES_PAGE_SIZE,
 	});
-	const templates = templatesQuery.data?.data ?? [];
+
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		search: { paramKey: RT_PARAMS.SEARCH },
+		pagination: { pageParamKey: RT_PARAMS.PAGE },
+		filters: [
+			{
+				id: RT_PARAMS.OCCUPATION,
+				label: "Occupation",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: RT_PARAMS.SPECIALTY,
+				label: "Specialty",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: RT_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Statuses",
+				options: REQUISITION_STATUS_FILTER_OPTIONS,
+			},
+		],
+	});
+
+	const filters = useMemo(
+		() => ({
+			occupation: (values[RT_PARAMS.OCCUPATION] as string) || "all",
+			specialty: (values[RT_PARAMS.SPECIALTY] as string) || "all",
+			status: (values[RT_PARAMS.STATUS] as string) || "all",
+		}),
+		[values],
+	);
+
+	const listQuery = useRequisitionTemplates(orgId, {
+		search: searchFromUrl.trim() || undefined,
+		status: filters.status === "all" ? undefined : filters.status,
+		organizationOccupationId:
+			filters.occupation === "all" ? undefined : filters.occupation,
+		organizationSpecialtyId:
+			filters.specialty === "all" ? undefined : filters.specialty,
+		page,
+		limit: REQUISITION_TEMPLATES_PAGE_SIZE,
+	});
+
+	const templates = listQuery.data?.data ?? [];
+	const totalCount = listQuery.data?.total ?? 0;
+	const totalPages = listQuery.data?.totalPages ?? 1;
 
 	const occupationsQuery = useShiftTemplateOccupations();
-	const selectedOccupation = (occupationsQuery.data ?? []).find(
-		(o) => o.id === occupationFilter,
-	);
-	const specialtiesQuery = useSpecialtiesForOccupation(
-		orgId,
-		occupationFilter === "all" ? null : occupationFilter,
-	);
 
 	const occupationOptions = useMemo(
 		() => [
 			{ value: "all", label: "All Occupations" },
 			...(occupationsQuery.data ?? []).map((o) => ({
-				value: o.id,
+				value: o.organizationOccupationId,
 				label: o.name,
 			})),
 		],
@@ -88,90 +104,63 @@ export function useRequisitionTemplatesPage() {
 	);
 
 	const specialtyOptions = useMemo(() => {
-		if (occupationFilter === "all") {
+		if (filters.occupation === "all") {
 			return [{ value: "all", label: "All Specialties" }];
 		}
+		const occ = occupationsQuery.data?.find(
+			(o) => o.organizationOccupationId === filters.occupation,
+		);
+		const fromLinked = occ?.organizationSpecialties ?? [];
 		return [
 			{ value: "all", label: "All Specialties" },
-			...(specialtiesQuery.data ?? []).map((s) => ({
-				value: s.id,
-				label: s.name,
-			})),
+			...fromLinked.map((s) => ({ value: s.id, label: s.name })),
 		];
-	}, [occupationFilter, specialtiesQuery.data]);
+	}, [filters.occupation, occupationsQuery.data]);
 
-	const filteredTemplates = useMemo(() => {
-		return templates.filter((t) => {
-			const matchesSearch =
-				!searchFromUrl.trim() ||
-				[t.title, t.occupation, t.specialty]
-					.join(" ")
-					.toLowerCase()
-					.includes(searchFromUrl.trim().toLowerCase());
-			const matchesOccupation =
-				occupationFilter === "all" ||
-				t.occupation === (selectedOccupation?.name ?? "");
-			const matchesSpecialty =
-				specialtyFilter === "all" || t.specialty === specialtyFilter;
-			const matchesStatus = statusFilter === "all" || t.status === statusFilter;
-
-			return (
-				matchesSearch && matchesOccupation && matchesSpecialty && matchesStatus
-			);
+	const filterConfigs = useMemo(() => {
+		return hookFilterConfigs.map((cfg) => {
+			switch (cfg.id) {
+				case RT_PARAMS.OCCUPATION:
+					return {
+						...cfg,
+						placeholder: "All Occupations",
+						options: occupationOptions,
+						onValueChange: (v: string) => {
+							const updates: Record<string, string | null> = {
+								[RT_PARAMS.OCCUPATION]: v || null,
+							};
+							if (values[RT_PARAMS.OCCUPATION] !== v) {
+								updates[RT_PARAMS.SPECIALTY] = null;
+							}
+							onFilterChange(updates);
+						},
+					};
+				case RT_PARAMS.SPECIALTY:
+					return {
+						...cfg,
+						placeholder: "All Specialties",
+						options: specialtyOptions,
+					};
+				default:
+					return cfg;
+			}
 		});
 	}, [
-		templates,
-		searchFromUrl,
-		occupationFilter,
-		specialtyFilter,
-		statusFilter,
-		selectedOccupation?.name,
+		hookFilterConfigs,
+		occupationOptions,
+		specialtyOptions,
+		onFilterChange,
+		values,
 	]);
 
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "filter-occupation",
-				label: "Occupation",
-				value: occupationFilter,
-				onValueChange: setOccupationFilter,
-				placeholder: "All Occupations",
-				options: occupationOptions,
-			},
-			{
-				id: "filter-specialty",
-				label: "Specialty",
-				value: specialtyFilter,
-				onValueChange: setSpecialtyFilter,
-				placeholder: "All Specialties",
-				options: specialtyOptions,
-			},
-			{
-				id: "filter-status",
-				label: "Status",
-				value: statusFilter,
-				onValueChange: setStatusFilter,
-				placeholder: "All Statuses",
-				options: REQUISITION_STATUS_FILTER_OPTIONS,
-			},
-		],
-		[
-			occupationFilter,
-			occupationOptions,
-			setOccupationFilter,
-			setSpecialtyFilter,
-			setStatusFilter,
-			specialtyFilter,
-			specialtyOptions,
-			statusFilter,
-		],
-	);
-
-	const hasFilters =
-		Boolean(searchFromUrl.trim()) ||
-		occupationFilter !== "all" ||
-		specialtyFilter !== "all" ||
-		statusFilter !== "all";
+	const hasActiveFilters = useMemo(() => {
+		return (
+			searchFromUrl.trim() !== "" ||
+			filters.occupation !== "all" ||
+			filters.specialty !== "all" ||
+			filters.status !== "all"
+		);
+	}, [filters, searchFromUrl]);
 
 	const handleCreateTypeSelect = (type: RequisitionTemplateType) => {
 		setCreateDialogOpen(false);
@@ -190,17 +179,29 @@ export function useRequisitionTemplatesPage() {
 		router.push(`/org/requisition-templates/${id}`);
 	};
 
+	const listErrorMessage =
+		listQuery.error instanceof Error
+			? listQuery.error.message
+			: "Could not load requisition templates";
+
 	return {
 		createDialogOpen,
 		setCreateDialogOpen,
-		search: localSearch,
-		setSearch: handleSearchChange,
+		localSearch,
+		handleSearchChange,
 		filtersExpanded,
 		setFiltersExpanded,
 		templates,
-		filteredTemplates,
+		totalCount,
+		page,
+		totalPages,
+		setPage,
 		filterConfigs,
-		hasFilters,
+		hasActiveFilters,
+		isLoading: listQuery.isLoading,
+		isError: listQuery.isError,
+		listErrorMessage,
+		refetchTemplates: listQuery.refetch,
 		handleCreateTypeSelect,
 		handleEdit,
 		handleUseTemplate,

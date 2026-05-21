@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
+import { useMemo } from "react";
 import { useOrgContext } from "@/contexts/org-context";
-import { usePlacementFilters } from "@/hooks/use-placement-filters";
+import {
+	PLACEMENT_PARAMS,
+	usePlacementFilters,
+} from "@/hooks/use-placement-filters";
 import {
 	usePlacementCounts,
 	usePlacements,
@@ -28,18 +32,19 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 	const { id: orgId } = useOrgContext();
 	const allowedTabs = options.allowedTabs ?? [...PLACEMENT_TAB_ORDER];
 
-	const [activeTab, setActiveTab] = useState<PlacementTab>(
-		() => allowedTabs[0] ?? "active",
+	const [activeTab, handleTabChange] = useTabSwitch<PlacementTab>(
+		allowedTabs.length > 0 ? allowedTabs : ["active"],
+		{
+			alsoClearParamKeys: [
+				PLACEMENT_PARAMS.SEARCH,
+				PLACEMENT_PARAMS.PAGE,
+				PLACEMENT_PARAMS.LIMIT,
+				PLACEMENT_PARAMS.WORKFORCE_TYPE,
+				PLACEMENT_PARAMS.COMPLIANCE,
+				PLACEMENT_PARAMS.VENDOR,
+			],
+		},
 	);
-
-	useEffect(() => {
-		if (allowedTabs.length === 0) {
-			return;
-		}
-		if (!allowedTabs.includes(activeTab)) {
-			setActiveTab(allowedTabs[0]);
-		}
-	}, [allowedTabs, activeTab]);
 
 	const queryEnabled =
 		allowedTabs.length > 0 && allowedTabs.includes(activeTab);
@@ -54,20 +59,21 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 		limit,
 		setLimit,
 		workforceTypeFilter,
-		setWorkforceTypeFilter,
 		complianceFilter,
-		setComplianceFilter,
 		vendorFilter,
-		setVendorFilter,
 		query,
-		resetPage,
+		filterConfigs: baseFilterConfigs,
 	} = usePlacementFilters({ defaultLimit: CARDS_PER_PAGE });
 
 	const effectiveQuery = options.fixedVendorId
 		? { ...query, vendorId: options.fixedVendorId }
 		: query;
 
-	const { data, isLoading, isError } = usePlacements(
+	const {
+		data,
+		isLoading: isPlacementsLoading,
+		isError,
+	} = usePlacements(
 		orgId,
 		{
 			tab: activeTab,
@@ -76,9 +82,10 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 		{ enabled: queryEnabled },
 	);
 
-	const { data: countsData } = usePlacementCounts(orgId, {
-		enabled: allowedTabs.length > 0,
-	});
+	const { data: countsData, isLoading: isCountsLoading } = usePlacementCounts(
+		orgId,
+		{ enabled: allowedTabs.length > 0 },
+	);
 	const vendorsQuery = useOrgVendors(orgId);
 	const vendorOptions = useMemo(() => {
 		const items = vendorsQuery.data ?? [];
@@ -113,67 +120,20 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 			vendorFilter !== "all",
 	);
 
-	const handleTabChange = (tab: PlacementTab) => {
-		if (!allowedTabs.includes(tab)) {
-			return;
-		}
-		setActiveTab(tab);
-		resetPage();
-	};
-
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "placement-filter-workforce-type",
-				label: "Workforce Type",
-				value: workforceTypeFilter,
-				onValueChange: setWorkforceTypeFilter,
-				placeholder: "All",
-				options: [
-					{ value: "all", label: "All Types" },
-					{ value: "INTERNAL_STAFF", label: "Internal Staff" },
-					{ value: "PER_DIEM", label: "Per Diem" },
-					{ value: "AGENCY_VENDOR", label: "Agency Vendor" },
-					{ value: "TRAVEL_NURSES", label: "Travel Nurses" },
-					{ value: "PREVIOUS_WORKERS", label: "Previous Workers" },
-				],
-			},
-			{
-				id: "placement-filter-compliance",
-				label: "Compliance Status",
-				value: complianceFilter,
-				onValueChange: setComplianceFilter,
-				placeholder: "All",
-				options: [
-					{ value: "all", label: "All Status" },
-					{ value: "complete", label: "Complete" },
-					{ value: "incomplete", label: "Incomplete" },
-				],
-			},
-			...(options.fixedVendorId
-				? []
-				: [
-						{
-							id: "placement-filter-vendor",
-							label: "Vendor",
-							value: vendorFilter,
-							onValueChange: setVendorFilter,
-							placeholder: "All Vendors",
-							options: vendorOptions,
-						},
-					]),
-		],
-		[
-			complianceFilter,
-			options.fixedVendorId,
-			setComplianceFilter,
-			setVendorFilter,
-			setWorkforceTypeFilter,
-			vendorFilter,
-			vendorOptions,
-			workforceTypeFilter,
-		],
-	);
+	const filterConfigs = useMemo(() => {
+		return baseFilterConfigs
+			.map((config) => {
+				if (config.id === PLACEMENT_PARAMS.VENDOR) {
+					if (options.fixedVendorId) return null;
+					return {
+						...config,
+						options: vendorOptions,
+					};
+				}
+				return config;
+			})
+			.filter((c): c is NonNullable<typeof c> => !!c);
+	}, [baseFilterConfigs, options.fixedVendorId, vendorOptions]);
 
 	return {
 		orgId,
@@ -184,18 +144,16 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 		placements,
 		totalCount,
 		pageCount,
-		isLoading,
+		isPlacementsLoading,
+		isCountsLoading,
 		isError,
 		search,
 		setSearch,
 		filtersExpanded,
 		setFiltersExpanded,
 		workforceTypeFilter,
-		setWorkforceTypeFilter,
 		complianceFilter,
-		setComplianceFilter,
 		vendorFilter,
-		setVendorFilter,
 		vendorOptions,
 		hasActiveFilters,
 		page,

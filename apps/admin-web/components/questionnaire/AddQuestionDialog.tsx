@@ -26,7 +26,8 @@ import {
 import { Textarea } from "@repo/ui/components/textarea";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 import { Plus, X } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -133,6 +134,11 @@ export function AddQuestionDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	useEffect(() => {
 		if (open) {
 			form.reset(getDefaultValues(initialQuestion));
@@ -161,7 +167,7 @@ export function AddQuestionDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-lg">
+			<DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>
 						{isEditMode ? "Edit Question" : "Add Question"}
@@ -183,8 +189,11 @@ export function AddQuestionDialog({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>

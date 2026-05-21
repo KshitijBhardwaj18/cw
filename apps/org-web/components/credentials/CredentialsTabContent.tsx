@@ -13,8 +13,8 @@ export const CredentialsTabContent = () => {
 	const router = useRouter();
 
 	const {
-		search,
-		setSearch,
+		localSearch,
+		handleSearchChange,
 		filtersExpanded,
 		setFiltersExpanded,
 		statusFilter,
@@ -24,7 +24,8 @@ export const CredentialsTabContent = () => {
 		totalCount,
 		page,
 		limit,
-		onPaginationChange,
+		setPage,
+		setLimit,
 		filterConfigs,
 	} = useCredentialFilters();
 
@@ -57,8 +58,8 @@ export const CredentialsTabContent = () => {
 
 			<SearchWithFilters
 				searchPlaceholder="Search by worker, credential, type, or job..."
-				searchValue={search}
-				onSearchChange={setSearch}
+				searchValue={localSearch}
+				onSearchChange={handleSearchChange}
 				filtersExpanded={filtersExpanded}
 				onFiltersExpandedChange={setFiltersExpanded}
 				filterConfigs={filterConfigs}
@@ -72,10 +73,13 @@ export const CredentialsTabContent = () => {
 				totalCount={totalCount}
 				currentPage={page}
 				pageSize={limit}
-				onPaginationChange={onPaginationChange}
+				onPaginationChange={(p, l) => {
+					setPage(p);
+					if (l !== limit) setLimit(l);
+				}}
 				emptyState={
 					<ConfigPageEmptyState
-						hasSearch={search.trim() !== ""}
+						hasSearch={localSearch.trim() !== ""}
 						searchEmptyTitle="No credentials found"
 						emptyTitle="No credentials found"
 						searchEmptyMessage="Try adjusting your search or filters."

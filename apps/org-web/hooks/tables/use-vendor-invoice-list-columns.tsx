@@ -3,6 +3,12 @@
 import { formatCurrency } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@repo/ui/components/tooltip";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Calculator, Download } from "lucide-react";
 import { useMemo } from "react";
@@ -127,31 +133,42 @@ export function useVendorInvoiceListColumns({
 				enableSorting: false,
 				cell: ({ row }) => (
 					<div className="flex justify-end gap-0.5 pr-0">
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							className="text-primary size-9"
-							aria-label="View calculation breakdown"
-							onClick={() => {
-								onBreakdown(row.original);
-							}}
-						>
-							<Calculator className="size-4" />
-						</Button>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							className="text-primary size-9"
-							aria-label="Download invoice"
-							disabled={downloadingInvoiceId === row.original.id}
-							onClick={() => {
-								onDownload(row.original);
-							}}
-						>
-							<Download className="size-4" />
-						</Button>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									className="text-primary size-9"
+									aria-label="View calculation breakdown"
+									onClick={() => {
+										onBreakdown(row.original);
+									}}
+								>
+									<Calculator className="size-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>View calculation breakdown</TooltipContent>
+						</Tooltip>
+
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									className="text-primary size-9"
+									aria-label="Download invoice"
+									disabled={downloadingInvoiceId === row.original.id}
+									onClick={() => {
+										onDownload(row.original);
+									}}
+								>
+									<Download className="size-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Download invoice</TooltipContent>
+						</Tooltip>
 					</div>
 				),
 			},

@@ -18,6 +18,9 @@ const COMPENSATION_STEP = 2;
 const COMPLIANCE_STEP = 3;
 const SUBMISSION_RULES_STEP = 4;
 
+export const STEP_VALIDATION_TOAST =
+	"Please check the form and fix any errors before continuing.";
+
 type CreateRequisitionTemplatePageContentProps = {
 	forcedMode?: "create" | "edit" | "view";
 	templateId?: string;
@@ -91,7 +94,11 @@ export function CreateRequisitionTemplatePageContent({
 				}
 			/>
 
-			<RequisitionTemplateProgress currentStep={page.currentStep} />
+			<RequisitionTemplateProgress
+				currentStep={page.currentStep}
+				onClickStep={page.goToStep}
+				canJumpToStep={page.canJumpToStep}
+			/>
 
 			{page.currentStep === TEMPLATE_DETAILS_STEP && (
 				<TemplateDetailsForm

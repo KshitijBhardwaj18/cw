@@ -9,12 +9,17 @@ import {
 } from "@repo/ui/components/empty";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import { SearchBar } from "@repo/ui/general/SearchBar";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
 import { Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useVendorUserColumns } from "@/hooks/tables/use-vendor-user-columns";
 import { useVendorUsers } from "@/queries/users.query";
 import type { UserDto, VendorUserTableRow } from "@/types/users";
 import { splitFullName } from "@/utils/users";
+
+export const VU_PARAMS = {
+	SEARCH: "vuSearch",
+} as const;
 
 type VendorGroup = {
 	id: string;
@@ -64,14 +69,18 @@ const groupRowsByVendor = (rows: VendorUserTableRow[]): VendorGroup[] => {
 };
 
 const VendorUsers = () => {
-	const [searchValue, setSearchValue] = useState("");
+	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+		{
+			paramKey: VU_PARAMS.SEARCH,
+		},
+	);
 	const { data, isLoading, isError } = useVendorUsers();
 	const { columns } = useVendorUserColumns();
 
 	const vendorRows = useMemo(() => buildVendorRows(data ?? []), [data]);
 
 	const filteredRows = useMemo(() => {
-		const term = searchValue.trim().toLowerCase();
+		const term = searchFromUrl.trim().toLowerCase();
 		if (!term) {
 			return vendorRows;
 		}
@@ -89,7 +98,7 @@ const VendorUsers = () => {
 				row.vendorName,
 			].some((value) => value.toLowerCase().includes(term)),
 		);
-	}, [vendorRows, searchValue]);
+	}, [vendorRows, searchFromUrl]);
 
 	const groupedRows = useMemo(
 		() => groupRowsByVendor(filteredRows),
@@ -98,7 +107,7 @@ const VendorUsers = () => {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<SearchBar value={searchValue} onChange={setSearchValue} />
+			<SearchBar value={localSearch} onChange={handleSearchChange} />
 			{isLoading && (
 				<Empty className="border-muted/50">
 					<EmptyHeader>

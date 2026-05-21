@@ -1,12 +1,10 @@
 "use client";
 
-import { useLocalDebouncedSearch } from "@repo/ui/hooks/use-local-debounced-search";
-import { useCallback, useEffect, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import {
-	DOCUMENT_WALLET_LIST_PAGE_SIZE,
-	DOCUMENT_WALLET_SEARCH_DEBOUNCE_MS,
-} from "@/constants/document-wallet";
+import { DOCUMENT_WALLET_LIST_PAGE_SIZE } from "@/constants/document-wallet";
 import {
 	useVendorCandidateDocumentSignedUrl,
 	useVendorCandidateDocumentWalletItems,
@@ -15,23 +13,54 @@ import {
 } from "@/queries/vendor-candidate-document-wallet.queries";
 import type { CandidateDocumentWalletItem } from "@/types/candidate-document-wallet";
 
-export function useVendorDocumentWalletDetailPage(candidateId: string) {
-	const [page, setPage] = useState(1);
-	const { search, debouncedSearch, setSearch } = useLocalDebouncedSearch("", {
-		wait: DOCUMENT_WALLET_SEARCH_DEBOUNCE_MS,
-	});
-	const [categoryKey, setCategoryKey] = useState<string | undefined>();
+export const DWD_PARAMS = {
+	PAGE: "dwdPage",
+	SEARCH: "dwdSearch",
+	CATEGORY: "dwdCategory",
+} as const;
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: reset page when filters change
-	useEffect(() => {
-		setPage(1);
-	}, [debouncedSearch, categoryKey]);
+export function useVendorDocumentWalletDetailPage(candidateId: string) {
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: DWD_PARAMS.PAGE,
+		defaultLimit: DOCUMENT_WALLET_LIST_PAGE_SIZE,
+	});
+
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		onFilterChange,
+	} = useSearchWithFilters({
+		pagination: { pageParamKey: DWD_PARAMS.PAGE },
+		search: { paramKey: DWD_PARAMS.SEARCH },
+		filters: [
+			{
+				id: DWD_PARAMS.CATEGORY,
+				label: "Category",
+				type: "select",
+				defaultValue: "all",
+			},
+		],
+	});
+
+	const categoryKey =
+		values[DWD_PARAMS.CATEGORY] === "all"
+			? undefined
+			: values[DWD_PARAMS.CATEGORY];
+
+	const setCategoryKey = useCallback(
+		(val: string | undefined) => {
+			onFilterChange(DWD_PARAMS.CATEGORY, val || "all");
+		},
+		[onFilterChange],
+	);
 
 	const summaryQuery = useVendorCandidateDocumentWalletSummary(candidateId);
 	const itemsQuery = useVendorCandidateDocumentWalletItems(candidateId, {
 		page,
 		limit: DOCUMENT_WALLET_LIST_PAGE_SIZE,
-		search: debouncedSearch.trim() || undefined,
+		search: searchFromUrl.trim() || undefined,
 		categoryKey,
 	});
 
@@ -92,8 +121,8 @@ export function useVendorDocumentWalletDetailPage(candidateId: string) {
 	return {
 		page,
 		setPage,
-		search,
-		setSearch,
+		search: localSearch,
+		setSearch: handleSearchChange,
 		categoryKey,
 		setCategoryKey,
 		summaryQuery,

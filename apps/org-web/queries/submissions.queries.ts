@@ -1,8 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-	SUBMISSION_STAGE_TABS,
-	type SubmissionStageKey,
-} from "@/constants/submissions";
+import type { SubmissionStageKey } from "@/constants/submissions";
 import type {
 	OrgSubmissionsAgingStatsParams,
 	OrgSubmissionsListParams,
@@ -75,34 +72,8 @@ export function useJobSubmissionStageCounts(
 ) {
 	return useQuery({
 		queryKey: submissionsKeys.jobStageCounts(orgId ?? "", requisitionId ?? ""),
-		queryFn: async () => {
-			const rid = requisitionId as string;
-			const results = await Promise.all(
-				SUBMISSION_STAGE_TABS.map(({ stage }) =>
-					SubmissionsService.list({
-						requisitionId: rid,
-						stage,
-						page: 1,
-						limit: 1,
-					}),
-				),
-			);
-			const counts: Record<SubmissionStageKey, number> = {
-				SUBMITTED: 0,
-				QUALIFIED: 0,
-				SHORTLISTED: 0,
-				INTERVIEW_SCHEDULED: 0,
-				INTERVIEW_COMPLETED: 0,
-				OFFERED: 0,
-				ACCEPTED: 0,
-				WITHDRAWN: 0,
-				REJECTED: 0,
-			};
-			SUBMISSION_STAGE_TABS.forEach(({ stage }, i) => {
-				counts[stage] = results[i].total;
-			});
-			return counts;
-		},
+		queryFn: () =>
+			SubmissionsService.getRequisitionStageCounts(requisitionId as string),
 		enabled: (options?.enabled ?? true) && !!orgId && !!requisitionId,
 		refetchOnMount: "always",
 	});

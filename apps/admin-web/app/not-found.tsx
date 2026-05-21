@@ -8,7 +8,13 @@ import {
 	EmptyTitle,
 } from "@repo/ui/components/empty";
 import { AlertCircle, ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+	title: "Page not found",
+	robots: { index: false, follow: false },
+};
 
 export default function NotFound() {
 	return (

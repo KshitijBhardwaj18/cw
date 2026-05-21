@@ -226,8 +226,10 @@ export class TimekeepingService {
 		let mobileApps = 0;
 		let totalHours = 0;
 		let openDisputes = 0;
+		let resolvedDisputes = 0;
 		let missingCount = 0;
 		let overdueCount = 0;
+		let missingResolvedCount = 0;
 
 		for (const s of summaries) {
 			totalEntries += s.totalEntries ?? 0;
@@ -235,8 +237,10 @@ export class TimekeepingService {
 			mobileApps += s.mobileAppEntries ?? 0;
 			totalHours += s.totalHours ?? 0;
 			openDisputes += s.openDisputes ?? 0;
+			resolvedDisputes += s.resolvedDisputes ?? 0;
 			missingCount += s.missingTimeCasesOpen ?? 0;
 			overdueCount += s.missingTimeCasesOverdue ?? 0;
+			missingResolvedCount += s.missingTimeCasesResolved ?? 0;
 		}
 
 		return {
@@ -245,8 +249,10 @@ export class TimekeepingService {
 			mobileApps,
 			totalHours: Math.round(totalHours * 100) / 100,
 			openDisputes,
+			resolvedDisputes,
 			missingCount,
 			overdueCount,
+			missingResolvedCount,
 		};
 	}
 
@@ -1708,6 +1714,24 @@ export class TimekeepingService {
 			},
 			select: { id: true },
 		});
+
+		if (dto.submit && rowsBuilt.length > 0) {
+			const workDates = rowsBuilt.map((r) => r.workDate);
+			await this.prisma.missingTimeCase.updateMany({
+				where: {
+					organizationId: orgId,
+					candidateId: candidate.id,
+					workDate: { in: workDates },
+					status: {
+						in: [MissingTimeCaseStatus.OPEN, MissingTimeCaseStatus.REMINDED],
+					},
+				},
+				data: {
+					status: MissingTimeCaseStatus.RESOLVED,
+					resolvedAt: new Date(),
+				},
+			});
+		}
 
 		await this.backgroundJobs.enqueueTimekeepingWeekSummary(orgId, weekEndIso);
 

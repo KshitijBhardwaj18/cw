@@ -23,7 +23,9 @@ import { Separator } from "@repo/ui/components/separator";
 import { Textarea } from "@repo/ui/components/textarea";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { cn } from "@repo/ui/lib/utils";
+import { useStore } from "@tanstack/react-form";
 import {
 	JOB_POSTING_SUBMISSION_TYPE_OPTIONS,
 	JOB_POSTING_VENDOR_ACCESS_OPTIONS,
@@ -67,6 +69,11 @@ export function SubmissionSettingsStep({
 		isPending,
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<Card>
 			<CardHeader>
@@ -81,8 +88,11 @@ export function SubmissionSettingsStep({
 					<h3 className="font-semibold">Workflow Settings</h3>
 					<form.Field name="submissionType">
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel>
@@ -122,8 +132,11 @@ export function SubmissionSettingsStep({
 
 					<form.Field name="vendorAccess">
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel>
@@ -173,8 +186,11 @@ export function SubmissionSettingsStep({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel>Select Vendors</FieldLabel>
@@ -213,8 +229,11 @@ export function SubmissionSettingsStep({
 
 					<form.Field name="notesForVendors">
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel>Notes for Vendors (Optional)</FieldLabel>

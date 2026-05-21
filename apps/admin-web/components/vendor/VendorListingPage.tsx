@@ -4,7 +4,8 @@ import { Action } from "@repo/casl";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -17,19 +18,27 @@ import { VendorsTable } from "./VendorsTable";
 
 const PAGE_SIZE = 10;
 
+export const VENDOR_PARAMS = {
+	PAGE: "page",
+	SEARCH: "search",
+} as const;
+
 export default function VendorListingPage() {
 	const [deleteTarget, setDeleteTarget] = useState<VendorTableRowType | null>(
 		null,
 	);
 	const router = useRouter();
-	const {
-		page,
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
+
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: VENDOR_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange, hasActiveSearch } =
+		useDebouncedSearch({
+			paramKey: VENDOR_PARAMS.SEARCH,
+			pageParamKey: VENDOR_PARAMS.PAGE,
+		});
 
 	const { ability } = useAuth();
 	const canCreateVendor = ability.can(Action.Create, "Vendor");
@@ -119,7 +128,7 @@ export default function VendorListingPage() {
 					<ConfigPagePagination
 						page={page}
 						totalPages={totalPages}
-						onPageChange={(p) => router.push(buildSearchParams({ page: p }))}
+						onPageChange={setPage}
 					/>
 				</>
 			)}

@@ -109,27 +109,15 @@ function DocumentRequirementCardApi({
 						<FileText className="size-5 text-muted-foreground" aria-hidden />
 					</div>
 					<div className="min-w-0 flex-1 space-y-1">
-						<div className="flex items-start justify-between gap-2">
-							<div>
-								<p className="font-semibold leading-tight text-foreground">
-									{title}
+						<div>
+							<p className="font-semibold leading-tight text-foreground">
+								{title}
+							</p>
+							<p className="text-sm text-muted-foreground">{description}</p>
+							{documentFileName && (
+								<p className="text-muted-foreground mt-1 truncate text-xs">
+									{documentFileName}
 								</p>
-								<p className="text-sm text-muted-foreground">{description}</p>
-								{documentFileName && (
-									<p className="text-muted-foreground mt-1 truncate text-xs">
-										{documentFileName}
-									</p>
-								)}
-							</div>
-							{(status === "approved" || status === "pending_verification") && (
-								<button
-									type="button"
-									className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-									aria-label="Download"
-									onClick={onDownloadClick}
-								>
-									<Download className="size-4" />
-								</button>
 							)}
 						</div>
 						<StatusRowApi status={status} />
@@ -181,7 +169,7 @@ function DocumentRequirementCardApi({
 				)}
 
 				{status === "approved" && (
-					<div className="grid w-full grid-cols-2 gap-2">
+					<div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
 						<Button
 							type="button"
 							variant="outline"
@@ -203,64 +191,44 @@ function DocumentRequirementCardApi({
 					</div>
 				)}
 
-				{status === "expired" && uploadedLabel && !isVendor && (
-					<div className="flex w-full flex-col gap-2">
-						<div className="grid grid-cols-2 gap-2">
+				{(status === "expired" || status === "pending_verification") &&
+					uploadedLabel &&
+					!isVendor && (
+						<div className="flex w-full flex-col gap-2">
+							<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+								<Button
+									type="button"
+									variant="outline"
+									className="w-full"
+									onClick={onViewClick}
+								>
+									<Eye className="size-4" aria-hidden />
+									View
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									className="w-full"
+									onClick={onDownloadClick}
+								>
+									<Download className="size-4" aria-hidden />
+									Download
+								</Button>
+							</div>
 							<Button
 								type="button"
 								variant="outline"
 								className="w-full"
-								onClick={onViewClick}
+								onClick={onReplaceClick}
 							>
-								<Eye className="size-4" aria-hidden />
-								View
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								className="w-full"
-								onClick={onDownloadClick}
-							>
-								<Download className="size-4" aria-hidden />
-								Download
+								<Upload className="size-4" aria-hidden />
+								Replace
 							</Button>
 						</div>
-						<Button
-							type="button"
-							variant="outline"
-							className="w-full"
-							onClick={onReplaceClick}
-						>
-							<Upload className="size-4" aria-hidden />
-							Replace
-						</Button>
-					</div>
-				)}
+					)}
 
 				{status === "expired" && uploadedLabel && isVendor && (
-					<div className="grid w-full grid-cols-2 gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							className="w-full"
-							onClick={onViewClick}
-						>
-							<Eye className="size-4" aria-hidden />
-							View
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							className="w-full"
-							onClick={onDownloadClick}
-						>
-							<Download className="size-4" aria-hidden />
-							Download
-						</Button>
-					</div>
-				)}
-				{status === "pending_verification" && !isVendor && (
-					<div className="grid w-full grid-cols-2 gap-2">
+					<div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
 						<Button
 							type="button"
 							variant="outline"
@@ -531,7 +499,9 @@ function DocumentRequirementCardMock({
 						<div
 							className={cn(
 								"grid w-full gap-2",
-								footer.showReplace ? "grid-cols-2" : "grid-cols-1",
+								footer.showReplace
+									? "grid-cols-1 sm:grid-cols-2"
+									: "grid-cols-1",
 							)}
 						>
 							<Button

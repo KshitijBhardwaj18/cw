@@ -9,6 +9,7 @@ import {
 } from "@repo/ui/components/tabs";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { ArrowUpDown, Clock } from "lucide-react";
 import { useOrgContext } from "@/contexts/org-context";
 import { useShiftRoutingSettingsSuspense } from "@/queries/shift-routing.queries";
@@ -24,6 +25,8 @@ export function ShiftRoutingSettingsContent() {
 	const { id: orgId } = useOrgContext();
 	const { data } = useShiftRoutingSettingsSuspense(orgId);
 
+	const [activeTab, setActiveTab] = useTabSwitch(["order", "delay"]);
+
 	return (
 		<div className="space-y-6">
 			<ConfigPageHeader
@@ -34,7 +37,11 @@ export function ShiftRoutingSettingsContent() {
 				description="Configure how shifts are routed to workforce types and set delay intervals between tiers"
 			/>
 
-			<Tabs defaultValue="order" className="flex w-full flex-col gap-4">
+			<Tabs
+				value={activeTab}
+				onValueChange={setActiveTab}
+				className="flex w-full flex-col gap-4"
+			>
 				<ScrollableLineTabsRow>
 					<TabsList
 						variant="line"

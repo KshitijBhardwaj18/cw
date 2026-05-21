@@ -8,13 +8,37 @@ import {
 } from "@repo/ui/components/tabs";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { AlertTriangle, Calendar } from "lucide-react";
-import { useCredentialsPage } from "@/hooks/use-credentials-page";
+import { CRED_PARAMS } from "@/hooks/use-credential-filters";
+import { UPCOMING_PLACEMENTS_PARAMS } from "@/hooks/use-upcoming-placements";
 import { CredentialsTabContent } from "./CredentialsTabContent";
 import { UpcomingPlacementsTabContent } from "./UpcomingPlacementsTabContent";
 
 const CredentialsPageContent = () => {
-	const { activeTab, handleTabChange } = useCredentialsPage();
+	const [activeTab, setActiveTab] = useTabSwitch(
+		["credentials", "upcoming-placements"],
+		{
+			alsoClearParamKeys: [
+				CRED_PARAMS.PAGE,
+				CRED_PARAMS.SEARCH,
+				CRED_PARAMS.LIMIT,
+				CRED_PARAMS.LOCATION,
+				CRED_PARAMS.DEPARTMENT,
+				CRED_PARAMS.VENDOR,
+				CRED_PARAMS.HIRING_MANAGER,
+				CRED_PARAMS.STATUS,
+				UPCOMING_PLACEMENTS_PARAMS.PAGE,
+				UPCOMING_PLACEMENTS_PARAMS.SEARCH,
+				UPCOMING_PLACEMENTS_PARAMS.LIMIT,
+				UPCOMING_PLACEMENTS_PARAMS.LOCATION,
+				UPCOMING_PLACEMENTS_PARAMS.DEPARTMENT,
+				UPCOMING_PLACEMENTS_PARAMS.VENDOR,
+				UPCOMING_PLACEMENTS_PARAMS.HIRING_MANAGER,
+				UPCOMING_PLACEMENTS_PARAMS.STATUS,
+			],
+		},
+	);
 
 	return (
 		<div className="space-y-6">
@@ -28,7 +52,7 @@ const CredentialsPageContent = () => {
 
 			<Tabs
 				value={activeTab}
-				onValueChange={handleTabChange}
+				onValueChange={setActiveTab}
 				className="w-full flex-col space-y-6"
 			>
 				<ScrollableLineTabsRow>

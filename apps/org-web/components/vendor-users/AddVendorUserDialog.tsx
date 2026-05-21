@@ -19,9 +19,11 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
+import { PhoneInput } from "@repo/ui/general/PhoneInput";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { useForm } from "@tanstack/react-form";
-import { useEffect, useRef, useState } from "react";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
+import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { vendorUserRoleLabel } from "@/constants/vendor-users";
 import { useShiftTemplateDepartments } from "@/queries/shift-templates.queries";
@@ -54,14 +56,24 @@ const EMPTY_FORM_VALUES: AddVendorUserFormValues = {
 	department: "",
 };
 
+function resolveDepartmentIdFromRow(
+	row: VendorPortalUserRow,
+	departments: OrgDepartmentOption[],
+): string {
+	if (row.department === "—" || row.department.trim() === "") return "";
+	const byName = departments.find((d) => d.name === row.department);
+	if (byName) return byName.id;
+	const byLabel = departments.find(
+		(d) => `${d.name} (${d.location.name})` === row.department,
+	);
+	return byLabel?.id ?? "";
+}
+
 function vendorUserRowToFormValues(
 	row: VendorPortalUserRow,
 	departments: OrgDepartmentOption[],
 ): AddVendorUserFormValues {
-	const departmentId =
-		row.department === "—"
-			? ""
-			: (departments.find((d) => d.name === row.department)?.id ?? "");
+	const departmentId = resolveDepartmentIdFromRow(row, departments);
 	return {
 		fullName: row.fullName,
 		email: row.email,
@@ -92,12 +104,11 @@ export function AddVendorUserDialog({
 	const editingUserRef = useRef(editingUser);
 	editingUserRef.current = editingUser;
 
-	const { data: departments = [], isPending: departmentsLoading } =
+	const { data: departmentsData, isPending: departmentsLoading } =
 		useShiftTemplateDepartments({
 			enabled: open && Boolean(organizationId),
 		});
-
-	const [initialResetDone, setInitialResetDone] = useState(false);
+	const departments = useMemo(() => departmentsData ?? [], [departmentsData]);
 
 	const form = useForm({
 		defaultValues: EMPTY_FORM_VALUES,
@@ -119,26 +130,28 @@ export function AddVendorUserDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	useEffect(() => {
-		if (!open) {
-			setInitialResetDone(false);
-			return;
-		}
+		if (!open) return;
 		if (!editingUser) {
 			form.reset(EMPTY_FORM_VALUES);
-			setInitialResetDone(true);
 			return;
 		}
-		if (departments.length === 0 && departmentsLoading) return;
-		if (initialResetDone) return;
+		// Wait for department options unless org has no org context (cannot load anyway).
+		if (organizationId && departments.length === 0 && departmentsLoading) {
+			return;
+		}
 		form.reset(vendorUserRowToFormValues(editingUser, departments));
-		setInitialResetDone(true);
 	}, [
 		open,
 		editingUser,
+		organizationId,
 		departments,
 		departmentsLoading,
-		initialResetDone,
 		form.reset,
 	]);
 
@@ -151,7 +164,7 @@ export function AddVendorUserDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-lg">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>{isEditMode ? "Edit User" : "Add New User"}</DialogTitle>
 					<DialogDescription>
@@ -169,12 +182,17 @@ export function AddVendorUserDialog({
 					}}
 					className="space-y-4"
 				>
-					<form.Field name="fullName">
+					<form.Field
+						name="fullName"
+						validators={{ onBlur: addVendorUserSchema.shape.fullName }}
+					>
 						{(field) => (
 							<Field
-								data-invalid={
-									field.state.meta.isTouched && !field.state.meta.isValid
-								}
+								data-invalid={formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								)}
 							>
 								<FieldLabel htmlFor={field.name}>
 									Full Name <RequiredStar />
@@ -192,12 +210,17 @@ export function AddVendorUserDialog({
 						)}
 					</form.Field>
 
-					<form.Field name="email">
+					<form.Field
+						name="email"
+						validators={{ onBlur: addVendorUserSchema.shape.email }}
+					>
 						{(field) => (
 							<Field
-								data-invalid={
-									field.state.meta.isTouched && !field.state.meta.isValid
-								}
+								data-invalid={formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								)}
 							>
 								<FieldLabel htmlFor={field.name}>
 									Email Address <RequiredStar />
@@ -218,41 +241,59 @@ export function AddVendorUserDialog({
 						)}
 					</form.Field>
 
-					<form.Field name="phone">
-						{(field) => (
-							<Field
-								data-invalid={
-									field.state.meta.isTouched && !field.state.meta.isValid
-								}
-							>
-								<FieldLabel htmlFor={field.name}>Phone Number</FieldLabel>
-								<Input
-									id={field.name}
-									type="tel"
-									value={field.state.value}
-									onChange={(event) => field.handleChange(event.target.value)}
-									onBlur={field.handleBlur}
-									placeholder="(555) 123-4567"
-									autoComplete="tel"
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</Field>
-						)}
+					<form.Field
+						name="phone"
+						validators={{ onBlur: addVendorUserSchema.shape.phone }}
+					>
+						{(field) => {
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
+							return (
+								<Field data-invalid={isInvalid}>
+									<FieldLabel htmlFor={field.name}>
+										Phone Number <RequiredStar />
+									</FieldLabel>
+									<PhoneInput
+										id={field.name}
+										name={field.name}
+										autoComplete="tel"
+										placeholder="+19876543210"
+										className="w-full"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(value) => field.handleChange(value)}
+										aria-invalid={isInvalid}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</Field>
+							);
+						}}
 					</form.Field>
 
-					<form.Field name="role">
+					<form.Field
+						name="role"
+						validators={{ onBlur: addVendorUserSchema.shape.role }}
+					>
 						{(field) => (
 							<Field
-								data-invalid={
-									field.state.meta.isTouched && !field.state.meta.isValid
-								}
+								data-invalid={formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								)}
 							>
 								<FieldLabel htmlFor={field.name}>
 									Role <RequiredStar />
 								</FieldLabel>
 								<Select
 									value={field.state.value}
-									onValueChange={(v) => field.handleChange(v as VendorUserRole)}
+									onValueChange={(v) => {
+										field.handleChange(v as VendorUserRole);
+										field.handleBlur();
+									}}
 								>
 									<SelectTrigger id={field.name} className="w-full">
 										<SelectValue placeholder="Select role" />
@@ -273,19 +314,27 @@ export function AddVendorUserDialog({
 						)}
 					</form.Field>
 
-					<form.Field name="department">
+					<form.Field
+						name="department"
+						validators={{ onBlur: addVendorUserSchema.shape.department }}
+					>
 						{(field) => (
 							<Field
-								data-invalid={
-									field.state.meta.isTouched && !field.state.meta.isValid
-								}
+								data-invalid={formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								)}
 							>
 								<FieldLabel htmlFor={field.name}>
 									Department <RequiredStar />
 								</FieldLabel>
 								<Select
 									value={field.state.value || undefined}
-									onValueChange={(v) => field.handleChange(v)}
+									onValueChange={(v) => {
+										field.handleChange(v);
+										field.handleBlur();
+									}}
 									disabled={
 										!organizationId ||
 										departmentsLoading ||

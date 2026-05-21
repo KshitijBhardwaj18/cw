@@ -1,9 +1,25 @@
-import { UserRole } from "@repo/shared";
+import {
+	formatStaffLogicDocumentTitle,
+	staffLogicDocumentTitleTemplate,
+	UserRole,
+	VENDOR_PORTAL_DISPLAY_NAME,
+} from "@repo/shared";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import VendorMainShell from "@/components/vendor-layout/VendorMainShell";
+import VendorMainShellWithContext from "@/components/vendor-layout/VendorMainShellWithContext";
 import { AuthProvider } from "@/contexts/auth.context";
 import { authClient } from "@/lib/auth-client";
+
+export const metadata: Metadata = {
+	title: {
+		default: formatStaffLogicDocumentTitle(
+			"Vendor",
+			VENDOR_PORTAL_DISPLAY_NAME,
+		),
+		template: staffLogicDocumentTitleTemplate(VENDOR_PORTAL_DISPLAY_NAME),
+	},
+};
 
 export default async function VendorMainLayout({
 	children,
@@ -34,7 +50,7 @@ export default async function VendorMainLayout({
 
 	return (
 		<AuthProvider>
-			<VendorMainShell title="Vendors and MSPs">{children}</VendorMainShell>
+			<VendorMainShellWithContext>{children}</VendorMainShellWithContext>
 		</AuthProvider>
 	);
 }

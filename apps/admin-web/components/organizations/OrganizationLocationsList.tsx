@@ -5,13 +5,7 @@ import type { OrganizationLocationType } from "@repo/shared";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
-import { useBuildSearchParams } from "@repo/ui/hooks/use-build-search-params";
-import {
-	CONFIG_URL_PAGE_KEY,
-	CONFIG_URL_SEARCH_KEY,
-} from "@repo/ui/hooks/use-config-page-search";
 import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/contexts";
 import { LocationFormDialog } from "./LocationFormDialog";
@@ -26,6 +20,7 @@ type OrganizationLocationsListProps = {
 	search: string;
 	onSearchChange: (value: string) => void;
 	hasActiveSearch: boolean;
+	onPageChange: (page: number) => void;
 };
 
 export function OrganizationLocationsList({
@@ -37,15 +32,11 @@ export function OrganizationLocationsList({
 	search,
 	onSearchChange,
 	hasActiveSearch,
+	onPageChange,
 }: OrganizationLocationsListProps) {
-	const router = useRouter();
 	const { ability } = useAuth();
 	const [createOpen, setCreateOpen] = useState(false);
 	const canCreateLocation = ability.can(Action.Create, "Organization");
-	const buildSearchParams = useBuildSearchParams({
-		searchParamKey: CONFIG_URL_SEARCH_KEY,
-		pageParamKey: CONFIG_URL_PAGE_KEY,
-	});
 
 	return (
 		<div className="space-y-6">
@@ -95,7 +86,7 @@ export function OrganizationLocationsList({
 					<ConfigPagePagination
 						page={page}
 						totalPages={totalPages}
-						onPageChange={(p) => router.push(buildSearchParams({ page: p }))}
+						onPageChange={onPageChange}
 					/>
 				</>
 			)}

@@ -51,7 +51,7 @@ export function DepartmentEditFormContent({
 
 	return (
 		<Tabs defaultValue="details" className="w-full flex-col space-y-4">
-			<TabsList className="grid w-full grid-cols-2">
+			<TabsList className="grid w-full grid-cols-1 gap-1 sm:grid-cols-2">
 				<TabsTrigger value="details" className="gap-2">
 					<Info className="size-4" />
 					Department Details

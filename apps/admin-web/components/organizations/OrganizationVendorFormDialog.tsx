@@ -34,6 +34,8 @@ import { Textarea } from "@repo/ui/components/textarea";
 import { DocumentUploadCard } from "@repo/ui/general/DocumentUploadCard";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useOrganizationVendorFormDialog } from "@/hooks/use-organization-vendor-form-dialog";
@@ -86,9 +88,14 @@ export function OrganizationVendorFormDialog({
 		viewOnly,
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-lg">
+			<DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
 				<input
 					ref={contractInputRef}
 					type="file"
@@ -135,8 +142,11 @@ export function OrganizationVendorFormDialog({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -220,8 +230,11 @@ export function OrganizationVendorFormDialog({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>

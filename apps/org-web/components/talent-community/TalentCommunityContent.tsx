@@ -23,15 +23,17 @@ import {
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { ChevronDown, Plus, Users } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AccessBlockedState } from "@/components/general/AccessBlockedState";
 import { useOrgContext } from "@/contexts/org-context";
 import { useTalentCommunityColumns } from "@/hooks/tables/use-talent-community-columns";
-import { useTalentCommunityFilters } from "@/hooks/use-talent-community-filters";
+import {
+	TALENT_COMMUNITY_PARAMS,
+	useTalentCommunityFilters,
+} from "@/hooks/use-talent-community-filters";
 import { useTalentCommunity } from "@/queries/talent-community.queries";
 import type { TalentCommunityTab } from "@/services/talent-community.service";
 import { AddExistingTalentDialog } from "./AddExistingTalentDialog";
@@ -77,16 +79,18 @@ export function TalentCommunityContent() {
 
 	const canManageTalent = ability.can(Action.Create, "TalentCommunity");
 
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-
-	const tabFromUrl = searchParams.get("tcTab") as TalentCommunityTab | null;
-	const urlTabIsAllowed =
-		tabFromUrl && allowedTabs.includes(tabFromUrl) ? tabFromUrl : null;
-
-	const [activeTab, setActiveTab] = useState<TalentCommunityTab>(
-		() => allowedTabs[0] ?? "talent-community",
+	const [activeTab, setActiveTab] = useTabSwitch<TalentCommunityTab>(
+		allowedTabs.length > 0 ? allowedTabs : ["talent-community"],
+		{
+			alsoClearParamKeys: [
+				TALENT_COMMUNITY_PARAMS.PAGE,
+				TALENT_COMMUNITY_PARAMS.SEARCH,
+				TALENT_COMMUNITY_PARAMS.WORKFORCE_TYPE,
+				TALENT_COMMUNITY_PARAMS.INVITE_STATUS,
+			],
+		},
 	);
+
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 	const [addExistingDialogOpen, setAddExistingDialogOpen] = useState(false);
 	const [profileCandidate, setProfileCandidate] =
@@ -95,17 +99,6 @@ export function TalentCommunityContent() {
 	const handleViewProfile = useCallback((candidate: CandidateTalentType) => {
 		setProfileCandidate(candidate);
 	}, []);
-
-	useEffect(() => {
-		if (allowedTabs.length === 0) {
-			return;
-		}
-		if (urlTabIsAllowed) {
-			setActiveTab(urlTabIsAllowed);
-		} else {
-			setActiveTab(allowedTabs[0] ?? "talent-community");
-		}
-	}, [allowedTabs, urlTabIsAllowed]);
 
 	const {
 		search,
@@ -116,11 +109,12 @@ export function TalentCommunityContent() {
 		page,
 		setPage,
 		pageSize,
+		setLimit,
 		workforceTypeFilter,
 		statusFilter,
 		query,
 		filterConfigs,
-	} = useTalentCommunityFilters();
+	} = useTalentCommunityFilters({ activeTab });
 
 	const { data, isLoading, isError } = useTalentCommunity(orgId, {
 		tab: activeTab,
@@ -137,20 +131,6 @@ export function TalentCommunityContent() {
 		"talent-community": counts.talentCommunity,
 		new: counts.newUnassigned,
 		invited: counts.invited,
-	};
-
-	const handleTabChange = (tab: TalentCommunityTab) => {
-		if (!allowedTabs.includes(tab)) {
-			return;
-		}
-		setActiveTab(tab);
-		pushParams({
-			tcTab: tab,
-			page: null,
-			search: null,
-			tcWfType: null,
-			tcInvite: null,
-		});
 	};
 
 	const columns = useTalentCommunityColumns(activeTab, handleViewProfile);
@@ -232,7 +212,8 @@ export function TalentCommunityContent() {
 
 			<Tabs
 				value={activeTab}
-				onValueChange={(v) => handleTabChange(v as TalentCommunityTab)}
+				onValueChange={(v) => setActiveTab(v as TalentCommunityTab)}
+				className="w-full flex-col"
 			>
 				<ScrollableLineTabsRow>
 					<TabsList
@@ -286,7 +267,10 @@ export function TalentCommunityContent() {
 					totalCount={data?.total ?? 0}
 					currentPage={page}
 					pageSize={pageSize}
-					onPaginationChange={(newPage) => setPage(newPage)}
+					onPaginationChange={(newPage, newLimit) => {
+						setPage(newPage);
+						setLimit(newLimit);
+					}}
 					emptyState={
 						<ConfigPageEmptyState
 							hasSearch={false}

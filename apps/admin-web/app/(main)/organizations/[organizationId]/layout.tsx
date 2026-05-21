@@ -1,38 +1,41 @@
-"use client";
+import {
+	ADMIN_PORTAL_DISPLAY_NAME,
+	formatStaffLogicDocumentTitle,
+} from "@repo/shared";
+import type { Metadata } from "next";
+import { OrganizationsService } from "@/services/organizations.service";
+import OrgDetailLayoutClient from "./OrgDetailLayoutClient";
 
-import PageContainer from "@repo/ui/general/PageContainer";
-import { useParams } from "next/navigation";
-import { OrganizationHeader } from "@/components/organizations/OrganizationHeader";
-import { OrganizationNotFound } from "@/components/organizations/OrganizationNotFound";
-import { OrgSidebar } from "@/components/sidebar/OrgSidebar";
-import { useOrganization } from "@/queries/organizations.query";
-
-type OrganizationDetailPageLayoutProps = {
-	children: React.ReactNode;
-};
-
-function OrganizationDetailPageLayout({
-	children,
-}: OrganizationDetailPageLayoutProps) {
-	const params = useParams();
-	const organizationId = params.organizationId as string;
-	const { data: org } = useOrganization(organizationId);
-
-	if (!org) {
-		return <OrganizationNotFound />;
+export async function generateMetadata({
+	params,
+}: {
+	params: Promise<{ organizationId: string }>;
+}): Promise<Metadata> {
+	const { organizationId } = await params;
+	try {
+		const org = await OrganizationsService.getOrganizationById(organizationId);
+		if (org?.name) {
+			return {
+				title: org.name,
+				description: `Workforce settings for ${org.name}`,
+			};
+		}
+	} catch {
+		// fall through to default
 	}
-
-	return (
-		<div className="flex min-h-0 min-w-0 flex-1">
-			<OrgSidebar organizationId={organizationId} />
-			<PageContainer>
-				<div className="space-y-6">
-					<OrganizationHeader organization={org} />
-					{children}
-				</div>
-			</PageContainer>
-		</div>
-	);
+	return {
+		title: formatStaffLogicDocumentTitle(
+			"Organization",
+			ADMIN_PORTAL_DISPLAY_NAME,
+		),
+		description: "Organization details and workforce configuration",
+	};
 }
 
-export default OrganizationDetailPageLayout;
+export default function OrganizationDetailLayout({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	return <OrgDetailLayoutClient>{children}</OrgDetailLayoutClient>;
+}

@@ -44,6 +44,8 @@ export interface Shift {
 	notifications: number;
 	createdBy: string;
 	createdAt: string;
+	hasConflict: boolean;
+	conflictReason: string | null;
 }
 
 export const SHIFT_TYPE_OPTIONS = [

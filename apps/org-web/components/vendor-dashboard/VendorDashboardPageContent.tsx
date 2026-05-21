@@ -1,7 +1,7 @@
 "use client";
 
 import { Action } from "@repo/casl";
-import { VendorUserRole } from "@repo/shared";
+import { formatUsdLedger, VendorUserRole } from "@repo/shared";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { PageSubheading } from "@repo/ui/general/PageSubheading";
 import {
@@ -13,10 +13,14 @@ import {
 	TrendingUp,
 	Users,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { QUICK_ACTIONS } from "@/constants/vendor/dashboard";
 import { useAuth } from "@/contexts/auth.context";
-import { useVendorDashboardQuery } from "@/queries/vendor-dashboard.queries";
+import {
+	type FinancialPeriodValue,
+	useVendorDashboardQuery,
+	useVendorFinancialQuery,
+} from "@/queries/vendor-dashboard.queries";
 import { ComplianceAlerts } from "./ComplianceAlerts";
 import { FinancialOverview } from "./FinancialOverview";
 import { InvoiceStatus } from "./InvoiceStatus";
@@ -47,15 +51,10 @@ function VendorDashboardPageContent() {
 
 	const canViewFinancialOverview = ability.can(Action.List, "Invoice");
 
-	const numberFormatter = useMemo(
-		() =>
-			new Intl.NumberFormat("en-US", {
-				style: "currency",
-				currency: "USD",
-				maximumFractionDigits: 2,
-			}),
-		[],
-	);
+	const [financialPeriod, setFinancialPeriod] =
+		useState<FinancialPeriodValue>("this-month");
+	const financialQuery = useVendorFinancialQuery(financialPeriod);
+	const financial = financialQuery.data ?? dashboard?.financial;
 
 	const summaryStats = dashboard
 		? [
@@ -122,7 +121,7 @@ function VendorDashboardPageContent() {
 					title: "Placement Success",
 					value: `${dashboard.performance.placementSuccessRate.toFixed(1)}%`,
 					icon: Award,
-					description: `${dashboard.performance.successfulPlacements} successful / ${dashboard.performance.totalPlacements} total placements`,
+					description: `${dashboard.performance.successfulPlacements} successful / ${dashboard.performance.totalPlacements} started placements`,
 					progress: dashboard.performance.placementSuccessRate,
 					variant: "violet" as const,
 				},
@@ -184,9 +183,9 @@ function VendorDashboardPageContent() {
 			{canViewFinancialOverview && (
 				<section className="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<FinancialOverview
-						netInvoiceValue={numberFormatter.format(
-							dashboard?.financial.netInvoiceValue ?? 0,
-						)}
+						netInvoiceValue={formatUsdLedger(financial?.netInvoiceValue ?? 0)}
+						period={financialPeriod}
+						onPeriodChange={setFinancialPeriod}
 					/>
 					<InvoiceStatus items={dashboard?.invoiceStatus ?? []} />
 				</section>

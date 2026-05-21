@@ -1,6 +1,11 @@
 "use client";
 
-import type { OrganizationLocationType } from "@repo/shared";
+import type {
+	OrganizationLocationType,
+	PostalAddressValue,
+	PostalFormBindingsNoCountry,
+} from "@repo/shared";
+import { postalSnapshotFromForm } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -25,14 +30,54 @@ import {
 } from "@repo/ui/components/select";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import { PhoneInput } from "@repo/ui/general/PhoneInput";
+import {
+	PostalCitySearchInput,
+	PostalStateSearchInput,
+	PostalStreetSearchInput,
+	PostalZipSearchInput,
+} from "@repo/ui/general/PostalAddressSearchFields";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { ImagePlus } from "lucide-react";
 import Image from "next/image";
 import { LOCATION_TYPE_OPTIONS } from "@/constants/organization";
 import { useLocationFormDialog } from "@/hooks/use-location-form-dialog";
-import { locationFormSchema } from "@/schemas/organization.schema";
+import {
+	type LocationFormSchemaValues,
+	locationFormPostalAutosuggestValidators,
+	locationFormSchema,
+} from "@/schemas/organization.schema";
+
+const LOCATION_DIALOG_POSTAL_FIELDS: PostalFormBindingsNoCountry<LocationFormSchemaValues> =
+	{
+		street: "address",
+		city: "city",
+		state: "state",
+		zipCode: "zipCode",
+	};
 
 const PHOTO_ACCEPT = ".png,.jpg,.jpeg,image/png,image/jpeg";
+
+function buildPostalOnChangeValidator(validator: unknown) {
+	return validator ? { onChange: validator as never } : undefined;
+}
+
+function applyResolvedLocationPostalFields(
+	formApi: {
+		setFieldValue: (
+			name: keyof LocationFormSchemaValues,
+			value: string,
+		) => void;
+	},
+	fields: PostalFormBindingsNoCountry<LocationFormSchemaValues>,
+	address: PostalAddressValue,
+): void {
+	formApi.setFieldValue(fields.street, address.street);
+	formApi.setFieldValue(fields.city, address.city);
+	formApi.setFieldValue(fields.state, address.state);
+	formApi.setFieldValue(fields.zipCode, address.zipCode);
+}
 
 type LocationFormDialogProps = {
 	open: boolean;
@@ -64,9 +109,14 @@ export function LocationFormDialog({
 		initialLocation,
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-lg">
+			<DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
 				<input
 					ref={photoInputRef}
 					type="file"
@@ -96,8 +146,11 @@ export function LocationFormDialog({
 							validators={{ onChange: locationFormSchema.shape.name }}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -119,127 +172,191 @@ export function LocationFormDialog({
 							}}
 						</form.Field>
 
-						<form.Field
-							name="address"
-							validators={{ onChange: locationFormSchema.shape.address }}
+						<form.Subscribe
+							selector={(state) =>
+								postalSnapshotFromForm(
+									state.values as LocationFormSchemaValues,
+									LOCATION_DIALOG_POSTAL_FIELDS,
+								)
+							}
 						>
-							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
-								return (
-									<Field data-invalid={isInvalid}>
-										<FieldLabel htmlFor={field.name}>
-											Address <RequiredStar />
-										</FieldLabel>
-										<Input
-											id={field.name}
-											placeholder="Street address"
-											value={field.state.value}
-											onBlur={field.handleBlur}
-											onChange={(e) => field.handleChange(e.target.value)}
-											aria-invalid={isInvalid}
-										/>
-										{isInvalid && (
-											<FieldError errors={field.state.meta.errors} />
+							{(postal) => (
+								<>
+									<form.Field
+										name="address"
+										validators={buildPostalOnChangeValidator(
+											locationFormPostalAutosuggestValidators.street,
 										)}
-									</Field>
-								);
-							}}
-						</form.Field>
+									>
+										{(field) => {
+											const isInvalid = formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											);
+											return (
+												<Field data-invalid={isInvalid}>
+													<FieldLabel htmlFor={field.name}>
+														Address <RequiredStar />
+													</FieldLabel>
+													<PostalStreetSearchInput
+														inputId={field.name}
+														postalContext={postal}
+														value={String(field.state.value ?? "")}
+														onChange={(v) => field.handleChange(v)}
+														onBlur={field.handleBlur}
+														placeholder="Street address"
+														onResolvedAddress={(addr) =>
+															applyResolvedLocationPostalFields(
+																form,
+																LOCATION_DIALOG_POSTAL_FIELDS,
+																addr,
+															)
+														}
+													/>
+													{isInvalid && (
+														<FieldError errors={field.state.meta.errors} />
+													)}
+												</Field>
+											);
+										}}
+									</form.Field>
 
-						<div className="grid gap-4 sm:grid-cols-3">
-							<form.Field
-								name="city"
-								validators={{ onChange: locationFormSchema.shape.city }}
-							>
-								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
-									return (
-										<Field data-invalid={isInvalid}>
-											<FieldLabel htmlFor={field.name}>
-												City <RequiredStar />
-											</FieldLabel>
-											<Input
-												id={field.name}
-												placeholder="City"
-												value={field.state.value}
-												onBlur={field.handleBlur}
-												onChange={(e) => field.handleChange(e.target.value)}
-												aria-invalid={isInvalid}
-											/>
-											{isInvalid && (
-												<FieldError errors={field.state.meta.errors} />
+									<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+										<form.Field
+											name="city"
+											validators={buildPostalOnChangeValidator(
+												locationFormPostalAutosuggestValidators.city,
 											)}
-										</Field>
-									);
-								}}
-							</form.Field>
+										>
+											{(field) => {
+												const isInvalid = formFieldShowInvalid(
+													field.state.meta.isTouched,
+													field.state.meta.isValid,
+													submissionAttempts,
+												);
+												return (
+													<Field data-invalid={isInvalid}>
+														<FieldLabel htmlFor={field.name}>
+															City <RequiredStar />
+														</FieldLabel>
+														<PostalCitySearchInput
+															inputId={field.name}
+															postalContext={postal}
+															value={String(field.state.value ?? "")}
+															onChange={(v) => field.handleChange(v)}
+															onBlur={field.handleBlur}
+															placeholder="City"
+															onResolvedAddress={(addr) =>
+																applyResolvedLocationPostalFields(
+																	form,
+																	LOCATION_DIALOG_POSTAL_FIELDS,
+																	addr,
+																)
+															}
+														/>
+														{isInvalid && (
+															<FieldError errors={field.state.meta.errors} />
+														)}
+													</Field>
+												);
+											}}
+										</form.Field>
 
-							<form.Field
-								name="state"
-								validators={{ onChange: locationFormSchema.shape.state }}
-							>
-								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
-									return (
-										<Field data-invalid={isInvalid}>
-											<FieldLabel htmlFor={field.name}>
-												State <RequiredStar />
-											</FieldLabel>
-											<Input
-												id={field.name}
-												placeholder="State"
-												value={field.state.value}
-												onBlur={field.handleBlur}
-												onChange={(e) => field.handleChange(e.target.value)}
-												aria-invalid={isInvalid}
-											/>
-											{isInvalid && (
-												<FieldError errors={field.state.meta.errors} />
+										<form.Field
+											name="state"
+											validators={buildPostalOnChangeValidator(
+												locationFormPostalAutosuggestValidators.state,
 											)}
-										</Field>
-									);
-								}}
-							</form.Field>
+										>
+											{(field) => {
+												const isInvalid = formFieldShowInvalid(
+													field.state.meta.isTouched,
+													field.state.meta.isValid,
+													submissionAttempts,
+												);
+												return (
+													<Field data-invalid={isInvalid}>
+														<FieldLabel htmlFor={field.name}>
+															State <RequiredStar />
+														</FieldLabel>
+														<PostalStateSearchInput
+															inputId={field.name}
+															postalContext={postal}
+															value={String(field.state.value ?? "")}
+															onChange={(v) => field.handleChange(v)}
+															onBlur={field.handleBlur}
+															placeholder="State"
+															onResolvedAddress={(addr) =>
+																applyResolvedLocationPostalFields(
+																	form,
+																	LOCATION_DIALOG_POSTAL_FIELDS,
+																	addr,
+																)
+															}
+														/>
+														{isInvalid && (
+															<FieldError errors={field.state.meta.errors} />
+														)}
+													</Field>
+												);
+											}}
+										</form.Field>
 
-							<form.Field
-								name="zipCode"
-								validators={{ onChange: locationFormSchema.shape.zipCode }}
-							>
-								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
-									return (
-										<Field data-invalid={isInvalid}>
-											<FieldLabel htmlFor={field.name}>
-												ZIP Code <RequiredStar />
-											</FieldLabel>
-											<Input
-												id={field.name}
-												placeholder="ZIP"
-												value={field.state.value}
-												onBlur={field.handleBlur}
-												onChange={(e) => field.handleChange(e.target.value)}
-												aria-invalid={isInvalid}
-											/>
-											{isInvalid && (
-												<FieldError errors={field.state.meta.errors} />
+										<form.Field
+											name="zipCode"
+											validators={buildPostalOnChangeValidator(
+												locationFormPostalAutosuggestValidators.zipCode,
 											)}
-										</Field>
-									);
-								}}
-							</form.Field>
-						</div>
+										>
+											{(field) => {
+												const isInvalid = formFieldShowInvalid(
+													field.state.meta.isTouched,
+													field.state.meta.isValid,
+													submissionAttempts,
+												);
+												return (
+													<Field data-invalid={isInvalid}>
+														<FieldLabel htmlFor={field.name}>
+															ZIP Code <RequiredStar />
+														</FieldLabel>
+														<PostalZipSearchInput
+															inputId={field.name}
+															postalContext={postal}
+															value={String(field.state.value ?? "")}
+															onChange={(v) => field.handleChange(v)}
+															onBlur={field.handleBlur}
+															placeholder="ZIP"
+															onResolvedAddress={(addr) =>
+																applyResolvedLocationPostalFields(
+																	form,
+																	LOCATION_DIALOG_POSTAL_FIELDS,
+																	addr,
+																)
+															}
+														/>
+														{isInvalid && (
+															<FieldError errors={field.state.meta.errors} />
+														)}
+													</Field>
+												);
+											}}
+										</form.Field>
+									</div>
+								</>
+							)}
+						</form.Subscribe>
 
 						<form.Field
 							name="locationType"
 							validators={{ onChange: locationFormSchema.shape.locationType }}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -272,14 +389,17 @@ export function LocationFormDialog({
 							}}
 						</form.Field>
 
-						<div className="grid gap-4 sm:grid-cols-2">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<form.Field
 								name="phone"
 								validators={{ onChange: locationFormSchema.shape.phone }}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>Phone</FieldLabel>
@@ -305,8 +425,11 @@ export function LocationFormDialog({
 								validators={{ onChange: locationFormSchema.shape.email }}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>Email</FieldLabel>

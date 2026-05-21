@@ -1,23 +1,27 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { parseAsString, useQueryStates } from "nuqs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CommandCenterService } from "@/services/command-center.service";
 import type { PerformanceDateRangeKey } from "@/types/command-center";
 
-const RANGE_PARAM = "performanceRange";
-const START_DATE_PARAM = "performanceStartDate";
-const END_DATE_PARAM = "performanceEndDate";
+export const PERFORMANCE_PARAMS = {
+	RANGE: "performanceRange",
+	START_DATE: "performanceStartDate",
+	END_DATE: "performanceEndDate",
+} as const;
 
 const DEFAULT_RANGE: PerformanceDateRangeKey = "last-30-days";
 
 export function usePerformanceMetrics() {
-	const router = useRouter();
-	const pathname = usePathname();
-	const searchParams = useSearchParams();
+	const [params, setParams] = useQueryStates({
+		[PERFORMANCE_PARAMS.RANGE]: parseAsString.withDefault(DEFAULT_RANGE),
+		[PERFORMANCE_PARAMS.START_DATE]: parseAsString.withDefault(""),
+		[PERFORMANCE_PARAMS.END_DATE]: parseAsString.withDefault(""),
+	});
 
-	const rangeParam = searchParams.get(RANGE_PARAM);
+	const rangeParam = params[PERFORMANCE_PARAMS.RANGE];
 	const selectedRange: PerformanceDateRangeKey =
 		rangeParam === "last-quarter" ||
 		rangeParam === "custom-date-range" ||
@@ -25,8 +29,8 @@ export function usePerformanceMetrics() {
 			? (rangeParam as PerformanceDateRangeKey)
 			: DEFAULT_RANGE;
 
-	const startDateFromUrl = searchParams.get(START_DATE_PARAM) ?? "";
-	const endDateFromUrl = searchParams.get(END_DATE_PARAM) ?? "";
+	const startDateFromUrl = params[PERFORMANCE_PARAMS.START_DATE];
+	const endDateFromUrl = params[PERFORMANCE_PARAMS.END_DATE];
 
 	const [startDate, setStartDate] = useState(startDateFromUrl);
 	const [endDate, setEndDate] = useState(endDateFromUrl);
@@ -36,49 +40,24 @@ export function usePerformanceMetrics() {
 		setEndDate(endDateFromUrl);
 	}, [startDateFromUrl, endDateFromUrl]);
 
-	const updateParams = useCallback(
-		(next: {
-			range: PerformanceDateRangeKey;
-			startDate?: string;
-			endDate?: string;
-		}) => {
-			const nextParams = new URLSearchParams(searchParams.toString());
-			nextParams.set(RANGE_PARAM, next.range);
-
-			if (next.startDate) {
-				nextParams.set(START_DATE_PARAM, next.startDate);
-			} else {
-				nextParams.delete(START_DATE_PARAM);
-			}
-
-			if (next.endDate) {
-				nextParams.set(END_DATE_PARAM, next.endDate);
-			} else {
-				nextParams.delete(END_DATE_PARAM);
-			}
-
-			const nextQuery = nextParams.toString();
-			router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
-				scroll: false,
-			});
-		},
-		[pathname, router, searchParams],
-	);
-
 	const handleRangeChange = useCallback(
 		(range: PerformanceDateRangeKey) => {
 			if (range === "custom-date-range") {
-				updateParams({
-					range,
-					startDate,
-					endDate,
+				setParams({
+					[PERFORMANCE_PARAMS.RANGE]: range,
+					[PERFORMANCE_PARAMS.START_DATE]: startDate || null,
+					[PERFORMANCE_PARAMS.END_DATE]: endDate || null,
 				});
 				return;
 			}
 
-			updateParams({ range });
+			setParams({
+				[PERFORMANCE_PARAMS.RANGE]: range,
+				[PERFORMANCE_PARAMS.START_DATE]: null,
+				[PERFORMANCE_PARAMS.END_DATE]: null,
+			});
 		},
-		[endDate, startDate, updateParams],
+		[endDate, startDate, setParams],
 	);
 
 	const applyCustomDateRange = useCallback(() => {
@@ -90,34 +69,30 @@ export function usePerformanceMetrics() {
 			return;
 		}
 
-		updateParams({
-			range: "custom-date-range",
-			startDate,
-			endDate,
+		setParams({
+			[PERFORMANCE_PARAMS.RANGE]: "custom-date-range",
+			[PERFORMANCE_PARAMS.START_DATE]: startDate,
+			[PERFORMANCE_PARAMS.END_DATE]: endDate,
 		});
-	}, [endDate, startDate, updateParams]);
+	}, [endDate, startDate, setParams]);
 
-	const effectiveRange: PerformanceDateRangeKey =
-		selectedRange === "custom-date-range" ? "custom-date-range" : selectedRange;
+	const isCustom = selectedRange === "custom-date-range";
 
 	const performanceQuery = useQuery({
 		queryKey: [
 			"command-center",
 			"performance",
-			effectiveRange,
-			selectedRange === "custom-date-range" ? startDate : "",
-			selectedRange === "custom-date-range" ? endDate : "",
+			selectedRange,
+			isCustom ? startDate : "",
+			isCustom ? endDate : "",
 		],
 		queryFn: () =>
 			CommandCenterService.getPerformance({
-				range: effectiveRange,
-				startDate:
-					effectiveRange === "custom-date-range" ? startDate : undefined,
-				endDate: effectiveRange === "custom-date-range" ? endDate : undefined,
+				range: selectedRange,
+				startDate: isCustom ? startDate : undefined,
+				endDate: isCustom ? endDate : undefined,
 			}),
-		enabled:
-			effectiveRange !== "custom-date-range" ||
-			(Boolean(startDate) && Boolean(endDate)),
+		enabled: !isCustom || (Boolean(startDate) && Boolean(endDate)),
 	});
 
 	const summaryStats = useMemo(
@@ -142,6 +117,6 @@ export function usePerformanceMetrics() {
 		groupedMetrics,
 		isLoading: performanceQuery.isLoading,
 		isError: performanceQuery.isError,
-		showCustomDateInputs: selectedRange === "custom-date-range",
+		showCustomDateInputs: isCustom,
 	};
 }

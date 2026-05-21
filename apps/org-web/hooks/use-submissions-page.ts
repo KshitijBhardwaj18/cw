@@ -1,9 +1,10 @@
 "use client";
 
 import { MemberRole } from "@repo/shared";
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useMemo, useState } from "react";
 import {
 	SUBMISSION_STAGE_TABS,
@@ -30,106 +31,147 @@ export interface SubmissionFilterOptions {
 }
 
 const PAGE_SIZE = 10;
-const AGING_SET = new Set<SubmissionAgingFilter>([
-	"ALL",
-	"OVERDUE",
-	"NEAR",
-	"WITHIN",
-]);
-
-function parseAging(raw: string | null): SubmissionAgingFilter {
-	if (raw && AGING_SET.has(raw as SubmissionAgingFilter)) {
-		return raw as SubmissionAgingFilter;
-	}
-	return "ALL";
-}
 
 export interface UseSubmissionsPageOptions {
 	/** Ordered list of stage tabs the current user can Read, per CASL. */
 	allowedStages: readonly SubmissionStageKey[];
 }
 
+export const SUBMISSIONS_PARAMS = {
+	PAGE: "subPage",
+	SEARCH: "subSearch",
+	STAGE: "subStage",
+	VENDOR: "subVendor",
+	HIRING_MANAGER: "subHm",
+	DEPARTMENT: "subDept",
+	LOCATION: "subLoc",
+	AGING: "subAging",
+} as const;
+
 export function useSubmissionsPage(
 	orgId: string | undefined,
 	{ allowedStages }: UseSubmissionsPageOptions,
 ) {
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "subSearch", pageParamKey: "subPage" },
+	const [activeStage, handleStageChange] = useTabSwitch<SubmissionStageKey>(
+		allowedStages.length > 0 ? [...allowedStages] : ["SUBMITTED"],
+		{
+			paramKey: SUBMISSIONS_PARAMS.STAGE,
+			alsoClearParamKeys: [
+				SUBMISSIONS_PARAMS.PAGE,
+				SUBMISSIONS_PARAMS.SEARCH,
+				SUBMISSIONS_PARAMS.VENDOR,
+				SUBMISSIONS_PARAMS.HIRING_MANAGER,
+				SUBMISSIONS_PARAMS.DEPARTMENT,
+				SUBMISSIONS_PARAMS.LOCATION,
+				SUBMISSIONS_PARAMS.AGING,
+			],
+		},
 	);
 
-	const pageParam = Number(searchParams.get("subPage") ?? "1");
-	const currentPage =
-		Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+	const { page, setPage, resetPage } = usePaginationControls({
+		pageParamKey: SUBMISSIONS_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
 
-	const vendorFilter = searchParams.get("subVendor") ?? "all";
-	const hiringManagerFilter = searchParams.get("subHm") ?? "all";
-	const departmentFilter = searchParams.get("subDept") ?? "all";
-	const locationFilter = searchParams.get("subLoc") ?? "all";
-	const agingFilter = parseAging(searchParams.get("subAging"));
+	const {
+		searchFromUrl,
+		searchValue: localSearch,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		pagination: { pageParamKey: SUBMISSIONS_PARAMS.PAGE },
+		search: { paramKey: SUBMISSIONS_PARAMS.SEARCH },
+		filters: [
+			{
+				id: SUBMISSIONS_PARAMS.VENDOR,
+				label: "Vendor",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All",
+			},
+			{
+				id: SUBMISSIONS_PARAMS.HIRING_MANAGER,
+				label: "Hiring manager",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Hiring Managers",
+			},
+			{
+				id: SUBMISSIONS_PARAMS.DEPARTMENT,
+				label: "Department",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Departments",
+			},
+			{
+				id: SUBMISSIONS_PARAMS.LOCATION,
+				label: "Location",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Locations",
+			},
+		],
+	});
+
+	const [agingFilter, setAgingFilterState] = useQueryState(
+		SUBMISSIONS_PARAMS.AGING,
+		parseAsStringLiteral(["ALL", "OVERDUE", "NEAR", "WITHIN"]).withDefault(
+			"ALL",
+		),
+	);
+
+	const vendorFilter = values[SUBMISSIONS_PARAMS.VENDOR] || "all";
+	const hiringManagerFilter =
+		values[SUBMISSIONS_PARAMS.HIRING_MANAGER] || "all";
+	const departmentFilter = values[SUBMISSIONS_PARAMS.DEPARTMENT] || "all";
+	const locationFilter = values[SUBMISSIONS_PARAMS.LOCATION] || "all";
 
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-	const safeActiveStage: SubmissionStageKey | null = useMemo(() => {
-		if (allowedStages.length === 0) {
-			return null;
-		}
-		const fromUrl = searchParams.get("subStage") as SubmissionStageKey | null;
-		if (fromUrl && allowedStages.includes(fromUrl)) {
-			return fromUrl;
-		}
-		return allowedStages[0];
-	}, [allowedStages, searchParams]);
-
 	const setVendorFilter = useCallback(
 		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ subVendor: clear ? null : v, subPage: null });
+			onFilterChange({ [SUBMISSIONS_PARAMS.VENDOR]: v === "all" ? null : v });
 		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const setHiringManagerFilter = useCallback(
 		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ subHm: clear ? null : v, subPage: null });
+			onFilterChange({
+				[SUBMISSIONS_PARAMS.HIRING_MANAGER]: v === "all" ? null : v,
+			});
 		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const setDepartmentFilter = useCallback(
 		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ subDept: clear ? null : v, subPage: null });
+			onFilterChange({
+				[SUBMISSIONS_PARAMS.DEPARTMENT]: v === "all" ? null : v,
+			});
 		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const setLocationFilter = useCallback(
 		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ subLoc: clear ? null : v, subPage: null });
+			onFilterChange({ [SUBMISSIONS_PARAMS.LOCATION]: v === "all" ? null : v });
 		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const setAgingFilter = useCallback(
 		(v: SubmissionAgingFilter) => {
-			pushParams({ subAging: v === "ALL" ? null : v, subPage: null });
+			void setAgingFilterState(v);
+			resetPage();
 		},
-		[pushParams],
-	);
-
-	const setCurrentPage = useCallback(
-		(p: number) => {
-			pushParams({ subPage: String(p) });
-		},
-		[pushParams],
+		[setAgingFilterState, resetPage],
 	);
 
 	const oid = orgId ?? "";
-	const hasActiveStage = safeActiveStage !== null;
+	const hasActiveStage = activeStage !== null;
 	const vendorsQuery = useOrgVendors(oid);
 	const hiringManagersQuery = useOrgMembersForPicker(oid, {
 		role: MemberRole.HIRING_MANAGER,
@@ -139,7 +181,7 @@ export function useSubmissionsPage(
 
 	const listParams = useMemo(
 		() => ({
-			stage: safeActiveStage ?? SUBMISSION_STAGE_TABS[0].stage,
+			stage: activeStage ?? SUBMISSION_STAGE_TABS[0].stage,
 			agingBucket: agingFilter,
 			search: searchFromUrl.trim() || undefined,
 			vendorId: vendorFilter === "all" ? undefined : vendorFilter,
@@ -147,18 +189,18 @@ export function useSubmissionsPage(
 				hiringManagerFilter === "all" ? undefined : hiringManagerFilter,
 			departmentId: departmentFilter === "all" ? undefined : departmentFilter,
 			locationId: locationFilter === "all" ? undefined : locationFilter,
-			page: currentPage,
+			page,
 			limit: PAGE_SIZE,
 		}),
 		[
-			safeActiveStage,
+			activeStage,
 			agingFilter,
 			searchFromUrl,
 			vendorFilter,
 			hiringManagerFilter,
 			departmentFilter,
 			locationFilter,
-			currentPage,
+			page,
 		],
 	);
 
@@ -168,7 +210,7 @@ export function useSubmissionsPage(
 
 	const agingStatsParams = useMemo(
 		() => ({
-			stage: safeActiveStage ?? SUBMISSION_STAGE_TABS[0].stage,
+			stage: activeStage ?? SUBMISSION_STAGE_TABS[0].stage,
 			search: searchFromUrl.trim() || undefined,
 			vendorId: vendorFilter === "all" ? undefined : vendorFilter,
 			hiringManagerId:
@@ -177,7 +219,7 @@ export function useSubmissionsPage(
 			locationId: locationFilter === "all" ? undefined : locationFilter,
 		}),
 		[
-			safeActiveStage,
+			activeStage,
 			searchFromUrl,
 			vendorFilter,
 			hiringManagerFilter,
@@ -253,27 +295,6 @@ export function useSubmissionsPage(
 		);
 	}, [agingCountsQuery.data]);
 
-	const handleStageChange = useCallback(
-		(stage: SubmissionStageKey) => {
-			if (!allowedStages.includes(stage)) {
-				return;
-			}
-			pushParams({
-				subStage: stage,
-				subAging: null,
-				subPage: null,
-			});
-		},
-		[allowedStages, pushParams],
-	);
-
-	const setPage = useCallback(
-		(page: number, _pageSize: number) => {
-			setCurrentPage(page);
-		},
-		[setCurrentPage],
-	);
-
 	const isLoading = listQuery.isLoading;
 	const isError = listQuery.isError;
 	const listErrorMessage =
@@ -281,56 +302,25 @@ export function useSubmissionsPage(
 			? listQuery.error.message
 			: "Could not load submissions.";
 
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "sub-filter-vendor",
-				label: "Vendor",
-				value: vendorFilter,
-				onValueChange: setVendorFilter,
-				placeholder: "All",
-				options: filterOptions.vendors,
-			},
-			{
-				id: "sub-filter-hm",
-				label: "Hiring manager",
-				value: hiringManagerFilter,
-				onValueChange: setHiringManagerFilter,
-				placeholder: "All Hiring Managers",
-				options: filterOptions.managers,
-			},
-			{
-				id: "sub-filter-dept",
-				label: "Department",
-				value: departmentFilter,
-				onValueChange: setDepartmentFilter,
-				placeholder: "All Departments",
-				options: filterOptions.departments,
-			},
-			{
-				id: "sub-filter-loc",
-				label: "Location",
-				value: locationFilter,
-				onValueChange: setLocationFilter,
-				placeholder: "All Locations",
-				options: filterOptions.locations,
-			},
-		],
-		[
-			departmentFilter,
-			filterOptions,
-			hiringManagerFilter,
-			locationFilter,
-			setDepartmentFilter,
-			setHiringManagerFilter,
-			setLocationFilter,
-			setVendorFilter,
-			vendorFilter,
-		],
-	);
+	const filterConfigs = useMemo(() => {
+		return hookFilterConfigs.map((cfg) => {
+			switch (cfg.id) {
+				case SUBMISSIONS_PARAMS.VENDOR:
+					return { ...cfg, options: filterOptions.vendors };
+				case SUBMISSIONS_PARAMS.HIRING_MANAGER:
+					return { ...cfg, options: filterOptions.managers };
+				case SUBMISSIONS_PARAMS.DEPARTMENT:
+					return { ...cfg, options: filterOptions.departments };
+				case SUBMISSIONS_PARAMS.LOCATION:
+					return { ...cfg, options: filterOptions.locations };
+				default:
+					return cfg;
+			}
+		});
+	}, [hookFilterConfigs, filterOptions]);
 
 	return {
-		activeStage: safeActiveStage,
+		activeStage,
 		handleStageChange,
 		agingFilter,
 		setAgingFilter,
@@ -352,10 +342,10 @@ export function useSubmissionsPage(
 		stageCounts,
 		agingCounts,
 		totalCount,
-		currentPage,
+		currentPage: page,
 		totalPages,
 		pageSize: PAGE_SIZE,
-		setPage,
+		setPage: (p: number) => setPage(p),
 		isLoading,
 		isError,
 		listErrorMessage,

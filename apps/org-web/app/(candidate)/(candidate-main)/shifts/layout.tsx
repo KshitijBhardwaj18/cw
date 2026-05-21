@@ -1,5 +1,10 @@
 import PageContainer from "@repo/ui/general/PageContainer";
+import type { Metadata } from "next";
 import CandidateMainShell from "@/components/candidate-layout/CandidateMainShell";
+
+export const metadata: Metadata = {
+	title: "Shifts",
+};
 
 const ShiftsLayout = ({ children }: { children: React.ReactNode }) => {
 	return (

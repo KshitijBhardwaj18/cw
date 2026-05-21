@@ -29,7 +29,8 @@ import {
 } from "@repo/ui/components/multi-select";
 import { Textarea } from "@repo/ui/components/textarea";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -113,6 +114,11 @@ export function SpecialtyFormDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	useEffect(() => {
 		if (!open) return;
 		form.reset(getSpecialtyDefaultValues(specialty));
@@ -137,7 +143,7 @@ export function SpecialtyFormDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>
 						{isEditMode ? "Edit Specialty" : "Create New Specialty"}
@@ -157,14 +163,17 @@ export function SpecialtyFormDialog({
 					className="space-y-5"
 				>
 					<FieldGroup>
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<form.Field
 								name="acronym"
 								validators={{ onChange: SpecialtyFormSchema.shape.acronym }}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -194,8 +203,11 @@ export function SpecialtyFormDialog({
 								validators={{ onChange: SpecialtyFormSchema.shape.name }}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -228,8 +240,11 @@ export function SpecialtyFormDialog({
 							validators={{ onChange: SpecialtyFormSchema.shape.group }}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -267,8 +282,11 @@ export function SpecialtyFormDialog({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								const options = (occupations ?? [])
 									.filter((o) => o.hasSpecialty)
 									.map((o) => ({
@@ -328,8 +346,11 @@ export function SpecialtyFormDialog({
 							validators={{ onChange: SpecialtyFormSchema.shape.description }}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>

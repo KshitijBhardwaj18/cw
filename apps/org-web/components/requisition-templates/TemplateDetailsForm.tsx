@@ -24,9 +24,11 @@ import {
 } from "@repo/ui/components/select";
 import { Textarea } from "@repo/ui/components/textarea";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { REQUISITION_TEMPLATE_STATUS_OPTIONS } from "@/constants/requisition-templates";
 import { useOrgContext } from "@/contexts/org-context";
 import {
@@ -38,6 +40,7 @@ import {
 	type RequisitionTemplateDetailsFormValues,
 	requisitionTemplateDetailsSchema,
 } from "@/schemas/requisition-template-details.schema";
+import { STEP_VALIDATION_TOAST } from "./CreateRequisitionTemplatePageContent";
 
 const defaultValues: RequisitionTemplateDetailsFormValues = {
 	templateName: "",
@@ -71,10 +74,18 @@ export function TemplateDetailsForm({
 		validators: {
 			onSubmit: requisitionTemplateDetailsSchema,
 		},
+		onSubmitInvalid: () => {
+			toast.error(STEP_VALIDATION_TOAST);
+		},
 		onSubmit: ({ value }) => {
 			onSubmit(value);
 		},
 	});
+
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 
 	const [benefitInput, setBenefitInput] = useState("");
 	const selectedOccupationId = useStore(
@@ -134,8 +145,11 @@ export function TemplateDetailsForm({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -166,8 +180,11 @@ export function TemplateDetailsForm({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -207,8 +224,11 @@ export function TemplateDetailsForm({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -260,8 +280,11 @@ export function TemplateDetailsForm({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -315,8 +338,11 @@ export function TemplateDetailsForm({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -434,12 +460,13 @@ export function TemplateDetailsForm({
 						>
 							Cancel
 						</Button>
-						<Button
-							type="submit"
-							disabled={form.state.isSubmitting || isPending}
-						>
-							{form.state.isSubmitting || isPending ? "Saving..." : "Next →"}
-						</Button>
+						<form.Subscribe selector={(s) => s.isSubmitting}>
+							{(isSubmitting) => (
+								<Button type="submit" disabled={isSubmitting || isPending}>
+									{isSubmitting || isPending ? "Saving..." : "Next →"}
+								</Button>
+							)}
+						</form.Subscribe>
 					</div>
 				</form>
 			</CardContent>

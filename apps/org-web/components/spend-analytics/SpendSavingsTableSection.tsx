@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency } from "@repo/shared";
+import { formatUsdAxisTick, formatUsdLedger } from "@repo/shared";
 import {
 	Card,
 	CardContent,
@@ -16,7 +16,7 @@ import {
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import { BarChart as BarChartIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import type { SavingsByCostCenterRow } from "@/constants/spend-analytics";
 import { SAVINGS_BY_CC_CHART_CONFIG } from "@/constants/spend-analytics";
@@ -41,14 +41,16 @@ function niceBarAxisMax(maxVal: number): {
 export type SpendSavingsTableSectionProps = {
 	rows: SpendAnalyticsRow[];
 	isLoading?: boolean;
+	costCenterFilter: string;
+	setCostCenterFilter: (cc: string) => void;
 };
 
 export function SpendSavingsTableSection({
 	rows,
 	isLoading = false,
+	costCenterFilter,
+	setCostCenterFilter,
 }: SpendSavingsTableSectionProps) {
-	const [costCenterFilter, setCostCenterFilter] = useState("all");
-
 	const allRows = useMemo((): SavingsByCostCenterRow[] => {
 		const byKey = new Map<string, { label: string; amount: number }>();
 		for (const r of rows) {
@@ -204,11 +206,7 @@ export function SpendSavingsTableSection({
 										tickLine={false}
 										axisLine={false}
 										tickMargin={8}
-										tickFormatter={(v) =>
-											v >= 1_000_000
-												? `$${(v / 1_000_000).toFixed(1)}M`
-												: `$${Math.round(v / 1000)}K`
-										}
+										tickFormatter={(v) => formatUsdAxisTick(v)}
 									/>
 									<ChartTooltip
 										cursor={{ fill: "hsl(var(--muted))", opacity: 0.35 }}
@@ -229,7 +227,7 @@ export function SpendSavingsTableSection({
 												}}
 												formatter={(value) => (
 													<span className="font-medium text-primary dark:text-emerald-300">
-														Savings : {formatCurrency(Number(value))}
+														Savings : {formatUsdLedger(Number(value))}
 													</span>
 												)}
 											/>
@@ -271,7 +269,7 @@ export function SpendSavingsTableSection({
 						<div className="bg-muted/30 flex flex-wrap items-center justify-end gap-6 border-t px-4 py-3 text-sm">
 							<span className="text-muted-foreground font-medium">Total:</span>
 							<span className="font-semibold text-emerald-700 tabular-nums dark:text-emerald-300">
-								{formatCurrency(visibleTotal)}
+								{formatUsdLedger(visibleTotal)}
 							</span>
 						</div>
 

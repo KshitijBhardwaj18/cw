@@ -17,10 +17,10 @@ import {
 	flattenReportEntries,
 	groupReportEntries,
 } from "@repo/ui/general/timekeeping/utils";
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { parseAsString, useQueryStates } from "nuqs";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	DATA_SOURCE_OPTIONS,
@@ -238,77 +238,116 @@ const DISPUTE_LIST_PAGE_SIZE = 10;
 const LIST_PAGE_SIZE = 20;
 const REPORT_PAGE_SIZE = 20;
 
+export const TK_PARAMS = {
+	SEARCH: "otkSearch",
+	DATA_SOURCE: "ds",
+	GROUPED_STATUS: "gs",
+	APPROVAL_STATUS: "apst",
+	GROUP_BY: "groupBy",
+	GROUPED_PAGE: "gp",
+	REPORT_PAGE: "rp",
+	DISPUTE_PAGE: "dp",
+	MISSING_PAGE: "mp",
+	APPROVAL_PAGE: "ap",
+} as const;
+
 export function useTimekeeping() {
 	const { id: orgId } = useOrgContext();
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "otkSearch", pageParamKey: null },
-	);
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values: searchWithFiltersValues,
+		onFilterChange,
+	} = useSearchWithFilters({
+		search: { paramKey: TK_PARAMS.SEARCH },
+		filters: [
+			{
+				id: TK_PARAMS.DATA_SOURCE,
+				label: "Data Source",
+				defaultValue: "ALL",
+				type: "select",
+				options: DATA_SOURCE_OPTIONS,
+			},
+		],
+	});
+
+	const [params, setParams] = useQueryStates({
+		[TK_PARAMS.GROUPED_STATUS]: parseAsString.withDefault("PENDING"),
+		[TK_PARAMS.APPROVAL_STATUS]: parseAsString.withDefault("PENDING"),
+		[TK_PARAMS.GROUP_BY]: parseAsString.withDefault("department"),
+	});
+
+	const { page: groupedPage, setPage: setGroupedPage } = usePaginationControls({
+		pageParamKey: TK_PARAMS.GROUPED_PAGE,
+	});
+	const { page: reportPage, setPage: setReportPage } = usePaginationControls({
+		pageParamKey: TK_PARAMS.REPORT_PAGE,
+	});
+	const { page: disputePage, setPage: setDisputePage } = usePaginationControls({
+		pageParamKey: TK_PARAMS.DISPUTE_PAGE,
+	});
+	const { page: missingTimePage, setPage: setMissingTimePage } =
+		usePaginationControls({
+			pageParamKey: TK_PARAMS.MISSING_PAGE,
+		});
+	const { page: currentPage, setPage: setCurrentPage } = usePaginationControls({
+		pageParamKey: TK_PARAMS.APPROVAL_PAGE,
+	});
 
 	const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
-	const dataSourceFilter: DataSourceFilter = useMemo(() => {
-		const d = searchParams.get("ds");
-		if (d === "FILE_UPLOAD" || d === "MOBILE_APP") return d;
-		return "ALL";
-	}, [searchParams]);
-	const groupedStatusFilter: ApprovalStatusFilter = useMemo(() => {
-		const g = searchParams.get("gs");
-		if (
-			g === "ALL" ||
-			g === "PENDING" ||
-			g === "APPROVED" ||
-			g === "DISPUTED" ||
-			g === "REJECTED"
-		) {
-			return g;
-		}
-		return "PENDING";
-	}, [searchParams]);
-	const approvalStatusFilter: ApprovalStatusFilter = useMemo(() => {
-		const a = searchParams.get("apst");
-		if (
-			a === "ALL" ||
-			a === "PENDING" ||
-			a === "APPROVED" ||
-			a === "DISPUTED" ||
-			a === "REJECTED"
-		) {
-			return a;
-		}
-		return "PENDING";
-	}, [searchParams]);
+
+	const dataSourceFilter = searchWithFiltersValues[
+		TK_PARAMS.DATA_SOURCE
+	] as DataSourceFilter;
+	const groupedStatusFilter = params[
+		TK_PARAMS.GROUPED_STATUS
+	] as ApprovalStatusFilter;
+	const approvalStatusFilter = params[
+		TK_PARAMS.APPROVAL_STATUS
+	] as ApprovalStatusFilter;
+	const groupBy = params[TK_PARAMS.GROUP_BY] as TimeReportGroupByOption;
 
 	const setDataSourceFilter = useCallback(
 		(v: DataSourceFilter) => {
-			pushParams({ ds: v === "ALL" ? null : v });
+			onFilterChange({
+				[TK_PARAMS.DATA_SOURCE]: v === "ALL" ? null : v,
+				[TK_PARAMS.GROUPED_PAGE]: null,
+				[TK_PARAMS.REPORT_PAGE]: null,
+				[TK_PARAMS.DISPUTE_PAGE]: null,
+				[TK_PARAMS.MISSING_PAGE]: null,
+				[TK_PARAMS.APPROVAL_PAGE]: null,
+			});
 		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const setGroupedStatusFilter = useCallback(
 		(v: ApprovalStatusFilter) => {
-			if (v === "PENDING") {
-				pushParams({ gs: null });
-			} else {
-				pushParams({ gs: v });
-			}
+			setParams({
+				[TK_PARAMS.GROUPED_STATUS]: v === "PENDING" ? null : v,
+			});
+			setGroupedPage(null);
 		},
-		[pushParams],
+		[setParams, setGroupedPage],
 	);
 
 	const setApprovalStatusFilter = useCallback(
 		(v: ApprovalStatusFilter) => {
-			if (v === "PENDING") {
-				pushParams({ apst: null });
-			} else {
-				pushParams({ apst: v });
-			}
+			setParams({
+				[TK_PARAMS.APPROVAL_STATUS]: v === "PENDING" ? null : v,
+			});
+			setCurrentPage(null);
 		},
-		[pushParams],
+		[setParams, setCurrentPage],
 	);
 
-	const [groupBy, setGroupBy] = useState<TimeReportGroupByOption>("department");
+	const setGroupBy = useCallback(
+		(v: TimeReportGroupByOption) => {
+			setParams({ [TK_PARAMS.GROUP_BY]: v });
+		},
+		[setParams],
+	);
 
 	const [isDisputeDialogOpen, setIsDisputeDialogOpen] = useState(false);
 	const [selectedDisputeLog, setSelectedDisputeLog] = useState<TimeLog | null>(
@@ -332,12 +371,6 @@ export function useTimekeeping() {
 		useState(false);
 	const [selectedRejectDispute, setSelectedRejectDispute] =
 		useState<DisputeLogEntry | null>(null);
-
-	const [currentPage, setCurrentPage] = useState(1);
-	const [groupedPage, setGroupedPage] = useState(1);
-	const [reportPage, setReportPage] = useState(1);
-	const [disputePage, setDisputePage] = useState(1);
-	const [missingTimePage, setMissingTimePage] = useState(1);
 
 	const [isConfigureOpen, setIsConfigureOpen] = useState(false);
 	const [isReminderOpen, setIsReminderOpen] = useState(false);
@@ -476,35 +509,6 @@ export function useTimekeeping() {
 	const entryCountsQuery = useEntryStatusCounts(orgId, entryCountFilters);
 	const disputeCountsQuery = useDisputeStatusCounts(orgId);
 	const missingTimeStatsQuery = useMissingTimeStats(orgId);
-
-	useEffect(() => {
-		setGroupedPage(1);
-		void searchFromUrl;
-		void dataSourceFilter;
-		void groupedStatusFilter;
-	}, [searchFromUrl, dataSourceFilter, groupedStatusFilter]);
-
-	useEffect(() => {
-		setReportPage(1);
-		void searchFromUrl;
-		void dataSourceFilter;
-	}, [searchFromUrl, dataSourceFilter]);
-
-	useEffect(() => {
-		setCurrentPage(1);
-		void searchFromUrl;
-		void approvalStatusFilter;
-	}, [searchFromUrl, approvalStatusFilter]);
-
-	useEffect(() => {
-		setDisputePage(1);
-		void searchFromUrl;
-	}, [searchFromUrl]);
-
-	useEffect(() => {
-		setMissingTimePage(1);
-		void searchFromUrl;
-	}, [searchFromUrl]);
 
 	const { mutate: mutateUpdateStatus } = useUpdateEntryStatus(orgId);
 	const { mutate: mutateCreateDispute } = useCreateDispute(orgId);

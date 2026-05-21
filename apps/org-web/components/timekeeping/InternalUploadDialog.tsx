@@ -102,7 +102,7 @@ export function InternalUploadDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={handleClose}>
-			<DialogContent className="sm:max-w-xl">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Internal Timecard Upload</DialogTitle>
 					<DialogDescription>

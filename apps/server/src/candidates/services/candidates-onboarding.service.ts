@@ -43,6 +43,7 @@ type OnboardingProgressMeResponse = {
 	resumeUrl: string | null;
 	showProfileBanner: boolean;
 	preferredContractLengths: CandidatePreferredContractLength[];
+	inviteStatus: CandidateInviteStatus | null;
 };
 
 @Injectable()
@@ -121,6 +122,7 @@ export class CandidatesOnboardingService {
 			showProfileBanner:
 				isProfileIncomplete && !candidate.profileBannerDismissedAt,
 			preferredContractLengths: candidate.preferredContractLengths ?? [],
+			inviteStatus: candidate.inviteStatus,
 		};
 	}
 

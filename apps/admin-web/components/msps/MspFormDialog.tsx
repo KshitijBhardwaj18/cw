@@ -37,7 +37,10 @@ import {
 import { Separator } from "@repo/ui/components/separator";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import { PhoneInput } from "@repo/ui/general/PhoneInput";
+import { PostalAddressAutosuggestSection } from "@repo/ui/general/PostalAddressAutosuggestSection";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import {
 	Download,
 	ExternalLink,
@@ -51,6 +54,12 @@ import {
 	MSP_ORGANIZATION_TYPE_OPTIONS,
 } from "@/constants/msp";
 import { useMspForm } from "@/hooks/use-msp-form-dialog";
+import {
+	mspFormBillingPostalAutosuggestValidators,
+	mspFormBillingPostalFieldBindings,
+	mspFormHeadquartersPostalAutosuggestValidators,
+	mspFormHeadquartersPostalFieldBindings,
+} from "@/schemas/msp.schema";
 
 type MspFormDialogProps = {
 	open: boolean;
@@ -83,6 +92,11 @@ export function MspFormDialog({
 		handleMsaReplace,
 		addMspSchemaBase,
 	} = useMspForm({ open, onOpenChange, initialMsp });
+
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
@@ -130,8 +144,11 @@ export function MspFormDialog({
 									}}
 								>
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel htmlFor={field.name}>
@@ -194,8 +211,11 @@ export function MspFormDialog({
 									}}
 								>
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel htmlFor={field.name}>
@@ -235,8 +255,11 @@ export function MspFormDialog({
 									}}
 								>
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel htmlFor={field.name}>
@@ -273,165 +296,16 @@ export function MspFormDialog({
 
 						<Separator />
 
-						{/* Headquarters and Billing Addresses */}
 						<div className="space-y-4">
 							<h3 className="text-base font-semibold">
 								Headquarters and Billing Addresses
 							</h3>
 							<FieldGroup>
-								<div className="grid gap-4 sm:grid-cols-2">
-									<form.Field
-										name="headquartersStreet"
-										validators={{
-											onChange: addMspSchemaBase.shape.headquartersStreet,
-										}}
-									>
-										{(field) => {
-											const isInvalid =
-												field.state.meta.isTouched && !field.state.meta.isValid;
-											return (
-												<Field
-													data-invalid={isInvalid}
-													className="sm:col-span-2"
-												>
-													<FieldLabel htmlFor={field.name}>
-														Street <RequiredStar />
-													</FieldLabel>
-													<Input
-														id={field.name}
-														placeholder="Street address"
-														value={field.state.value}
-														onBlur={field.handleBlur}
-														onChange={(e) => field.handleChange(e.target.value)}
-														aria-invalid={isInvalid}
-													/>
-													{isInvalid && (
-														<FieldError errors={field.state.meta.errors} />
-													)}
-												</Field>
-											);
-										}}
-									</form.Field>
-									<form.Field
-										name="headquartersCity"
-										validators={{
-											onChange: addMspSchemaBase.shape.headquartersCity,
-										}}
-									>
-										{(field) => {
-											const isInvalid =
-												field.state.meta.isTouched && !field.state.meta.isValid;
-											return (
-												<Field data-invalid={isInvalid}>
-													<FieldLabel htmlFor={field.name}>
-														City <RequiredStar />
-													</FieldLabel>
-													<Input
-														id={field.name}
-														placeholder="City"
-														value={field.state.value}
-														onBlur={field.handleBlur}
-														onChange={(e) => field.handleChange(e.target.value)}
-														aria-invalid={isInvalid}
-													/>
-													{isInvalid && (
-														<FieldError errors={field.state.meta.errors} />
-													)}
-												</Field>
-											);
-										}}
-									</form.Field>
-									<form.Field
-										name="headquartersState"
-										validators={{
-											onChange: addMspSchemaBase.shape.headquartersState,
-										}}
-									>
-										{(field) => {
-											const isInvalid =
-												field.state.meta.isTouched && !field.state.meta.isValid;
-											return (
-												<Field data-invalid={isInvalid}>
-													<FieldLabel htmlFor={field.name}>
-														State <RequiredStar />
-													</FieldLabel>
-													<Input
-														id={field.name}
-														placeholder="State"
-														value={field.state.value}
-														onBlur={field.handleBlur}
-														onChange={(e) => field.handleChange(e.target.value)}
-														aria-invalid={isInvalid}
-													/>
-													{isInvalid && (
-														<FieldError errors={field.state.meta.errors} />
-													)}
-												</Field>
-											);
-										}}
-									</form.Field>
-									<form.Field
-										name="headquartersZipCode"
-										validators={{
-											onChange: addMspSchemaBase.shape.headquartersZipCode,
-										}}
-									>
-										{(field) => {
-											const isInvalid =
-												field.state.meta.isTouched && !field.state.meta.isValid;
-											return (
-												<Field data-invalid={isInvalid}>
-													<FieldLabel htmlFor={field.name}>
-														Zip / Postal Code <RequiredStar />
-													</FieldLabel>
-													<Input
-														id={field.name}
-														placeholder="Zip or postal code"
-														value={field.state.value}
-														onBlur={field.handleBlur}
-														onChange={(e) => field.handleChange(e.target.value)}
-														aria-invalid={isInvalid}
-													/>
-													{isInvalid && (
-														<FieldError errors={field.state.meta.errors} />
-													)}
-												</Field>
-											);
-										}}
-									</form.Field>
-									<form.Field
-										name="headquartersCountry"
-										validators={{
-											onChange: addMspSchemaBase.shape.headquartersCountry,
-										}}
-									>
-										{(field) => {
-											const isInvalid =
-												field.state.meta.isTouched && !field.state.meta.isValid;
-											return (
-												<Field
-													data-invalid={isInvalid}
-													className="sm:col-span-2"
-												>
-													<FieldLabel htmlFor={field.name}>
-														Country <RequiredStar />
-													</FieldLabel>
-													<Input
-														id={field.name}
-														placeholder="Country"
-														value={field.state.value}
-														onBlur={field.handleBlur}
-														onChange={(e) => field.handleChange(e.target.value)}
-														aria-invalid={isInvalid}
-													/>
-													{isInvalid && (
-														<FieldError errors={field.state.meta.errors} />
-													)}
-												</Field>
-											);
-										}}
-									</form.Field>
-								</div>
+								<PostalAddressAutosuggestSection
+									form={form}
+									fields={mspFormHeadquartersPostalFieldBindings}
+									validators={mspFormHeadquartersPostalAutosuggestValidators}
+								/>
 
 								<form.Field name="billingSameAsHeadquarters">
 									{(field) => (
@@ -460,118 +334,11 @@ export function MspFormDialog({
 										!billingSame && (
 											<div className="space-y-4 rounded-lg border p-4">
 												<h4 className="text-sm font-medium">Billing Address</h4>
-												<div className="grid gap-4 sm:grid-cols-2">
-													<form.Field
-														name="billingStreet"
-														validators={{
-															onChange: addMspSchemaBase.shape.billingStreet,
-														}}
-													>
-														{(field) => {
-															const isInvalid =
-																field.state.meta.isTouched &&
-																!field.state.meta.isValid;
-															return (
-																<Field
-																	data-invalid={isInvalid}
-																	className="sm:col-span-2"
-																>
-																	<FieldLabel>
-																		Street <RequiredStar />
-																	</FieldLabel>
-																	<Input
-																		placeholder="Street address"
-																		value={field.state.value}
-																		onBlur={field.handleBlur}
-																		onChange={(e) =>
-																			field.handleChange(e.target.value)
-																		}
-																		aria-invalid={isInvalid}
-																	/>
-																	{isInvalid && (
-																		<FieldError
-																			errors={field.state.meta.errors}
-																		/>
-																	)}
-																</Field>
-															);
-														}}
-													</form.Field>
-													<form.Field name="billingCity">
-														{(field) => (
-															<Field>
-																<FieldLabel>
-																	City <RequiredStar />
-																</FieldLabel>
-																<Input
-																	placeholder="City"
-																	value={field.state.value}
-																	onChange={(e) =>
-																		field.handleChange(e.target.value)
-																	}
-																/>
-															</Field>
-														)}
-													</form.Field>
-													<form.Field name="billingState">
-														{(field) => (
-															<Field>
-																<FieldLabel>
-																	State <RequiredStar />
-																</FieldLabel>
-																<Input
-																	placeholder="State"
-																	value={field.state.value}
-																	onChange={(e) =>
-																		field.handleChange(e.target.value)
-																	}
-																/>
-															</Field>
-														)}
-													</form.Field>
-													<form.Field name="billingZipCode">
-														{(field) => {
-															const isInvalid =
-																field.state.meta.isTouched &&
-																!field.state.meta.isValid;
-															return (
-																<Field>
-																	<FieldLabel>
-																		Zip / Postal Code <RequiredStar />
-																	</FieldLabel>
-																	<Input
-																		placeholder="Zip or postal code"
-																		value={field.state.value}
-																		onChange={(e) =>
-																			field.handleChange(e.target.value)
-																		}
-																	/>
-																	{isInvalid && (
-																		<FieldError
-																			errors={field.state.meta.errors}
-																		/>
-																	)}
-																</Field>
-															);
-														}}
-													</form.Field>
-													<form.Field name="billingCountry">
-														{(field) => (
-															<Field className="sm:col-span-2">
-																<FieldLabel>
-																	Country <RequiredStar />
-																</FieldLabel>
-																<Input
-																	placeholder="Country"
-																	value={field.state.value}
-																	onChange={(e) =>
-																		field.handleChange(e.target.value)
-																	}
-																/>
-															</Field>
-														)}
-													</form.Field>
-												</div>
+												<PostalAddressAutosuggestSection
+													form={form}
+													fields={mspFormBillingPostalFieldBindings}
+													validators={mspFormBillingPostalAutosuggestValidators}
+												/>
 											</div>
 										)
 									}
@@ -594,8 +361,11 @@ export function MspFormDialog({
 									}}
 								>
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel htmlFor={field.name}>
@@ -624,8 +394,11 @@ export function MspFormDialog({
 									}}
 								>
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel htmlFor={field.name}>
@@ -711,7 +484,7 @@ export function MspFormDialog({
 												<Card>
 													<CardContent className="pt-6">
 														<div className="space-y-4">
-															<div className="grid gap-4 sm:grid-cols-3">
+															<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 																<div>
 																	<p className="text-muted-foreground text-xs">
 																		MSA Document
@@ -811,7 +584,7 @@ export function MspFormDialog({
 						</div>
 
 						<FormDialogFooter
-							form={form}
+							form={form as never}
 							submitLabel={isEdit ? "Save Changes" : "Create MSP"}
 							submitLoadingLabel={isEdit ? "Saving..." : "Creating..."}
 							onCancel={() => handleOpenChange(false)}

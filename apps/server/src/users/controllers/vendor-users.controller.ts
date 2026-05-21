@@ -31,7 +31,7 @@ export class VendorUsersController {
 	@Get("me")
 	@ApiOperation({
 		summary:
-			"Vendor context for the signed-in user (vendorId, organizationId, role)",
+			"Vendor context for the signed-in user (vendorId, vendor and org display names, organizationId, role)",
 	})
 	@ApiResponse({ status: 200, description: "Vendor context" })
 	@Permissions({ action: Action.Read, subject: "User" })

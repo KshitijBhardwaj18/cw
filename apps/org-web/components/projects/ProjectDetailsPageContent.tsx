@@ -39,8 +39,8 @@ export function ProjectDetailsPageContent({
 		requisitionsTotalPages,
 		addRequisitionsOpen,
 		setAddRequisitionsOpen,
-		search,
-		setSearch,
+		localSearch,
+		handleSearchChange,
 		removeDialogOpen,
 		setRemoveDialogOpen,
 		requisitionToRemove,
@@ -159,8 +159,8 @@ export function ProjectDetailsPageContent({
 
 				<SearchWithFilters
 					searchPlaceholder="Search requisitions..."
-					searchValue={search}
-					onSearchChange={setSearch}
+					searchValue={localSearch}
+					onSearchChange={handleSearchChange}
 					filtersExpanded={filtersExpanded}
 					onFiltersExpandedChange={setFiltersExpanded}
 					filterConfigs={filterConfigs}

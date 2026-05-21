@@ -1,5 +1,6 @@
 "use client";
 
+import { formatUsdPerHour, formatUsdWhole } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -89,9 +90,9 @@ export function CandidateJobDetailPageContent({
 
 	const incentiveLabel =
 		job.incentiveType && job.incentiveAmount != null
-			? `${job.incentiveType}: $${job.incentiveAmount.toLocaleString()}`
+			? `${job.incentiveType}: ${formatUsdWhole(job.incentiveAmount)}`
 			: job.billRate != null
-				? `$${job.billRate}/hr`
+				? formatUsdPerHour(job.billRate)
 				: null;
 
 	const schedulePayRows = [
@@ -145,8 +146,8 @@ export function CandidateJobDetailPageContent({
 
 			<Card className="overflow-hidden">
 				<CardHeader className="border-b pb-6">
-					<div className="flex flex-wrap items-start justify-between gap-4">
-						<CardTitle className="text-2xl font-semibold leading-tight">
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<CardTitle className="min-w-0 text-xl font-semibold leading-tight sm:text-2xl">
 							{job.jobTitle}
 						</CardTitle>
 						<Badge
@@ -183,7 +184,7 @@ export function CandidateJobDetailPageContent({
 						)}
 					</div>
 
-					<div className="grid gap-4 rounded-lg bg-muted/60 p-4 md:grid-cols-3">
+					<div className="grid grid-cols-1 gap-4 rounded-lg bg-muted/60 p-4 md:grid-cols-3">
 						{job.unitName && <DetailItem label="Unit" value={job.unitName} />}
 						{job.specialty && (
 							<DetailItem label="Specialty" value={job.specialty} />
@@ -260,11 +261,13 @@ export function CandidateJobDetailPageContent({
 							{job.matchBreakdown.map((item) => (
 								<li
 									key={item.criterionName}
-									className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
+									className="flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4"
 								>
-									<span className="font-medium">{item.criterionName}</span>
-									<div className="flex items-center gap-3">
-										<span className="text-muted-foreground">
+									<span className="min-w-0 font-medium">
+										{item.criterionName}
+									</span>
+									<div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:justify-end">
+										<span className="text-muted-foreground text-xs sm:text-sm">
 											{item.weight}% weight
 										</span>
 										{item.matched ? (
@@ -381,9 +384,9 @@ export function CandidateJobDetailPageContent({
 							{job.acceptanceCriteria.map((doc) => (
 								<li
 									key={doc.id}
-									className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
+									className="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
 								>
-									<span className="font-medium">{doc.name}</span>
+									<span className="min-w-0 font-medium">{doc.name}</span>
 								</li>
 							))}
 						</ul>

@@ -325,3 +325,5 @@ export function useMspForm({
 		addMspSchemaBase,
 	};
 }
+
+export type MspFormInstance = ReturnType<typeof useMspForm>["form"];

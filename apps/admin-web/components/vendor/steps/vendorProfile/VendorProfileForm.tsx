@@ -8,8 +8,8 @@ import type {
 	useUpdateVendorMutation,
 } from "@/queries/vendor.queries";
 import type { VendorDetail } from "@/types/vendor";
-import { VendorProfileLeftFields } from "./VendorProfileLeftFields";
-import { VendorProfileRightFields } from "./VendorProfileRightFields";
+import { VendorProfileBusinessSection } from "./VendorProfileBusinessSection";
+import { VendorProfileIdentitySection } from "./VendorProfileIdentitySection";
 
 interface VendorProfileFormProps {
 	vendor: VendorDetail | null;
@@ -53,15 +53,15 @@ export function VendorProfileForm({
 						form.handleSubmit();
 					}}
 				>
-					<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-						<VendorProfileLeftFields
+					<div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+						<VendorProfileIdentitySection
 							form={form}
 							logoFile={logoFile}
 							logoPreview={logoPreview}
 							setLogoFile={setLogoFile}
 							setLogoPreview={setLogoPreview}
 						/>
-						<VendorProfileRightFields form={form} />
+						<VendorProfileBusinessSection form={form} />
 					</div>
 
 					<div className="mt-8 flex items-center justify-between border-t pt-6">

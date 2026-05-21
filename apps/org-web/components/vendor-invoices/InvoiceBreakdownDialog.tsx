@@ -32,7 +32,7 @@ export function InvoiceBreakdownDialog({
 	if (breakdownQuery.isLoading) {
 		return (
 			<Dialog open={open} onOpenChange={onOpenChange}>
-				<DialogContent className="sm:max-w-lg">
+				<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Invoice Calculation Breakdown</DialogTitle>
 					</DialogHeader>
@@ -44,7 +44,7 @@ export function InvoiceBreakdownDialog({
 	if (breakdownQuery.isError) {
 		return (
 			<Dialog open={open} onOpenChange={onOpenChange}>
-				<DialogContent className="sm:max-w-lg">
+				<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Invoice Calculation Breakdown</DialogTitle>
 					</DialogHeader>
@@ -73,8 +73,8 @@ export function InvoiceBreakdownDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="gap-0 p-0 sm:max-w-lg">
-				<DialogHeader className="border-border space-y-0 border-b px-6 py-4">
+			<DialogContent className="flex max-h-[90dvh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+				<DialogHeader className="border-border shrink-0 space-y-0 border-b px-6 py-4">
 					<div className="flex items-center gap-2">
 						<Calculator className="text-muted-foreground size-5 shrink-0" />
 						<DialogTitle className="text-left">
@@ -83,7 +83,7 @@ export function InvoiceBreakdownDialog({
 					</div>
 				</DialogHeader>
 
-				<div className="space-y-6 px-6 py-5">
+				<div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
 					<div className="bg-muted/80 grid grid-cols-1 gap-3 rounded-lg p-4 sm:grid-cols-2">
 						<BreakdownMeta label="Invoice ID" value={b.invoiceId} />
 						<BreakdownMeta label="Organization" value={b.organization} />
@@ -164,7 +164,7 @@ export function InvoiceBreakdownDialog({
 					</div>
 				</div>
 
-				<DialogFooter className="border-border border-t px-6 py-4">
+				<DialogFooter className="border-border shrink-0 border-t px-6 py-4">
 					<Button
 						type="button"
 						className="bg-cyan-600 text-white hover:bg-cyan-700 dark:bg-cyan-600 dark:hover:bg-cyan-500"

@@ -35,7 +35,7 @@ export function PlacementDetailComplianceTab({
 	if (isPending) {
 		return (
 			<div className="space-y-6">
-				<div className="grid gap-4 sm:grid-cols-3">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 					<Skeleton className="h-24 rounded-lg" />
 					<Skeleton className="h-24 rounded-lg" />
 					<Skeleton className="h-24 rounded-lg" />
@@ -80,7 +80,7 @@ export function PlacementDetailComplianceTab({
 				</p>
 			</div>
 
-			<div className="grid gap-4 sm:grid-cols-3">
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 				<ComplianceStatusCard variant="complete" count={complete} />
 				<ComplianceStatusCard variant="missing" count={missing} />
 				<ComplianceStatusCard variant="expired" count={expired} />

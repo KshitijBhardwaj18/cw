@@ -1,5 +1,6 @@
 "use client";
 
+import { MemberRole } from "@repo/shared";
 import { useForm, useStore } from "@tanstack/react-form";
 import { type FormEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -49,7 +50,9 @@ export function useJobPostingDetailsStepForm({
 	const occupationsQuery = useShiftTemplateOccupations();
 	const locationsQuery = useShiftTemplateLocations();
 	const departmentsQuery = useShiftTemplateDepartments();
-	const membersQuery = useOrgMembersForPicker(orgId);
+	const membersQuery = useOrgMembersForPicker(orgId, {
+		role: MemberRole.HIRING_MANAGER,
+	});
 	const checklistsQuery = useComplianceChecklists(orgId, {
 		page: 1,
 		limit: 100,

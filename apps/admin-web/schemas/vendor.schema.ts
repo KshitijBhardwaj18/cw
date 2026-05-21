@@ -1,47 +1,73 @@
 import {
-	CertifiedBusinessClassification,
 	DocumentType,
 	NoteType,
-	OrganizationIndustry,
 	optionalPhoneSchema,
 	zipCodeSchema,
 } from "@repo/shared";
 import { z } from "zod";
 
-export const vendorProfileSchema = z.object({
-	logoUrl: z.string().optional().default(""),
-	name: z.string().min(1, "Vendor name is required"),
-	industries: z
-		.array(z.nativeEnum(OrganizationIndustry))
-		.min(1, "Select at least one industry"),
-	certifiedBusinessClassifications: z
-		.array(z.nativeEnum(CertifiedBusinessClassification))
-		.optional()
-		.default([]),
-	about: z
-		.string()
-		.max(1000, "About must be 1000 characters or less")
-		.optional()
-		.default(""),
-	isActive: z.boolean().default(true),
-	taxId: z.string().optional().default(""),
-	phoneNumber: optionalPhoneSchema.default(""),
-	website: z.string().optional().default(""),
-	address: z
-		.object({
-			street: z.string().min(1, "Street is required"),
-			city: z.string().min(1, "City is required"),
-			state: z.string().min(1, "State is required"),
-			zipCode: zipCodeSchema.min(1, "Zip code is required"),
-			country: z.string().min(1, "Country is required"),
-		})
-		.nullable()
-		.optional()
-		.default(null),
-	annualRevenue: z.number().nullable().optional().default(null),
-	employeeCount: z.number().int().nullable().optional().default(null),
-	createdDate: z.date().default(() => new Date()),
+export const vendorAddressSchema = z.object({
+	street: z.string().trim().min(1, "Street address is required"),
+	city: z.string().trim().min(1, "City is required"),
+	state: z.string().trim().min(1, "State is required"),
+	zipCode: zipCodeSchema.min(1, "ZIP code is required"),
+	country: z.string().trim().optional().default(""),
 });
+
+export const vendorAddressPostalValidators = {
+	street: vendorAddressSchema.shape.street,
+	city: vendorAddressSchema.shape.city,
+	state: vendorAddressSchema.shape.state,
+	zipCode: vendorAddressSchema.shape.zipCode,
+} as const;
+
+export const vendorProfileSchema = z
+	.object({
+		logoUrl: z.string(),
+		name: z.string().min(1, "Vendor name is required"),
+		industries: z.array(z.string()).min(1, "Select at least one industry"),
+		certifiedBusinessClassifications: z.array(z.string()),
+		about: z.string().max(1000, "About must be 1000 characters or less"),
+		isActive: z.boolean(),
+		internalId: z.string(),
+		createdDate: z.string(),
+		taxId: z.string(),
+		phoneNumber: z.string(),
+		website: z.string(),
+		addressStreet: z.string().trim(),
+		addressCity: z.string().trim(),
+		addressState: z.string().trim(),
+		addressZipCode: z.string().trim(),
+		addressCountry: z.string().trim(),
+		annualRevenue: z.number().nullable(),
+		employeeCount: z.number().int().nullable(),
+	})
+	.superRefine((val, ctx) => {
+		const street = val.addressStreet?.trim() ?? "";
+		const city = val.addressCity?.trim() ?? "";
+		const state = val.addressState?.trim() ?? "";
+		const zipCode = val.addressZipCode?.trim() ?? "";
+
+		const anyFilled = Boolean(street || city || state || zipCode);
+		if (!anyFilled) return;
+
+		const requiredFields = [
+			{ path: "addressStreet", label: "Street address", value: street },
+			{ path: "addressCity", label: "City", value: city },
+			{ path: "addressState", label: "State", value: state },
+			{ path: "addressZipCode", label: "ZIP code", value: zipCode },
+		] as const;
+
+		for (const f of requiredFields) {
+			if (!f.value) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `${f.label} is required when providing an address`,
+					path: [f.path],
+				});
+			}
+		}
+	});
 
 export type VendorProfileFormValues = z.infer<typeof vendorProfileSchema>;
 

@@ -1,16 +1,31 @@
+import {
+	formatStaffLogicDocumentTitle,
+	ORGANIZATION_PORTAL_DISPLAY_NAME,
+	STAFF_LOGIC_BRAND_NAME,
+} from "@repo/shared";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "@repo/ui/globals.css";
 import { dmSans } from "@repo/ui/lib/fonts";
+import { envConfig } from "@/config";
 import { OrgContextProvider } from "@/contexts/org-context";
 import type { OrgContext } from "@/types/org-context";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-	title: "Organization Portal | Staff Logic",
-	description: "Organization portal for Staff Logic",
+	metadataBase: new URL(envConfig.landingUrl),
+	title: formatStaffLogicDocumentTitle(
+		"Welcome",
+		ORGANIZATION_PORTAL_DISPLAY_NAME,
+	),
+	description: `Workforce and organization portal for ${STAFF_LOGIC_BRAND_NAME}`,
+	applicationName: STAFF_LOGIC_BRAND_NAME,
 	icons: {
 		icon: "/images/favicon.ico",
+	},
+	openGraph: {
+		siteName: STAFF_LOGIC_BRAND_NAME,
+		type: "website",
 	},
 };
 

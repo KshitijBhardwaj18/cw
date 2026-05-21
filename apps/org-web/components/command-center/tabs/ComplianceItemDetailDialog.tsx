@@ -80,7 +80,7 @@ export function ComplianceItemDetailDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Requisition Detail</DialogTitle>
 					<DialogDescription>
@@ -108,7 +108,7 @@ export function ComplianceItemDetailDialog({
 										<Badge variant="warning">{statusLabel}</Badge>
 									</div>
 								</CardAction>
-								<CardTitle className="mt-2 text-xl">
+								<CardTitle className="mt-2 wrap-break-word text-xl">
 									{item.checklistItem}
 								</CardTitle>
 								<p className="text-muted-foreground text-sm font-medium">

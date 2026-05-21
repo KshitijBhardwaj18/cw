@@ -34,16 +34,16 @@ export function ProfileCard({
 
 	return (
 		<Card className="w-full">
-			<CardHeader className="flex items-center justify-between">
-				<span className="flex flex-col gap-1">
+			<CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+				<span className="flex min-w-0 flex-col gap-1">
 					<CardTitle className="text-xl">Personal Information</CardTitle>
 					<CardDescription>
 						Manage your personal information here
 					</CardDescription>
 				</span>
-				{editProfileSlot}
+				<div className="w-full shrink-0 sm:w-auto">{editProfileSlot}</div>
 			</CardHeader>
-			<CardContent className="grid grid-cols-2 gap-4">
+			<CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<DetailItem icon={UserIcon} label="Full Name" value={user.name} />
 				<DetailItem
 					icon={Mail}

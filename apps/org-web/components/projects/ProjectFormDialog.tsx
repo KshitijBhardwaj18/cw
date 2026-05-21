@@ -12,7 +12,8 @@ import { RadioGroup, RadioGroupItem } from "@repo/ui/components/radio-group";
 import { Textarea } from "@repo/ui/components/textarea";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 import { toast } from "sonner";
 import { type ProjectFormValues, projectFormSchema } from "@/schemas";
 
@@ -54,6 +55,11 @@ export function ProjectFormDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	const handleOpenChange = (next: boolean) => {
 		if (!next) {
 			form.reset();
@@ -63,8 +69,8 @@ export function ProjectFormDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-xl p-0 overflow-hidden">
-				<DialogHeader className="px-5 py-4 border-b">
+			<DialogContent className="flex max-h-[90dvh] min-h-0 flex-col overflow-hidden p-0 sm:max-w-xl">
+				<DialogHeader className="shrink-0 px-5 py-4 border-b">
 					<DialogTitle className="text-xl font-bold">{title}</DialogTitle>
 				</DialogHeader>
 				<form
@@ -73,14 +79,16 @@ export function ProjectFormDialog({
 						event.stopPropagation();
 						void form.handleSubmit();
 					}}
-					className="px-5 pb-5 space-y-5"
+					className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-5"
 				>
 					<form.Field name="name">
 						{(field) => (
 							<Field
-								data-invalid={
-									field.state.meta.isTouched && !field.state.meta.isValid
-								}
+								data-invalid={formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								)}
 							>
 								<FieldLabel htmlFor={field.name}>
 									Project Name <RequiredStar />
@@ -100,9 +108,11 @@ export function ProjectFormDialog({
 					<form.Field name="description">
 						{(field) => (
 							<Field
-								data-invalid={
-									field.state.meta.isTouched && !field.state.meta.isValid
-								}
+								data-invalid={formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								)}
 							>
 								<FieldLabel htmlFor={field.name}>Description</FieldLabel>
 								<Textarea

@@ -62,6 +62,105 @@ const DETAIL_SELECT = {
 	scheduledPublishAt: true,
 	publishedAt: true,
 	status: true,
+	location: { select: { name: true } },
+	department: { select: { name: true } },
+	organizationOccupation: {
+		select: { occupation: { select: { name: true } } },
+	},
+	organizationSpecialty: {
+		select: { specialty: { select: { name: true } } },
+	},
+	hiringManager: { select: { name: true } },
+	template: { select: { templateName: true } },
+	requisitionVendors: { select: { vendorId: true } },
+	acceptanceCriteria: {
+		select: {
+			complianceListItemId: true,
+			complianceListItem: { select: { name: true } },
+		},
+	},
+	complianceChecklist: {
+		select: {
+			items: {
+				select: {
+					complianceListItemId: true,
+					complianceListItem: { select: { name: true } },
+				},
+				orderBy: { createdAt: "asc" },
+			},
+		},
+	},
+} as const;
+
+function resolveFromCriteriaOrChecklist<T>(
+	junction: T[],
+	checklist: { items: T[] } | null,
+	extract: (item: T) => string | null | undefined,
+): string[] {
+	const source = junction.length > 0 ? junction : (checklist?.items ?? []);
+	return source.map(extract).filter((v): v is string => Boolean(v));
+}
+
+function resolveAcceptanceCriteriaIdsFromDetailRow(row: {
+	acceptanceCriteria: { complianceListItemId: string }[];
+	complianceChecklist: { items: { complianceListItemId: string }[] } | null;
+}): string[] {
+	return resolveFromCriteriaOrChecklist(
+		row.acceptanceCriteria,
+		row.complianceChecklist,
+		(c) => c.complianceListItemId,
+	);
+}
+
+function resolveRequirementNamesFromDetailRow(row: {
+	acceptanceCriteria: { complianceListItem: { name: string } | null }[];
+	complianceChecklist: {
+		items: { complianceListItem: { name: string } | null }[];
+	} | null;
+}): string[] {
+	return resolveFromCriteriaOrChecklist(
+		row.acceptanceCriteria,
+		row.complianceChecklist,
+		(c) => c.complianceListItem?.name,
+	);
+}
+
+const UPDATE_DEFAULTS_SELECT = {
+	id: true,
+	type: true,
+	templateId: true,
+	jobTitle: true,
+	organizationOccupationId: true,
+	organizationSpecialtyId: true,
+	locationId: true,
+	departmentId: true,
+	unitName: true,
+	hiringManagerId: true,
+	numberOfPositions: true,
+	jobSummary: true,
+	billRate: true,
+	shiftType: true,
+	startDate: true,
+	endDate: true,
+	lengthWeeks: true,
+	startTime: true,
+	endTime: true,
+	shiftHours: true,
+	shiftsPerWeek: true,
+	hoursPerWeek: true,
+	benefitsPerks: true,
+	incentiveType: true,
+	incentiveAmount: true,
+	interviewRequired: true,
+	complianceChecklistId: true,
+	workflowType: true,
+	whoCanSubmit: true,
+	internalNotes: true,
+	vendorNotes: true,
+	publishMode: true,
+	scheduledPublishAt: true,
+	publishedAt: true,
+	status: true,
 	requisitionVendors: { select: { vendorId: true } },
 	acceptanceCriteria: { select: { complianceListItemId: true } },
 	complianceChecklist: {
@@ -73,21 +172,6 @@ const DETAIL_SELECT = {
 		},
 	},
 } as const;
-
-function resolveAcceptanceCriteriaIdsFromDetailRow(row: {
-	acceptanceCriteria: { complianceListItemId: string }[];
-	complianceChecklist: {
-		items: { complianceListItemId: string }[];
-	} | null;
-}): string[] {
-	const fromJunction = row.acceptanceCriteria.map(
-		(c) => c.complianceListItemId,
-	);
-	if (fromJunction.length > 0) return fromJunction;
-	return (
-		row.complianceChecklist?.items.map((i) => i.complianceListItemId) ?? []
-	);
-}
 
 const LIST_CARD_INCLUDE = {
 	location: {
@@ -771,7 +855,15 @@ export class RequisitionsService {
 		return {
 			id: row.id,
 			type: row.type,
+			status: row.status,
 			templateId: row.templateId ?? "",
+			templateName: row.template?.templateName ?? null,
+			locationName: row.location?.name ?? null,
+			departmentName: row.department?.name ?? null,
+			occupationName: row.organizationOccupation?.occupation.name ?? null,
+			specialtyName: row.organizationSpecialty?.specialty.name ?? null,
+			hiringManagerName: row.hiringManager?.name ?? null,
+			requirementNames: resolveRequirementNamesFromDetailRow(row),
 			jobDetails: {
 				requisitionName: row.jobTitle ?? "",
 				location: row.locationId ?? "",
@@ -816,6 +908,7 @@ export class RequisitionsService {
 				publishMode: mapDbPublishModeToFe(row.publishMode),
 				scheduledPublishDate,
 				scheduledPublishTime,
+				publishedAt: row.publishedAt?.toISOString().slice(0, 10) ?? null,
 			},
 		};
 	}
@@ -937,7 +1030,7 @@ export class RequisitionsService {
 	) {
 		const row = await this.prisma.requisition.findFirst({
 			where: { id, organizationId: orgId },
-			select: DETAIL_SELECT,
+			select: UPDATE_DEFAULTS_SELECT,
 		});
 		if (!row) throw new NotFoundException("Requisition not found");
 

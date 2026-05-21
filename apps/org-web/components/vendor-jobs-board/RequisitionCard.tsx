@@ -53,15 +53,20 @@ export function RequisitionCard({
 
 	return (
 		<Collapsible open={isOpen} onOpenChange={setIsOpen}>
-			<Card>
+			<Card className="overflow-hidden">
 				<CardHeader>
-					<CardTitle className="flex items-center gap-3 text-lg">
-						{requisition.title}
-						<Badge variant="secondary">{requisition.id}</Badge>
+					<CardTitle className="flex min-w-0 flex-col gap-2 text-lg sm:flex-row sm:items-center sm:gap-3">
+						<span className="min-w-0 wrap-break-word font-semibold leading-snug">
+							{requisition.title}
+						</span>
+						<Badge variant="secondary" className="w-fit shrink-0">
+							{requisition.id}
+						</Badge>
 					</CardTitle>
-					<CardAction className="flex gap-2">
+					<CardAction className="flex flex-col gap-2 sm:flex-row">
 						<Button
 							variant="outline"
+							className="w-full min-w-0 sm:w-auto"
 							onClick={(e) => {
 								e.stopPropagation();
 								onViewDetails();
@@ -72,6 +77,7 @@ export function RequisitionCard({
 						</Button>
 						{showSubmitCandidate ? (
 							<Button
+								className="w-full min-w-0 sm:w-auto"
 								onClick={(e) => {
 									e.stopPropagation();
 									onSubmitCandidate();
@@ -83,25 +89,31 @@ export function RequisitionCard({
 						) : null}
 					</CardAction>
 				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-						<div className="flex items-center gap-2">
-							<Building2 className="size-4" />
-							{requisition.hospital}
+				<CardContent className="min-w-0 space-y-4">
+					<div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+						<div className="flex min-w-0 max-w-full items-center gap-2">
+							<Building2 className="size-4 shrink-0" />
+							<span className="min-w-0 wrap-break-word">
+								{requisition.hospital}
+							</span>
 						</div>
-						<div className="flex items-center gap-2">
-							<MapPin className="size-4" />
-							{requisition.location}
+						<div className="flex min-w-0 max-w-full items-center gap-2">
+							<MapPin className="size-4 shrink-0" />
+							<span className="min-w-0 wrap-break-word">
+								{requisition.location}
+							</span>
 						</div>
-						<div className="flex items-center gap-2">
-							<Clock className="size-4" />
-							{requisition.shift}
+						<div className="flex min-w-0 max-w-full items-center gap-2">
+							<Clock className="size-4 shrink-0" />
+							<span className="min-w-0 wrap-break-word">
+								{requisition.shift}
+							</span>
 						</div>
 					</div>
 
 					<Separator />
 
-					<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
 						<DetailItem label="Department" value={requisition.department} />
 						<DetailItem label="Vendor Rate" value={requisition.vendorRate} />
 						<DetailItem label="Duration" value={requisition.duration} />

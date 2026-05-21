@@ -9,6 +9,11 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/ui/components/card";
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+} from "@repo/ui/components/empty";
 import { Progress } from "@repo/ui/components/progress";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import {
@@ -140,8 +145,8 @@ export function CredentialEntryDetailsPageContent({
 
 			<Card>
 				<CardContent className="space-y-6 p-6">
-					<div className="flex items-start justify-between gap-4">
-						<div className="flex items-center gap-4">
+					<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+						<div className="flex min-w-0 items-center gap-4">
 							<div className="bg-primary/90 flex size-12 items-center justify-center rounded-full text-sm font-semibold text-white">
 								{record.name
 									.trim()
@@ -160,13 +165,16 @@ export function CredentialEntryDetailsPageContent({
 							</div>
 						</div>
 
-						<Badge variant="success" className="px-3 py-1">
+						<Badge
+							variant="success"
+							className="w-fit shrink-0 px-3 py-1 sm:self-center"
+						>
 							<CircleCheck className="mr-2 size-4" />
 							{record.summary.percentComplete}% Complete
 						</Badge>
 					</div>
 
-					<div className="grid gap-4 md:grid-cols-2">
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 						<div>
 							<p className="text-muted-foreground flex items-center gap-2 text-xs">
 								<BriefcaseBusiness className="size-4" />
@@ -327,6 +335,15 @@ export function CredentialEntryDetailsPageContent({
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
+					{!record.complianceCategories?.length && (
+						<Empty className="p-8">
+							<EmptyHeader>
+								<EmptyDescription>
+									No compliance categories found for this entry.
+								</EmptyDescription>
+							</EmptyHeader>
+						</Empty>
+					)}
 					{record.complianceCategories.map((category) => (
 						<CredentialComplianceCategorySection
 							key={category.name}

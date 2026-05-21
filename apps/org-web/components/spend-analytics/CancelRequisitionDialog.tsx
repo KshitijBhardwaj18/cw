@@ -45,8 +45,8 @@ export function CancelRequisitionDialog({
 
 	return (
 		<Dialog open={row != null} onOpenChange={onOpenChange}>
-			<DialogContent className="gap-0 p-0 sm:max-w-lg">
-				<DialogHeader className="border-border border-b px-6 py-4">
+			<DialogContent className="flex max-h-[90dvh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+				<DialogHeader className="border-border shrink-0 border-b px-6 py-4">
 					<DialogTitle className="text-lg font-semibold text-slate-900 dark:text-slate-100">
 						Cancel Requisition
 					</DialogTitle>
@@ -54,7 +54,7 @@ export function CancelRequisitionDialog({
 
 				{row ? (
 					<>
-						<div className="space-y-4 px-6 py-4">
+						<div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
 							<p className="text-foreground text-sm">
 								Are you sure you want to cancel this requisition?
 							</p>
@@ -100,7 +100,7 @@ export function CancelRequisitionDialog({
 							</p>
 						</div>
 
-						<DialogFooter className="border-border flex-row justify-end gap-2 border-t px-6 py-4 sm:gap-2">
+						<DialogFooter className="border-border shrink-0 flex-row justify-end gap-2 border-t px-6 py-4 sm:gap-2">
 							<Button
 								type="button"
 								variant="outline"

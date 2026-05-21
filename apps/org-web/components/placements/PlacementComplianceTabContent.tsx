@@ -54,7 +54,7 @@ export function PlacementComplianceTabContent({
 		return (
 			<div className="space-y-6">
 				<Skeleton className="h-10 w-full max-w-lg" />
-				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 					<Skeleton className="h-24 rounded-lg" />
 					<Skeleton className="h-24 rounded-lg" />
 					<Skeleton className="h-24 rounded-lg" />
@@ -110,7 +110,7 @@ export function PlacementComplianceTabContent({
 				}
 			/>
 
-			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<ComplianceStatusCard variant="complete" count={complete} />
 				<ComplianceStatusCard variant="pending" count={pending} />
 				<ComplianceStatusCard variant="missing" count={missing} />

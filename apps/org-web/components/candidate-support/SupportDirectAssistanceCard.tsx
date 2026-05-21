@@ -25,6 +25,8 @@ import {
 } from "@repo/ui/components/select";
 import { Textarea } from "@repo/ui/components/textarea";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { MessageSquare, Send } from "lucide-react";
 import { useState } from "react";
 import { useCandidateSupportRequestForm } from "@/hooks/candidate/use-candidate-support-request-form";
@@ -35,6 +37,11 @@ export function SupportDirectAssistanceCard() {
 	const { form, resetToDefaults } = useCandidateSupportRequestForm({
 		onSubmitted: () => setOpen(false),
 	});
+
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 
 	return (
 		<Collapsible open={open} onOpenChange={setOpen}>
@@ -50,7 +57,11 @@ export function SupportDirectAssistanceCard() {
 					</div>
 					<CardAction>
 						<CollapsibleTrigger asChild>
-							<Button type="button" size="sm" className="gap-2">
+							<Button
+								type="button"
+								size="sm"
+								className="w-full gap-2 sm:w-auto"
+							>
 								<MessageSquare className="size-4" aria-hidden />
 								Contact Support
 							</Button>
@@ -71,9 +82,11 @@ export function SupportDirectAssistanceCard() {
 							<form.Field name="category">
 								{(field) => (
 									<Field
-										data-invalid={
-											field.state.meta.isTouched && !field.state.meta.isValid
-										}
+										data-invalid={formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										)}
 									>
 										<FieldLabel htmlFor={field.name}>
 											Category <RequiredStar />
@@ -86,10 +99,11 @@ export function SupportDirectAssistanceCard() {
 												id={field.name}
 												className="w-full"
 												onBlur={field.handleBlur}
-												aria-invalid={
-													field.state.meta.isTouched &&
-													!field.state.meta.isValid
-												}
+												aria-invalid={formFieldShowInvalid(
+													field.state.meta.isTouched,
+													field.state.meta.isValid,
+													submissionAttempts,
+												)}
 											>
 												<SelectValue placeholder="Select a category..." />
 											</SelectTrigger>
@@ -109,9 +123,11 @@ export function SupportDirectAssistanceCard() {
 							<form.Field name="subject">
 								{(field) => (
 									<Field
-										data-invalid={
-											field.state.meta.isTouched && !field.state.meta.isValid
-										}
+										data-invalid={formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										)}
 									>
 										<FieldLabel htmlFor={field.name}>
 											Subject <RequiredStar />
@@ -133,9 +149,11 @@ export function SupportDirectAssistanceCard() {
 							<form.Field name="message">
 								{(field) => (
 									<Field
-										data-invalid={
-											field.state.meta.isTouched && !field.state.meta.isValid
-										}
+										data-invalid={formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										)}
 									>
 										<FieldLabel htmlFor={field.name}>
 											Message <RequiredStar />

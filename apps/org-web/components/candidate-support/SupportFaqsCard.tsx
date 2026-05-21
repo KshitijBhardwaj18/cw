@@ -12,6 +12,7 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@repo/ui/components/collapsible";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { cn } from "@repo/ui/lib/utils";
 import {
 	BookOpen,
@@ -45,7 +46,10 @@ const FAQ_CATEGORY_ICONS: Partial<
 
 export function SupportFaqsCard() {
 	const [categoryFilter, setCategoryFilter] =
-		useState<SupportFaqCategoryId>("all");
+		useTabSwitch<SupportFaqCategoryId>(
+			MOCK_SUPPORT_FAQ_CATEGORIES.map((cat) => cat.id),
+			{ paramKey: "faqCategory" },
+		);
 	const [openId, setOpenId] = useState<string | null>(null);
 
 	const filteredItems = useMemo(() => {

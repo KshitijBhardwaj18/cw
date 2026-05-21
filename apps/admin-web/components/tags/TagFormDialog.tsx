@@ -25,7 +25,8 @@ import {
 import { Switch } from "@repo/ui/components/switch";
 import { Textarea } from "@repo/ui/components/textarea";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 import { Info } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -101,6 +102,11 @@ export function TagFormDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	useEffect(() => {
 		if (open && initialTag) {
 			form.reset(tagToFormValues(initialTag));
@@ -124,12 +130,12 @@ export function TagFormDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-lg">
-				<DialogHeader className="flex flex-row items-center justify-between gap-4 pr-12">
+			<DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
+				<DialogHeader className="flex flex-col gap-3 pr-12 sm:flex-row sm:items-center sm:justify-between">
 					<DialogTitle>{isEdit ? "Edit Tag" : "Create Tag"}</DialogTitle>
 					<form.Field name="showOnSubmission">
 						{(field) => (
-							<div className="flex shrink-0 items-center gap-2">
+							<div className="flex shrink-0 items-center gap-2 sm:ml-auto">
 								<Label htmlFor="active-toggle" className="font-normal">
 									Active
 								</Label>
@@ -157,8 +163,11 @@ export function TagFormDialog({
 								validators={{ onChange: tagFormBaseSchema.shape.name }}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -185,8 +194,11 @@ export function TagFormDialog({
 								validators={{ onChange: tagFormBaseSchema.shape.type }}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>

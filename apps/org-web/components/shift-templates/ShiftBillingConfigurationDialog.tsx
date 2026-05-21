@@ -18,6 +18,8 @@ import { Label } from "@repo/ui/components/label";
 import { ScrollArea } from "@repo/ui/components/scroll-area";
 import { Switch } from "@repo/ui/components/switch";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { useShiftBillingConfigurationDialog } from "@/hooks/use-shift-billing-configuration-dialog";
 import type { ShiftBillingConfigurationFormValues } from "@/schemas/shift-template.schema";
 
@@ -45,6 +47,11 @@ export function ShiftBillingConfigurationDialog({
 		onSubmit,
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent className="max-h-[90vh] max-w-xl overflow-hidden p-0">
@@ -65,9 +72,11 @@ export function ShiftBillingConfigurationDialog({
 								<form.Field name="baseBillRate">
 									{(field) => (
 										<Field
-											data-invalid={
-												field.state.meta.isTouched && !field.state.meta.isValid
-											}
+											data-invalid={formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											)}
 										>
 											<FieldLabel htmlFor={field.name}>
 												Base Bill Rate ($/hour)
@@ -95,9 +104,11 @@ export function ShiftBillingConfigurationDialog({
 								<form.Field name="vendorRateMarkupPercent">
 									{(field) => (
 										<Field
-											data-invalid={
-												field.state.meta.isTouched && !field.state.meta.isValid
-											}
+											data-invalid={formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											)}
 										>
 											<FieldLabel htmlFor={field.name}>
 												Vendor Rate Markup (%)

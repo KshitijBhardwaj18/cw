@@ -1,10 +1,10 @@
 "use client";
 
 import { Action, useAbility } from "@repo/casl";
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import {
 	ORG_JOBS_SHIFT_FILTER_OPTIONS,
 	ORG_JOBS_SHIFT_FILTER_TO_SHIFT_TYPE,
@@ -20,61 +20,103 @@ import {
 
 const JOBS_PAGE_SIZE = 9;
 
+const JOBS_PARAMS = {
+	SEARCH: "jobSearch",
+	PAGE: "pdPage",
+	DATE: "date",
+	STATUS: "status",
+	SHIFT_TYPE: "shiftType",
+	LOCATION: "location",
+	OCCUPATION: "occupation",
+	DEPARTMENT: "department",
+	SPECIALTY: "specialty",
+} as const;
+
 export function useJobsPage() {
 	const router = useRouter();
 	const ability = useAbility();
 	const canListJobs = ability.can(Action.Read, "Requisition");
 	const { id: orgId } = useOrgContext();
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "jobSearch", pageParamKey: null },
-	);
+
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: JOBS_PARAMS.PAGE,
+		defaultLimit: JOBS_PAGE_SIZE,
+	});
+
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		search: { paramKey: JOBS_PARAMS.SEARCH },
+		pagination: { pageParamKey: JOBS_PARAMS.PAGE },
+		filters: [
+			{
+				id: JOBS_PARAMS.DATE,
+				label: "Date",
+				type: "date",
+				defaultValue: "",
+				placeholder: "dd/mm/yyyy",
+			},
+			{
+				id: JOBS_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Statuses",
+				options: [...ORG_JOBS_STATUS_FILTER_OPTIONS],
+			},
+			{
+				id: JOBS_PARAMS.SHIFT_TYPE,
+				label: "Shift / type",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All",
+				options: [...ORG_JOBS_SHIFT_FILTER_OPTIONS],
+			},
+			{
+				id: JOBS_PARAMS.LOCATION,
+				label: "Location",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: JOBS_PARAMS.OCCUPATION,
+				label: "Occupation",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: JOBS_PARAMS.DEPARTMENT,
+				label: "Department",
+				type: "select",
+				defaultValue: "all",
+			},
+			{
+				id: JOBS_PARAMS.SPECIALTY,
+				label: "Specialty",
+				type: "select",
+				defaultValue: "all",
+			},
+		],
+	});
 
 	const filters = useMemo(() => {
 		return {
-			date: searchParams.get("date") ?? "",
-			status: searchParams.get("status") ?? "all",
-			shiftType: searchParams.get("shiftType") ?? "all",
-			location: searchParams.get("location") ?? "all",
-			occupation: searchParams.get("occupation") ?? "all",
-			department: searchParams.get("department") ?? "all",
-			specialty: searchParams.get("specialty") ?? "all",
+			date: values[JOBS_PARAMS.DATE] || "",
+			status: values[JOBS_PARAMS.STATUS] || "all",
+			shiftType: values[JOBS_PARAMS.SHIFT_TYPE] || "all",
+			location: values[JOBS_PARAMS.LOCATION] || "all",
+			occupation: values[JOBS_PARAMS.OCCUPATION] || "all",
+			department: values[JOBS_PARAMS.DEPARTMENT] || "all",
+			specialty: values[JOBS_PARAMS.SPECIALTY] || "all",
 		};
-	}, [searchParams]);
+	}, [values]);
 
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
-	const [page, setPage] = useState(1);
-
-	const setFilter = useCallback(
-		(
-			key:
-				| "date"
-				| "status"
-				| "shiftType"
-				| "location"
-				| "occupation"
-				| "department"
-				| "specialty",
-			value: string,
-		) => {
-			const clear =
-				!value || value === "all" || (key === "date" && value === "");
-			const updates: Record<string, string | null> = {
-				[key]: clear ? null : value,
-			};
-
-			if (key === "occupation") {
-				const prevOcc = searchParams.get("occupation") ?? "all";
-				const nextOcc = clear ? "all" : value;
-				if (prevOcc !== nextOcc) {
-					updates.specialty = null;
-				}
-			}
-			pushParams(updates);
-		},
-		[pushParams, searchParams],
-	);
 
 	const requisitionType =
 		filters.shiftType === "permanent" ? "PERMANENT_ROLE" : undefined;
@@ -82,29 +124,6 @@ export function useJobsPage() {
 		filters.shiftType === "all" || filters.shiftType === "permanent"
 			? undefined
 			: ORG_JOBS_SHIFT_FILTER_TO_SHIFT_TYPE[filters.shiftType];
-	const listParamsKey = useMemo(
-		() =>
-			[
-				searchFromUrl.trim(),
-				filters.date,
-				filters.status,
-				filters.shiftType,
-				filters.location,
-				filters.occupation,
-				filters.department,
-				filters.specialty,
-			].join("|"),
-		[
-			searchFromUrl,
-			filters.date,
-			filters.status,
-			filters.shiftType,
-			filters.location,
-			filters.occupation,
-			filters.department,
-			filters.specialty,
-		],
-	);
 
 	const listQuery = useRequisitionsList(
 		orgId,
@@ -130,15 +149,6 @@ export function useJobsPage() {
 	const jobs = listQuery.data?.data ?? [];
 	const totalCount = listQuery.data?.total ?? 0;
 	const totalPages = listQuery.data?.totalPages ?? 1;
-
-	useEffect(() => {
-		void listParamsKey;
-		setPage(1);
-	}, [listParamsKey]);
-
-	useEffect(() => {
-		setPage((prev) => Math.min(prev, totalPages));
-	}, [totalPages]);
 
 	const hasActiveFilters = useMemo(() => {
 		return (
@@ -207,80 +217,55 @@ export function useJobsPage() {
 		];
 	}, [filters.occupation, occupationsQuery.data]);
 
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "jobs-filter-date",
-				label: "Date",
-				type: "date" as const,
-				value: filters.date,
-				onValueChange: (value: string) => setFilter("date", value),
-				placeholder: "dd/mm/yyyy",
-			},
-			{
-				id: "jobs-filter-status",
-				label: "Status",
-				value: filters.status,
-				onValueChange: (value: string) => setFilter("status", value),
-				placeholder: "All Statuses",
-				options: [...ORG_JOBS_STATUS_FILTER_OPTIONS],
-			},
-			{
-				id: "jobs-filter-shift",
-				label: "Shift / type",
-				value: filters.shiftType,
-				onValueChange: (value: string) => setFilter("shiftType", value),
-				placeholder: "All",
-				options: [...ORG_JOBS_SHIFT_FILTER_OPTIONS],
-			},
-			{
-				id: "jobs-filter-location",
-				label: "Location",
-				value: filters.location,
-				onValueChange: (value: string) => setFilter("location", value),
-				placeholder: "All Locations",
-				options: locationOptions,
-			},
-			{
-				id: "jobs-filter-occupation",
-				label: "Occupation",
-				value: filters.occupation,
-				onValueChange: (value: string) => setFilter("occupation", value),
-				placeholder: "All Occupations",
-				options: occupationOptions,
-			},
-			{
-				id: "jobs-filter-department",
-				label: "Department",
-				value: filters.department,
-				onValueChange: (value: string) => setFilter("department", value),
-				placeholder: "All Departments",
-				options: departmentOptions,
-			},
-			{
-				id: "jobs-filter-specialty",
-				label: "Specialty",
-				value: filters.specialty,
-				onValueChange: (value: string) => setFilter("specialty", value),
-				placeholder: "All Specialties",
-				options: specialtyOptions,
-			},
-		],
-		[
-			departmentOptions,
-			filters.date,
-			filters.department,
-			filters.location,
-			filters.occupation,
-			filters.shiftType,
-			filters.specialty,
-			filters.status,
-			locationOptions,
-			occupationOptions,
-			setFilter,
-			specialtyOptions,
-		],
-	);
+	const filterConfigs = useMemo(() => {
+		return hookFilterConfigs.map((cfg) => {
+			switch (cfg.id) {
+				case JOBS_PARAMS.LOCATION:
+					return {
+						...cfg,
+						placeholder: "All Locations",
+						options: locationOptions,
+					};
+				case JOBS_PARAMS.OCCUPATION:
+					return {
+						...cfg,
+						placeholder: "All Occupations",
+						options: occupationOptions,
+						onValueChange: (v: string) => {
+							const updates: Record<string, string | null> = {
+								[JOBS_PARAMS.OCCUPATION]: v || null,
+							};
+							if (values[JOBS_PARAMS.OCCUPATION] !== v) {
+								updates[JOBS_PARAMS.SPECIALTY] = null;
+							}
+							onFilterChange(updates);
+						},
+					};
+				case JOBS_PARAMS.DEPARTMENT:
+					return {
+						...cfg,
+						placeholder: "All Departments",
+						options: departmentOptions,
+					};
+				case JOBS_PARAMS.SPECIALTY:
+					return {
+						...cfg,
+						placeholder: "All Specialties",
+						options: specialtyOptions,
+					};
+				default:
+					return cfg;
+			}
+		});
+	}, [
+		hookFilterConfigs,
+		locationOptions,
+		occupationOptions,
+		departmentOptions,
+		specialtyOptions,
+		onFilterChange,
+		values,
+	]);
 
 	const handleCreate = () => {
 		router.push("/org/jobs/create");
@@ -311,8 +296,8 @@ export function useJobsPage() {
 		isError: listQuery.isError,
 		listErrorMessage,
 		refetchJobs: listQuery.refetch,
-		search: localSearch,
-		setSearch: handleSearchChange,
+		localSearch,
+		handleSearchChange,
 		filtersExpanded,
 		setFiltersExpanded,
 		filterConfigs,

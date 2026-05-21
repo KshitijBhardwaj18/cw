@@ -31,13 +31,14 @@ export function FinalInvoicesPageContent() {
 	const router = useRouter();
 
 	const {
-		search,
-		setSearch,
+		localSearch,
+		handleSearchChange,
 		filtersExpanded,
 		setFiltersExpanded,
 		page,
 		setPage,
-		query,
+		limit,
+		setLimit,
 		listQuery,
 		summaryQuery,
 		filterConfigs,
@@ -107,8 +108,8 @@ export function FinalInvoicesPageContent() {
 
 			<SearchWithFilters
 				searchPlaceholder="Search by invoice number or vendor..."
-				searchValue={search}
-				onSearchChange={setSearch}
+				searchValue={localSearch}
+				onSearchChange={handleSearchChange}
 				filtersExpanded={filtersExpanded}
 				onFiltersExpandedChange={setFiltersExpanded}
 				filterConfigs={filterConfigs}
@@ -116,7 +117,7 @@ export function FinalInvoicesPageContent() {
 
 			{!listQuery.isLoading && totalFiltered === 0 ? (
 				<ConfigPageEmptyState
-					hasSearch={false}
+					hasSearch={localSearch.trim() !== ""}
 					emptyTitle="No invoices in this view"
 					emptyMessage="Try clearing search or changing the status filter."
 					icon={FileText}
@@ -137,9 +138,14 @@ export function FinalInvoicesPageContent() {
 							enablePagination
 							paginationMode="server"
 							totalCount={totalFiltered}
-							pageSize={query.limit}
+							pageSize={limit}
 							currentPage={page}
-							onPaginationChange={(nextPage) => setPage(nextPage)}
+							onPaginationChange={(nextPage, nextLimit) => {
+								setPage(nextPage);
+								setLimit(nextLimit);
+							}}
+							isLoading={listQuery.isLoading}
+							loadingLabel="Loading final invoices..."
 							className="rounded-none border-0 border-b-0"
 						/>
 					</CardContent>

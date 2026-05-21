@@ -72,7 +72,7 @@ export function ShiftItem(props: ShiftItemProps) {
 			<div className="h-px w-full bg-border/40" />
 
 			<div className="flex items-end justify-between">
-				<div className="grid grid-cols-2 gap-x-12 gap-y-4 md:grid-cols-5 md:gap-x-16">
+				<div className="grid grid-cols-1 gap-x-12 gap-y-4 sm:grid-cols-2 md:grid-cols-5 md:gap-x-16">
 					<div className="flex flex-col gap-1.5">
 						<div className="flex items-center gap-2 text-xs text-muted-foreground font-medium uppercase tracking-wider">
 							<Calendar className="size-3.5" /> Date

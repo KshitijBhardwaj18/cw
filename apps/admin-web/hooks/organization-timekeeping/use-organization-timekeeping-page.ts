@@ -6,6 +6,7 @@ import type {
 	MissingTimeStatCard,
 	MissingTimeState,
 } from "@repo/ui/general/timekeeping/types";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import {
 	AlertTriangle,
 	Calendar,
@@ -32,13 +33,32 @@ import { useMissingTimeTab } from "./use-missing-time-tab";
 import { useTimeReportsTab } from "./use-time-reports-tab";
 import { useTimekeepingMainTab } from "./use-timekeeping-main-tab";
 import { useTimekeepingSharedDisputes } from "./use-timekeeping-shared-disputes";
-import { useTimekeepingUrlState } from "./use-timekeeping-url-state";
+import {
+	ATK_PARAMS,
+	useTimekeepingUrlState,
+} from "./use-timekeeping-url-state";
 
 const PAY_CODES_PAGE_SIZE = 20;
 const HOLIDAYS_PAGE_SIZE = 20;
 
 export function useOrganizationTimekeepingPage(organizationId: string) {
-	const [activeTab, setActiveTab] = useState("timekeeping");
+	const [activeTab, setActiveTab] = useTabSwitch(
+		[
+			"timekeeping",
+			"dispute-log",
+			"missing-time",
+			"time-reports",
+			"pay-codes",
+			"holidays",
+		],
+		{
+			alsoClearParamKeys: [
+				ATK_PARAMS.SEARCH,
+				ATK_PARAMS.DATA_SOURCE,
+				ATK_PARAMS.GROUPED_STATUS,
+			],
+		},
+	);
 
 	const urlState = useTimekeepingUrlState();
 	const sharedDisputes = useTimekeepingSharedDisputes(organizationId);

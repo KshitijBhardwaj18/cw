@@ -8,12 +8,17 @@ import {
 } from "@repo/ui/components/empty";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import { SearchBar } from "@repo/ui/general/SearchBar";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
 import { Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useOrganizationUserColumns } from "@/hooks/tables/use-organization-user-columns";
 import { useOrganizationUsers } from "@/queries/users.query";
 import type { OrganizationUserTableRow, UserDto } from "@/types/users";
 import { splitFullName } from "@/utils/users";
+
+export const OU_PARAMS = {
+	SEARCH: "ouSearch",
+} as const;
 
 type OrganizationGroup = {
 	id: string;
@@ -78,7 +83,11 @@ const groupRowsByOrganization = (
 };
 
 const OrganizationUsers = () => {
-	const [searchValue, setSearchValue] = useState("");
+	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+		{
+			paramKey: OU_PARAMS.SEARCH,
+		},
+	);
 	const { data, isLoading, isError } = useOrganizationUsers();
 	const { columns } = useOrganizationUserColumns();
 
@@ -88,7 +97,7 @@ const OrganizationUsers = () => {
 	);
 
 	const filteredRows = useMemo(() => {
-		const term = searchValue.trim().toLowerCase();
+		const term = searchFromUrl.trim().toLowerCase();
 		if (!term) {
 			return organizationRows;
 		}
@@ -106,7 +115,7 @@ const OrganizationUsers = () => {
 				row.organizationName,
 			].some((value) => value.toLowerCase().includes(term)),
 		);
-	}, [organizationRows, searchValue]);
+	}, [organizationRows, searchFromUrl]);
 
 	const groupedRows = useMemo(
 		() => groupRowsByOrganization(filteredRows),
@@ -115,7 +124,7 @@ const OrganizationUsers = () => {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<SearchBar value={searchValue} onChange={setSearchValue} />
+			<SearchBar value={localSearch} onChange={handleSearchChange} />
 			{isLoading && (
 				<Empty className="border-muted/50">
 					<EmptyHeader>

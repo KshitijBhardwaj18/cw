@@ -1,5 +1,6 @@
 "use client";
 
+import { formatUsdPerHour } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Building2 } from "lucide-react";
@@ -118,7 +119,9 @@ export function useSubmissionListColumns() {
 					return (
 						<div className={COL}>
 							<span className="block truncate text-sm tabular-nums">
-								{rate != null ? `$${Math.round(rate)}/hr` : "—"}
+								{rate != null
+									? formatUsdPerHour(rate, { round: true, fractionDigits: 0 })
+									: "—"}
 							</span>
 						</div>
 					);

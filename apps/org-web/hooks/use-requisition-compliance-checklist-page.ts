@@ -1,8 +1,8 @@
 "use client";
 
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
-import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useOrgContext } from "@/contexts/org-context";
 import {
@@ -13,32 +13,46 @@ import {
 	useUpdateChecklist,
 } from "@/queries/compliance-checklist.queries";
 
-const CARDS_PER_PAGE = 6;
+const CARDS_PER_PAGE = 3;
 const PAGE_SIZE_OPTIONS = [6, 12, 18, 24];
+
+const CHECKLIST_PARAMS = {
+	SEARCH: "chkSearch",
+	PAGE: "chkPage",
+	LIMIT: "chkLimit",
+} as const;
 
 export function useRequisitionComplianceChecklistPage() {
 	const { id: orgId } = useOrgContext();
-	const router = useRouter();
-	const pathname = usePathname();
+
 	const {
 		page,
-		localSearch,
-		searchFromUrl,
-		hasActiveSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
+		limit,
+		setPage: goToPage,
+		setLimit,
+	} = usePaginationControls({
+		pageParamKey: CHECKLIST_PARAMS.PAGE,
+		limitParamKey: CHECKLIST_PARAMS.LIMIT,
+		defaultLimit: CARDS_PER_PAGE,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
+	});
 
-	const hasSearch = hasActiveSearch;
+	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+		{
+			paramKey: CHECKLIST_PARAMS.SEARCH,
+			pageParamKey: CHECKLIST_PARAMS.PAGE,
+		},
+	);
+
+	const hasSearch = !!searchFromUrl.trim();
 
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editId, setEditId] = useState<string | null>(null);
 	const [viewId, setViewId] = useState<string | null>(null);
 	const [deleteId, setDeleteId] = useState<string | null>(null);
-	const [limit, setLimitState] = useState(CARDS_PER_PAGE);
 
 	const { data } = useComplianceChecklistsSuspense(orgId, {
-		search: hasActiveSearch ? searchFromUrl : undefined,
+		search: hasSearch ? searchFromUrl : undefined,
 		page,
 		limit,
 	});
@@ -55,25 +69,6 @@ export function useRequisitionComplianceChecklistPage() {
 	const updateMutation = useUpdateChecklist(orgId, editId ?? "");
 	const deleteMutation = useDeleteChecklist(orgId);
 	const duplicateMutation = useDuplicateChecklist(orgId);
-
-	const goToPage = useCallback(
-		(p: number) => {
-			router.push(`${pathname}${buildSearchParams({ page: p })}`, {
-				scroll: false,
-			});
-		},
-		[pathname, buildSearchParams, router],
-	);
-
-	const setLimit = useCallback(
-		(l: number) => {
-			setLimitState(l);
-			router.push(`${pathname}${buildSearchParams({ page: 1 })}`, {
-				scroll: false,
-			});
-		},
-		[pathname, buildSearchParams, router],
-	);
 
 	const handleCreateSubmit = (payload: {
 		templateName: string;

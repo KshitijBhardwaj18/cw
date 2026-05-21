@@ -1,9 +1,8 @@
 "use client";
 
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -30,39 +29,41 @@ export function useDocumentWalletPage() {
 	const organizationId = orgId ?? "";
 	const hasOrg = Boolean(organizationId);
 
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		onFilterChange,
+	} = useSearchWithFilters({
+		search: {
 			paramKey: U.search,
-			pageParamKey: U.page,
 			wait: DOCUMENT_WALLET_SEARCH_DEBOUNCE_MS,
 		},
-	);
+		pagination: { pageParamKey: U.page },
+		filters: [
+			{
+				id: U.category,
+				label: "Category",
+				defaultValue: "",
+			},
+		],
+	});
 
-	const pageParam = Number(searchParams.get(U.page) ?? "1");
-	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: U.page,
+		defaultLimit: DOCUMENT_WALLET_LIST_PAGE_SIZE,
+	});
 
-	const categoryRaw = searchParams.get(U.category);
+	const categoryRaw = values[U.category];
 	const categoryKey =
 		categoryRaw && categoryRaw.trim() !== "" ? categoryRaw : undefined;
 
 	const setCategoryKey = useCallback(
 		(next: string | undefined) => {
-			pushParams({
-				[U.category]: next ?? null,
-				[U.page]: null,
-			});
+			onFilterChange(U.category, next ?? "");
 		},
-		[pushParams],
-	);
-
-	const setPage = useCallback(
-		(p: number) => {
-			pushParams({ [U.page]: String(p) });
-		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const listEnabled = hasOrg && isReady;
@@ -102,6 +103,7 @@ export function useDocumentWalletPage() {
 			}),
 		enabled: listEnabled,
 		refetchOnMount: "always",
+		placeholderData: (previousData) => previousData,
 	});
 
 	const [uploadOpen, setUploadOpen] = useState(false);
@@ -145,7 +147,9 @@ export function useDocumentWalletPage() {
 		onboardingLoading,
 		organizationId: hasOrg ? organizationId : null,
 		summary: summaryQuery.data,
+		isSummaryLoading: summaryQuery.isLoading,
 		items: itemsQuery.data,
+		isItemsLoading: itemsQuery.isLoading,
 		setPage,
 		search: localSearch,
 		setSearch: handleSearchChange,

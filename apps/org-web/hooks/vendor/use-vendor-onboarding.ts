@@ -1,6 +1,10 @@
-import { useLocalDebouncedSearch } from "@repo/ui/hooks/use-local-debounced-search";
+"use client";
+
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useMutation } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import {
 	useVendorOnboardingList,
@@ -11,31 +15,47 @@ import {
 	VendorOnboardingService,
 } from "@/services/vendor-onboarding.service";
 
-const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE = 10;
 
-export function useVendorOnboarding() {
-	const [weekBucket, setWeekBucket] = useState<"1" | "2" | "3" | "all">("all");
-	const [page, setPage] = useState(1);
-	const {
-		search,
-		debouncedSearch,
-		setSearch: setSearchBase,
-	} = useLocalDebouncedSearch("", { wait: SEARCH_DEBOUNCE_MS });
+export type WeekBucketType = "1" | "2" | "3" | "all";
 
-	const setSearchAndReset = useCallback(
-		(v: string) => {
-			setSearchBase(v);
+export const VONB_PARAMS = {
+	PAGE: "vOnbPage",
+	SEARCH: "vOnbSearch",
+	BUCKET: "vOnbBucket",
+} as const;
+
+export function useVendorOnboarding() {
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: VONB_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+		{
+			paramKey: VONB_PARAMS.SEARCH,
+			pageParamKey: VONB_PARAMS.PAGE,
+		},
+	);
+
+	const [weekBucket, setWeekBucketRaw] = useQueryState(
+		VONB_PARAMS.BUCKET,
+		parseAsStringLiteral(["1", "2", "3", "all"]).withDefault("all"),
+	);
+
+	const setWeekBucket = useCallback(
+		(v: WeekBucketType) => {
+			void setWeekBucketRaw(v);
 			setPage(1);
 		},
-		[setSearchBase],
+		[setWeekBucketRaw, setPage],
 	);
 
 	const listQuery = useVendorOnboardingList({
 		weekBucket,
 		page,
 		limit: PAGE_SIZE,
-		search: debouncedSearch.trim() || undefined,
+		search: searchFromUrl.trim() || undefined,
 	});
 
 	const metricsQuery = useVendorOnboardingMetrics();
@@ -55,11 +75,6 @@ export function useVendorOnboarding() {
 		},
 	});
 
-	const setWeekBucketAndReset = (v: "1" | "2" | "3" | "all") => {
-		setWeekBucket(v);
-		setPage(1);
-	};
-
 	const group = listQuery.data
 		? toWeekGroupFromListResponse(listQuery.data)
 		: null;
@@ -75,9 +90,9 @@ export function useVendorOnboarding() {
 		setPage,
 		pageSize: PAGE_SIZE,
 		weekBucket,
-		setWeekBucket: setWeekBucketAndReset,
-		search,
-		setSearch: setSearchAndReset,
+		setWeekBucket,
+		search: localSearch,
+		setSearch: handleSearchChange,
 		sendOnboardingReminder: (placementId: string) =>
 			reminderMutation.mutate(placementId),
 		isReminderPending: reminderMutation.isPending,

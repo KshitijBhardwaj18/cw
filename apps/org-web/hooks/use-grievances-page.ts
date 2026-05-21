@@ -1,8 +1,7 @@
 "use client";
 
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useCallback, useMemo, useState } from "react";
 import {
 	GRIEVANCE_STATUS,
@@ -37,20 +36,51 @@ export interface GrievanceSummaryCounts {
 	resolved: number;
 }
 
+const GRIEVANCE_PARAMS = {
+	SEARCH: "gSearch",
+	PAGE: "gPage",
+	TYPE: "grievanceType",
+	STATUS: "grievanceStatus",
+} as const;
+
 export function useGrievancesPage(orgId: string) {
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "gSearch", pageParamKey: "gPage" },
-	);
+	const { page, limit, setPage } = usePaginationControls({
+		pageParamKey: GRIEVANCE_PARAMS.PAGE,
+		defaultLimit: GRIEVANCES_PAGE_SIZE,
+	});
 
-	const pageParam = Number(searchParams.get("gPage") ?? "1");
-	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-
-	const typeFilter = searchParams.get("grievanceType") ?? "all";
-	const statusFilter = searchParams.get("grievanceStatus") ?? "all";
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		search: { paramKey: GRIEVANCE_PARAMS.SEARCH },
+		pagination: { pageParamKey: GRIEVANCE_PARAMS.PAGE },
+		filters: [
+			{
+				id: GRIEVANCE_PARAMS.TYPE,
+				label: "Type",
+				type: "select",
+				defaultValue: "all",
+				options: GRIEVANCE_TYPE_FILTER_OPTIONS,
+			},
+			{
+				id: GRIEVANCE_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				options: GRIEVANCE_STATUS_FILTER_OPTIONS,
+			},
+		],
+	});
 
 	const [filtersExpanded, setFiltersExpanded] = useState(true);
+
+	const typeFilter = values[GRIEVANCE_PARAMS.TYPE] || "all";
+	const statusFilter = values[GRIEVANCE_PARAMS.STATUS] || "all";
 
 	const listQuery = useMemo(
 		() => ({
@@ -64,9 +94,9 @@ export function useGrievancesPage(orgId: string) {
 					? undefined
 					: (statusFilter as "OPEN" | "IN_PROGRESS" | "RESOLVED"),
 			page,
-			limit: GRIEVANCES_PAGE_SIZE,
+			limit,
 		}),
-		[page, searchFromUrl, typeFilter, statusFilter],
+		[page, limit, searchFromUrl, typeFilter, statusFilter],
 	);
 
 	const [countsResult, listResult] = useGrievancesIndexSuspense(
@@ -102,82 +132,26 @@ export function useGrievancesPage(orgId: string) {
 
 	const setStatusFilterFromSummary = useCallback(
 		(key: GrievanceSummaryFilterKey) => {
-			if (key === "ALL") {
-				pushParams({ grievanceStatus: null, gPage: null });
-				return;
-			}
-			pushParams({ grievanceStatus: key, gPage: null });
+			onFilterChange(GRIEVANCE_PARAMS.STATUS, key === "ALL" ? "all" : key);
 		},
-		[pushParams],
-	);
-
-	const setTypeFilterAndResetPage = useCallback(
-		(value: string) => {
-			const clear = !value || value === "all";
-			pushParams({ grievanceType: clear ? null : value, gPage: null });
-		},
-		[pushParams],
-	);
-
-	const setStatusFilterAndResetPage = useCallback(
-		(value: string) => {
-			const clear = !value || value === "all";
-			pushParams({ grievanceStatus: clear ? null : value, gPage: null });
-		},
-		[pushParams],
-	);
-
-	const setPage = useCallback(
-		(p: number) => {
-			pushParams({ gPage: String(p) });
-		},
-		[pushParams],
-	);
-
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "grievance-type",
-				label: "Grievance type",
-				value: typeFilter,
-				onValueChange: setTypeFilterAndResetPage,
-				placeholder: "All",
-				options: GRIEVANCE_TYPE_FILTER_OPTIONS,
-			},
-			{
-				id: "grievance-status",
-				label: "Status",
-				value: statusFilter,
-				onValueChange: setStatusFilterAndResetPage,
-				placeholder: "All",
-				options: GRIEVANCE_STATUS_FILTER_OPTIONS,
-			},
-		],
-		[
-			setStatusFilterAndResetPage,
-			setTypeFilterAndResetPage,
-			statusFilter,
-			typeFilter,
-		],
+		[onFilterChange],
 	);
 
 	return {
-		search: localSearch,
-		setSearch: handleSearchChange,
-		typeFilter,
-		setTypeFilter: setTypeFilterAndResetPage,
-		statusFilter,
-		setStatusFilter: setStatusFilterAndResetPage,
-		setStatusFilterFromSummary,
-		activeSummaryKey,
+		localSearch,
+		handleSearchChange,
 		filtersExpanded,
 		setFiltersExpanded,
-		page,
-		setPage,
-		totalPages,
+		filterConfigs,
 		summaryCounts,
+		activeSummaryKey,
+		setStatusFilterFromSummary,
 		paginatedRows,
 		totalFiltered,
-		filterConfigs,
+		totalPages,
+		page,
+		setPage,
+		isLoading: countsResult.isLoading || listResult.isLoading,
+		isError: countsResult.isError || listResult.isError,
 	};
 }

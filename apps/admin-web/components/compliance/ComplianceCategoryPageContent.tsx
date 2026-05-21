@@ -5,9 +5,9 @@ import type { ComplianceListItemCategory } from "@repo/shared";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { Download, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { COMPLIANCE_CATEGORY_LABELS } from "@/constants/compliance";
@@ -19,6 +19,11 @@ import { ComplianceTableWrapper } from "./ComplianceTableWrapper";
 
 const PAGE_SIZE = 10;
 
+export const COMPLIANCE_PARAMS = {
+	PAGE: "ciPage",
+	SEARCH: "ciSearch",
+} as const;
+
 interface ComplianceCategoryPageContentProps {
 	category: ComplianceListItemCategory;
 }
@@ -29,15 +34,17 @@ export function ComplianceCategoryPageContent({
 	const { ability } = useAuth();
 	const canCreateCompliance = ability.can(Action.Create, "ComplianceListItem");
 	const [createOpen, setCreateOpen] = useState(false);
-	const router = useRouter();
-	const {
-		page,
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
+
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: COMPLIANCE_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange, hasActiveSearch } =
+		useDebouncedSearch({
+			paramKey: COMPLIANCE_PARAMS.SEARCH,
+			pageParamKey: COMPLIANCE_PARAMS.PAGE,
+		});
 
 	const { data: paginated } = useComplianceItemsByCategory(
 		category,
@@ -128,7 +135,7 @@ export function ComplianceCategoryPageContent({
 					<ConfigPagePagination
 						page={page}
 						totalPages={totalPages}
-						onPageChange={(p) => router.push(buildSearchParams({ page: p }))}
+						onPageChange={setPage}
 					/>
 				</>
 			)}

@@ -22,6 +22,7 @@ import type { QuerySubmissionsAgingStatsDto } from "./dto/query-submissions-agin
 type SubmissionListWhereQuery = {
 	stage?: SubmissionStage;
 	agingBucket?: QuerySubmissionsDto["agingBucket"];
+	requisitionId?: string;
 	vendorId?: string;
 	hiringManagerId?: string;
 	departmentId?: string;
@@ -882,6 +883,10 @@ export class SubmissionsService {
 			{ stage: query.stage ?? SubmissionStage.SUBMITTED },
 		];
 
+		if (query.requisitionId) {
+			and.push({ requisitionId: query.requisitionId });
+		}
+
 		if (query.vendorId) {
 			and.push({ vendorId: query.vendorId });
 		}
@@ -940,6 +945,19 @@ export class SubmissionsService {
 		const stageGroup = await this.prisma.submission.groupBy({
 			by: ["stage"],
 			where: { organizationId },
+			_count: { _all: true },
+		});
+		return this.mapStageGroupToCounts(stageGroup);
+	}
+
+	async getRequisitionStageCounts(
+		organizationId: string,
+		requisitionId: string,
+	): Promise<Record<SubmissionStage, number>> {
+		await this.ensureOrgExists(organizationId);
+		const stageGroup = await this.prisma.submission.groupBy({
+			by: ["stage"],
+			where: { organizationId, requisitionId },
 			_count: { _all: true },
 		});
 		return this.mapStageGroupToCounts(stageGroup);
@@ -1453,7 +1471,7 @@ export class SubmissionsService {
 		submissionId: string,
 		stage: SubmissionStage,
 		userId: string,
-		_dto: {
+		dto: {
 			startDate?: string;
 			endDate?: string;
 			billRate?: number;
@@ -1462,7 +1480,20 @@ export class SubmissionsService {
 		await this.ensureOrgExists(organizationId);
 		const existing = await this.prisma.submission.findFirst({
 			where: { id: submissionId, organizationId },
-			select: { id: true },
+			select: {
+				id: true,
+				candidateId: true,
+				requisitionId: true,
+				vendorId: true,
+				requisition: {
+					select: {
+						locationId: true,
+						departmentId: true,
+						hiringManagerId: true,
+						jobTitle: true,
+					},
+				},
+			},
 		});
 		if (!existing) {
 			throw new NotFoundException("Submission not found");
@@ -1475,9 +1506,53 @@ export class SubmissionsService {
 				stage,
 				stageEnteredAt: now,
 				updatedBy: userId,
+				...(dto.billRate != null ? { billingRate: dto.billRate } : {}),
 				...submissionStageMilestoneUpdate(stage, now),
 			},
 		});
+
+		if (stage === SubmissionStage.OFFERED) {
+			const existingPlacement = await this.prisma.placement.findFirst({
+				where: { submissionId },
+				select: { id: true },
+			});
+			if (existingPlacement) {
+				await this.prisma.placement.update({
+					where: { id: existingPlacement.id },
+					data: {
+						startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+						endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+						billRate: dto.billRate ?? undefined,
+						updatedBy: userId,
+					},
+				});
+			} else {
+				const placementCount = await this.prisma.placement.count({
+					where: { organizationId },
+				});
+				const placementNumber = `PLM-${String(placementCount + 1).padStart(5, "0")}`;
+				await this.prisma.placement.create({
+					data: {
+						placementNumber,
+						organizationId,
+						submissionId,
+						candidateId: existing.candidateId,
+						requisitionId: existing.requisitionId,
+						vendorId: existing.vendorId ?? undefined,
+						locationId: existing.requisition.locationId ?? undefined,
+						departmentId: existing.requisition.departmentId ?? undefined,
+						hiringManagerId: existing.requisition.hiringManagerId ?? undefined,
+						jobTitle: existing.requisition.jobTitle ?? undefined,
+						startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+						endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+						billRate: dto.billRate ?? undefined,
+						createdBy: userId,
+						updatedBy: userId,
+					},
+				});
+			}
+		}
+
 		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
 			organizationId,
 		);

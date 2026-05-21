@@ -13,6 +13,11 @@ export class QuerySubmissionsAgingStatsDto {
 	@ApiPropertyOptional()
 	@IsOptional()
 	@IsUUID()
+	requisitionId?: string;
+
+	@ApiPropertyOptional()
+	@IsOptional()
+	@IsUUID()
 	vendorId?: string;
 
 	@ApiPropertyOptional()

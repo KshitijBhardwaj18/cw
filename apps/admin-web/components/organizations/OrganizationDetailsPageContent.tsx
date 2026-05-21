@@ -7,6 +7,8 @@ import {
 	TabsTrigger,
 } from "@repo/ui/components/tabs";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
+import { LIST_FILTER_KEYS } from "@repo/ui/hooks/use-list-filters";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { useOrganization } from "@/queries/organizations.query";
 import { OrganizationDocumentsTab } from "./OrganizationDocumentsTab";
 import { OrganizationNotesTab } from "./OrganizationNotesTab";
@@ -19,6 +21,10 @@ type OrganizationDetailsPageContentProps = {
 export function OrganizationDetailsPageContent({
 	organizationId,
 }: OrganizationDetailsPageContentProps) {
+	const [tab, setTab] = useTabSwitch(["profile", "documents", "notes"], {
+		alsoClearParamKeys: LIST_FILTER_KEYS,
+	});
+
 	const { data: org } = useOrganization(organizationId);
 
 	if (!org) {
@@ -26,7 +32,11 @@ export function OrganizationDetailsPageContent({
 	}
 
 	return (
-		<Tabs defaultValue="profile" className="flex w-full flex-col gap-4">
+		<Tabs
+			value={tab}
+			onValueChange={setTab}
+			className="flex w-full flex-col gap-4"
+		>
 			<ScrollableLineTabsRow>
 				<TabsList
 					variant="line"

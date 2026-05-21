@@ -23,8 +23,8 @@ export function GrievancesPageContent() {
 	const [logDialogOpen, setLogDialogOpen] = useState(false);
 
 	const {
-		search,
-		setSearch,
+		localSearch,
+		handleSearchChange,
 		setStatusFilterFromSummary,
 		activeSummaryKey,
 		filtersExpanded,
@@ -68,8 +68,8 @@ export function GrievancesPageContent() {
 
 			<SearchWithFilters
 				searchPlaceholder="Search by worker name or ID..."
-				searchValue={search}
-				onSearchChange={setSearch}
+				searchValue={localSearch}
+				onSearchChange={handleSearchChange}
 				filtersExpanded={filtersExpanded}
 				onFiltersExpandedChange={setFiltersExpanded}
 				filterConfigs={filterConfigs}
@@ -83,7 +83,7 @@ export function GrievancesPageContent() {
 
 			{totalFiltered === 0 ? (
 				<ConfigPageEmptyState
-					hasSearch={false}
+					hasSearch={localSearch.trim() !== ""}
 					emptyTitle="No grievances in this view"
 					emptyMessage="Try clearing search or filters, or log a new grievance."
 					icon={ClipboardList}

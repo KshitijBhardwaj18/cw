@@ -2,6 +2,7 @@
 
 import { enumToTitleText, type OrgMemberWithUserType } from "@repo/shared";
 import { useListFilters } from "@repo/ui/hooks/use-list-filters";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { useQueryClient } from "@tanstack/react-query";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { useCallback, useEffect, useState } from "react";
@@ -70,7 +71,11 @@ function buildVendorEnrolledRows(
 
 export function useOrganizationUserEnrollmentPage(organizationId: string) {
 	const listFilters = useListFilters();
-	const [activeTab, setActiveTab] = useState<EnrollmentTab>("organization");
+	const [activeTab, setActiveTab] = useTabSwitch<EnrollmentTab>([
+		"organization",
+		"program",
+		"vendor",
+	]);
 	const [isEnrollDialogOpen, setIsEnrollDialogOpen] = useState(false);
 	const [isEnrollProgramDialogOpen, setIsEnrollProgramDialogOpen] =
 		useState(false);

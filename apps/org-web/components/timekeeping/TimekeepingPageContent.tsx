@@ -24,6 +24,7 @@ import type {
 	MissingTimeStatCard,
 	MissingTimeState,
 } from "@repo/ui/general/timekeeping/types";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import {
 	AlertTriangle,
 	Calendar,
@@ -42,6 +43,7 @@ import {
 	TimekeepingProvider,
 	useTimekeepingContext,
 } from "@/contexts/timekeeping-context";
+import { TK_PARAMS } from "@/hooks/use-timekeeping";
 import { usePayCodeStats, usePayCodes } from "@/queries/billing.queries";
 import {
 	useDisputeStatusCounts,
@@ -93,8 +95,22 @@ function TimekeepingPageInner() {
 		(disputeCounts?.resolved ?? 0) +
 		(disputeCounts?.rejected ?? 0);
 
-	const [activeTab, setActiveTab] = useState<TimekeepingTabSubjectKey>(
-		allowedTabs[0] ?? "timekeeping",
+	const [activeTab, setActiveTab] = useTabSwitch<TimekeepingTabSubjectKey>(
+		allowedTabs.length > 0 ? allowedTabs : ["timekeeping"],
+		{
+			alsoClearParamKeys: [
+				TK_PARAMS.GROUPED_STATUS,
+				TK_PARAMS.GROUPED_PAGE,
+				TK_PARAMS.APPROVAL_STATUS,
+				TK_PARAMS.REPORT_PAGE,
+				TK_PARAMS.DISPUTE_PAGE,
+				TK_PARAMS.MISSING_PAGE,
+				TK_PARAMS.APPROVAL_PAGE,
+				TK_PARAMS.SEARCH,
+				TK_PARAMS.DATA_SOURCE,
+				TK_PARAMS.GROUP_BY,
+			],
+		},
 	);
 	const [uploadOpen, setUploadOpen] = useState(false);
 

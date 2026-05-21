@@ -1,3 +1,4 @@
+import type { PostalFormBindings } from "@repo/shared";
 import {
 	MSPOrganizationType,
 	OrganizationIndustry,
@@ -93,3 +94,37 @@ export const addMspSchema = addMspSchemaBase
 	);
 
 export type AddMspFormValues = z.infer<typeof addMspSchema>;
+
+export const mspFormHeadquartersPostalFieldBindings: PostalFormBindings<AddMspFormValues> =
+	{
+		street: "headquartersStreet",
+		city: "headquartersCity",
+		state: "headquartersState",
+		zipCode: "headquartersZipCode",
+		country: "headquartersCountry",
+	};
+
+export const mspFormBillingPostalFieldBindings: PostalFormBindings<AddMspFormValues> =
+	{
+		street: "billingStreet",
+		city: "billingCity",
+		state: "billingState",
+		zipCode: "billingZipCode",
+		country: "billingCountry",
+	};
+
+export const mspFormHeadquartersPostalAutosuggestValidators = {
+	street: addMspSchemaBase.shape.headquartersStreet,
+	city: addMspSchemaBase.shape.headquartersCity,
+	state: addMspSchemaBase.shape.headquartersState,
+	zipCode: addMspSchemaBase.shape.headquartersZipCode,
+	country: addMspSchemaBase.shape.headquartersCountry,
+} as const;
+
+export const mspFormBillingPostalAutosuggestValidators = {
+	street: addMspSchemaBase.shape.billingStreet,
+	city: z.string().trim().min(1, "City is required"),
+	state: z.string().trim().min(1, "State is required"),
+	zipCode: addMspSchemaBase.shape.headquartersZipCode,
+	country: z.string().trim().min(1, "Country is required"),
+} as const;

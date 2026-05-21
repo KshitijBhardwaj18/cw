@@ -4,8 +4,13 @@ import {
 	COMMAND_CENTER_TAB_CONDITIONS,
 	type TabAbilityCheck,
 } from "@repo/casl";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo } from "react";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
+import { useMemo } from "react";
+import { ACTIVE_WORKFORCE_PARAMS } from "./use-active-workforce";
+import { SHIFT_TAB_PARAMS } from "./use-command-center-shifts-tab";
+import { HIRING_FUNNEL_PARAMS } from "./use-hiring-funnel";
+import { OPS_PARAMS } from "./use-operations-management-filters";
+import { PERFORMANCE_PARAMS } from "./use-performance-metrics";
 
 export const COMMAND_CENTER_TAB_ORDER = [
 	"operations-management",
@@ -44,71 +49,33 @@ export const COMMAND_CENTER_TAB_CHECKS: Record<
 };
 
 export function useCommandCenterPage(allowedTabs: CommandCenterTabValue[]) {
-	const router = useRouter();
-	const pathname = usePathname();
-	const searchParams = useSearchParams();
-
 	const orderedAllowed = useMemo(
 		() => COMMAND_CENTER_TAB_ORDER.filter((t) => allowedTabs.includes(t)),
 		[allowedTabs],
 	);
 
-	const tabParam = searchParams.get("tab");
-
-	const activeTab = useMemo((): CommandCenterTabValue | undefined => {
-		if (orderedAllowed.length === 0) {
-			return undefined;
-		}
-		if (
-			tabParam &&
-			orderedAllowed.includes(tabParam as CommandCenterTabValue)
-		) {
-			return tabParam as CommandCenterTabValue;
-		}
-		return orderedAllowed[0];
-	}, [tabParam, orderedAllowed]);
-
-	useEffect(() => {
-		if (orderedAllowed.length === 0) {
-			return;
-		}
-		if (
-			tabParam &&
-			!orderedAllowed.includes(tabParam as CommandCenterTabValue)
-		) {
-			const next = orderedAllowed[0];
-			if (next === "operations-management") {
-				router.replace(pathname, { scroll: false });
-			} else {
-				router.replace(`${pathname}?tab=${next}`, { scroll: false });
-			}
-		}
-	}, [tabParam, orderedAllowed, pathname, router]);
-
-	const handleTabChange = useCallback(
-		(nextTab: string) => {
-			if (
-				!COMMAND_CENTER_TAB_ORDER.includes(nextTab as CommandCenterTabValue)
-			) {
-				return;
-			}
-			if (!orderedAllowed.includes(nextTab as CommandCenterTabValue)) {
-				return;
-			}
-
-			if (nextTab === "operations-management") {
-				router.push(pathname, { scroll: false });
-				return;
-			}
-
-			router.push(`${pathname}?tab=${nextTab}`, { scroll: false });
+	const [tab, handleTabChange] = useTabSwitch(
+		orderedAllowed.length > 0 ? orderedAllowed : ["operations-management"],
+		{
+			alsoClearParamKeys: [
+				OPS_PARAMS.FILTER,
+				OPS_PARAMS.PAGE,
+				OPS_PARAMS.LIMIT,
+				PERFORMANCE_PARAMS.RANGE,
+				PERFORMANCE_PARAMS.START_DATE,
+				PERFORMANCE_PARAMS.END_DATE,
+				HIRING_FUNNEL_PARAMS.SEARCH,
+				HIRING_FUNNEL_PARAMS.LOCATION,
+				HIRING_FUNNEL_PARAMS.DEPARTMENT,
+				ACTIVE_WORKFORCE_PARAMS.OCCUPATION,
+				SHIFT_TAB_PARAMS.SEARCH,
+				SHIFT_TAB_PARAMS.DEPARTMENT,
+				SHIFT_TAB_PARAMS.OCCUPATION,
+			],
 		},
-		[pathname, orderedAllowed, router],
 	);
 
-	return {
-		activeTab,
-		handleTabChange,
-		orderedAllowed,
-	};
+	const activeTab = orderedAllowed.length > 0 ? tab : undefined;
+
+	return { activeTab, handleTabChange, orderedAllowed };
 }

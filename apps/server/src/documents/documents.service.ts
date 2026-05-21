@@ -68,7 +68,7 @@ export class DocumentsService {
 			}
 			if (filters.dateTo) {
 				const toDate = new Date(filters.dateTo);
-				toDate.setHours(23, 59, 59, 999);
+				toDate.setUTCHours(23, 59, 59, 999);
 				(where.uploadedAt as Record<string, Date>).lte = toDate;
 			}
 		}
@@ -277,7 +277,7 @@ export class DocumentsService {
 			}
 			if (filters.dateTo) {
 				const toDate = new Date(filters.dateTo);
-				toDate.setHours(23, 59, 59, 999);
+				toDate.setUTCHours(23, 59, 59, 999);
 				(where.uploadedAt as Record<string, Date>).lte = toDate;
 			}
 		}

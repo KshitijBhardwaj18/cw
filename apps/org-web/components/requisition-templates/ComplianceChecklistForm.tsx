@@ -13,10 +13,12 @@ import { RadioGroup, RadioGroupItem } from "@repo/ui/components/radio-group";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import RequiredStar from "@repo/ui/general/RequiredStar";
 import { SearchBar } from "@repo/ui/general/SearchBar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { cn } from "@repo/ui/lib/utils";
 import { useForm, useStore } from "@tanstack/react-form";
 import { SquarePen } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
 	type RequisitionTemplateComplianceChecklistFormValues,
 	requisitionTemplateComplianceChecklistSchema,
@@ -25,6 +27,7 @@ import type {
 	ComplianceItemOption,
 	RequisitionComplianceChecklistCardItem,
 } from "@/types/requisition-compliance-checklist";
+import { STEP_VALIDATION_TOAST } from "./CreateRequisitionTemplatePageContent";
 import {
 	type ComplianceItemUsageRow,
 	type ComplianceItemUsageType,
@@ -89,12 +92,20 @@ export function ComplianceChecklistForm({
 		validators: {
 			onSubmit: requisitionTemplateComplianceChecklistSchema,
 		},
+		onSubmitInvalid: () => {
+			toast.error(STEP_VALIDATION_TOAST);
+		},
 		onSubmit: ({ value }) => {
 			onSubmit(value);
 		},
 	});
 
 	const itemUsages = useStore(form.store, (s) => s.values.itemUsages);
+
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 
 	const filteredChecklists = useMemo(() => {
 		const q = search.toLowerCase().trim();
@@ -196,9 +207,14 @@ export function ComplianceChecklistForm({
 								{(field) => {
 									const handleSelect = (checklistId: string) => {
 										field.handleChange(checklistId);
+										field.handleBlur();
 									};
 									const selectedId = field.state.value;
-									const isInvalid = field.state.meta.isTouched && !selectedId;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel>
@@ -327,12 +343,13 @@ export function ComplianceChecklistForm({
 							>
 								Cancel
 							</Button>
-							<Button
-								type="submit"
-								disabled={form.state.isSubmitting || isPending}
-							>
-								{form.state.isSubmitting || isPending ? "Saving..." : "Next →"}
-							</Button>
+							<form.Subscribe selector={(s) => s.isSubmitting}>
+								{(isSubmitting) => (
+									<Button type="submit" disabled={isSubmitting || isPending}>
+										{isSubmitting || isPending ? "Saving..." : "Next →"}
+									</Button>
+								)}
+							</form.Subscribe>
 						</div>
 					</form>
 				</CardContent>

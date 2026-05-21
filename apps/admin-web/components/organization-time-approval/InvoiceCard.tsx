@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency, formatDateRange } from "@repo/shared";
+import { formatDateRange, formatUsdLedger } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -59,7 +59,7 @@ export function InvoiceCard({ invoice, organizationId }: InvoiceCardProps) {
 						label="Total Amount"
 						value={
 							<span className="text-2xl font-bold">
-								{formatCurrency(invoice.totalAmount, "USD", "en-US", 2, 2)}
+								{formatUsdLedger(invoice.totalAmount)}
 							</span>
 						}
 						labelClassName="uppercase text-xs font-medium tracking-wider"
@@ -68,7 +68,7 @@ export function InvoiceCard({ invoice, organizationId }: InvoiceCardProps) {
 
 				<Separator />
 
-				<div className="grid grid-cols-3 gap-4 p-6">
+				<div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-3">
 					<DetailItem
 						label="Departments"
 						value={invoice.departmentCount ?? 0}

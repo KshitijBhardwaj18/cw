@@ -20,6 +20,8 @@ import {
 	MultiSelectValue,
 } from "@repo/ui/components/multi-select";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import { ProfessionalResumeField } from "@/components/candidate-sign-up/ProfessionalResumeField";
 import { useProfessionalDetailsStepForm } from "@/hooks/candidate/use-professional-details-step-form";
@@ -82,6 +84,11 @@ export function ProfessionalDetailsStep({
 		orgId,
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<>
 			<div className="space-y-1">
@@ -114,8 +121,11 @@ export function ProfessionalDetailsStep({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									field.state.meta.isTouched && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel className="text-sm font-medium">
@@ -251,8 +261,11 @@ export function ProfessionalDetailsStep({
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							const raw = field.state.value;
 							const num = typeof raw === "number" ? raw : Number(raw);
 							return (
@@ -288,8 +301,11 @@ export function ProfessionalDetailsStep({
 
 					<form.Field name="resumeFile">
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							const err = field.state.meta.errors;
 							const firstError =
 								Array.isArray(err) && err[0] != null

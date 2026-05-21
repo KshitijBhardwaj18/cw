@@ -11,7 +11,8 @@ import {
 } from "@repo/ui/components/dialog";
 import { Field, FieldError, FieldLabel } from "@repo/ui/components/field";
 import { Textarea } from "@repo/ui/components/textarea";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 
 export interface AddNoteDialogProps {
 	open: boolean;
@@ -41,6 +42,11 @@ export function AddNoteDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	const handleOpenChange = (next: boolean) => {
 		if (!next) {
 			form.reset();
@@ -50,7 +56,7 @@ export function AddNoteDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-md">
+			<DialogContent className="max-h-[90dvh] max-w-md overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Add Note</DialogTitle>
 					<DialogDescription>
@@ -68,16 +74,18 @@ export function AddNoteDialog({
 					<form.Field
 						name="text"
 						validators={{
-							onChange: ({ value }) =>
+							onBlur: ({ value }) =>
 								!value || value.trim().length === 0
 									? "Note text is required"
 									: undefined,
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched &&
-								(!field.state.value || field.state.value.trim().length === 0);
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>Note Text</FieldLabel>

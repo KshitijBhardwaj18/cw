@@ -1,11 +1,11 @@
 "use client";
 
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
-	SUBMISSION_TAB_VALUE_SET,
+	SUBMISSION_TABS,
 	type SubmissionTabValue,
 	CANDIDATE_SUBMISSIONS_URL_KEYS as U,
 } from "@/constants/candidate/submissions";
@@ -27,53 +27,19 @@ export function useCandidateSubmissionsPage() {
 		isReady,
 	} = useCandidateOrganizationId();
 
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-
-	const tabParam = searchParams.get(U.tab);
-	const activeTab: SubmissionTabValue = useMemo(() => {
-		if (tabParam && SUBMISSION_TAB_VALUE_SET.has(tabParam)) {
-			return tabParam as SubmissionTabValue;
-		}
-		return "all-applications";
-	}, [tabParam]);
-
-	const pageParam = Number(searchParams.get(U.page) ?? "1");
-	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-
-	const limitParam = Number(
-		searchParams.get(U.limit) ?? String(CANDIDATE_SUBMISSIONS_PAGE_SIZE),
-	);
-	const limit = useMemo(() => {
-		if (!Number.isFinite(limitParam) || limitParam <= 0) {
-			return CANDIDATE_SUBMISSIONS_PAGE_SIZE;
-		}
-		return limitParam;
-	}, [limitParam]);
-
-	const setActiveTab = useCallback(
-		(value: SubmissionTabValue) => {
-			pushParams({ [U.tab]: value, [U.page]: null });
+	const [activeTab, setActiveTab] = useTabSwitch<SubmissionTabValue>(
+		SUBMISSION_TABS.map((t) => t.value),
+		{
+			alsoClearParamKeys: [U.page],
+			paramKey: U.tab,
 		},
-		[pushParams],
 	);
 
-	const setPage = useCallback(
-		(next: number) => {
-			pushParams({ [U.page]: String(next) });
-		},
-		[pushParams],
-	);
-
-	const setLimit = useCallback(
-		(next: number) => {
-			pushParams({
-				[U.limit]: String(next),
-				[U.page]: null,
-			});
-		},
-		[pushParams],
-	);
+	const { page, setPage, limit, setLimit } = usePaginationControls({
+		pageParamKey: U.page,
+		limitParamKey: U.limit,
+		defaultLimit: CANDIDATE_SUBMISSIONS_PAGE_SIZE,
+	});
 
 	const prevOrgIdRef = useRef<string | null>(null);
 	useEffect(() => {
@@ -85,14 +51,12 @@ export function useCandidateSubmissionsPage() {
 			prevOrgIdRef.current !== null &&
 			prevOrgIdRef.current !== organizationId
 		) {
-			pushParams({
-				[U.tab]: null,
-				[U.page]: null,
-				[U.limit]: null,
-			});
+			setActiveTab("all-applications");
+			setPage(1);
+			setLimit(CANDIDATE_SUBMISSIONS_PAGE_SIZE);
 		}
 		prevOrgIdRef.current = organizationId;
-	}, [organizationId, pushParams]);
+	}, [organizationId, setActiveTab, setPage, setLimit]);
 
 	const statsQuery = useCandidateSubmissionTabStats({
 		enabled: Boolean(organizationId) && isReady,

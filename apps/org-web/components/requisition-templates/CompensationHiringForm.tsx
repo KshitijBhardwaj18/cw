@@ -28,12 +28,15 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
+import { toast } from "sonner";
 import { REQUISITION_TEMPLATE_INTERVIEW_TYPE_OPTIONS } from "@/constants/requisition-templates";
 import {
 	type RequisitionTemplateCompensationFormValues,
 	requisitionTemplateCompensationSchema,
 } from "@/schemas/requisition-template-compensation.schema";
+import { STEP_VALIDATION_TOAST } from "./CreateRequisitionTemplatePageContent";
 
 const defaultValues: RequisitionTemplateCompensationFormValues = {
 	billRate: 0,
@@ -66,10 +69,18 @@ export function CompensationHiringForm({
 		validators: {
 			onSubmit: requisitionTemplateCompensationSchema,
 		},
+		onSubmitInvalid: () => {
+			toast.error(STEP_VALIDATION_TOAST);
+		},
 		onSubmit: ({ value }) => {
 			onSubmit(value);
 		},
 	});
+
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 
 	return (
 		<Card>
@@ -98,8 +109,11 @@ export function CompensationHiringForm({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -152,8 +166,11 @@ export function CompensationHiringForm({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -212,8 +229,11 @@ export function CompensationHiringForm({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>Incentives</FieldLabel>
@@ -258,8 +278,11 @@ export function CompensationHiringForm({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -318,12 +341,13 @@ export function CompensationHiringForm({
 						>
 							Cancel
 						</Button>
-						<Button
-							type="submit"
-							disabled={form.state.isSubmitting || isPending}
-						>
-							{form.state.isSubmitting || isPending ? "Saving..." : "Next →"}
-						</Button>
+						<form.Subscribe selector={(s) => s.isSubmitting}>
+							{(isSubmitting) => (
+								<Button type="submit" disabled={isSubmitting || isPending}>
+									{isSubmitting || isPending ? "Saving..." : "Next →"}
+								</Button>
+							)}
+						</form.Subscribe>
 					</div>
 				</form>
 			</CardContent>

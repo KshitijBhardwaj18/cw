@@ -63,7 +63,7 @@ export function ShiftTemplateSelectorDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-3xl">
+			<DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle className="text-xl">Select Shift Template</DialogTitle>
 					<DialogDescription>

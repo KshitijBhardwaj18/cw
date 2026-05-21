@@ -1,9 +1,9 @@
 "use client";
 
 import {
-	CANDIDATE_WORKFORCE_TYPE_OPTIONS,
 	type CandidateWorkforceType,
 	getLabel,
+	VENDOR_CANDIDATE_WORKFORCE_TYPE_OPTIONS,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -25,6 +25,7 @@ import {
 } from "@repo/ui/components/select";
 import { PhoneInput } from "@repo/ui/general/PhoneInput";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { CheckCircle2, Loader2, Mail, UserPlus } from "lucide-react";
 import { useQuickOnboardCandidateDialog } from "@/hooks/candidate/use-quick-onboard-candidate-dialog";
 import { quickOnboardCandidateSchema } from "@/schemas/vendor-quick-onboard.schema";
@@ -54,7 +55,7 @@ export function QuickOnboardCandidateDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-xl">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
 				<DialogHeader className="space-y-0 text-left">
 					<div className="flex gap-4 pr-8">
 						<div className="bg-primary/10 flex size-11 shrink-0 items-center justify-center rounded-lg">
@@ -86,8 +87,11 @@ export function QuickOnboardCandidateDialog({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									submissionAttempts > 0 && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -118,8 +122,11 @@ export function QuickOnboardCandidateDialog({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									submissionAttempts > 0 && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
@@ -152,8 +159,11 @@ export function QuickOnboardCandidateDialog({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									submissionAttempts > 0 && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel>
@@ -164,6 +174,7 @@ export function QuickOnboardCandidateDialog({
 											onValueChange={(val) => {
 												field.handleChange(val);
 												form.setFieldValue("specialtyId", "");
+												field.handleBlur();
 											}}
 											disabled={isLoadingOccupations}
 										>
@@ -202,8 +213,11 @@ export function QuickOnboardCandidateDialog({
 							}}
 						>
 							{(field) => {
-								const isInvalid =
-									submissionAttempts > 0 && !field.state.meta.isValid;
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel>
@@ -211,7 +225,10 @@ export function QuickOnboardCandidateDialog({
 										</FieldLabel>
 										<Select
 											value={field.state.value}
-											onValueChange={(val) => field.handleChange(val)}
+											onValueChange={(val) => {
+												field.handleChange(val);
+												field.handleBlur();
+											}}
 											disabled={!selectedOccupationId || isLoadingSpecialties}
 										>
 											<SelectTrigger aria-invalid={isInvalid}>
@@ -241,8 +258,11 @@ export function QuickOnboardCandidateDialog({
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								submissionAttempts > 0 && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel>
@@ -250,18 +270,19 @@ export function QuickOnboardCandidateDialog({
 									</FieldLabel>
 									<Select
 										value={field.state.value}
-										onValueChange={(val) =>
-											field.handleChange(val as CandidateWorkforceType)
-										}
+										onValueChange={(val) => {
+											field.handleChange(val as CandidateWorkforceType);
+											field.handleBlur();
+										}}
 									>
 										<SelectTrigger aria-invalid={isInvalid}>
 											<SelectValue placeholder="Select workforce type" />
 										</SelectTrigger>
 										<SelectContent>
-											{CANDIDATE_WORKFORCE_TYPE_OPTIONS.map((opt) => (
+											{VENDOR_CANDIDATE_WORKFORCE_TYPE_OPTIONS.map((opt) => (
 												<SelectItem key={opt.value} value={opt.value}>
 													{getLabel(
-														CANDIDATE_WORKFORCE_TYPE_OPTIONS,
+														VENDOR_CANDIDATE_WORKFORCE_TYPE_OPTIONS,
 														opt.value,
 													)}
 												</SelectItem>
@@ -281,8 +302,11 @@ export function QuickOnboardCandidateDialog({
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								submissionAttempts > 0 && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>
@@ -316,8 +340,11 @@ export function QuickOnboardCandidateDialog({
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								submissionAttempts > 0 && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>

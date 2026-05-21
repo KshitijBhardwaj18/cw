@@ -54,12 +54,16 @@ export class PerDiemShiftsController {
 		@Query("search") search?: string,
 		@Query("department") department?: string,
 		@Query("occupation") occupation?: string,
+		@Query("page") page?: string,
+		@Query("limit") limit?: string,
 	) {
 		const orgId = requireActiveOrganizationId(session);
 		return this.perDiemShiftsService.getCommandCenterLocations(orgId, {
 			search,
 			department,
 			occupation,
+			page: page ? Math.max(1, Number.parseInt(page, 10)) : 1,
+			limit: limit ? Math.min(50, Math.max(1, Number.parseInt(limit, 10))) : 10,
 		});
 	}
 

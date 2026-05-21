@@ -107,7 +107,7 @@ export function ShiftsPageContent() {
 				}
 			/>
 
-			<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 				{SHIFT_STAT_CARDS.map((card) => (
 					<button
 						key={card.key}
@@ -182,7 +182,7 @@ export function ShiftsPageContent() {
 			</div>
 
 			{totalPages > 1 && (
-				<div className="flex items-center justify-between">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<p className="text-muted-foreground text-sm">
 						Showing {(currentPage - 1) * SHIFT_LIST_PAGE_SIZE + 1}–
 						{Math.min(currentPage * SHIFT_LIST_PAGE_SIZE, totalCount)} of{" "}

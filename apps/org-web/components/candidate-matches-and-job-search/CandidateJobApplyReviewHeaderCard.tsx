@@ -24,8 +24,8 @@ export function CandidateJobApplyReviewHeaderCard({
 		<Card>
 			<CardHeader>
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-					<div className="space-y-2">
-						<CardTitle className="text-2xl font-semibold">
+					<div className="min-w-0 space-y-2">
+						<CardTitle className="text-lg font-semibold sm:text-2xl">
 							Review &amp; Submit Application
 						</CardTitle>
 						<CardDescription className="text-base">
@@ -38,7 +38,7 @@ export function CandidateJobApplyReviewHeaderCard({
 					{isSubmitting ? (
 						<Badge
 							variant="secondary"
-							className="w-fit gap-1 px-2.5 py-1 font-medium"
+							className="w-fit shrink-0 self-start gap-1 px-2.5 py-1 font-medium sm:self-center"
 						>
 							<Loader2 className="size-3.5 animate-spin" aria-hidden />
 							Submitting…
@@ -46,7 +46,7 @@ export function CandidateJobApplyReviewHeaderCard({
 					) : (
 						<Badge
 							variant="success"
-							className="w-fit gap-1 px-2.5 py-1 font-medium"
+							className="w-fit shrink-0 self-start gap-1 px-2.5 py-1 font-medium sm:self-center"
 						>
 							<CheckCircle2 className="size-3.5" aria-hidden />
 							Ready to submit

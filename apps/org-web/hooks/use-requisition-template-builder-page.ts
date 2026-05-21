@@ -398,6 +398,22 @@ export function useRequisitionTemplateBuilderPage({
 		setStep(COMPLIANCE_STEP);
 	}, []);
 
+	const canJumpToStep = useCallback(
+		(targetStep: number) => {
+			if (mode === "view" || mode === "edit") return true;
+			return targetStep <= step;
+		},
+		[mode, step],
+	);
+
+	const goToStep = useCallback(
+		(newStep: number) => {
+			if (!canJumpToStep(newStep)) return;
+			setStep(newStep);
+		},
+		[canJumpToStep],
+	);
+
 	const submissionInitialValues = templateQuery.data
 		? ({
 				approvalRequired: templateQuery.data.requiresApproval,
@@ -456,5 +472,7 @@ export function useRequisitionTemplateBuilderPage({
 		handleBackToShiftsSchedule,
 		handleBackToCompensation,
 		handleBackToCompliance,
+		goToStep,
+		canJumpToStep,
 	};
 }

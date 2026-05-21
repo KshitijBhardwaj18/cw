@@ -15,7 +15,7 @@ export default function OrganizationDetailLoading() {
 			</div>
 			<div className="space-y-4">
 				<Skeleton className="h-6 w-24" />
-				<div className="grid gap-4 sm:grid-cols-2">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<Skeleton className="h-20" />
 					<Skeleton className="h-20" />
 				</div>

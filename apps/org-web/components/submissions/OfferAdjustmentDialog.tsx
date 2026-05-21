@@ -62,7 +62,7 @@ export function OfferAdjustmentDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-md">
+			<DialogContent className="max-h-[90dvh] max-w-md overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle className="text-xl">Offer Adjustment</DialogTitle>
 					<DialogDescription>

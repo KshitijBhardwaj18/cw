@@ -67,7 +67,7 @@ export function CandidateSelectionDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader className="pb-4 border-b">
 					<DialogTitle className="text-xl font-bold">{title}</DialogTitle>
 					{description ? (

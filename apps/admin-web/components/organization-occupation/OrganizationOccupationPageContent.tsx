@@ -4,9 +4,9 @@ import { Action } from "@repo/casl";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/contexts";
 import {
@@ -18,6 +18,11 @@ import { UpdateOccupationsDialog } from "./UpdateOccupationsDialog";
 
 const PAGE_SIZE = 10;
 
+export const ORG_OCCUPATION_PARAMS = {
+	PAGE: "ooPage",
+	SEARCH: "ooSearch",
+} as const;
+
 interface OrganizationOccupationPageContentProps {
 	organizationId: string;
 }
@@ -28,16 +33,17 @@ export default function OrganizationOccupationPageContent({
 	const { ability } = useAuth();
 	const canUpdateOccupations = ability.can(Action.Update, "Organization");
 	const [updateOpen, setUpdateOpen] = useState(false);
-	const router = useRouter();
 
-	const {
-		page,
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: ORG_OCCUPATION_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange, hasActiveSearch } =
+		useDebouncedSearch({
+			paramKey: ORG_OCCUPATION_PARAMS.SEARCH,
+			pageParamKey: ORG_OCCUPATION_PARAMS.PAGE,
+		});
 
 	const { data: paginated } = useLinkedOccupationsPaginated(
 		organizationId,
@@ -103,7 +109,7 @@ export default function OrganizationOccupationPageContent({
 						<ConfigPagePagination
 							page={page}
 							totalPages={totalPages}
-							onPageChange={(p) => router.push(buildSearchParams({ page: p }))}
+							onPageChange={setPage}
 						/>
 					)}
 				</>

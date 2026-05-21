@@ -108,7 +108,7 @@ function CandidateShiftsPageContent() {
 					>
 						<TabsTrigger
 							value={CANDIDATE_SHIFTS_TABS.AVAILABLE}
-							className="flex-none px-3"
+							className="inline-flex flex-none items-center gap-1.5 px-2 text-sm sm:gap-2 sm:px-3"
 						>
 							<Layers className="size-4" />
 							Available Shifts
@@ -121,7 +121,7 @@ function CandidateShiftsPageContent() {
 
 						<TabsTrigger
 							value={CANDIDATE_SHIFTS_TABS.MY_SHIFTS}
-							className="flex-none px-3"
+							className="inline-flex flex-none items-center gap-1.5 px-2 text-sm sm:gap-2 sm:px-3"
 						>
 							<Clock className="size-4" />
 							My Shifts
@@ -134,7 +134,7 @@ function CandidateShiftsPageContent() {
 
 						<TabsTrigger
 							value={CANDIDATE_SHIFTS_TABS.MY_CALENDAR}
-							className="flex-none px-3"
+							className="inline-flex flex-none items-center gap-1.5 px-2 text-sm sm:gap-2 sm:px-3"
 						>
 							<Calendar className="size-4" />
 							My Shift Calendar

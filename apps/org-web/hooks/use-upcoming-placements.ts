@@ -1,9 +1,10 @@
 "use client";
 
-import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useCallback, useMemo, useState } from "react";
 import { useOrgContext } from "@/contexts/org-context";
-import { useUrlFilters } from "@/hooks/use-url-filters";
 import {
 	useOrganizationLocationsForOnboarding,
 	useOrgDepartmentsForUsers,
@@ -35,40 +36,81 @@ const COMPLIANCE_STATUS_MAP: Record<
 
 const DEFAULT_PAGE_SIZE = 10;
 
+export const UPCOMING_PLACEMENTS_PARAMS = {
+	PAGE: "upPage",
+	LIMIT: "upLimit",
+	SEARCH: "upSearch",
+	LOCATION: "upcomingLocation",
+	DEPARTMENT: "upcomingDepartment",
+	VENDOR: "upcomingVendor",
+	HIRING_MANAGER: "upcomingHiringManager",
+	STATUS: "upcomingStatus",
+} as const;
+
 export function useUpcomingPlacements() {
 	const { id: orgId } = useOrgContext();
-	const [page, setPage] = useState(1);
-	const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
 
-	const { getValue, updateValues } = useUrlFilters({
-		paramMap: {
-			search: "search",
-			location: "upcomingLocation",
-			department: "upcomingDepartment",
-			vendor: "upcomingVendor",
-			hiringManager: "upcomingHiringManager",
-			status: "upcomingStatus",
-		},
+	const { page, limit, setPage, setLimit, resetPage } = usePaginationControls({
+		pageParamKey: UPCOMING_PLACEMENTS_PARAMS.PAGE,
+		limitParamKey: UPCOMING_PLACEMENTS_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_PAGE_SIZE,
 	});
 
-	const statParam = getValue("status", "");
-	const activeStatKey: UpcomingPlacementStatKey | null =
-		statParam &&
-		UPCOMING_STAT_KEYS.includes(statParam as UpcomingPlacementStatKey)
-			? (statParam as UpcomingPlacementStatKey)
-			: null;
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		pagination: { pageParamKey: UPCOMING_PLACEMENTS_PARAMS.PAGE },
+		search: { paramKey: UPCOMING_PLACEMENTS_PARAMS.SEARCH },
+		filters: [
+			{
+				id: UPCOMING_PLACEMENTS_PARAMS.LOCATION,
+				label: "Location",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Locations",
+			},
+			{
+				id: UPCOMING_PLACEMENTS_PARAMS.DEPARTMENT,
+				label: "Department",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Departments",
+			},
+			{
+				id: UPCOMING_PLACEMENTS_PARAMS.VENDOR,
+				label: "Vendor",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Vendors",
+			},
+			{
+				id: UPCOMING_PLACEMENTS_PARAMS.HIRING_MANAGER,
+				label: "Hiring Manager",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All Hiring Managers",
+			},
+		],
+	});
 
-	const searchFromUrl = getValue("search", "");
-	const locationFilter = getValue("location", "all");
-	const departmentFilter = getValue("department", "all");
-	const vendorFilter = getValue("vendor", "all");
-	const hiringManagerFilter = getValue("hiringManager", "all");
-	const [search, setSearch] = useState(searchFromUrl);
+	const [activeStatKey, setActiveStatKeyState] = useQueryState(
+		UPCOMING_PLACEMENTS_PARAMS.STATUS,
+		parseAsStringLiteral(UPCOMING_STAT_KEYS).withDefault("TOTAL_UPCOMING"),
+	);
+
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-	useEffect(() => {
-		setSearch(searchFromUrl);
-	}, [searchFromUrl]);
+	const locationFilter = values[UPCOMING_PLACEMENTS_PARAMS.LOCATION] || "all";
+	const departmentFilter =
+		values[UPCOMING_PLACEMENTS_PARAMS.DEPARTMENT] || "all";
+	const vendorFilter = values[UPCOMING_PLACEMENTS_PARAMS.VENDOR] || "all";
+	const hiringManagerFilter =
+		values[UPCOMING_PLACEMENTS_PARAMS.HIRING_MANAGER] || "all";
 
 	const complianceStatus = activeStatKey
 		? COMPLIANCE_STATUS_MAP[activeStatKey]
@@ -145,112 +187,73 @@ export function useUpcomingPlacements() {
 
 	const toggleStatFilter = useCallback(
 		(nextKey: UpcomingPlacementStatKey) => {
-			setPage(1);
-			updateValues({
-				status: activeStatKey === nextKey ? undefined : nextKey,
-			});
+			void setActiveStatKeyState(
+				activeStatKey === nextKey ? "TOTAL_UPCOMING" : nextKey,
+			);
+			resetPage();
 		},
-		[activeStatKey, updateValues],
-	);
-
-	const debouncedReplaceSearch = useDebouncedCallback(
-		(value: string) => {
-			setPage(1);
-			updateValues({ search: value || undefined }, { navigation: "replace" });
-		},
-		{ wait: 300 },
-	);
-
-	const handleSearchChange = useCallback(
-		(value: string) => {
-			setSearch(value);
-			debouncedReplaceSearch(value);
-		},
-		[debouncedReplaceSearch],
+		[activeStatKey, setActiveStatKeyState, resetPage],
 	);
 
 	const setLocationFilter = useCallback(
 		(value: string) => {
-			setPage(1);
-			updateValues({ location: value === "all" ? undefined : value });
+			onFilterChange({
+				[UPCOMING_PLACEMENTS_PARAMS.LOCATION]: value === "all" ? null : value,
+			});
 		},
-		[updateValues],
+		[onFilterChange],
 	);
 
 	const setDepartmentFilter = useCallback(
 		(value: string) => {
-			setPage(1);
-			updateValues({ department: value === "all" ? undefined : value });
+			onFilterChange({
+				[UPCOMING_PLACEMENTS_PARAMS.DEPARTMENT]: value === "all" ? null : value,
+			});
 		},
-		[updateValues],
+		[onFilterChange],
 	);
 
 	const setVendorFilter = useCallback(
 		(value: string) => {
-			setPage(1);
-			updateValues({ vendor: value === "all" ? undefined : value });
+			onFilterChange({
+				[UPCOMING_PLACEMENTS_PARAMS.VENDOR]: value === "all" ? null : value,
+			});
 		},
-		[updateValues],
+		[onFilterChange],
 	);
 
 	const setHiringManagerFilter = useCallback(
 		(value: string) => {
-			setPage(1);
-			updateValues({ hiringManager: value === "all" ? undefined : value });
+			onFilterChange({
+				[UPCOMING_PLACEMENTS_PARAMS.HIRING_MANAGER]:
+					value === "all" ? null : value,
+			});
 		},
-		[updateValues],
+		[onFilterChange],
 	);
 
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "upcoming-filter-location",
-				label: "Location",
-				value: locationFilter,
-				onValueChange: setLocationFilter,
-				placeholder: "All Locations",
-				options: locationOptions,
-			},
-			{
-				id: "upcoming-filter-department",
-				label: "Department",
-				value: departmentFilter,
-				onValueChange: setDepartmentFilter,
-				placeholder: "All Departments",
-				options: departmentOptions,
-			},
-			{
-				id: "upcoming-filter-vendor",
-				label: "Vendor",
-				value: vendorFilter,
-				onValueChange: setVendorFilter,
-				placeholder: "All Vendors",
-				options: vendorOptions,
-			},
-			{
-				id: "upcoming-filter-hiring-manager",
-				label: "Hiring Manager",
-				value: hiringManagerFilter,
-				onValueChange: setHiringManagerFilter,
-				placeholder: "All Hiring Managers",
-				options: hiringManagerOptions,
-			},
-		],
-		[
-			departmentFilter,
-			departmentOptions,
-			hiringManagerFilter,
-			hiringManagerOptions,
-			locationFilter,
-			locationOptions,
-			setDepartmentFilter,
-			setHiringManagerFilter,
-			setLocationFilter,
-			setVendorFilter,
-			vendorFilter,
-			vendorOptions,
-		],
-	);
+	const filterConfigs = useMemo(() => {
+		return hookFilterConfigs.map((cfg) => {
+			switch (cfg.id) {
+				case UPCOMING_PLACEMENTS_PARAMS.LOCATION:
+					return { ...cfg, options: locationOptions };
+				case UPCOMING_PLACEMENTS_PARAMS.DEPARTMENT:
+					return { ...cfg, options: departmentOptions };
+				case UPCOMING_PLACEMENTS_PARAMS.VENDOR:
+					return { ...cfg, options: vendorOptions };
+				case UPCOMING_PLACEMENTS_PARAMS.HIRING_MANAGER:
+					return { ...cfg, options: hiringManagerOptions };
+				default:
+					return cfg;
+			}
+		});
+	}, [
+		hookFilterConfigs,
+		locationOptions,
+		departmentOptions,
+		vendorOptions,
+		hiringManagerOptions,
+	]);
 
 	return {
 		activeStatKey,
@@ -270,7 +273,7 @@ export function useUpcomingPlacements() {
 			setLimit(size);
 		},
 		isLoading,
-		search,
+		search: localSearch,
 		setSearch: handleSearchChange,
 		locationFilter,
 		setLocationFilter,

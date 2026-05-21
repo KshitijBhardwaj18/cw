@@ -4,6 +4,8 @@ import { ThemeProvider } from "@repo/ui/components/theme-provider";
 import { TooltipProvider } from "@repo/ui/components/tooltip";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { NavigationGuardProvider } from "next-navigation-guard";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
+
 import { ReactQueryClientProvider } from "@/lib/tanstack-query";
 
 const Providers = ({ children }: { children: React.ReactNode }) => {
@@ -15,18 +17,20 @@ const Providers = ({ children }: { children: React.ReactNode }) => {
 			disableTransitionOnChange
 		>
 			<ReactQueryClientProvider>
-				<NavigationGuardProvider>
-					<Toaster
-						duration={2500}
-						richColors
-						closeButton
-						position="top-right"
-					/>
-					<TooltipProvider>{children}</TooltipProvider>
-					{process.env.NODE_ENV === "development" && (
-						<ReactQueryDevtools initialIsOpen={false} />
-					)}
-				</NavigationGuardProvider>
+				<NuqsAdapter>
+					<NavigationGuardProvider>
+						<Toaster
+							duration={2500}
+							richColors
+							closeButton
+							position="top-right"
+						/>
+						<TooltipProvider>{children}</TooltipProvider>
+						{process.env.NODE_ENV === "development" && (
+							<ReactQueryDevtools initialIsOpen={false} />
+						)}
+					</NavigationGuardProvider>
+				</NuqsAdapter>
 			</ReactQueryClientProvider>
 		</ThemeProvider>
 	);

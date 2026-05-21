@@ -25,14 +25,17 @@ import {
 } from "@repo/ui/components/select";
 import { TimePicker } from "@repo/ui/components/time-picker";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { addWeeks, format, parse } from "date-fns";
 import { useMemo } from "react";
+import { toast } from "sonner";
 import { REQUISITION_TEMPLATE_SHIFT_TYPE_OPTIONS } from "@/constants/requisition-templates";
 import {
 	type RequisitionTemplateShiftsScheduleFormValues,
 	requisitionTemplateShiftsScheduleSchema,
 } from "@/schemas/requisition-template-shifts-schedule.schema";
+import { STEP_VALIDATION_TOAST } from "./CreateRequisitionTemplatePageContent";
 
 const defaultValues: RequisitionTemplateShiftsScheduleFormValues = {
 	startDate: "",
@@ -78,6 +81,9 @@ export function ShiftsScheduleForm({
 		validators: {
 			onSubmit: requisitionTemplateShiftsScheduleSchema,
 		},
+		onSubmitInvalid: () => {
+			toast.error(STEP_VALIDATION_TOAST);
+		},
 		onSubmit: ({ value }) => {
 			onSubmit(value);
 		},
@@ -88,6 +94,11 @@ export function ShiftsScheduleForm({
 	const endDateDisplay = useMemo(
 		() => computeEndDate(startDate, lengthWeeks),
 		[startDate, lengthWeeks],
+	);
+
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
 	);
 
 	return (
@@ -116,8 +127,11 @@ export function ShiftsScheduleForm({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -148,8 +162,11 @@ export function ShiftsScheduleForm({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -201,8 +218,11 @@ export function ShiftsScheduleForm({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -233,8 +253,11 @@ export function ShiftsScheduleForm({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -267,8 +290,11 @@ export function ShiftsScheduleForm({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -312,8 +338,11 @@ export function ShiftsScheduleForm({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -357,8 +386,11 @@ export function ShiftsScheduleForm({
 								}}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -441,12 +473,13 @@ export function ShiftsScheduleForm({
 						>
 							Cancel
 						</Button>
-						<Button
-							type="submit"
-							disabled={form.state.isSubmitting || isPending}
-						>
-							{form.state.isSubmitting || isPending ? "Saving..." : "Next →"}
-						</Button>
+						<form.Subscribe selector={(s) => s.isSubmitting}>
+							{(isSubmitting) => (
+								<Button type="submit" disabled={isSubmitting || isPending}>
+									{isSubmitting || isPending ? "Saving..." : "Next →"}
+								</Button>
+							)}
+						</form.Subscribe>
 					</div>
 				</form>
 			</CardContent>

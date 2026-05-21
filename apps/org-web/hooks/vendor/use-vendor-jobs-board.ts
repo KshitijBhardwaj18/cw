@@ -1,18 +1,36 @@
 "use client";
 
 import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useMemo, useState } from "react";
 import { useVendorRequisitionsList } from "@/queries/vendor-requisitions.queries";
 import type { Candidate, Requisition } from "@/types/vendor-jobs-board";
 import { mapListItemToRequisition } from "@/utils/vendor-job-board-mapper";
 
+export const VJB_PARAMS = {
+	PAGE: "vjbPage",
+	LIMIT: "vjbLimit",
+	SEARCH: "vjbSearch",
+} as const;
+
 export function useVendorJobsBoard() {
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
+	const {
+		page: currentPage,
+		setPage: setCurrentPage,
+		limit,
+		setLimit,
+	} = usePaginationControls({
+		pageParamKey: VJB_PARAMS.PAGE,
+		limitParamKey: VJB_PARAMS.LIMIT,
+		defaultLimit: 5,
+	});
+
 	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ wait: 350, paramKey: "vjbSearch", pageParamKey: "vjbPage" },
+		{
+			wait: 350,
+			paramKey: VJB_PARAMS.SEARCH,
+			pageParamKey: VJB_PARAMS.PAGE,
+		},
 	);
 
 	const [selectedRequisition, setSelectedRequisition] =
@@ -31,26 +49,6 @@ export function useVendorJobsBoard() {
 		null,
 	);
 	const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-
-	const pageParam = Number(searchParams.get("vjbPage") ?? "1");
-	const currentPage =
-		Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-	const limitParam = Number(searchParams.get("vjbLimit") ?? "10");
-	const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 10;
-
-	const setCurrentPage = useCallback(
-		(p: number) => {
-			pushParams({ vjbPage: String(p) });
-		},
-		[pushParams],
-	);
-
-	const setLimit = useCallback(
-		(l: number) => {
-			pushParams({ vjbLimit: String(l), vjbPage: null });
-		},
-		[pushParams],
-	);
 
 	const listQuery = useVendorRequisitionsList({
 		page: currentPage,

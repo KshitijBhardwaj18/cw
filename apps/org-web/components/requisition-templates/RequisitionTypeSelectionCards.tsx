@@ -84,7 +84,12 @@ export function RequisitionTypeSelectionCards({
 	className,
 }: RequisitionTypeSelectionCardsProps) {
 	return (
-		<div className={cn("grid gap-4 sm:grid-cols-2 lg:grid-cols-3", className)}>
+		<div
+			className={cn(
+				"grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3",
+				className,
+			)}
+		>
 			{REQUISITION_TEMPLATE_TYPE_OPTIONS.map((type) => {
 				const meta = REQUISITION_TYPE_META[type.value];
 				const isSelected = selectedType === type.value;

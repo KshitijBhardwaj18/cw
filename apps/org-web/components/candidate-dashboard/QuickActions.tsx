@@ -15,13 +15,13 @@ export function QuickActions() {
 				<CardTitle className="text-xl">Quick Actions</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<div className="grid grid-cols-2 gap-4">
+				<div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-4">
 					{QUICK_ACTIONS.map((action) => (
 						<Button
 							key={action.label}
 							asChild
 							variant="outline"
-							className="h-auto py-3 justify-start gap-3"
+							className="h-auto justify-start gap-3 py-3 text-left text-sm sm:text-base"
 						>
 							<Link href={action.href}>
 								<action.icon className="size-5 text-primary" />

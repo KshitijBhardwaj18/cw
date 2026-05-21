@@ -40,7 +40,7 @@ export function SupportHeroCard({
 					</CardDescription>
 				</div>
 
-				<div className="grid gap-3 sm:grid-cols-3 w-full">
+				<div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
 					{channels.map((channel) => {
 						const Icon = ICONS[channel.id as keyof typeof ICONS] ?? Mail;
 						return (

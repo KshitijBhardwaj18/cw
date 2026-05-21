@@ -143,9 +143,23 @@ export class BackgroundJobsService {
 	}
 
 	async enqueueBillingCycleRunNow(organizationId: string) {
-		return this.billingQueue.add(BackGroundJobName.BILLING_CYCLE_RUN, {
-			organizationId,
-		});
+		return this.enqueueBillingCycleRunWithDelay(organizationId, 0);
+	}
+
+	async enqueueBillingCycleRunWithDelay(
+		organizationId: string,
+		delayMs: number,
+	) {
+		const safeDelayMs = Number.isFinite(delayMs) ? Math.max(0, delayMs) : 0;
+		return this.billingQueue.add(
+			BackGroundJobName.BILLING_CYCLE_RUN,
+			{
+				organizationId,
+			},
+			{
+				delay: safeDelayMs,
+			},
+		);
 	}
 
 	async rescheduleAllBillingCycles() {
@@ -243,7 +257,7 @@ export class BackgroundJobsService {
 	async enqueueMetricSnapshotRecompute(
 		payload: MetricSnapshotRecomputePayload,
 	): Promise<{ jobId: string }> {
-		const jobId = `metric-snapshot-${payload.organizationId}-${payload.periodType}-${Date.now()}`;
+		const jobId = `metric-snapshot-${payload.organizationId ?? "all"}-${payload.periodType}-${Date.now()}`;
 		const job = await this.metricsQueue.add(
 			BackGroundJobName.METRIC_SNAPSHOT_RECOMPUTE,
 			payload,

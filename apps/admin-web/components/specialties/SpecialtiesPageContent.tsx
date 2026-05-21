@@ -5,9 +5,9 @@ import type { SpecialtyTableRowType } from "@repo/shared";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/contexts";
 import { useSpecialtiesPaginated } from "@/queries/specialties.query";
@@ -16,19 +16,26 @@ import { SpecialtyFormDialog } from "./SpecialtyFormDialog";
 
 const PAGE_SIZE = 10;
 
+export const SPECIALTY_PARAMS = {
+	PAGE: "spPage",
+	SEARCH: "spSearch",
+} as const;
+
 export function SpecialtiesPageContent() {
 	const { ability } = useAuth();
 	const canCreateSpecialty = ability.can(Action.Create, "Specialty");
 	const [createOpen, setCreateOpen] = useState(false);
-	const router = useRouter();
-	const {
-		page,
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
+
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: SPECIALTY_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange, hasActiveSearch } =
+		useDebouncedSearch({
+			paramKey: SPECIALTY_PARAMS.SEARCH,
+			pageParamKey: SPECIALTY_PARAMS.PAGE,
+		});
 
 	const { data: paginated } = useSpecialtiesPaginated(
 		page,
@@ -102,7 +109,7 @@ export function SpecialtiesPageContent() {
 					<ConfigPagePagination
 						page={page}
 						totalPages={totalPages}
-						onPageChange={(p) => router.push(buildSearchParams({ page: p }))}
+						onPageChange={setPage}
 					/>
 				</>
 			)}

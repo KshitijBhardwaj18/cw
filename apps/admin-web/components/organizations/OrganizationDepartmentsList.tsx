@@ -13,13 +13,7 @@ import {
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
-import { useBuildSearchParams } from "@repo/ui/hooks/use-build-search-params";
-import {
-	CONFIG_URL_PAGE_KEY,
-	CONFIG_URL_SEARCH_KEY,
-} from "@repo/ui/hooks/use-config-page-search";
 import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/contexts";
 import { DepartmentFormDialog } from "./DepartmentFormDialog";
@@ -37,6 +31,8 @@ type OrganizationDepartmentsListProps = {
 	onSearchChange: (value: string) => void;
 	hasActiveSearch: boolean;
 	onLocationsScrollToBottom?: () => void;
+	onPageChange: (page: number) => void;
+	onLocationFilterChange: (locationId: string) => void;
 };
 
 export function OrganizationDepartmentsList({
@@ -51,25 +47,22 @@ export function OrganizationDepartmentsList({
 	onSearchChange,
 	hasActiveSearch,
 	onLocationsScrollToBottom,
+	onPageChange,
+	onLocationFilterChange,
 }: OrganizationDepartmentsListProps) {
-	const router = useRouter();
 	const { ability } = useAuth();
 	const [createOpen, setCreateOpen] = useState(false);
 	const canCreateDepartment = ability.can(Action.Create, "Organization");
-	const buildSearchParams = useBuildSearchParams({
-		searchParamKey: CONFIG_URL_SEARCH_KEY,
-		pageParamKey: CONFIG_URL_PAGE_KEY,
-	});
 
 	const handleLocationFilterChange = (value: string) => {
-		router.push(buildSearchParams({ locationId: value || "", page: 1 }));
+		onLocationFilterChange(value === "all" ? "" : value);
 	};
 
 	const rightContent = (
 		<div className="flex flex-wrap items-center gap-2">
 			<Select
 				value={locationIdFilter || "all"}
-				onValueChange={(v) => handleLocationFilterChange(v === "all" ? "" : v)}
+				onValueChange={handleLocationFilterChange}
 			>
 				<SelectTrigger className="w-[180px]">
 					<SelectValue placeholder="All locations" />
@@ -133,7 +126,7 @@ export function OrganizationDepartmentsList({
 					<ConfigPagePagination
 						page={page}
 						totalPages={totalPages}
-						onPageChange={(p) => router.push(buildSearchParams({ page: p }))}
+						onPageChange={onPageChange}
 					/>
 				</>
 			)}

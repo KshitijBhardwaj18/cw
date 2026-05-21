@@ -48,7 +48,11 @@ export function BulkUploadUsersDialog({
 				else onOpenChange(o);
 			}}
 		>
-			<DialogContent className={cn("sm:max-w-2xl transition-all duration-300")}>
+			<DialogContent
+				className={cn(
+					"max-h-[90dvh] overflow-y-auto sm:max-w-2xl transition-all duration-300",
+				)}
+			>
 				<DialogHeader className="space-y-1">
 					<DialogTitle>Bulk Upload Users</DialogTitle>
 					<DialogDescription>

@@ -109,7 +109,7 @@ export function MspProfileTab({ msp }: MspProfileTabProps) {
 				</CardHeader>
 				<CardContent className="space-y-6">
 					<DetailItem label="Headquarters Street" value={hq?.street} />
-					<div className="grid gap-6 sm:grid-cols-2">
+					<div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 						<DetailItem label="City" value={hq?.city} />
 						<DetailItem label="State" value={hq?.state} />
 						<DetailItem label="Zip / Postal Code" value={hq?.zipCode} />
@@ -122,7 +122,7 @@ export function MspProfileTab({ msp }: MspProfileTabProps) {
 					{!msp.isBillingSame && billing && (
 						<div className="space-y-4 rounded-lg border p-4">
 							<h4 className="text-sm font-medium">Billing Address</h4>
-							<div className="grid gap-6 sm:grid-cols-2">
+							<div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 								<DetailItem label="Street" value={billing.street} />
 								<DetailItem label="City" value={billing.city} />
 								<DetailItem label="State" value={billing.state} />
@@ -158,7 +158,7 @@ export function MspProfileTab({ msp }: MspProfileTabProps) {
 				<CardContent className="space-y-4">
 					{msp.hasMsaDocument ? (
 						<>
-							<div className="grid gap-4 sm:grid-cols-3">
+							<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 								<div className="space-y-1">
 									<p className="text-muted-foreground text-sm font-medium">
 										MSA Document

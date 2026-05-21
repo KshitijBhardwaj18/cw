@@ -1,3 +1,5 @@
+"use client";
+
 import {
 	Field,
 	FieldError,
@@ -10,7 +12,8 @@ import {
 	InputGroupInput,
 } from "@repo/ui/components/input-group";
 import LoadingButton from "@repo/ui/general/LoadingButton";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 import { Eye, EyeOff, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -53,6 +56,11 @@ const ResetPasswordForm = ({ onResetPassword }: ResetPasswordFormProps) => {
 			}
 		},
 	});
+
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 	return (
 		<div className="space-y-4">
 			<div className="space-y-2">
@@ -78,10 +86,18 @@ const ResetPasswordForm = ({ onResetPassword }: ResetPasswordFormProps) => {
 					{({ isSubmitting, canSubmit }) => (
 						<>
 							<FieldGroup>
-								<form.Field name="password">
+								<form.Field
+									name="password"
+									validators={{
+										onBlur: resetPasswordSchema.shape.password,
+									}}
+								>
 									{(field) => {
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel

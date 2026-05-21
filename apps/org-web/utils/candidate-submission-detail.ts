@@ -1,4 +1,4 @@
-import { formatDateOrPlaceholder } from "@repo/shared";
+import { formatDateOrPlaceholder, formatUsdPerHour } from "@repo/shared";
 import {
 	CANDIDATE_PORTAL_LABELS,
 	type CandidatePortalLabels,
@@ -85,7 +85,7 @@ export function mapCandidateSubmissionDetailResponseToView(
 	api: CandidateSubmissionDetailResponse,
 ): CandidateSubmissionDetailView {
 	const submittedLabel = formatDateOrPlaceholder(api.submittedAt);
-	const billRateLabel = api.billRate != null ? `$${api.billRate}/hr` : "—";
+	const billRateLabel = formatUsdPerHour(api.billRate);
 
 	const questionnaire: CandidateSubmissionDetail["questionnaire"] = [
 		...api.occupationalQuestionnaire.map((q) => ({

@@ -121,7 +121,7 @@ export function TemplateSelectionStep({
 															{template.title}
 														</h3>
 
-														<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+														<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
 															<div>
 																<p className="text-muted-foreground mb-1 flex items-center gap-2 text-xs font-medium">
 																	<BriefcaseBusiness className="size-4 text-primary" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { getInitials } from "@repo/shared";
+import { formatUsdPerHour, getInitials } from "@repo/shared";
 import { Avatar, AvatarFallback } from "@repo/ui/components/avatar";
 import { Button } from "@repo/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -8,15 +8,6 @@ import { Calendar, Eye, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 import type { PlacementListMockRow } from "@/types/placements";
-
-function formatUsdPerHour(value: number): string {
-	return new Intl.NumberFormat("en-US", {
-		style: "currency",
-		currency: "USD",
-		minimumFractionDigits: 2,
-		maximumFractionDigits: 2,
-	}).format(value);
-}
 
 function headerClass() {
 	return "text-muted-foreground text-xs font-semibold uppercase tracking-wide";
@@ -122,7 +113,7 @@ export function useVendorPlacementListColumns(detailBasePath: string) {
 				accessorFn: (r) => r.vendorRatePerHour,
 				cell: ({ row }) => (
 					<span className="text-sm font-semibold text-green-600 dark:text-green-500">
-						{formatUsdPerHour(row.original.vendorRatePerHour)}/hr
+						{formatUsdPerHour(row.original.vendorRatePerHour)}
 					</span>
 				),
 			},

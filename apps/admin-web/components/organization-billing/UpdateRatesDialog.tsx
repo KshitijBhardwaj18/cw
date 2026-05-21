@@ -62,7 +62,7 @@ export function UpdateRatesDialog({
 					Edit Platform Rates
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="sm:max-w-md">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Update Platform Rates</DialogTitle>
 					<DialogDescription>

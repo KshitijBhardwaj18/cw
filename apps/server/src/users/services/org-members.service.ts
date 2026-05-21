@@ -4,12 +4,10 @@ import {
 	BadRequestException,
 	ConflictException,
 	Injectable,
-	Logger,
 	NotFoundException,
 } from "@nestjs/common";
 import {
 	$Enums,
-	MemberInviteStatus,
 	OrganizationMemberStatus,
 	type Prisma,
 	UserRole,
@@ -47,8 +45,6 @@ const ORG_PORTAL_MEMBER_ROLES: ReadonlySet<$Enums.MemberRole> = new Set([
 
 @Injectable()
 export class OrgMembersService {
-	private readonly logger = new Logger(OrgMembersService.name);
-
 	constructor(
 		private readonly prisma: PrismaService,
 		private readonly filesService: FilesService,
@@ -156,32 +152,6 @@ export class OrgMembersService {
 			);
 		}
 		return role;
-	}
-
-	private async queueMemberInviteEmailAfterEnroll(
-		organizationId: string,
-		memberId: string,
-	): Promise<void> {
-		try {
-			const job = await this.backgroundJobsService.createInviteSingleJob(
-				organizationId,
-				memberId,
-			);
-			await this.prisma.member.update({
-				where: { id: memberId },
-				data: {
-					lastInviteStatus: MemberInviteStatus.PENDING,
-					lastInviteScheduledFor: null,
-					lastInviteJobId: job.id,
-				},
-			});
-		} catch (err) {
-			this.logger.error(
-				`Failed to queue org invite email for member ${memberId}: ${
-					err instanceof Error ? err.message : String(err)
-				}`,
-			);
-		}
 	}
 
 	async enrollOrgUser(organizationId: string, dto: EnrollOrgUserDto) {

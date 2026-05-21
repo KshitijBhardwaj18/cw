@@ -117,7 +117,7 @@ export function PendingApprovalCard({
 
 					<CollapsibleContent className="overflow-hidden">
 						<div className="space-y-6 border-t pt-6">
-							<div className="grid gap-6 sm:grid-cols-2">
+							<div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 								<div className="space-y-4">
 									<DetailItem
 										label="Hiring Manager"
@@ -170,7 +170,7 @@ export function PendingApprovalCard({
 								</p>
 							</div>
 
-							<div className="grid gap-6 sm:grid-cols-2">
+							<div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 								<div>
 									<p className="text-muted-foreground mb-2 text-sm">
 										Acceptance Criteria

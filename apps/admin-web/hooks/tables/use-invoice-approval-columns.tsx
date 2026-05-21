@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency } from "@repo/shared";
+import { formatUsdLedger } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Smartphone, Upload } from "lucide-react";
@@ -77,7 +77,7 @@ export function useInvoiceApprovalColumns() {
 			accessorKey: "billRate",
 			cell: ({ row }) => (
 				<div className="font-medium text-center">
-					{formatCurrency(row.original.billRate, "USD", "en-US", 2, 2)}
+					{formatUsdLedger(row.original.billRate)}
 				</div>
 			),
 		},
@@ -87,7 +87,7 @@ export function useInvoiceApprovalColumns() {
 			accessorKey: "total",
 			cell: ({ row }) => (
 				<div className="font-medium text-center">
-					{formatCurrency(row.original.total, "USD", "en-US", 2, 2)}
+					{formatUsdLedger(row.original.total)}
 				</div>
 			),
 		},

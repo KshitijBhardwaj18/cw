@@ -24,6 +24,8 @@ import {
 } from "@repo/ui/components/select";
 import { PhoneInput } from "@repo/ui/general/PhoneInput";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { ImagePlus } from "lucide-react";
 import {
 	ORGANIZATION_INDUSTRY_OPTIONS,
@@ -72,6 +74,12 @@ export function OrganizationDetailsSection({
 	onSlugLoading,
 	excludeOrganizationId,
 }: OrganizationDetailsSectionProps) {
+	const submissionAttempts = useStore(
+		// OrganizationDetailsForm narrows the Field API; parent passes the full TanStack form.
+		// @ts-expect-error -- store exists at runtime on the concrete form instance
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 	return (
 		<div className="space-y-4">
 			<h3 className="text-base font-semibold">Organization Details</h3>
@@ -83,8 +91,11 @@ export function OrganizationDetailsSection({
 					}}
 				>
 					{(field) => {
-						const isInvalid =
-							field.state.meta.isTouched && !field.state.meta.isValid;
+						const isInvalid = formFieldShowInvalid(
+							field.state.meta.isTouched,
+							field.state.meta.isValid,
+							submissionAttempts,
+						);
 						return (
 							<Field data-invalid={isInvalid}>
 								<FieldLabel htmlFor={field.name}>
@@ -155,8 +166,11 @@ export function OrganizationDetailsSection({
 					}}
 				>
 					{(field) => {
-						const isInvalid =
-							field.state.meta.isTouched && !field.state.meta.isValid;
+						const isInvalid = formFieldShowInvalid(
+							field.state.meta.isTouched,
+							field.state.meta.isValid,
+							submissionAttempts,
+						);
 						return (
 							<Field data-invalid={isInvalid}>
 								<FieldLabel htmlFor={field.name}>
@@ -185,8 +199,11 @@ export function OrganizationDetailsSection({
 					}}
 				>
 					{(field) => {
-						const isInvalid =
-							field.state.meta.isTouched && !field.state.meta.isValid;
+						const isInvalid = formFieldShowInvalid(
+							field.state.meta.isTouched,
+							field.state.meta.isValid,
+							submissionAttempts,
+						);
 						return (
 							<Field data-invalid={isInvalid}>
 								<FieldLabel htmlFor={field.name}>
@@ -207,7 +224,7 @@ export function OrganizationDetailsSection({
 					}}
 				</form.Field>
 
-				<div className="grid gap-4 sm:grid-cols-2">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<form.Field
 						name="industry"
 						validators={{
@@ -215,8 +232,11 @@ export function OrganizationDetailsSection({
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>
@@ -254,8 +274,11 @@ export function OrganizationDetailsSection({
 						}}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>
@@ -294,8 +317,11 @@ export function OrganizationDetailsSection({
 					}}
 				>
 					{(field) => {
-						const isInvalid =
-							field.state.meta.isTouched && !field.state.meta.isValid;
+						const isInvalid = formFieldShowInvalid(
+							field.state.meta.isTouched,
+							field.state.meta.isValid,
+							submissionAttempts,
+						);
 						return (
 							<Field data-invalid={isInvalid}>
 								<FieldLabel htmlFor={field.name}>
@@ -326,7 +352,7 @@ export function OrganizationDetailsSection({
 					}}
 				</form.Field>
 
-				<div className="grid gap-4 sm:grid-cols-2">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<form.Field name="website">
 						{(field) => (
 							<Field>

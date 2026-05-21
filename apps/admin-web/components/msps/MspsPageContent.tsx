@@ -12,9 +12,9 @@ import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { LayoutGrid, List, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/contexts";
 import { useMsps } from "@/queries/msps.query";
@@ -24,17 +24,24 @@ import { MspsTableWrapper } from "./MspsTableWrapper";
 
 const PAGE_SIZE = 8;
 
+export const MSP_PARAMS = {
+	PAGE: "page",
+	SEARCH: "search",
+} as const;
+
 export function MspsPageContent() {
 	const [createOpen, setCreateOpen] = useState(false);
-	const router = useRouter();
-	const {
-		page,
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
+
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: MSP_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange, hasActiveSearch } =
+		useDebouncedSearch({
+			paramKey: MSP_PARAMS.SEARCH,
+			pageParamKey: MSP_PARAMS.PAGE,
+		});
 
 	const { data: response } = useMsps(
 		page,
@@ -117,7 +124,7 @@ export function MspsPageContent() {
 						<ConfigPagePagination
 							page={page}
 							totalPages={totalPages}
-							onPageChange={(p) => router.push(buildSearchParams({ page: p }))}
+							onPageChange={setPage}
 						/>
 					</>
 				)}

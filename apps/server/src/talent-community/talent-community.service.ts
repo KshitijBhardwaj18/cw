@@ -45,6 +45,11 @@ const CANDIDATE_INCLUDE = {
 		include: { specialty: { select: { id: true, name: true, acronym: true } } },
 	},
 	vendor: { select: { id: true, name: true } },
+	placements: {
+		select: { status: true },
+		orderBy: { updatedAt: "desc" as const },
+		take: 1,
+	},
 } as const;
 
 const CANDIDATE_PROFILE_INCLUDE = {
@@ -266,10 +271,27 @@ export class TalentCommunityService {
 			}
 		})();
 
+		const workforceTypeFilter =
+			query.workforceType && query.tab !== TalentCommunityTab.NEW_UNASSIGNED
+				? { workforceType: query.workforceType }
+				: {};
+
+		const inviteStatusFilter =
+			query.inviteStatus && query.tab === TalentCommunityTab.INVITED
+				? { inviteStatus: query.inviteStatus }
+				: {};
+
+		const placementStatusFilter = query.placementStatus
+			? { placements: { some: { status: query.placementStatus } } }
+			: {};
+
 		const baseWhere = {
 			organizationId: orgId,
 			...tabFilter,
 			...searchFilter,
+			...workforceTypeFilter,
+			...inviteStatusFilter,
+			...placementStatusFilter,
 		};
 
 		const [

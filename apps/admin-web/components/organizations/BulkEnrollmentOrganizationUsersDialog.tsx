@@ -50,7 +50,10 @@ export function BulkEnrollmentOrganizationUsersDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-2xl" showCloseButton>
+			<DialogContent
+				className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"
+				showCloseButton
+			>
 				<DialogHeader>
 					<DialogTitle>Bulk User Enrollment</DialogTitle>
 					<DialogDescription>

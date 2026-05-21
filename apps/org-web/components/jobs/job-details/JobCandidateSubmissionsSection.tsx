@@ -13,10 +13,11 @@ import { JobCandidateSubmissionRejectDialog } from "./JobCandidateSubmissionReje
 import { JobCandidateSubmissionsListBody } from "./JobCandidateSubmissionsListBody";
 import { JobCandidateSubmissionsPagination } from "./JobCandidateSubmissionsPagination";
 import { JobCandidateSubmissionsStageTabs } from "./JobCandidateSubmissionsStageTabs";
+import { JobOfferAdjustmentDialog } from "./JobOfferAdjustmentDialog";
 import { JobSubmissionHistorySheet } from "./JobSubmissionHistorySheet";
 
 const cardSectionTitleClassName =
-	"text-muted-foreground text-xs font-semibold tracking-wide uppercase";
+	"text-muted-foreground text-sm font-semibold tracking-wide uppercase";
 
 export interface JobCandidateSubmissionsSectionProps {
 	orgId: string;
@@ -38,6 +39,8 @@ export function JobCandidateSubmissionsSection({
 		setHistoryRow,
 		rejectRow,
 		setRejectRow,
+		offerRow,
+		setOfferRow,
 		visibleTabs,
 		rows,
 		totalPages,
@@ -46,6 +49,7 @@ export function JobCandidateSubmissionsSection({
 		handleStageChange,
 		handleAdvance,
 		confirmReject,
+		confirmOffer,
 	} = useJobCandidateSubmissionsSection({ orgId, jobId, allowedStages });
 
 	if (visibleTabs.length === 0 || !activeStage) {
@@ -55,12 +59,12 @@ export function JobCandidateSubmissionsSection({
 	return (
 		<>
 			<Card>
-				<CardHeader className="space-y-1 pb-0">
+				<CardHeader className="space-y-1">
 					<CardTitle className={cardSectionTitleClassName}>
 						Candidate submissions
 					</CardTitle>
 				</CardHeader>
-				<CardContent className="p-0">
+				<CardContent>
 					<JobCandidateSubmissionsStageTabs
 						activeStage={activeStage}
 						visibleTabs={visibleTabs}
@@ -113,6 +117,18 @@ export function JobCandidateSubmissionsSection({
 					}
 				}}
 				onConfirmReject={confirmReject}
+			/>
+
+			<JobOfferAdjustmentDialog
+				open={offerRow != null}
+				row={offerRow}
+				isPending={updateStage.isPending}
+				onOpenChange={(o) => {
+					if (!o) {
+						setOfferRow(null);
+					}
+				}}
+				onConfirm={confirmOffer}
 			/>
 		</>
 	);

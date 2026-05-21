@@ -53,6 +53,21 @@ async function run() {
 	const s3 = createS3Client();
 	const bucket = getS3Bucket();
 	const billingQueue = new Queue(BILLING_QUEUE, { connection });
+	const metricsQueue = new Queue(METRICS_QUEUE, { connection });
+
+	// Register a global monthly metric recompute on the 1st of each month at midnight UTC.
+	// Runs for all organizations that have active metrics. Uses upsert semantics (jobId is stable).
+	await metricsQueue.add(
+		BackGroundJobName.METRIC_SNAPSHOT_RECOMPUTE,
+		{ periodType: "MONTHLY" } satisfies MetricSnapshotRecomputePayload,
+		{
+			jobId: "metric-snapshot-monthly-all-orgs",
+			repeat: { pattern: "0 0 1 * *", tz: "UTC" },
+			removeOnComplete: 10,
+			removeOnFail: false,
+		},
+	);
+
 	const withMainLogs = (
 		queueName: string,
 		handler: (job: Job) => Promise<void>,
@@ -257,6 +272,7 @@ async function run() {
 	const shutdown = async () => {
 		await Promise.all([
 			billingQueue.close(),
+			metricsQueue.close(),
 			importsWorker.close(),
 			billingWorker.close(),
 			notificationsWorker.close(),

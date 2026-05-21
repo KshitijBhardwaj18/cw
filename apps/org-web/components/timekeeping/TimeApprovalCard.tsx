@@ -78,7 +78,7 @@ export function TimeApprovalCard({
 						</span>
 					</div>
 
-					<div className="grid grid-cols-2 gap-px bg-border/40 rounded-lg overflow-hidden border border-border/40">
+					<div className="grid grid-cols-1 gap-px bg-border/40 rounded-lg overflow-hidden border border-border/40 sm:grid-cols-2">
 						<div className="bg-muted/10 p-2.5 space-y-0.5">
 							<p className="text-muted-foreground text-xs font-semibold tracking-tight uppercase">
 								Regular
@@ -95,7 +95,7 @@ export function TimeApprovalCard({
 								{overtimeHours}h
 							</p>
 						</div>
-						<div className="col-span-2 bg-background p-2.5 flex items-center justify-between border-t border-border/40">
+						<div className="col-span-1 bg-background p-2.5 flex items-center justify-between border-t border-border/40 sm:col-span-2">
 							<p className="text-muted-foreground text-xs font-semibold uppercase tracking-tight">
 								Total Hours
 							</p>

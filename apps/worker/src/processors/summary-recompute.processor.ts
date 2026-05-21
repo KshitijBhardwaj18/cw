@@ -667,7 +667,7 @@ export async function runSummaryRecomputeProcessor(
 	const missingOpen = await prisma.missingTimeCase.count({
 		where: {
 			organizationId: payload.organizationId,
-			status: "OPEN",
+			status: { in: ["OPEN", "REMINDED"] },
 		},
 	});
 
@@ -676,6 +676,24 @@ export async function runSummaryRecomputeProcessor(
 			organizationId: payload.organizationId,
 			status: { in: ["OPEN", "REMINDED"] },
 			daysOverdue: { gt: 0 },
+		},
+	});
+
+	const missingResolved = await prisma.missingTimeCase.count({
+		where: {
+			organizationId: payload.organizationId,
+			status: "RESOLVED",
+		},
+	});
+
+	const resolvedDisputes = await prisma.timesheetDispute.count({
+		where: {
+			timesheet: {
+				organizationId: payload.organizationId,
+				weekEndingDate: weekEnd,
+			},
+			resolution: { not: null },
+			resolutionCategory: { not: "REJECTED" },
 		},
 	});
 
@@ -701,9 +719,9 @@ export async function runSummaryRecomputeProcessor(
 		submittedTimesheets,
 		approvedTimesheets,
 		openDisputes,
-		resolvedDisputes: 0,
+		resolvedDisputes,
 		missingTimeCasesOpen: missingOpen,
-		missingTimeCasesResolved: 0,
+		missingTimeCasesResolved: missingResolved,
 		missingTimeCasesOverdue: missingOverdue,
 	} as const;
 

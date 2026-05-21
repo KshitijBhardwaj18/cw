@@ -1,9 +1,4 @@
-import type { Metadata } from "next";
 import BillingPageContent from "@/components/organization-billing/BillingPageContent";
-
-export const metadata: Metadata = {
-	title: "Billing",
-};
 
 type PageProps = { params: Promise<{ organizationId: string }> };
 

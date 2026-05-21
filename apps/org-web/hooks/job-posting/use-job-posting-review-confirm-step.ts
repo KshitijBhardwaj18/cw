@@ -1,6 +1,11 @@
 "use client";
 
-import { getLabel } from "@repo/shared";
+import {
+	formatUsdPerHour,
+	formatUsdWhole,
+	getLabel,
+	MemberRole,
+} from "@repo/shared";
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { JOB_POSTING_PUBLISH_MODE_OPTIONS } from "@/constants/job-posting-flow";
@@ -43,7 +48,9 @@ export function useJobPostingReviewConfirmStep({
 		orgId,
 		values.jobDetails.complianceTemplateId,
 	);
-	const membersQuery = useOrgMembersForPicker(orgId);
+	const membersQuery = useOrgMembersForPicker(orgId, {
+		role: MemberRole.HIRING_MANAGER,
+	});
 	const locationsQuery = useShiftTemplateLocations();
 	const departmentsQuery = useShiftTemplateDepartments();
 	const occupationsQuery = useShiftTemplateOccupations();
@@ -137,11 +144,11 @@ export function useJobPostingReviewConfirmStep({
 			values.publishSettings.publishMode,
 		) ?? values.publishSettings.publishMode;
 
-	const billRateLabel = `$${values.jobDetails.billRate.toFixed(2)}/hr`;
+	const billRateLabel = formatUsdPerHour(values.jobDetails.billRate);
 	const incentiveAmountLabel =
 		values.jobDetails.incentiveAmount == null
 			? "—"
-			: `$${values.jobDetails.incentiveAmount.toLocaleString()}`;
+			: formatUsdWhole(values.jobDetails.incentiveAmount);
 
 	const requisitionTypeLabel =
 		getLabel(REQUISITION_TEMPLATE_TYPE_OPTIONS, values.typeSelection.type) ??

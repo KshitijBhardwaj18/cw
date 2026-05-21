@@ -29,9 +29,13 @@ export function DocumentWalletCard({
 
 	return (
 		<Card>
-			<CardHeader className="flex items-center justify-between">
+			<CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<CardTitle className="text-xl">Document Wallet</CardTitle>
-				<Button variant="link" className="gap-1 text-foreground" asChild>
+				<Button
+					variant="link"
+					className="h-auto shrink-0 self-start px-0 text-foreground sm:self-center"
+					asChild
+				>
 					<Link href="/document-wallet">
 						View All <ChevronRight className="size-4" />
 					</Link>
@@ -45,13 +49,15 @@ export function DocumentWalletCard({
 						<Skeleton className="h-16 w-full" />
 					</div>
 				) : summaryQuery.isError ? (
-					<div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-						<AlertCircle className="size-4 shrink-0" />
-						<span>Could not load documents.</span>
+					<div className="flex flex-col gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center">
+						<div className="flex items-start gap-2 sm:min-w-0 sm:flex-1">
+							<AlertCircle className="mt-0.5 size-4 shrink-0 sm:mt-0" />
+							<span>Could not load documents.</span>
+						</div>
 						<Button
 							variant="ghost"
 							size="sm"
-							className="ml-auto h-auto p-0 text-destructive underline-offset-2 hover:underline"
+							className="h-auto self-start p-0 text-destructive underline-offset-2 hover:underline sm:ml-auto sm:self-center"
 							onClick={() => summaryQuery.refetch()}
 						>
 							Retry
@@ -70,7 +76,7 @@ export function DocumentWalletCard({
 							<Progress value={summary.approvedPercent} className="h-2" />
 						</div>
 
-						<div className="grid grid-cols-3 gap-3">
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 							<div className="flex flex-col items-center gap-1 rounded-lg border bg-muted/20 p-3 text-center">
 								<CheckCircle2 className="size-5 text-green-500" />
 								<span className="text-lg font-semibold">

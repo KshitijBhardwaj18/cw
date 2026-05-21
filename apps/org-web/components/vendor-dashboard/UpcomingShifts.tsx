@@ -3,9 +3,10 @@
 import { Button } from "@repo/ui/components/button";
 import { PageSubheading } from "@repo/ui/general/PageSubheading";
 import PaginationControls from "@repo/ui/general/PaginationControls";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { vendorDashboardKey } from "@/queries/vendor-dashboard.queries";
 import {
@@ -20,6 +21,11 @@ import type {
 import { ClaimShiftDialog } from "../vendor-shift-claiming/ClaimShiftDialog";
 import { ShiftItem } from "./ShiftItem";
 
+const UPCOMING_PARAMS = {
+	PAGE: "upPage",
+	LIMIT: "upLimit",
+} as const;
+
 export function UpcomingShifts({
 	shifts,
 	allowClaim = true,
@@ -29,14 +35,25 @@ export function UpcomingShifts({
 	allowClaim?: boolean;
 }) {
 	const [expanded, setExpanded] = useState(true);
-	const [currentPage, setCurrentPage] = useState(1);
-	const [pageSize, setPageSize] = useState(5);
+	const { page, setPage, limit, setLimit } = usePaginationControls({
+		pageParamKey: UPCOMING_PARAMS.PAGE,
+		limitParamKey: UPCOMING_PARAMS.LIMIT,
+		defaultLimit: 5,
+	});
+
 	const [selectedShift, setSelectedShift] = useState<ClaimableShift | null>(
 		null,
 	);
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 
 	const totalItems = shifts.length;
+
+	useEffect(() => {
+		if (page > 1 && (page - 1) * limit >= totalItems) {
+			setPage(1);
+		}
+	}, [totalItems, page, limit, setPage]);
+
 	const assignMutation = useVendorAssignShift();
 	const queryClient = useQueryClient();
 	const selectedShiftId = selectedShift?.id;
@@ -57,13 +74,10 @@ export function UpcomingShifts({
 	});
 
 	const { pageCount, paginatedShifts } = useMemo(() => {
-		const count = Math.ceil(totalItems / pageSize);
-		const items = shifts.slice(
-			(currentPage - 1) * pageSize,
-			currentPage * pageSize,
-		);
+		const count = Math.ceil(totalItems / limit);
+		const items = shifts.slice((page - 1) * limit, page * limit);
 		return { pageCount: count, paginatedShifts: items };
-	}, [currentPage, pageSize, shifts, totalItems]);
+	}, [page, limit, shifts, totalItems]);
 
 	const handleClaim = (shift: ClaimableShift) => {
 		setSelectedShift(shift);
@@ -111,14 +125,11 @@ export function UpcomingShifts({
 						))}
 					</div>
 					<PaginationControls
-						currentPage={currentPage}
+						currentPage={page}
 						pageCount={pageCount}
-						goToPage={setCurrentPage}
-						limit={pageSize}
-						setLimit={(limit) => {
-							setPageSize(limit);
-							setCurrentPage(1);
-						}}
+						goToPage={setPage}
+						limit={limit}
+						setLimit={setLimit}
 						pageSizeOptions={[5, 10, 20]}
 					/>
 				</div>

@@ -25,7 +25,12 @@ export default async function TimecardDetailPage({ params }: PageProps) {
 
 	return (
 		<div className="space-y-6">
-			<Button variant="ghost" size="sm" className="-ml-2 gap-1.5" asChild>
+			<Button
+				variant="ghost"
+				size="sm"
+				className="-ml-1 gap-1.5 sm:-ml-2"
+				asChild
+			>
 				<Link href={candidatePlacementTimecardPath(placementId)}>
 					<ArrowLeft className="size-4" aria-hidden />
 					{CANDIDATE_PORTAL_COPY.backToTimecards}

@@ -25,7 +25,8 @@ import {
 } from "@repo/ui/components/select";
 import { PhoneInput } from "@repo/ui/general/PhoneInput";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { toast } from "sonner";
@@ -135,6 +136,11 @@ export function UserFormDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	const baseRoles = useMemo(() => {
 		if (currentUser?.role !== UserRole.SUPER_ADMIN) {
 			return ROLE_OPTIONS.filter((role) => role !== UserRole.SUPER_ADMIN);
@@ -150,7 +156,7 @@ export function UserFormDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>{isEditMode ? "Edit User" : "Create User"}</DialogTitle>
 					<DialogDescription>
@@ -168,14 +174,17 @@ export function UserFormDialog({
 					className="space-y-5"
 				>
 					<FieldGroup>
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<form.Field
 								name="firstName"
 								validators={{ onChange: userFormSchema.shape.firstName }}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -204,8 +213,11 @@ export function UserFormDialog({
 								validators={{ onChange: userFormSchema.shape.lastName }}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -230,14 +242,17 @@ export function UserFormDialog({
 							</form.Field>
 						</div>
 
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<form.Field
 								name="title"
 								validators={{ onChange: userFormSchema.shape.title }}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -266,8 +281,11 @@ export function UserFormDialog({
 								validators={{ onChange: userFormSchema.shape.email }}
 							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
@@ -293,44 +311,64 @@ export function UserFormDialog({
 							</form.Field>
 						</div>
 
-						<div className="grid grid-cols-2 gap-4">
-							<form.Field name="officePhone">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+							<form.Field
+								name="officePhone"
+								validators={{ onChange: userFormSchema.shape.officePhone }}
+							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
-										<Field>
+										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>Office Phone</FieldLabel>
 											<PhoneInput
 												id={field.name}
 												name={field.name}
-												placeholder="Office phone"
+												placeholder="+19876543210"
 												value={field.state.value}
 												onBlur={field.handleBlur}
 												onChange={(value) => field.handleChange(value)}
 												aria-invalid={isInvalid}
+												disabled={isPending}
 											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
 										</Field>
 									);
 								}}
 							</form.Field>
 
-							<form.Field name="phoneNumber">
+							<form.Field
+								name="phoneNumber"
+								validators={{ onChange: userFormSchema.shape.phoneNumber }}
+							>
 								{(field) => {
-									const isInvalid =
-										field.state.meta.isTouched && !field.state.meta.isValid;
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
 									return (
-										<Field>
+										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>Mobile Phone</FieldLabel>
 											<PhoneInput
 												id={field.name}
 												name={field.name}
-												placeholder="Mobile phone"
+												placeholder="+19876543210"
 												value={field.state.value}
 												onBlur={field.handleBlur}
 												onChange={(value) => field.handleChange(value)}
 												aria-invalid={isInvalid}
+												disabled={isPending}
 											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
 										</Field>
 									);
 								}}

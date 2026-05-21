@@ -75,9 +75,9 @@ export function CandidateTimecardDetailPageContent({
 				/>
 			) : null}
 
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div>
-					<h1 className="text-xl font-semibold tracking-tight">
+			<div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+				<div className="min-w-0">
+					<h1 className="text-lg font-semibold tracking-tight sm:text-xl">
 						{d.assignmentTitle}
 					</h1>
 					<p className="text-muted-foreground mt-1 text-sm">
@@ -85,7 +85,11 @@ export function CandidateTimecardDetailPageContent({
 					</p>
 				</div>
 				{d.canEdit ? (
-					<Button type="button" onClick={() => setEditOpen(true)}>
+					<Button
+						type="button"
+						className="w-full shrink-0 sm:w-auto"
+						onClick={() => setEditOpen(true)}
+					>
 						Edit timecard
 					</Button>
 				) : null}

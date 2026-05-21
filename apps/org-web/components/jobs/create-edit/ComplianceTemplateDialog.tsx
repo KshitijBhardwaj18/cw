@@ -51,7 +51,7 @@ export function ComplianceTemplateDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[80vh] min-w-4xl overflow-hidden">
+			<DialogContent className="max-h-[90dvh] max-w-4xl min-w-0 w-full overflow-hidden">
 				<DialogHeader>
 					<DialogTitle>{complianceTemplateLabel}</DialogTitle>
 					{showInheritedDescription && (
@@ -61,7 +61,7 @@ export function ComplianceTemplateDialog({
 					)}
 				</DialogHeader>
 
-				<div className="grid gap-4 md:grid-cols-[1fr_280px]">
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_280px]">
 					<div className="space-y-3">
 						<h4 className="font-semibold text-sm">
 							Required Documents & Credentials

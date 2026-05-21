@@ -15,6 +15,9 @@ import type {
 import { DB_TO_UI_STATUS as statusMap } from "@repo/ui/general/billing/types";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { DollarSign, FileText, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -31,6 +34,13 @@ import { fmtCurrency, fmtPeriod, fmtShortDate } from "@/utils/format";
 import RatesTabContent from "./RatesTabContent";
 
 const PAGE_SIZE = 10;
+export const INV_PARAMS = {
+	PAGE: "invPage",
+	LIMIT: "invLimit",
+	SEARCH: "invSearch",
+	STATUS: "status",
+} as const;
+
 /** Pending-attention list (Draft + Submitted); separate from paginated history table. */
 const PENDING_ATTENTION_LIMIT = 50;
 
@@ -64,17 +74,70 @@ function BillingPageContent({ organizationId }: BillingPageContentProps) {
 		{ year: new Date().getFullYear(), limit: 50 },
 	);
 
-	const [searchValue, setSearchValue] = useState("");
+	const [tab, setTab] = useTabSwitch(
+		["billing-configuration", "invoice-history", "rates"],
+		{
+			alsoClearParamKeys: [
+				INV_PARAMS.STATUS,
+				INV_PARAMS.SEARCH,
+				INV_PARAMS.PAGE,
+			],
+		},
+	);
+
+	const {
+		searchValue: invSearchValue,
+		handleSearchChange: handleInvSearchChange,
+		filterConfigs,
+		searchFromUrl: invSearchFromUrl,
+		values,
+	} = useSearchWithFilters({
+		search: { paramKey: INV_PARAMS.SEARCH },
+		pagination: { pageParamKey: INV_PARAMS.PAGE },
+		filters: [
+			{
+				id: INV_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				options: [
+					{ value: "all", label: "All Statuses" },
+					{ value: "DRAFT", label: "Draft" },
+					{ value: "SUBMITTED", label: "Pending Approval" },
+					{ value: "DISPUTED", label: "Disputed" },
+					{ value: "APPROVED", label: "Finalized" },
+					{ value: "PAID", label: "Paid" },
+					{ value: "OVERDUE", label: "Overdue" },
+				],
+			},
+		],
+	});
+
+	const {
+		page: invPage,
+		limit: invLimit,
+		setPage: setInvPage,
+	} = usePaginationControls({
+		pageParamKey: INV_PARAMS.PAGE,
+		limitParamKey: INV_PARAMS.LIMIT,
+		defaultLimit: PAGE_SIZE,
+	});
+
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
-	const [statusFilter, setStatusFilter] = useState("all");
-	const [page, setPage] = useState(1);
 	const { data: pendingCount = 0 } = usePendingInvoiceCount(orgId);
 
-	const { data: invoicesData } = useInvoices(orgId, {
-		search: searchValue || undefined,
-		status: statusFilter === "all" ? undefined : statusFilter,
-		page,
-		limit: PAGE_SIZE,
+	const {
+		data: invoicesData,
+		isLoading: invoicesLoading,
+		isFetching: invoicesFetching,
+	} = useInvoices(orgId, {
+		search: invSearchFromUrl || undefined,
+		status:
+			values[INV_PARAMS.STATUS] === "all"
+				? undefined
+				: values[INV_PARAMS.STATUS],
+		page: invPage,
+		limit: invLimit,
 	});
 
 	const { data: pendingListData, isLoading: pendingListLoading } = useInvoices(
@@ -116,27 +179,6 @@ function BillingPageContent({ organizationId }: BillingPageContentProps) {
 		URL.revokeObjectURL(url);
 	};
 
-	const filterConfigs = [
-		{
-			id: "status",
-			label: "Status",
-			value: statusFilter,
-			onValueChange: (v: string) => {
-				setStatusFilter(v);
-				setPage(1);
-			},
-			options: [
-				{ value: "all", label: "All Statuses" },
-				{ value: "DRAFT", label: "Draft" },
-				{ value: "SUBMITTED", label: "Pending Approval" },
-				{ value: "DISPUTED", label: "Disputed" },
-				{ value: "APPROVED", label: "Finalized" },
-				{ value: "PAID", label: "Paid" },
-				{ value: "OVERDUE", label: "Overdue" },
-			],
-		},
-	];
-
 	return (
 		<div className="space-y-6">
 			<ConfigPageHeader
@@ -148,7 +190,8 @@ function BillingPageContent({ organizationId }: BillingPageContentProps) {
 			/>
 
 			<Tabs
-				defaultValue="billing-configuration"
+				value={tab}
+				onValueChange={setTab}
 				className="w-full flex-col space-y-6"
 			>
 				<ScrollableLineTabsRow>
@@ -201,18 +244,16 @@ function BillingPageContent({ organizationId }: BillingPageContentProps) {
 						pendingInvoices={pendingInvoices}
 						pendingAttentionTotal={pendingCount}
 						pendingListLoading={pendingListLoading}
-						searchValue={searchValue}
-						onSearchChange={(v) => {
-							setSearchValue(v);
-							setPage(1);
-						}}
+						searchValue={invSearchValue}
+						onSearchChange={handleInvSearchChange}
 						filtersExpanded={filtersExpanded}
 						onFiltersExpandedChange={setFiltersExpanded}
 						filterConfigs={filterConfigs}
-						page={page}
+						page={invPage}
 						totalPages={totalPages}
-						onPageChange={setPage}
+						onPageChange={setInvPage}
 						onViewInvoice={handleViewInvoice}
+						isLoading={invoicesLoading || invoicesFetching}
 						onDownloadPDF={async (inv) => {
 							try {
 								const id =

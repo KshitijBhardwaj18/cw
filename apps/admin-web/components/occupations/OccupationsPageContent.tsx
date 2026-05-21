@@ -4,9 +4,9 @@ import { Action } from "@repo/casl";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/contexts";
 import { useOccupationsPaginated } from "@/queries/occupations.query";
@@ -15,19 +15,26 @@ import { OccupationsTableWrapper } from "./OccupationsTableWrapper";
 
 const PAGE_SIZE = 10;
 
+export const OCCUPATIONS_PARAMS = {
+	PAGE: "occPage",
+	SEARCH: "occSearch",
+} as const;
+
 export const OccupationsPageContent = () => {
 	const { ability } = useAuth();
 	const canCreateOccupation = ability.can(Action.Create, "Occupation");
 	const [createOpen, setCreateOpen] = useState(false);
-	const router = useRouter();
-	const {
-		page,
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
+
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: OCCUPATIONS_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange, hasActiveSearch } =
+		useDebouncedSearch({
+			paramKey: OCCUPATIONS_PARAMS.SEARCH,
+			pageParamKey: OCCUPATIONS_PARAMS.PAGE,
+		});
 
 	const { data: paginated } = useOccupationsPaginated(
 		page,
@@ -87,7 +94,7 @@ export const OccupationsPageContent = () => {
 					<ConfigPagePagination
 						page={page}
 						totalPages={totalPages}
-						onPageChange={(p) => router.push(buildSearchParams({ page: p }))}
+						onPageChange={setPage}
 					/>
 				</>
 			)}

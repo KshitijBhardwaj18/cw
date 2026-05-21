@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate } from "@repo/shared";
+import { formatDate, formatUsdPerHour } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
@@ -13,6 +13,7 @@ import {
 } from "@repo/ui/components/dropdown-menu";
 import { Separator } from "@repo/ui/components/separator";
 import {
+	AlertTriangle,
 	Briefcase,
 	Building2,
 	Calendar,
@@ -65,6 +66,12 @@ export function ShiftCard({
 								Public
 							</Badge>
 						)}
+						{shift.hasConflict && (
+							<Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+								<AlertTriangle className="size-3" />
+								Conflict
+							</Badge>
+						)}
 					</div>
 
 					{showActionsMenu ? (
@@ -115,11 +122,11 @@ export function ShiftCard({
 					</span>
 					<span className="flex items-center gap-1">
 						<DollarSign className="size-3.5" />
-						{shift.ratePerHour}/hour
+						{formatUsdPerHour(shift.ratePerHour)}
 					</span>
 				</div>
 
-				<div className="mt-4 grid grid-cols-2 gap-y-3 sm:grid-cols-4">
+				<div className="mt-4 grid grid-cols-1 gap-y-3 sm:grid-cols-2 md:grid-cols-4">
 					<div>
 						<p className="text-muted-foreground text-xs">Occupation</p>
 						<p className="mt-0.5 flex items-center gap-1 text-sm font-medium">
@@ -163,7 +170,7 @@ export function ShiftCard({
 					<>
 						<Separator className="my-4" />
 
-						<div className="grid grid-cols-2 gap-y-2 sm:grid-cols-4">
+						<div className="grid grid-cols-1 gap-y-2 sm:grid-cols-2 md:grid-cols-4">
 							<div>
 								<p className="text-muted-foreground text-xs">Vendor Rate</p>
 								<p className="mt-0.5 flex items-center gap-1 text-sm font-medium">
@@ -202,6 +209,21 @@ export function ShiftCard({
 						</div>
 					</>
 				) : null}
+
+				{shift.hasConflict && shift.conflictReason && (
+					<div className="mt-4 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-3 dark:border-red-800 dark:bg-red-950/30">
+						<AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-600 dark:text-red-400" />
+						<div>
+							<p className="text-sm font-semibold text-red-700 dark:text-red-400">
+								{shift.conflictReason}
+							</p>
+							<p className="text-xs text-red-600 dark:text-red-500">
+								This shift may create back-to-back day and night shift
+								assignments. Review claiming rules before approval.
+							</p>
+						</div>
+					</div>
+				)}
 			</CardContent>
 		</Card>
 	);

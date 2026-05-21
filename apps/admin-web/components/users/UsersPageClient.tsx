@@ -2,27 +2,30 @@
 
 import { Alert } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
+import { Tabs, TabsContent } from "@repo/ui/components/tabs";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { usersKeys } from "@/queries/users.query";
 import { useBulkPlatformUsersStore } from "@/stores/bulk-platform-users.store";
-import OrganizationUsers from "./OrganizationUsers";
-import PlatformUsers from "./PlatformUsers";
+import OrganizationUsers, { OU_PARAMS } from "./OrganizationUsers";
+import PlatformUsers, { PU_PARAMS } from "./PlatformUsers";
 import UsersHeader from "./UsersHeader";
-import VendorUsers from "./VendorUsers";
-
-const TABS = {
-	platform: PlatformUsers,
-	vendor: VendorUsers,
-	organization: OrganizationUsers,
-};
+import VendorUsers, { VU_PARAMS } from "./VendorUsers";
 
 const UsersPageClient = () => {
 	const queryClient = useQueryClient();
-	const [activeTab, setActiveTab] = useState<
-		"platform" | "vendor" | "organization"
-	>("platform");
+	const [activeTab, setActiveTab] = useTabSwitch(
+		["platform", "vendor", "organization"],
+		{
+			alsoClearParamKeys: [
+				PU_PARAMS.SEARCH,
+				VU_PARAMS.SEARCH,
+				OU_PARAMS.SEARCH,
+			],
+		},
+	);
 	const bulkPlatformUsersStatus = useBulkPlatformUsersStore((s) => s.status);
 	const dismissBulkPlatformUsers = useBulkPlatformUsersStore((s) => s.dismiss);
 
@@ -35,9 +38,12 @@ const UsersPageClient = () => {
 		}
 	}, [bulkPlatformUsersStatus.phase, queryClient]);
 
-	const Component = TABS[activeTab];
 	return (
-		<div className="flex flex-col gap-4">
+		<Tabs
+			value={activeTab}
+			onValueChange={(v) => setActiveTab(v)}
+			className="w-full flex-col space-y-4"
+		>
 			{activeTab === "platform" && bulkPlatformUsersStatus.phase !== "idle" && (
 				<Alert
 					className="flex items-center justify-between gap-3 border-primary/40 bg-primary/4 px-4 py-3"
@@ -83,9 +89,18 @@ const UsersPageClient = () => {
 					</Button>
 				</Alert>
 			)}
-			<UsersHeader activeTab={activeTab} setActiveTab={setActiveTab} />
-			<Component />
-		</div>
+			<UsersHeader activeTab={activeTab} />
+
+			<TabsContent value="platform" className="mt-0">
+				<PlatformUsers />
+			</TabsContent>
+			<TabsContent value="vendor" className="mt-0">
+				<VendorUsers />
+			</TabsContent>
+			<TabsContent value="organization" className="mt-0">
+				<OrganizationUsers />
+			</TabsContent>
+		</Tabs>
 	);
 };
 

@@ -23,6 +23,7 @@ export function CandidateJobApplySubmitCard({
 						type="button"
 						variant="outline"
 						size="sm"
+						className="w-full sm:w-auto"
 						onClick={onCancel}
 						disabled={!canSubmit}
 					>
@@ -30,7 +31,7 @@ export function CandidateJobApplySubmitCard({
 					</Button>
 					<Button
 						type="button"
-						className="gap-2 sm:ml-auto"
+						className="w-full gap-2 sm:ml-auto sm:w-auto"
 						disabled={!canSubmit}
 						onClick={onSubmit}
 					>

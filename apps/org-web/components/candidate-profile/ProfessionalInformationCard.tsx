@@ -27,16 +27,16 @@ export function ProfessionalInformationCard({
 
 	return (
 		<Card className="w-full">
-			<CardHeader className="flex items-center justify-between">
-				<div className="flex flex-col gap-1">
+			<CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+				<div className="flex min-w-0 flex-col gap-1">
 					<CardTitle className="text-xl">Professional Information</CardTitle>
 					<CardDescription>
 						Review and update your skills and preferences.
 					</CardDescription>
 				</div>
-				{editProfessionalSlot}
+				<div className="w-full shrink-0 sm:w-auto">{editProfessionalSlot}</div>
 			</CardHeader>
-			<CardContent className="grid grid-cols-2 gap-4">
+			<CardContent className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-4">
 				<div className="space-y-4">
 					<DetailItem
 						icon={Stethoscope}

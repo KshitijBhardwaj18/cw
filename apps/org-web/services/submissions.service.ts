@@ -53,6 +53,13 @@ export class SubmissionsService {
 		);
 	}
 
+	static async getRequisitionStageCounts(requisitionId: string) {
+		return ApiClient.get<Record<SubmissionStageKey, number>>(
+			`${BASE}/stats/by-requisition`,
+			{ requisitionId },
+		);
+	}
+
 	static async getAgingStats(query: OrgSubmissionsAgingStatsParams) {
 		return ApiClient.get<SubmissionAgingCounts>(`${BASE}/stats/aging`, query);
 	}

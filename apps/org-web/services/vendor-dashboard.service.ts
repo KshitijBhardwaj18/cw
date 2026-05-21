@@ -16,9 +16,12 @@ export class VendorDashboardService {
 		);
 	}
 
-	static async getFinancial(): Promise<VendorDashboardResponse["financial"]> {
+	static async getFinancial(
+		period?: string,
+	): Promise<VendorDashboardResponse["financial"]> {
 		return ApiClient.get<VendorDashboardResponse["financial"]>(
 			"/api/vendor/dashboard/financial",
+			period ? { period } : undefined,
 		);
 	}
 

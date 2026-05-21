@@ -102,7 +102,7 @@ export function JobDetailDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[90vh] overflow-y-auto">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle className="text-xl">{display.title}</DialogTitle>
 				</DialogHeader>
@@ -189,7 +189,7 @@ export function JobDetailDialog({
 						<CardHeader>
 							<CardTitle className="text-base">Facility Information</CardTitle>
 						</CardHeader>
-						<CardContent className="grid grid-cols-2 gap-6">
+						<CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 							<DetailItem label="Location" value={display.location} />
 							<DetailItem label="Department" value={display.department} />
 							<DetailItem label="Occupation" value={display.occupation} />
@@ -224,7 +224,7 @@ export function JobDetailDialog({
 
 					<div className="space-y-4">
 						<h3 className="font-semibold text-base">Schedule & Pay</h3>
-						<div className="grid grid-cols-2 gap-6">
+						<div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 							<DetailItem label="Shift" value={display.shift} />
 							<DetailItem label="Duration" value={display.duration} />
 							<DetailItem
@@ -241,7 +241,7 @@ export function JobDetailDialog({
 						<CardHeader>
 							<CardTitle className="text-base">Placement Details</CardTitle>
 						</CardHeader>
-						<CardContent className="grid grid-cols-2 gap-6">
+						<CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 							<DetailItem label="Contract Type" value={display.contractType} />
 							<DetailItem
 								label="Number of Open Positions"

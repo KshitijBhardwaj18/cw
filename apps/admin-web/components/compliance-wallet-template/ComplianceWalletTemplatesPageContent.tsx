@@ -1,11 +1,7 @@
 "use client";
 
 import { Action } from "@repo/casl";
-import type { CombinationRow } from "@repo/shared";
-import {
-	COMBINATIONS_FILTER_VALUES,
-	type CombinationsFilter,
-} from "@repo/shared";
+import type { CombinationRow, CombinationsFilter } from "@repo/shared";
 import { StatCard } from "@repo/ui/components/dashboard/StatCard";
 import {
 	Select,
@@ -17,9 +13,9 @@ import {
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
 import { SearchBar } from "@repo/ui/general/SearchBar";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { CheckCircle2, FolderOpen, Layers } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts";
@@ -38,6 +34,12 @@ const FILTER_OPTIONS: { value: CombinationsFilter; label: string }[] = [
 	{ value: "without_wallet", label: "Without Wallets" },
 ];
 
+export const CWT_PARAMS = {
+	PAGE: "cwtPage",
+	SEARCH: "cwtSearch",
+	FILTER: "cwtFilter",
+} as const;
+
 type ComplianceWalletTemplatesPageContentProps = {
 	organizationId: string;
 };
@@ -45,7 +47,6 @@ type ComplianceWalletTemplatesPageContentProps = {
 export default function ComplianceWalletTemplatesPageContent({
 	organizationId,
 }: ComplianceWalletTemplatesPageContentProps) {
-	const router = useRouter();
 	const { ability } = useAuth();
 	const canUpdate = ability.can(Action.Update, "ComplianceWalletTemplate");
 	const canDelete = ability.can(Action.Delete, "ComplianceWalletTemplate");
@@ -54,19 +55,34 @@ export default function ComplianceWalletTemplatesPageContent({
 
 	const deleteMutation = useDeleteWalletTemplate(organizationId);
 
-	const {
-		page,
-		searchFromUrl,
-		filterFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		handleFilterChange,
-		buildSearchParams,
-	} = useConfigPageSearch({
-		validFilters: COMBINATIONS_FILTER_VALUES,
-		defaultFilter: "all",
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: CWT_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
 	});
+
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		onFilterChange,
+		hasActiveSearch,
+	} = useSearchWithFilters({
+		search: { paramKey: CWT_PARAMS.SEARCH },
+		pagination: { pageParamKey: CWT_PARAMS.PAGE },
+		filters: [
+			{
+				id: CWT_PARAMS.FILTER,
+				label: "Combinations",
+				type: "select",
+				defaultValue: "all",
+				options: FILTER_OPTIONS,
+			},
+		],
+	});
+
+	const filterFromUrl = (values[CWT_PARAMS.FILTER] ||
+		"all") as CombinationsFilter;
 
 	const { data: paginated } = useCombinationsPaginated(
 		organizationId,
@@ -144,7 +160,7 @@ export default function ComplianceWalletTemplatesPageContent({
 				</div>
 				<Select
 					value={filterFromUrl}
-					onValueChange={(v) => handleFilterChange(v as CombinationsFilter)}
+					onValueChange={(v) => onFilterChange(CWT_PARAMS.FILTER, v)}
 				>
 					<SelectTrigger className="w-[180px]">
 						<SelectValue />
@@ -196,9 +212,7 @@ export default function ComplianceWalletTemplatesPageContent({
 							<ConfigPagePagination
 								page={page}
 								totalPages={totalPages}
-								onPageChange={(p) =>
-									router.push(buildSearchParams({ page: p }))
-								}
+								onPageChange={setPage}
 							/>
 						</div>
 					)}

@@ -14,8 +14,14 @@ import type {
 	InvoiceHistoryItem,
 } from "@repo/ui/general/billing/types";
 import { DB_TO_UI_STATUS as statusMap } from "@repo/ui/general/billing/types";
-import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
+import {
+	type ConfigPageAction,
+	ConfigPageHeader,
+} from "@repo/ui/general/ConfigPageHeader";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { FileText, Pencil, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -26,6 +32,7 @@ import {
 	useInvoiceHistory,
 	useInvoiceHistoryPendingCount,
 	usePayCodes,
+	useTriggerBillingCycleRun,
 } from "@/queries/billing.queries";
 import { useHolidays } from "@/queries/timekeeping.queries";
 import { BillingService } from "@/services/billing.service";
@@ -34,6 +41,11 @@ import { EditBillingSettingsDialog } from "./EditBillingSettingsDialog";
 
 const PAGE_SIZE = 10;
 const PENDING_ATTENTION_LIMIT = 50;
+const BILLING_PARAMS = {
+	PAGE: "bPage",
+	SEARCH: "bSearch",
+	STATUS: "bStatus",
+} as const;
 
 function toHistoryItem(inv: ApiInvoiceListItem): InvoiceHistoryItem {
 	return {
@@ -50,10 +62,12 @@ function toHistoryItem(inv: ApiInvoiceListItem): InvoiceHistoryItem {
 function BillingPageContent() {
 	const ability = useAbility();
 	const canEditBillingSettings = ability.can(Action.Update, "Billing");
+	const isDev = process.env.NODE_ENV === "development";
 
 	const router = useRouter();
 	const { id: orgId } = useOrgContext();
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+	const triggerBillingRun = useTriggerBillingCycleRun();
 
 	const { data: config, isLoading: configLoading } = useBillingConfig(orgId);
 	const { data: payCodesData, isLoading: payCodesLoading } = usePayCodes(
@@ -65,15 +79,53 @@ function BillingPageContent() {
 		{ year: new Date().getFullYear(), limit: 50 },
 	);
 
-	const [searchValue, setSearchValue] = useState("");
+	const [activeTab, setActiveTab] = useTabSwitch(
+		["billing-configuration", "invoice-history"],
+		{ alsoClearParamKeys: ["bSearch", "bPage", "bStatus"] },
+	);
+
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: BILLING_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const {
+		searchValue: localSearch,
+		handleSearchChange,
+		searchFromUrl,
+		values,
+		filterConfigs: hookFilterConfigs,
+	} = useSearchWithFilters({
+		search: { paramKey: BILLING_PARAMS.SEARCH },
+		pagination: { pageParamKey: BILLING_PARAMS.PAGE },
+		filters: [
+			{
+				id: BILLING_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				options: [
+					{ value: "all", label: "All Statuses" },
+					{ value: "DRAFT", label: "Draft" },
+					{ value: "SUBMITTED", label: "Pending Approval" },
+					{ value: "DISPUTED", label: "Disputed" },
+					{ value: "APPROVED", label: "Finalized" },
+					{ value: "PAID", label: "Paid" },
+					{ value: "OVERDUE", label: "Overdue" },
+				],
+			},
+		],
+	});
+
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
-	const [statusFilter, setStatusFilter] = useState("all");
-	const [page, setPage] = useState(1);
 	const { data: pendingCount = 0 } = useInvoiceHistoryPendingCount(orgId);
 
 	const { data: invoicesData } = useInvoiceHistory(orgId, {
-		search: searchValue || undefined,
-		status: statusFilter === "all" ? undefined : statusFilter,
+		search: searchFromUrl.trim() || undefined,
+		status:
+			values[BILLING_PARAMS.STATUS] === "all"
+				? undefined
+				: values[BILLING_PARAMS.STATUS],
 		page,
 		limit: PAGE_SIZE,
 	});
@@ -89,7 +141,6 @@ function BillingPageContent() {
 		() => (invoicesData?.data ?? []).map(toHistoryItem),
 		[invoicesData?.data],
 	);
-	const totalPages = invoicesData?.totalPages ?? 1;
 
 	const pendingInvoices = useMemo(
 		() => (pendingListData?.data ?? []).map(toHistoryItem),
@@ -113,26 +164,47 @@ function BillingPageContent() {
 		URL.revokeObjectURL(url);
 	};
 
-	const filterConfigs = [
-		{
-			id: "status",
-			label: "Status",
-			value: statusFilter,
-			onValueChange: (v: string) => {
-				setStatusFilter(v);
-				setPage(1);
+	const handleDevTriggerBilling = () => {
+		triggerBillingRun.mutate(2, {
+			onSuccess: (res) => {
+				toast.success(
+					`Billing run queued (job ${res.jobId}) for ${res.scheduledFor}`,
+				);
 			},
-			options: [
-				{ value: "all", label: "All Statuses" },
-				{ value: "DRAFT", label: "Draft" },
-				{ value: "SUBMITTED", label: "Pending Approval" },
-				{ value: "DISPUTED", label: "Disputed" },
-				{ value: "APPROVED", label: "Finalized" },
-				{ value: "PAID", label: "Paid" },
-				{ value: "OVERDUE", label: "Overdue" },
-			],
-		},
-	];
+			onError: (e) => {
+				toast.error(
+					e instanceof Error ? e.message : "Failed to queue billing cycle run",
+				);
+			},
+		});
+	};
+
+	const headerActions = [
+		...(canEditBillingSettings
+			? [
+					{
+						key: "edit-settings",
+						icon: <Pencil className="mr-2 h-4 w-4" />,
+						label: "Edit Settings",
+						variant: "outline" as const,
+						onClick: () => setIsEditDialogOpen(true),
+					},
+				]
+			: []),
+		...(isDev && canEditBillingSettings
+			? [
+					{
+						key: "dev-run-billing-2m",
+						label: triggerBillingRun.isPending
+							? "Queueing…"
+							: "Dev: Run Billing in 2m",
+						variant: "outline" as const,
+						onClick: handleDevTriggerBilling,
+						disabled: triggerBillingRun.isPending,
+					},
+				]
+			: []),
+	] satisfies ConfigPageAction[];
 
 	return (
 		<>
@@ -143,23 +215,12 @@ function BillingPageContent() {
 					itemLabel="Pending Invoice"
 					itemLabelPlural="Pending Invoices"
 					description="Configure your organization's billing preferences and track all financial transactions"
-					actions={
-						canEditBillingSettings
-							? [
-									{
-										key: "edit-settings",
-										icon: <Pencil className="mr-2 h-4 w-4" />,
-										label: "Edit Settings",
-										variant: "outline",
-										onClick: () => setIsEditDialogOpen(true),
-									},
-								]
-							: []
-					}
+					actions={headerActions}
 				/>
 
 				<Tabs
-					defaultValue="billing-configuration"
+					value={activeTab}
+					onValueChange={setActiveTab}
 					className="w-full flex-col space-y-6"
 				>
 					<ScrollableLineTabsRow>
@@ -207,16 +268,13 @@ function BillingPageContent() {
 							pendingInvoices={pendingInvoices}
 							pendingAttentionTotal={pendingCount}
 							pendingListLoading={pendingListLoading}
-							searchValue={searchValue}
-							onSearchChange={(v) => {
-								setSearchValue(v);
-								setPage(1);
-							}}
+							searchValue={localSearch}
+							onSearchChange={handleSearchChange}
 							filtersExpanded={filtersExpanded}
 							onFiltersExpandedChange={setFiltersExpanded}
-							filterConfigs={filterConfigs}
+							filterConfigs={hookFilterConfigs}
 							page={page}
-							totalPages={totalPages}
+							totalPages={invoicesData?.totalPages ?? 1}
 							onPageChange={setPage}
 							onViewInvoice={handleViewInvoice}
 							onDownloadPDF={async (inv) => {

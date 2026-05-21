@@ -39,7 +39,7 @@ export function RejectDisputeDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent className="sm:max-w-md">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
 				<DialogHeader className="flex flex-col items-start gap-1 text-left">
 					<DialogTitle>Reject dispute</DialogTitle>
 					<DialogDescription className="mt-1">

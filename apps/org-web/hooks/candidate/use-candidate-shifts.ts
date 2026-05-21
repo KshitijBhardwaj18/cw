@@ -1,8 +1,8 @@
 "use client";
 
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { useCallback, useMemo, useState } from "react";
 import { CANDIDATE_SHIFTS_TABS } from "@/constants/candidate/shifts";
 import {
@@ -15,89 +15,118 @@ import {
 type ShiftTab =
 	(typeof CANDIDATE_SHIFTS_TABS)[keyof typeof CANDIDATE_SHIFTS_TABS];
 
-const TAB_VALUES = new Set<string>(Object.values(CANDIDATE_SHIFTS_TABS));
+export const CANDIDATE_SHIFTS_PARAMS = {
+	TAB: "csTab",
+	SEARCH: "csSearch",
+	DATE: "date",
+	PAGE_SIZE: "ps",
+	AVAILABLE_PAGE: "avPage",
+	MY_SHIFTS_PAGE: "myPage",
+} as const;
 
 export function useCandidateShifts() {
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+	const [activeTab, setActiveTab] = useTabSwitch<ShiftTab>(
+		Object.values(CANDIDATE_SHIFTS_TABS),
 		{
-			paramKey: "csSearch",
-			pageParamKey: null,
-			alsoClearParamKeys: ["avPage", "myPage"],
+			paramKey: CANDIDATE_SHIFTS_PARAMS.TAB,
+			alsoClearParamKeys: [
+				CANDIDATE_SHIFTS_PARAMS.AVAILABLE_PAGE,
+				CANDIDATE_SHIFTS_PARAMS.MY_SHIFTS_PAGE,
+			],
 		},
 	);
 
-	const dateFilter = searchParams.get("date") ?? "";
+	const { page: availablePage, setPage: setAvailablePage } =
+		usePaginationControls({
+			pageParamKey: CANDIDATE_SHIFTS_PARAMS.AVAILABLE_PAGE,
+			limitParamKey: CANDIDATE_SHIFTS_PARAMS.PAGE_SIZE,
+			defaultLimit: 10,
+		});
 
-	const pageSizeParam = Number(searchParams.get("ps") ?? "10");
-	const pageSize =
-		Number.isFinite(pageSizeParam) && pageSizeParam > 0 ? pageSizeParam : 10;
+	const {
+		page: myShiftsPage,
+		setPage: setMyShiftsPage,
+		limit: pageSize,
+		setLimit: setPageSizeRaw,
+	} = usePaginationControls({
+		pageParamKey: CANDIDATE_SHIFTS_PARAMS.MY_SHIFTS_PAGE,
+		limitParamKey: CANDIDATE_SHIFTS_PARAMS.PAGE_SIZE,
+		defaultLimit: 10,
+	});
 
-	const tabParam = searchParams.get("csTab");
-	const activeTab: ShiftTab =
-		tabParam && TAB_VALUES.has(tabParam)
-			? (tabParam as ShiftTab)
-			: CANDIDATE_SHIFTS_TABS.AVAILABLE;
-
-	const avPageParam = Number(searchParams.get("avPage") ?? "1");
-	const availablePage =
-		Number.isFinite(avPageParam) && avPageParam > 0 ? avPageParam : 1;
-	const myPageParam = Number(searchParams.get("myPage") ?? "1");
-	const myShiftsPage =
-		Number.isFinite(myPageParam) && myPageParam > 0 ? myPageParam : 1;
-
-	const [filtersExpanded, setFiltersExpanded] = useState(false);
-
-	const setDateFilterAndResetPages = useCallback(
-		(value: string) => {
-			const clear = !value;
-			pushParams({ date: clear ? null : value, avPage: null, myPage: null });
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange: handleSearchChangeRaw,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange: onFilterChangeRaw,
+	} = useSearchWithFilters({
+		pagination: { pageParamKey: CANDIDATE_SHIFTS_PARAMS.AVAILABLE_PAGE },
+		search: {
+			paramKey: CANDIDATE_SHIFTS_PARAMS.SEARCH,
+			alsoClearParamKeys: [CANDIDATE_SHIFTS_PARAMS.MY_SHIFTS_PAGE],
 		},
-		[pushParams],
+		filters: [
+			{
+				id: CANDIDATE_SHIFTS_PARAMS.DATE,
+				label: "Shift Date",
+				type: "date",
+				defaultValue: "",
+				placeholder: "dd/mm/yyyy",
+			},
+		],
+	});
+
+	const handleSearchChange = useCallback(
+		(v: string) => {
+			handleSearchChangeRaw(v);
+			setMyShiftsPage(1);
+		},
+		[handleSearchChangeRaw, setMyShiftsPage],
 	);
 
-	const setActiveTab = useCallback(
-		(value: ShiftTab) => {
-			pushParams({ csTab: value, avPage: null, myPage: null });
+	const onFilterChange = useCallback(
+		(
+			keyOrUpdates: string | Record<string, string | null>,
+			value?: string | null,
+		) => {
+			onFilterChangeRaw(keyOrUpdates, value);
+			setMyShiftsPage(1);
 		},
-		[pushParams],
-	);
-
-	const setAvailablePage = useCallback(
-		(p: number) => {
-			pushParams({ avPage: String(p) });
-		},
-		[pushParams],
-	);
-
-	const setMyShiftsPage = useCallback(
-		(p: number) => {
-			pushParams({ myPage: String(p) });
-		},
-		[pushParams],
+		[onFilterChangeRaw, setMyShiftsPage],
 	);
 
 	const setPageSize = useCallback(
 		(n: number) => {
-			pushParams({ ps: String(n), avPage: null, myPage: null });
+			setPageSizeRaw(n);
+			setAvailablePage(1);
+			setMyShiftsPage(1);
 		},
-		[pushParams],
+		[setPageSizeRaw, setAvailablePage, setMyShiftsPage],
 	);
 
-	const availableParams = {
-		page: availablePage,
-		limit: pageSize,
-		search: searchFromUrl || undefined,
-		date: dateFilter || undefined,
-	};
+	const dateFilter = values[CANDIDATE_SHIFTS_PARAMS.DATE] || "";
 
-	const myShiftsParams = {
-		page: myShiftsPage,
-		limit: pageSize,
-		search: searchFromUrl || undefined,
-		date: dateFilter || undefined,
-	};
+	const availableParams = useMemo(
+		() => ({
+			page: availablePage,
+			limit: pageSize,
+			search: searchFromUrl || undefined,
+			date: dateFilter || undefined,
+		}),
+		[availablePage, pageSize, searchFromUrl, dateFilter],
+	);
+
+	const myShiftsParams = useMemo(
+		() => ({
+			page: myShiftsPage,
+			limit: pageSize,
+			search: searchFromUrl || undefined,
+			date: dateFilter || undefined,
+		}),
+		[myShiftsPage, pageSize, searchFromUrl, dateFilter],
+	);
 
 	const availableQuery = useCandidateAvailableShifts(availableParams);
 	const myShiftsQuery = useCandidateMyShifts(myShiftsParams);
@@ -119,19 +148,21 @@ export function useCandidateShifts() {
 		});
 	};
 
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "candidate-shifts-date",
-				label: "Shift Date",
-				value: dateFilter,
-				onValueChange: setDateFilterAndResetPages,
-				type: "date" as const,
-				placeholder: "dd/mm/yyyy",
-			},
-		],
-		[dateFilter, setDateFilterAndResetPages],
-	);
+	const [filtersExpanded, setFiltersExpanded] = useState(false);
+
+	const filterConfigs = useMemo(() => {
+		return hookFilterConfigs.map((cfg) => {
+			if (cfg.id === CANDIDATE_SHIFTS_PARAMS.DATE) {
+				return {
+					...cfg,
+					onValueChange: (v: string) => {
+						onFilterChange(CANDIDATE_SHIFTS_PARAMS.DATE, v);
+					},
+				};
+			}
+			return cfg;
+		});
+	}, [hookFilterConfigs, onFilterChange]);
 
 	return {
 		activeTab,
@@ -140,7 +171,8 @@ export function useCandidateShifts() {
 		searchQuery: localSearch,
 		setSearchQuery: handleSearchChange,
 		dateFilter,
-		setDateFilter: setDateFilterAndResetPages,
+		setDateFilter: (v: string) =>
+			onFilterChange(CANDIDATE_SHIFTS_PARAMS.DATE, v),
 		filtersExpanded,
 		setFiltersExpanded,
 

@@ -105,7 +105,7 @@ export function LinkOrganizationDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent>
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Link Organization</DialogTitle>
 				</DialogHeader>
@@ -225,7 +225,7 @@ export function LinkOrganizationDialog({
 							)}
 						</form.Field>
 
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<form.Field
 								name="mspFeePercentage"
 								validators={{
@@ -275,7 +275,7 @@ export function LinkOrganizationDialog({
 							</form.Field>
 						</div>
 
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<form.Field
 								name="startDate"
 								validators={{

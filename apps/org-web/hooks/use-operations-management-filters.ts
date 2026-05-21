@@ -1,7 +1,8 @@
 "use client";
 
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useQuery } from "@tanstack/react-query";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useQueryState } from "nuqs";
 import { useCallback, useMemo } from "react";
 import {
 	CANDIDATE_PROCESSING_ISSUE_STAT_CARDS,
@@ -15,9 +16,11 @@ import type {
 	RequisitionPerformanceFilterKey,
 } from "@/types/command-center";
 
-const FILTER_PARAM = "opsFilter";
-const PAGE_PARAM = "opsPage";
-const LIMIT_PARAM = "opsLimit";
+export const OPS_PARAMS = {
+	FILTER: "opsFilter",
+	PAGE: "opsPage",
+	LIMIT: "opsLimit",
+} as const;
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 
@@ -35,19 +38,14 @@ const ALL_FILTER_KEYS = [
 ] as OperationsManagementFilterKey[];
 
 export function useOperationsManagementFilters() {
-	const router = useRouter();
-	const pathname = usePathname();
-	const searchParams = useSearchParams();
+	const { page, limit, setPage, setLimit } = usePaginationControls({
+		pageParamKey: OPS_PARAMS.PAGE,
+		limitParamKey: OPS_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+	});
 
-	const filterParam = searchParams.get(FILTER_PARAM);
-	const pageParam = Number(searchParams.get(PAGE_PARAM) ?? DEFAULT_PAGE);
-	const limitParam = Number(searchParams.get(LIMIT_PARAM) ?? DEFAULT_LIMIT);
-	const page =
-		Number.isFinite(pageParam) && pageParam > 0 ? pageParam : DEFAULT_PAGE;
-	const limit =
-		Number.isFinite(limitParam) && limitParam > 0 && limitParam <= 100
-			? limitParam
-			: DEFAULT_LIMIT;
+	const [filterParam, setFilterParam] = useQueryState(OPS_PARAMS.FILTER);
+
 	const activeFilterKey: OperationsManagementFilterKey | null =
 		ALL_FILTER_KEYS.includes(filterParam as OperationsManagementFilterKey)
 			? (filterParam as OperationsManagementFilterKey)
@@ -102,35 +100,12 @@ export function useOperationsManagementFilters() {
 	const resolvedActiveCategory: OperationsManagementFilterCategory | null =
 		operationsQuery.data?.activeCategory ?? activeCategory;
 
-	const buildUrlWithFilter = useCallback(
-		(filterKey?: OperationsManagementFilterKey | null) => {
-			const nextParams = new URLSearchParams(searchParams.toString());
-			nextParams.set(PAGE_PARAM, String(DEFAULT_PAGE));
-			nextParams.set(LIMIT_PARAM, String(limit));
-
-			if (!filterKey) {
-				nextParams.delete(FILTER_PARAM);
-			} else {
-				nextParams.set(FILTER_PARAM, filterKey);
-			}
-
-			const nextQuery = nextParams.toString();
-			return nextQuery ? `${pathname}?${nextQuery}` : pathname;
-		},
-		[limit, pathname, searchParams],
-	);
-
 	const handlePaginationChange = useCallback(
 		(nextPage: number, nextPageSize: number) => {
-			const nextParams = new URLSearchParams(searchParams.toString());
-			nextParams.set(PAGE_PARAM, String(nextPage));
-			nextParams.set(LIMIT_PARAM, String(nextPageSize));
-			const nextQuery = nextParams.toString();
-			router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
-				scroll: false,
-			});
+			setPage(nextPage);
+			setLimit(nextPageSize);
 		},
-		[pathname, router, searchParams],
+		[setPage, setLimit],
 	);
 
 	const handleFilterChange = useCallback(
@@ -142,23 +117,21 @@ export function useOperationsManagementFilters() {
 			}
 
 			if (nextFilter === activeFilterKey) {
-				router.push(buildUrlWithFilter(null), { scroll: false });
+				setFilterParam(null);
+				setPage(DEFAULT_PAGE);
 				return;
 			}
 
-			router.push(
-				buildUrlWithFilter(nextFilter as OperationsManagementFilterKey),
-				{
-					scroll: false,
-				},
-			);
+			setFilterParam(nextFilter);
+			setPage(DEFAULT_PAGE);
 		},
-		[activeFilterKey, buildUrlWithFilter, router],
+		[activeFilterKey, setFilterParam, setPage],
 	);
 
 	const clearFilter = useCallback(() => {
-		router.push(buildUrlWithFilter(null), { scroll: false });
-	}, [buildUrlWithFilter, router]);
+		setFilterParam(null);
+		setPage(DEFAULT_PAGE);
+	}, [setFilterParam, setPage]);
 
 	return {
 		activeFilterKey,
@@ -170,8 +143,8 @@ export function useOperationsManagementFilters() {
 		requisitionRows,
 		candidateRows,
 		rowsTotal: operationsQuery.data?.rowsTotal ?? 0,
-		page: operationsQuery.data?.page ?? page,
-		limit: operationsQuery.data?.limit ?? limit,
+		page,
+		limit,
 		isLoading: operationsQuery.isLoading,
 		isError: operationsQuery.isError,
 		handleFilterChange,

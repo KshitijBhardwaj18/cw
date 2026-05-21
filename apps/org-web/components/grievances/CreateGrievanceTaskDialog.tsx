@@ -18,12 +18,15 @@ import {
 import { Textarea } from "@repo/ui/components/textarea";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { toast } from "sonner";
 import { GRIEVANCE_TASK_CATEGORY_OPTIONS } from "@/constants/grievances";
 import { useCreateGrievanceTask } from "@/queries/grievances.queries";
 import {
 	type CreateGrievanceTaskFormValues,
+	createGrievanceTaskCategorySchema,
+	createGrievanceTaskFieldSchemas,
 	createGrievanceTaskSchema,
 } from "@/schemas/create-grievance-task.schema";
 
@@ -101,7 +104,7 @@ export function CreateGrievanceTaskDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-lg">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Create task</DialogTitle>
 				</DialogHeader>
@@ -113,10 +116,18 @@ export function CreateGrievanceTaskDialog({
 					}}
 					className="space-y-4"
 				>
-					<form.Field name="category">
+					<form.Field
+						name="category"
+						validators={{
+							onBlur: createGrievanceTaskCategorySchema,
+						}}
+					>
 						{(field) => {
-							const isInvalid =
-								submissionAttempts > 0 && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel>
@@ -124,7 +135,10 @@ export function CreateGrievanceTaskDialog({
 									</FieldLabel>
 									<Select
 										value={field.state.value || undefined}
-										onValueChange={(v) => field.handleChange(v)}
+										onValueChange={(v) => {
+											field.handleChange(v);
+											field.handleBlur();
+										}}
 									>
 										<SelectTrigger>
 											<SelectValue placeholder="Select category" />
@@ -143,10 +157,18 @@ export function CreateGrievanceTaskDialog({
 						}}
 					</form.Field>
 
-					<form.Field name="assignTo">
+					<form.Field
+						name="assignTo"
+						validators={{
+							onBlur: createGrievanceTaskFieldSchemas.assignTo,
+						}}
+					>
 						{(field) => {
-							const isInvalid =
-								submissionAttempts > 0 && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel>
@@ -154,7 +176,10 @@ export function CreateGrievanceTaskDialog({
 									</FieldLabel>
 									<Select
 										value={field.state.value || undefined}
-										onValueChange={(v) => field.handleChange(v)}
+										onValueChange={(v) => {
+											field.handleChange(v);
+											field.handleBlur();
+										}}
 									>
 										<SelectTrigger>
 											<SelectValue placeholder="Select user" />
@@ -173,16 +198,25 @@ export function CreateGrievanceTaskDialog({
 						}}
 					</form.Field>
 
-					<form.Field name="description">
+					<form.Field
+						name="description"
+						validators={{
+							onBlur: createGrievanceTaskFieldSchemas.description,
+						}}
+					>
 						{(field) => {
-							const isInvalid =
-								submissionAttempts > 0 && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel>Description</FieldLabel>
 									<Textarea
 										value={field.state.value}
 										onChange={(e) => field.handleChange(e.target.value)}
+										onBlur={field.handleBlur}
 										rows={4}
 									/>
 									{isInvalid && <FieldError errors={field.state.meta.errors} />}

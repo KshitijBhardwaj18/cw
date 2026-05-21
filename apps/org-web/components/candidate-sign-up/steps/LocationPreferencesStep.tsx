@@ -5,6 +5,8 @@ import { Checkbox } from "@repo/ui/components/checkbox";
 import { Field, FieldError, FieldLabel } from "@repo/ui/components/field";
 import PaginationControls from "@repo/ui/general/PaginationControls";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { Loader2, MapPin } from "lucide-react";
 import { useLocationPreferencesStepForm } from "@/hooks/candidate/use-location-preferences-step-form";
 import {
@@ -43,6 +45,11 @@ export function LocationPreferencesStep({
 		orgId,
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<>
 			<div className="space-y-1">
@@ -66,8 +73,11 @@ export function LocationPreferencesStep({
 					}}
 				>
 					{(field) => {
-						const isInvalid =
-							field.state.meta.isTouched && !field.state.meta.isValid;
+						const isInvalid = formFieldShowInvalid(
+							field.state.meta.isTouched,
+							field.state.meta.isValid,
+							submissionAttempts,
+						);
 						return (
 							<Field data-invalid={isInvalid}>
 								<FieldLabel className="text-sm font-medium">
@@ -152,7 +162,7 @@ export function LocationPreferencesStep({
 								{isSubmitting ? (
 									<Loader2 className="size-4 animate-spin" />
 								) : null}
-								Complete Profile
+								Continue
 							</Button>
 						)}
 					</form.Subscribe>

@@ -11,7 +11,8 @@ import { Input } from "@repo/ui/components/input";
 import { Textarea } from "@repo/ui/components/textarea";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 import { toast } from "sonner";
 import {
 	type CreateWorkforceListFormValues,
@@ -45,6 +46,11 @@ export function CreateWorkforceListDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	const handleOpenChange = (next: boolean) => {
 		if (!next) {
 			form.reset();
@@ -54,7 +60,7 @@ export function CreateWorkforceListDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-lg">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Create Workforce List</DialogTitle>
 				</DialogHeader>
@@ -70,9 +76,11 @@ export function CreateWorkforceListDialog({
 					<form.Field name="name">
 						{(field) => (
 							<Field
-								data-invalid={
-									field.state.meta.isTouched && !field.state.meta.isValid
-								}
+								data-invalid={formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								)}
 							>
 								<FieldLabel htmlFor={field.name}>
 									List Name <RequiredStar />
@@ -92,9 +100,11 @@ export function CreateWorkforceListDialog({
 					<form.Field name="description">
 						{(field) => (
 							<Field
-								data-invalid={
-									field.state.meta.isTouched && !field.state.meta.isValid
-								}
+								data-invalid={formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								)}
 							>
 								<FieldLabel htmlFor={field.name}>Description</FieldLabel>
 								<Textarea

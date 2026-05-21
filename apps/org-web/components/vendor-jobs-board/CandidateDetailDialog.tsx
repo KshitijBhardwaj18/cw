@@ -132,7 +132,7 @@ export function CandidateDetailDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[90vh] overflow-y-auto">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader className="flex-row items-center gap-4">
 					<Avatar className="size-16 border-2 border-background shadow-sm">
 						<AvatarFallback
@@ -156,7 +156,7 @@ export function CandidateDetailDialog({
 						status={merged.status}
 					/>
 
-					<div className="grid grid-cols-3 gap-4">
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 						<DetailItem
 							label="Location"
 							value={merged.location}
@@ -185,7 +185,7 @@ export function CandidateDetailDialog({
 							<Mail className="size-4 text-primary" />
 							<h3 className="font-medium text-sm">Contact Information</h3>
 						</div>
-						<CardContent className="py-4 grid grid-cols-2 gap-6">
+						<CardContent className="grid grid-cols-1 gap-6 py-4 sm:grid-cols-2">
 							{walletLoading ? (
 								<>
 									<Skeleton className="h-10 w-full" />
@@ -213,7 +213,7 @@ export function CandidateDetailDialog({
 							<Briefcase className="size-4 text-primary" />
 							<h3 className="font-medium text-sm">Professional Details</h3>
 						</div>
-						<CardContent className="py-4 grid grid-cols-2 gap-6">
+						<CardContent className="grid grid-cols-1 gap-6 py-4 sm:grid-cols-2">
 							{profileQuery.isLoading && !profileQuery.data ? (
 								<Skeleton className="h-10 w-full col-span-2" />
 							) : (

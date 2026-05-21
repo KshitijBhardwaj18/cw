@@ -22,6 +22,7 @@ import {
 } from "@repo/ui/components/tabs";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { FileQuestion, ListChecks, Tag } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -41,6 +42,7 @@ export default function TaggingRulesPageContent() {
 	const params = useParams();
 	const organizationId = params.organizationId as string;
 	const { ability } = useAuth();
+	const [tab, setTab] = useTabSwitch(["rules", "tags"]);
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editRule, setEditRule] = useState<TaggingRuleWithDetails | null>(null);
 	const [deleteRule, setDeleteRule] = useState<TaggingRuleWithDetails | null>(
@@ -101,7 +103,7 @@ export default function TaggingRulesPageContent() {
 				</p>
 			</div>
 
-			<div className="grid gap-4 sm:grid-cols-3">
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 				<Card>
 					<CardContent className="flex flex-col gap-2">
 						<p className="text-muted-foreground text-sm">
@@ -135,7 +137,7 @@ export default function TaggingRulesPageContent() {
 				)}
 			</div>
 
-			<Tabs defaultValue="rules" className="space-y-4 flex-col">
+			<Tabs value={tab} onValueChange={setTab} className="space-y-4 flex-col">
 				<ScrollableLineTabsRow>
 					<TabsList
 						variant="line"

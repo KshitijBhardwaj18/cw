@@ -94,20 +94,29 @@ export default function CandidateSubmissionDetailPageContent() {
 			<PageBackLink href="/submissions">{labels.pageBack}</PageBackLink>
 
 			<Card>
-				<CardHeader>
-					<CardTitle>{submission.jobTitle}</CardTitle>
-					<CardDescription className="flex flex-wrap gap-x-6 gap-y-2">
-						<div className="flex items-center gap-2">
-							<MapPin className="size-4" />
-							{submission.location}
-						</div>
-						<div className="flex items-center gap-2">
-							<Calendar className="size-4" />
-							{labels.detailAppliedPrefix} {submission.appliedDate}
-						</div>
-					</CardDescription>
-					<CardAction>
-						<Badge variant={SUBMISSION_STATUS_BADGE_VARIANT[submission.status]}>
+				<CardHeader className="gap-4">
+					<div className="min-w-0 space-y-2">
+						<CardTitle className="text-xl sm:text-2xl">
+							{submission.jobTitle}
+						</CardTitle>
+						<CardDescription className="flex flex-wrap gap-x-6 gap-y-2 wrap-break-word">
+							<div className="flex min-w-0 items-center gap-2">
+								<MapPin className="size-4 shrink-0" />
+								<span className="min-w-0">{submission.location}</span>
+							</div>
+							<div className="flex min-w-0 items-center gap-2">
+								<Calendar className="size-4 shrink-0" />
+								<span className="min-w-0">
+									{labels.detailAppliedPrefix} {submission.appliedDate}
+								</span>
+							</div>
+						</CardDescription>
+					</div>
+					<CardAction className="flex justify-end">
+						<Badge
+							variant={SUBMISSION_STATUS_BADGE_VARIANT[submission.status]}
+							className="w-fit shrink-0"
+						>
 							{submission.status}
 						</Badge>
 					</CardAction>
@@ -226,9 +235,10 @@ export default function CandidateSubmissionDetailPageContent() {
 				</CardContent>
 			</Card>
 
-			<div className="flex justify-end gap-2 items-center py-6 border-t">
+			<div className="flex flex-col gap-2 border-t py-6 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
 				{submission.status === "Offer" && (
 					<Button
+						className="w-full sm:w-auto"
 						onClick={() => {
 							if (!organizationId) return;
 							acceptMutation.mutate(
@@ -252,11 +262,15 @@ export default function CandidateSubmissionDetailPageContent() {
 					</Button>
 				)}
 				{canWithdrawApplication ? (
-					<Button variant="outline" onClick={() => setIsWithdrawOpen(true)}>
+					<Button
+						variant="outline"
+						className="w-full sm:w-auto"
+						onClick={() => setIsWithdrawOpen(true)}
+					>
 						{labels.withdrawApplication}
 					</Button>
 				) : null}
-				<Button className="gap-2" asChild>
+				<Button className="gap-2 w-full sm:w-auto" asChild>
 					<Link href={labels.documentWalletHref}>
 						<Upload className="size-4" />
 						{labels.uploadDocumentsCta}

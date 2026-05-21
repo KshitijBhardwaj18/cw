@@ -1,5 +1,6 @@
 import {
 	useMutation,
+	useQuery,
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -14,7 +15,7 @@ export const tagsKeys = {
 };
 
 export const useTags = (params: TagsListParams = {}) => {
-	return useSuspenseQuery({
+	return useQuery({
 		queryKey: tagsKeys.list(params),
 		queryFn: () => TagsService.getTags(params),
 	});

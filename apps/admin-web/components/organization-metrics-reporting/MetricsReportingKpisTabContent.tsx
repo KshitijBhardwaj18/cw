@@ -10,6 +10,7 @@ import {
 	EmptyTitle,
 } from "@repo/ui/components/empty";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { METRIC_TYPE_OPTIONS } from "@/constants/metrics";
@@ -22,6 +23,10 @@ import {
 } from "@/queries/metrics.query";
 import { EditGoalDialog } from "./EditGoalDialog";
 import { RecruitmentEfficiencyKpiCard } from "./RecruitmentEfficiencyKpiCard";
+
+export const METRICS_REPORTING_PARAMS = {
+	SEARCH: "mrSearch",
+} as const;
 
 function formatGoalDisplay(suffix: string, raw: string): string {
 	if (!raw) return raw;
@@ -78,7 +83,12 @@ export function MetricsReportingKpisTabContent({
 	const upsertOrganizationMetric = useUpsertOrganizationMetric(organizationId);
 	const updateOrganizationMetric = useUpdateOrganizationMetric(organizationId);
 
-	const [search, setSearch] = useState("");
+	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+		{
+			paramKey: METRICS_REPORTING_PARAMS.SEARCH,
+		},
+	);
+
 	const [goalDialogOpen, setGoalDialogOpen] = useState(false);
 	const [editingKpi, setEditingKpi] = useState<UiKpi | null>(null);
 
@@ -107,7 +117,7 @@ export function MetricsReportingKpisTabContent({
 	}, [data]);
 
 	const filteredAndGrouped = useMemo(() => {
-		const q = search.trim().toLowerCase();
+		const q = searchFromUrl.trim().toLowerCase();
 		const map = new Map<MetricType, UiKpi[]>();
 		for (const t of METRIC_TYPE_OPTIONS.map((o) => o.value)) {
 			const list = kpisByType[t].filter(
@@ -120,7 +130,7 @@ export function MetricsReportingKpisTabContent({
 			if (list.length > 0) map.set(t, list);
 		}
 		return map;
-	}, [kpisByType, search]);
+	}, [kpisByType, searchFromUrl]);
 
 	const orderedTypes = METRIC_TYPE_OPTIONS.map((o) => o.value).filter((t) =>
 		filteredAndGrouped.has(t),
@@ -263,8 +273,8 @@ export function MetricsReportingKpisTabContent({
 				itemLabel=""
 				itemLabelPlural=""
 				search={{
-					value: search,
-					onChange: setSearch,
+					value: localSearch,
+					onChange: handleSearchChange,
 					placeholder: "Search metrics...",
 				}}
 			/>
@@ -274,7 +284,7 @@ export function MetricsReportingKpisTabContent({
 					<EmptyHeader>
 						<EmptyTitle>No metrics found</EmptyTitle>
 						<EmptyDescription>
-							{search.trim()
+							{searchFromUrl.trim()
 								? "Try a different search term."
 								: "There are no metrics to display."}
 						</EmptyDescription>

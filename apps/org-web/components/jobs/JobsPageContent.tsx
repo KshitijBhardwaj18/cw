@@ -35,8 +35,8 @@ export function JobsPageContent() {
 		isError,
 		listErrorMessage,
 		refetchJobs,
-		search,
-		setSearch,
+		localSearch,
+		handleSearchChange,
 		filtersExpanded,
 		setFiltersExpanded,
 		filterConfigs,
@@ -120,8 +120,8 @@ export function JobsPageContent() {
 
 			<SearchWithFilters
 				searchPlaceholder="Search jobs by title, manager, shift, or location..."
-				searchValue={search}
-				onSearchChange={setSearch}
+				searchValue={localSearch}
+				onSearchChange={handleSearchChange}
 				filtersExpanded={filtersExpanded}
 				onFiltersExpandedChange={setFiltersExpanded}
 				filterConfigs={filterConfigs}

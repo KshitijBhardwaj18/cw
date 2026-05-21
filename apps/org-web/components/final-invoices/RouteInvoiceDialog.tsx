@@ -77,12 +77,15 @@ export function RouteInvoiceDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="gap-0 p-0 sm:max-w-lg" showCloseButton>
-				<DialogHeader className="p-6 pb-4">
+			<DialogContent
+				className="flex max-h-[90dvh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+				showCloseButton
+			>
+				<DialogHeader className="shrink-0 p-6 pb-4">
 					<DialogTitle>Route Invoice for Approval</DialogTitle>
 				</DialogHeader>
-				<Separator />
-				<div className="space-y-4 p-6 pt-4">
+				<Separator className="shrink-0" />
+				<div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6 pt-4">
 					{invoice ? (
 						<div className="text-sm">
 							<p>
@@ -127,8 +130,8 @@ export function RouteInvoiceDialog({
 						</p>
 					</div>
 				</div>
-				<Separator />
-				<DialogFooter className="p-6 pt-4">
+				<Separator className="shrink-0" />
+				<DialogFooter className="shrink-0 p-6 pt-4">
 					<Button
 						type="button"
 						variant="outline"

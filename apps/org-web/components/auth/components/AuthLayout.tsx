@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@repo/ui/components/card";
-import Image from "next/image";
+import UserAvatar from "@repo/ui/general/UserAvatar";
 import { useOrgContext } from "@/contexts/org-context";
 
 interface AuthLayoutProps {
@@ -13,27 +13,27 @@ export function AuthLayout({ children, contentClassName }: AuthLayoutProps) {
 	const org = useOrgContext();
 
 	return (
-		<div className="flex min-h-screen items-center justify-center bg-muted/20 p-4">
+		<div className="flex min-h-dvh flex-col items-center justify-center bg-muted/20 px-3 pt-[max(1.5rem,calc(0.5rem+env(safe-area-inset-top,0px)))] pb-[max(1.5rem,calc(0.5rem+env(safe-area-inset-bottom,0px)))] sm:p-4">
 			<div className={contentClassName ?? "w-full max-w-md space-y-6"}>
-				<div className="flex flex-col items-center justify-center gap-2 space-y-2 text-center">
+				<div className="flex flex-col items-center justify-center gap-2 space-y-2 px-1 text-center sm:px-0">
 					{org.logo ? (
-						<Image
-							src={org.logo}
-							alt={org.name}
-							width={120}
-							height={40}
-							className="size-12 w-auto object-contain rounded-full"
-							unoptimized
+						<UserAvatar
+							avatarUrl={org.logo ?? ""}
+							name={org.name}
+							className="size-16 w-auto object-contain rounded-xl"
+							fallbackClassName="rounded-xl"
 						/>
 					) : (
-						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">
+						<div className="flex size-16 items-center justify-center rounded-xl bg-primary/10 text-2xl font-bold text-primary">
 							{org.name.charAt(0).toUpperCase()}
 						</div>
 					)}
-					<h1 className="text-2xl font-semibold">Welcome to {org.name}</h1>
+					<h1 className="text-balance text-xl font-semibold sm:text-2xl">
+						Welcome to {org.name}
+					</h1>
 				</div>
 
-				<Card className="z-10 rounded-xl border-0 bg-card p-6 shadow-sm">
+				<Card className="z-10 rounded-xl border-0 bg-card p-4 shadow-sm sm:p-6">
 					<CardContent>{children}</CardContent>
 				</Card>
 			</div>

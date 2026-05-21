@@ -1,5 +1,6 @@
 "use client";
 
+import { formatUsdPerHour } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Card,
@@ -45,7 +46,7 @@ export function ShiftSummaryCard({
 					<div>
 						<p className="text-muted-foreground text-xs">Shift Rate</p>
 						<p className="mt-0.5 font-medium">
-							{template ? `$${template.baseRate}/hour` : "—"}
+							{template ? formatUsdPerHour(template.baseRate) : "—"}
 						</p>
 					</div>
 				</div>

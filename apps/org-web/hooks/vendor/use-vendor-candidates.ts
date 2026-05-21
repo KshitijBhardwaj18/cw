@@ -1,7 +1,8 @@
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+"use client";
+
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useCallback, useState } from "react";
 import { VENDOR_CANDIDATE_STATUS_FILTER_OPTIONS } from "@/constants/vendor-candidates";
 import { useVendorCandidateListColumns } from "@/hooks/tables/use-vendor-candidate-list-columns";
 import {
@@ -14,52 +15,53 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 type VendorCandidateStatus = "all" | "ACTIVE" | "ONBOARDING" | "INACTIVE";
 
-export function useVendorCandidates() {
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "vcSearch", pageParamKey: "vcPage" },
-	);
+export const VENDOR_CANDIDATES_PARAMS = {
+	PAGE: "vcPage",
+	LIMIT: "vcLimit",
+	SEARCH: "vcSearch",
+	STATUS: "vcStatus",
+} as const;
 
-	const pageParam = Number(searchParams.get("vcPage") ?? "1");
-	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-	const limitParam = Number(
-		searchParams.get("vcLimit") ?? String(DEFAULT_LIMIT),
-	);
-	const limit = PAGE_SIZE_OPTIONS.includes(limitParam)
-		? limitParam
-		: DEFAULT_LIMIT;
-	const statusParam = searchParams.get("vcStatus") ?? "all";
-	const statusFilter: VendorCandidateStatus =
-		statusParam === "ACTIVE" ||
-		statusParam === "ONBOARDING" ||
-		statusParam === "INACTIVE" ||
-		statusParam === "all"
-			? statusParam
-			: "all";
+export function useVendorCandidates() {
+	const { page, setPage, limit, setLimit } = usePaginationControls({
+		pageParamKey: VENDOR_CANDIDATES_PARAMS.PAGE,
+		limitParamKey: VENDOR_CANDIDATES_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
+	});
+
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		pagination: { pageParamKey: VENDOR_CANDIDATES_PARAMS.PAGE },
+		search: { paramKey: VENDOR_CANDIDATES_PARAMS.SEARCH },
+		filters: [
+			{
+				id: VENDOR_CANDIDATES_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All",
+				options: [...VENDOR_CANDIDATE_STATUS_FILTER_OPTIONS],
+			},
+		],
+	});
+
+	const statusFilter = (values[VENDOR_CANDIDATES_PARAMS.STATUS] ||
+		"all") as VendorCandidateStatus;
 
 	const [filtersExpanded, setFiltersExpanded] = useState(true);
 
-	const setPage = useCallback(
-		(p: number) => {
-			pushParams({ vcPage: String(p) });
+	const setStatusFilter = useCallback(
+		(v: string) => {
+			onFilterChange({ [VENDOR_CANDIDATES_PARAMS.STATUS]: v || "all" });
 		},
-		[pushParams],
-	);
-
-	const setLimitAndResetPage = useCallback(
-		(l: number) => {
-			pushParams({ vcLimit: String(l), vcPage: null });
-		},
-		[pushParams],
-	);
-
-	const setStatusFilterAndResetPage = useCallback(
-		(v: VendorCandidateStatus) => {
-			const clear = v === "all";
-			pushParams({ vcStatus: clear ? null : v, vcPage: null });
-		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const listQuery = useVendorCandidatesList({
@@ -70,23 +72,7 @@ export function useVendorCandidates() {
 	});
 
 	const metricsQuery = useVendorCandidatesMetrics();
-
 	const columns = useVendorCandidateListColumns();
-
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "vendor-candidate-status",
-				label: "Status",
-				value: statusFilter,
-				onValueChange: (v: string) =>
-					setStatusFilterAndResetPage(v as VendorCandidateStatus),
-				placeholder: "All",
-				options: VENDOR_CANDIDATE_STATUS_FILTER_OPTIONS,
-			},
-		],
-		[setStatusFilterAndResetPage, statusFilter],
-	);
 
 	return {
 		columns,
@@ -98,16 +84,16 @@ export function useVendorCandidates() {
 		page,
 		setPage,
 		limit,
-		setLimit: setLimitAndResetPage,
+		setLimit,
 		pageSizeOptions: PAGE_SIZE_OPTIONS,
 		search: localSearch,
 		setSearch: handleSearchChange,
 		statusFilter,
-		setStatusFilter: setStatusFilterAndResetPage,
+		setStatusFilter,
 		filtersExpanded,
 		setFiltersExpanded,
 		isListLoading: listQuery.isLoading,
 		isListError: listQuery.isError,
-		filterConfigs,
+		filterConfigs: hookFilterConfigs,
 	};
 }

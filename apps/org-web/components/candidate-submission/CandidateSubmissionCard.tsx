@@ -26,7 +26,7 @@ export function CandidateSubmissionCard({
 				<div className="space-y-4">
 					<div className="space-y-2">
 						<div className="flex items-start justify-between gap-3">
-							<h3 className="text-lg font-semibold leading-none">
+							<h3 className="min-w-0 text-lg font-semibold leading-snug pr-2">
 								{submission.jobTitle}
 							</h3>
 							<Badge
@@ -54,20 +54,29 @@ export function CandidateSubmissionCard({
 
 					<Separator className="bg-border/60" />
 
-					<div className="flex justify-end gap-3 items-center">
+					<div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
 						{(submission.status === "Submitted" ||
 							submission.status === "In Review") && (
-							<Button variant="outline" onClick={() => onWithdraw(submission)}>
+							<Button
+								variant="outline"
+								className="w-full sm:w-auto"
+								onClick={() => onWithdraw(submission)}
+							>
 								Withdraw
 							</Button>
 						)}
 						{submission.status === "Offer" && (
-							<Button onClick={() => onAccept(submission)}>Accept</Button>
+							<Button
+								className="w-full sm:w-auto"
+								onClick={() => onAccept(submission)}
+							>
+								Accept
+							</Button>
 						)}
-						<Button variant="outline" asChild>
+						<Button variant="outline" className="w-full sm:w-auto" asChild>
 							<Link href={`/submissions/${submission.id}`}>
 								View Details
-								<ChevronRight />
+								<ChevronRight className="size-4" />
 							</Link>
 						</Button>
 					</div>

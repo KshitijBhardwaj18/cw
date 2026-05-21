@@ -16,6 +16,8 @@ import { SpendTrendComparisonCard } from "./SpendTrendComparisonCard";
 
 export function SpendAnalyticsPageContent() {
 	const {
+		activeTab,
+		setActiveTab,
 		orgId,
 		filterFields,
 		filterValues,
@@ -32,6 +34,12 @@ export function SpendAnalyticsPageContent() {
 		openCommittedTotals,
 		spendDeltaPct,
 		totalSavings,
+		breakdownPage,
+		setBreakdownPage,
+		breakdownLimit,
+		setBreakdownLimit,
+		savingsCostCenter,
+		setSavingsCostCenter,
 	} = useSpendAnalyticsPage();
 
 	return (
@@ -56,12 +64,7 @@ export function SpendAnalyticsPageContent() {
 				committedSpend={openCommittedTotals.committed}
 				totalSavings={totalSavings}
 				spendDeltaPct={spendDeltaPct}
-				isLoading={
-					summaryLoading ||
-					breakdownLoading ||
-					detailLoading ||
-					isSpendFiltersPending
-				}
+				isLoading={summaryLoading || breakdownLoading || isSpendFiltersPending}
 			/>
 
 			<SpendTrendComparisonCard
@@ -69,7 +72,11 @@ export function SpendAnalyticsPageContent() {
 				isLoading={trendLoading}
 			/>
 
-			<Tabs defaultValue="open-committed" className="gap-4 flex-col">
+			<Tabs
+				value={activeTab}
+				onValueChange={setActiveTab}
+				className="gap-4 flex-col"
+			>
 				<TabsList className="w-full">
 					<TabsTrigger value="open-committed">Open vs Committed</TabsTrigger>
 					<TabsTrigger value="savings">Savings Analysis</TabsTrigger>
@@ -78,6 +85,15 @@ export function SpendAnalyticsPageContent() {
 					<SpendBreakdownTableSection
 						orgId={orgId}
 						data={breakdown?.data ?? []}
+						total={breakdown?.total ?? 0}
+						page={breakdownPage}
+						onPaginationChange={(p, l) => {
+							setBreakdownPage(p);
+							setBreakdownLimit(l);
+						}}
+						limit={breakdownLimit}
+						totalOpenSpend={openCommittedTotals.open}
+						totalCommittedSpend={openCommittedTotals.committed}
 						isLoading={breakdownLoading || isSpendFiltersPending}
 					/>
 				</TabsContent>
@@ -85,6 +101,8 @@ export function SpendAnalyticsPageContent() {
 					<SpendSavingsTableSection
 						rows={detailList?.data ?? []}
 						isLoading={detailLoading || isSpendFiltersPending}
+						costCenterFilter={savingsCostCenter}
+						setCostCenterFilter={setSavingsCostCenter}
 					/>
 				</TabsContent>
 			</Tabs>

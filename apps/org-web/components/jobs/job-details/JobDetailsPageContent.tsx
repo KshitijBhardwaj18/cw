@@ -1,11 +1,6 @@
 "use client";
 
 import { Action, subjectInstance, useAbility } from "@repo/casl";
-import type {
-	OrgDepartmentOption,
-	OrgLocationOption,
-	OrgOccupationOption,
-} from "@repo/shared";
 import { getLabel } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
@@ -17,7 +12,6 @@ import { CustomAlertDialog } from "@repo/ui/general/CustomAlertDialog";
 import LoadingScreen from "@repo/ui/general/LoadingScreen";
 import { MetricCard } from "@repo/ui/general/MetricCard";
 import { PageBackLink } from "@repo/ui/general/PageBackLink";
-import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import {
 	Calendar,
@@ -38,21 +32,17 @@ import { AccessBlockedState } from "@/components/general/AccessBlockedState";
 import { getInterviewTypeLabel } from "@/constants/interview-type-labels";
 import { JOB_POSTING_SUBMISSION_TYPE_OPTIONS } from "@/constants/job-posting-flow";
 import {
+	ACTIVE_SUBMISSION_STAGES,
 	SUBMISSION_STAGE_TABS,
 	type SubmissionStageKey,
 } from "@/constants/submissions";
 import { useOrgContext } from "@/contexts/org-context";
-import { useComplianceChecklist } from "@/queries/compliance-checklist.queries";
-import { useOrgMembersForPicker } from "@/queries/organizations.queries";
-import { useRequisitionTemplate } from "@/queries/requisition-templates.queries";
 import {
 	useCancelRequisition,
 	useRequisitionDetail,
 } from "@/queries/requisitions.queries";
-import { shiftTemplateKeys } from "@/queries/shift-templates.queries";
 import { useJobSubmissionStageCounts } from "@/queries/submissions.queries";
 import type { RequisitionDetailResponse } from "@/services/requisitions.service";
-import { ShiftTemplatesService } from "@/services/shift-templates.service";
 import {
 	formatBillRateDisplay,
 	formatHoursPerWeek,
@@ -65,46 +55,45 @@ import { JobDetailsMetadataCards } from "./JobDetailsMetadataCards";
 import { JobPostingDescriptionTabsCard } from "./JobPostingDescriptionTabsCard";
 import { JobRequisitionDetailsCard } from "./JobRequisitionDetailsCard";
 
-function resolveLocationName(
-	locations: OrgLocationOption[] | undefined,
-	id: string,
-): string {
-	if (!locations?.length) {
-		return "—";
+function statusBadge(status: string) {
+	switch (status) {
+		case "FILLED":
+			return (
+				<Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+					Filled
+				</Badge>
+			);
+		case "DRAFT":
+			return (
+				<Badge className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+					Draft
+				</Badge>
+			);
+		case "PENDING_APPROVAL":
+			return (
+				<Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+					Pending Approval
+				</Badge>
+			);
+		case "CANCELLED":
+			return (
+				<Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+					Cancelled
+				</Badge>
+			);
+		case "CLOSED":
+			return (
+				<Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+					Closed
+				</Badge>
+			);
+		default:
+			return (
+				<Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+					Open
+				</Badge>
+			);
 	}
-	return locations.find((l) => l.id === id)?.name ?? "—";
-}
-
-function resolveDepartmentName(
-	departments: OrgDepartmentOption[] | undefined,
-	id: string,
-): string {
-	if (!departments?.length) {
-		return "—";
-	}
-	return departments.find((d) => d.id === id)?.name ?? "—";
-}
-
-function resolveOccupationAndSpecialty(
-	occupations: OrgOccupationOption[] | undefined,
-	occupationId: string,
-	specialtyOrgId: string,
-): { occupation: string; specialty: string } {
-	if (!occupations?.length) {
-		return { occupation: "—", specialty: "—" };
-	}
-	const occ = occupations.find(
-		(o) => o.organizationOccupationId === occupationId || o.id === occupationId,
-	);
-	if (!occ) {
-		return { occupation: "—", specialty: "—" };
-	}
-	let specialty = "—";
-	if (specialtyOrgId?.trim()) {
-		const s = occ.organizationSpecialties?.find((x) => x.id === specialtyOrgId);
-		specialty = s?.name ?? "—";
-	}
-	return { occupation: occ.name, specialty };
 }
 
 function publishVisibilityLabel(
@@ -125,20 +114,18 @@ function publishVisibilityLabel(
 function postedDateLabel(
 	publish: RequisitionDetailResponse["publishSettings"],
 ): string {
-	if (
-		publish.publishMode === "SCHEDULE_PUBLISH_DATE" &&
-		publish.scheduledPublishDate
-	) {
-		try {
-			return format(
-				parseISO(`${publish.scheduledPublishDate}T12:00:00`),
-				"MMM d, yyyy",
-			);
-		} catch {
-			return "—";
-		}
+	const dateStr =
+		publish.publishMode === "SCHEDULE_PUBLISH_DATE"
+			? publish.scheduledPublishDate
+			: publish.publishMode === "PUBLISH_IMMEDIATELY"
+				? publish.publishedAt
+				: null;
+	if (!dateStr) return "—";
+	try {
+		return format(parseISO(`${dateStr}T12:00:00`), "MMM d, yyyy");
+	} catch {
+		return "—";
 	}
-	return "—";
 }
 
 export interface JobDetailsPageContentProps {
@@ -159,29 +146,6 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 		enabled: !!orgId && !!jobId,
 	});
 
-	const { data: locations = [] } = useQuery({
-		queryKey: shiftTemplateKeys.locations(),
-		queryFn: () => ShiftTemplatesService.getLocations(),
-	});
-	const { data: departments = [] } = useQuery({
-		queryKey: shiftTemplateKeys.departments(),
-		queryFn: () => ShiftTemplatesService.getDepartments(),
-	});
-	const { data: occupations = [] } = useQuery({
-		queryKey: shiftTemplateKeys.occupations(),
-		queryFn: () => ShiftTemplatesService.getOccupations(),
-	});
-
-	const { data: membersRes } = useOrgMembersForPicker(orgId);
-	const { data: complianceChecklist } = useComplianceChecklist(
-		orgId,
-		data?.jobDetails.complianceTemplateId ?? "",
-	);
-	const { data: requisitionTemplate } = useRequisitionTemplate(
-		orgId,
-		data?.templateId ?? null,
-	);
-
 	const cancelJob = useCancelRequisition(orgId);
 
 	const allowedSubmissionStages = useMemo<SubmissionStageKey[]>(
@@ -196,57 +160,27 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 	const canUpdateJob = ability.can(Action.Update, "Requisition");
 	const canListAnySubmission = allowedSubmissionStages.length > 0;
 
-	const { occupationLabel, specialtyLabel } = useMemo(() => {
-		if (!data) {
-			return { occupationLabel: "—", specialtyLabel: "—" };
-		}
-		const { occupation, specialty } = resolveOccupationAndSpecialty(
-			occupations,
-			data.jobDetails.occupation,
-			data.jobDetails.specialty,
-		);
-		return { occupationLabel: occupation, specialtyLabel: specialty };
-	}, [data, occupations]);
-
 	const totalApplications = useMemo(() => {
-		if (!stageCounts) {
-			return 0;
-		}
-		return Object.values(stageCounts).reduce((a, b) => a + b, 0);
+		if (!stageCounts) return 0;
+		return ACTIVE_SUBMISSION_STAGES.reduce(
+			(sum, s) => sum + (stageCounts[s] ?? 0),
+			0,
+		);
 	}, [stageCounts]);
 
 	const positionsAccepted = stageCounts?.ACCEPTED ?? 0;
+	const positionsOffered = stageCounts?.OFFERED ?? 0;
 	const openSlots = data
-		? Math.max(0, data.jobDetails.numberOfPositions - positionsAccepted)
+		? Math.max(
+				0,
+				data.jobDetails.numberOfPositions -
+					positionsAccepted -
+					positionsOffered,
+			)
 		: 0;
 
-	const requirementNames = useMemo(() => {
-		if (!data) {
-			return [] as string[];
-		}
-		const ids = new Set(data.submissionSettings.acceptanceCriteriaIds);
-		if (!complianceChecklist?.items?.length) {
-			return [] as string[];
-		}
-		return complianceChecklist.items
-			.filter((i) => ids.has(i.complianceListItemId))
-			.map((i) => i.complianceListItem.name);
-	}, [data, complianceChecklist]);
-
-	const hiringManagerName = useMemo(() => {
-		if (!data) {
-			return "—";
-		}
-		return (
-			membersRes?.data?.find((m) => m.id === data.jobDetails.hiringManagerId)
-				?.user.name ?? "—"
-		);
-	}, [data, membersRes]);
-
 	const scheduleDisplay = useMemo(() => {
-		if (!data) {
-			return "—";
-		}
+		if (!data) return "—";
 		return formatScheduleFromTimes(
 			data.jobDetails.startTime,
 			data.jobDetails.endTime,
@@ -255,9 +189,7 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 	}, [data]);
 
 	const submissionTypeLabel = useMemo(() => {
-		if (!data) {
-			return "—";
-		}
+		if (!data) return "—";
 		return getLabel(
 			JOB_POSTING_SUBMISSION_TYPE_OPTIONS.map((o) => ({
 				value: o.value,
@@ -319,11 +251,12 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 		);
 	}
 
-	const locName = resolveLocationName(locations, data.jobDetails.location);
-	const deptName = resolveDepartmentName(
-		departments,
-		data.jobDetails.department,
-	);
+	const locName = data.locationName ?? "—";
+	const deptName = data.departmentName ?? "—";
+	const occupationLabel = data.occupationName ?? "—";
+	const specialtyLabel = data.specialtyName ?? "—";
+	const hiringManagerName = data.hiringManagerName ?? "—";
+	const templateName = data.templateName?.trim() || "Requisition template";
 	const title = data.jobDetails.requisitionName || "Job posting";
 
 	let startLabel = "—";
@@ -345,9 +278,7 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 						{title}
 					</h1>
 					<div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-						<Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-							Open
-						</Badge>
+						{statusBadge(data.status)}
 						<span className="inline-flex items-center gap-1.5">
 							<MapPin className="size-4 shrink-0" />
 							{locName}
@@ -438,7 +369,7 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 
 			<JobPostingDescriptionTabsCard
 				description={data.jobDetails.description}
-				requirements={requirementNames}
+				requirements={data.requirementNames}
 				benefits={data.jobDetails.benefitsPerks ?? []}
 			/>
 
@@ -466,9 +397,7 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 
 			<JobDetailsMetadataCards
 				templateId={data.templateId}
-				templateName={
-					requisitionTemplate?.templateName?.trim() || "Requisition template"
-				}
+				templateName={templateName}
 				occupation={occupationLabel}
 				department={deptName}
 				location={locName}

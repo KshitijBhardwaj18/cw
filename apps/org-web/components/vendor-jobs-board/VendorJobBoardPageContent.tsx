@@ -1,6 +1,7 @@
 "use client";
 
 import { Action, useAbility } from "@repo/casl";
+import { formatUsdPerHour } from "@repo/shared";
 import {
 	ConfigPageEmptyState,
 	ConfigPageErrorState,
@@ -74,7 +75,7 @@ function VendorJobBoardPageContent() {
 				billN += 1;
 			}
 		}
-		const avgBill = billN > 0 ? `$${(billSum / billN).toFixed(2)}/hr` : "—";
+		const avgBill = billN > 0 ? formatUsdPerHour(billSum / billN) : "—";
 		return { openings, avgBill };
 	}, [listQuery.data?.data]);
 
@@ -91,7 +92,7 @@ function VendorJobBoardPageContent() {
 				description="Browse active requisitions and submit qualified candidates"
 			/>
 
-			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
 				<MetricCard
 					title="Active Jobs"
 					value={isLoading ? "…" : String(totalRequisitions)}
@@ -162,7 +163,7 @@ function VendorJobBoardPageContent() {
 				)}
 
 				{!isLoading && !isError && paginatedRequisitions.length > 0 && (
-					<div className="space-y-4">
+					<div className="min-w-0 space-y-4">
 						{paginatedRequisitions.map((req) => (
 							<RequisitionCard
 								key={req.id}

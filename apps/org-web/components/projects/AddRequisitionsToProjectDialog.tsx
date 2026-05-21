@@ -1,5 +1,6 @@
 "use client";
 
+import { formatUsdPerHour } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
@@ -171,7 +172,7 @@ export function AddRequisitionsToProjectDialog({
 											{req.billRate != null && (
 												<>
 													<span className="text-xs">•</span>
-													<span>${req.billRate}/hr</span>
+													<span>{formatUsdPerHour(req.billRate)}</span>
 												</>
 											)}
 										</div>

@@ -14,7 +14,8 @@ import { Field, FieldError, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import RequiredStar from "@repo/ui/general/RequiredStar";
 import { useLocalDebouncedSearch } from "@repo/ui/hooks/use-local-debounced-search";
-import { useForm } from "@tanstack/react-form";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useForm, useStore } from "@tanstack/react-form";
 import { Loader2, Search } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -109,6 +110,11 @@ export function EnrollVendorUserDialog({
 		},
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	const handleOpenChange = (next: boolean) => {
 		if (!next) {
 			form.reset();
@@ -119,7 +125,7 @@ export function EnrollVendorUserDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-xl">
+			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Enroll Vendor User</DialogTitle>
 					<DialogDescription>
@@ -139,8 +145,11 @@ export function EnrollVendorUserDialog({
 						validators={{ onChange: enrollVendorUserSchema.shape.userId }}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor="vendor-user-search">

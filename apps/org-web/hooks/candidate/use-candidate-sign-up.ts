@@ -9,16 +9,18 @@ import type {
 	ContactInformationFormValues,
 	CreateAccountFormValues,
 	LocationPreferencesFormValues,
+	PreferencesQuestionnairesFormValues,
 	ProfessionalDetailsFormValues,
+	SubmissionReadinessFormValues,
 } from "@/schemas/candidate-sign-up.schema";
 import type { CandidateMeOnboarding } from "@/services/onboarding.service";
 import { OnboardingService } from "@/services/onboarding.service";
 
 const SIGN_UP_ROUTE = "/candidate/sign-up";
 const SELF_STEP_MIN = 0;
-const SELF_STEP_MAX = 3;
+const SELF_STEP_MAX = 5;
 const INVITE_STEP_MIN = 0;
-const INVITE_STEP_MAX = 3;
+const INVITE_STEP_MAX = 5;
 
 function buildStepUrl(step: number, isInviteMode: boolean) {
 	const params = new URLSearchParams({ step: String(step) });
@@ -117,7 +119,14 @@ export function useCandidateSignUp() {
 	const [step3Values, setStep3Values] = useState<
 		Partial<LocationPreferencesFormValues>
 	>({});
+	const [step4Values, setStep4Values] = useState<
+		Partial<PreferencesQuestionnairesFormValues>
+	>({});
+	const [step5Values, setStep5Values] = useState<
+		Partial<SubmissionReadinessFormValues>
+	>({});
 
+	const [inviteFinalizePending, setInviteFinalizePending] = useState(false);
 	const [selfResumeKey, setSelfResumeKey] = useState<string | null>(null);
 	const [selfOtpEmail, setSelfOtpEmail] = useState<string>("");
 	const [selfOtpSent, setSelfOtpSent] = useState(false);
@@ -138,6 +147,15 @@ export function useCandidateSignUp() {
 			try {
 				setMeLoading(true);
 				const progress = await OnboardingService.getMeOnboarding();
+
+				if (isInviteMode && progress.inviteStatus === "ACCEPTED") {
+					toast.info(
+						"You have already completed your profile. Please sign in.",
+					);
+					router.replace("/sign-in");
+					return;
+				}
+
 				setMeData(progress);
 				applyProgress(
 					progress,
@@ -164,7 +182,7 @@ export function useCandidateSignUp() {
 				setMeLoading(false);
 			}
 		})();
-	}, [isInviteMode, step]);
+	}, [isInviteMode, step, router.replace]);
 
 	const handleStep0Continue = useCallback(
 		(values: CreateAccountFormValues) => {
@@ -287,19 +305,54 @@ export function useCandidateSignUp() {
 				await OnboardingService.saveMeOnboarding({
 					locationIds: values.locationIds,
 				});
-				toast.success("Onboarding completed");
 			} catch (err) {
 				toast.error(
 					err instanceof Error ? err.message : "Failed to save locations",
 				);
 				return;
 			}
-			router.push("/sign-in");
+			pushStep(4);
 		},
-		[router],
+		[pushStep],
 	);
 
-	// ── Invite-onboarding step handlers (session-based, same me/* endpoints) ──
+	const handlePreferencesStepBack = useCallback(() => pushStep(3), [pushStep]);
+
+	const handlePreferencesStepContinue = useCallback(
+		(values: PreferencesQuestionnairesFormValues) => {
+			setStep4Values(values);
+			pushStep(5);
+		},
+		[pushStep],
+	);
+
+	const handleSubmissionReadinessBack = useCallback(
+		() => pushStep(4),
+		[pushStep],
+	);
+
+	const handleSelfSubmissionFinalize = useCallback(() => {
+		toast.success("Onboarding completed");
+		router.push("/sign-in");
+	}, [router]);
+
+	const handleInviteSubmissionFinalize = useCallback(async () => {
+		setInviteFinalizePending(true);
+		try {
+			const ids = step3Values.locationIds;
+			await OnboardingService.completeMeInvite(
+				ids !== undefined && ids.length > 0 ? ids : undefined,
+			);
+			toast.success("Profile completed. You can now sign in.");
+			router.push("/sign-in");
+		} catch (err) {
+			toast.error(
+				err instanceof Error ? err.message : "Failed to complete profile",
+			);
+		} finally {
+			setInviteFinalizePending(false);
+		}
+	}, [router, step3Values.locationIds]);
 
 	/** Step 0 in invite mode: save any name edits then advance. */
 	const handleInviteStep0Continue = useCallback(
@@ -367,18 +420,18 @@ export function useCandidateSignUp() {
 		async (values: LocationPreferencesFormValues) => {
 			setStep3Values(values);
 			try {
-				await OnboardingService.completeMeInvite(
-					values.locationIds?.length ? values.locationIds : undefined,
-				);
-				toast.success("Profile completed. You can now sign in.");
-				router.push("/sign-in");
+				await OnboardingService.saveMeOnboarding({
+					locationIds: values.locationIds,
+				});
 			} catch (err) {
 				toast.error(
-					err instanceof Error ? err.message : "Failed to complete profile",
+					err instanceof Error ? err.message : "Failed to save locations",
 				);
+				return;
 			}
+			pushStep(4);
 		},
-		[router],
+		[pushStep],
 	);
 
 	// ── OTP helpers (self only) ────────────────────────────────────────────────
@@ -471,13 +524,18 @@ export function useCandidateSignUp() {
 		step1Values,
 		step2Values,
 		step3Values,
+		step4Values,
+		step5Values,
 		setStep0Values,
 		setStep1Values,
 		setStep2Values,
 		setStep3Values,
+		setStep4Values,
+		setStep5Values,
 		selfOtpEmail,
 		selfOtpSent,
 		selfResumeKey,
+		inviteFinalizePending,
 		handleStep0Continue,
 		handleStep1Back,
 		handleStep1Continue,
@@ -485,6 +543,11 @@ export function useCandidateSignUp() {
 		handleStep2Continue,
 		handleStep3Back,
 		handleStep3Submit,
+		handlePreferencesStepBack,
+		handlePreferencesStepContinue,
+		handleSubmissionReadinessBack,
+		handleSelfSubmissionFinalize,
+		handleInviteSubmissionFinalize,
 		handleInviteStep0Continue,
 		handleInviteContactContinue,
 		handleInviteProfessionalContinue,

@@ -1,7 +1,16 @@
+import {
+	formatStaffLogicDocumentTitle,
+	ORGANIZATION_PORTAL_DISPLAY_NAME,
+} from "@repo/shared";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-	title: "Organization Not Found",
+	title: formatStaffLogicDocumentTitle(
+		"Organization not found",
+		ORGANIZATION_PORTAL_DISPLAY_NAME,
+	),
+	description: "This organization could not be found.",
+	robots: { index: false, follow: false },
 };
 
 export default function OrgNotFoundPage() {

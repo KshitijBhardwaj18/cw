@@ -1,5 +1,7 @@
 "use client";
 
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -25,6 +27,11 @@ import { mapOrgMemberToUser } from "@/utils/org-member-api";
 
 const PAGE_SIZE = 10;
 
+export const USERS_PARAMS = {
+	PAGE: "usrPage",
+	SEARCH: "usrSearch",
+} as const;
+
 export function useUsers() {
 	const queryClient = useQueryClient();
 	const { session } = useAuth();
@@ -33,16 +40,27 @@ export function useUsers() {
 	const bulkEnrollmentStatus = useBulkEnrollmentStore((s) => s.status);
 	const startBulkJob = useBulkEnrollmentStore((s) => s.startJob);
 	const dismissBulkJob = useBulkEnrollmentStore((s) => s.dismiss);
-	const [search, setSearchState] = useState("");
-	const [currentPage, setCurrentPage] = useState(1);
+
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: USERS_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+		{
+			paramKey: USERS_PARAMS.SEARCH,
+			pageParamKey: USERS_PARAMS.PAGE,
+		},
+	);
+
 	const [editingUser, setEditingUser] = useState<User | null>(null);
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
 	const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
 
 	const listQuery = useOrgMembersList(orgId, {
-		search: search.trim() || undefined,
-		page: currentPage,
+		search: searchFromUrl.trim() || undefined,
+		page,
 		limit: PAGE_SIZE,
 		type: "organization",
 	});
@@ -105,11 +123,6 @@ export function useUsers() {
 		}
 	}, [bulkEnrollmentStatus, orgId, queryClient]);
 
-	const setSearch = useCallback((val: string) => {
-		setSearchState(val);
-		setCurrentPage(1);
-	}, []);
-
 	const handleEdit = useCallback((user: User) => {
 		setEditingUser(user);
 		setIsEditDialogOpen(true);
@@ -146,15 +159,15 @@ export function useUsers() {
 			removeMutation.mutate(memberId, {
 				onSuccess: () => {
 					toast.success("User removed from organization");
-					if (users.length === 1 && currentPage > 1) {
-						setCurrentPage((p) => Math.max(1, p - 1));
+					if (users.length === 1 && page > 1) {
+						setPage(Math.max(1, page - 1));
 					}
 				},
 				onError: (e) =>
 					toast.error(e instanceof Error ? e.message : "Could not remove user"),
 			});
 		},
-		[removeMutation, users.length, currentPage],
+		[removeMutation, users.length, page, setPage],
 	);
 
 	const handleSaveUser = useCallback(
@@ -184,13 +197,13 @@ export function useUsers() {
 				onSuccess: () => {
 					toast.success("User invited");
 					setIsAddUserDialogOpen(false);
-					setCurrentPage(1);
+					setPage(1);
 				},
 				onError: (e) =>
 					toast.error(e instanceof Error ? e.message : "Could not add user"),
 			});
 		},
-		[enrollMutation],
+		[enrollMutation, setPage],
 	);
 
 	const handleBulkUpload = useCallback(
@@ -225,10 +238,10 @@ export function useUsers() {
 		users,
 		total,
 		totalPages,
-		currentPage,
-		setCurrentPage,
-		search,
-		setSearch,
+		currentPage: page,
+		setCurrentPage: setPage,
+		search: localSearch,
+		setSearch: handleSearchChange,
 		editingUser,
 		setIsEditDialogOpen,
 		isEditDialogOpen,

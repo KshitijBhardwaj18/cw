@@ -1,6 +1,10 @@
 "use client";
 
-import { validateImageFile } from "@repo/shared";
+import type {
+	PostalAddressValue,
+	PostalFormBindingsNoCountry,
+} from "@repo/shared";
+import { postalSnapshotFromForm, validateImageFile } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Field,
@@ -17,15 +21,41 @@ import {
 	SelectValue,
 } from "@repo/ui/components/select";
 import { PhoneInput } from "@repo/ui/general/PhoneInput";
+import {
+	PostalCitySearchInput,
+	PostalStateSearchInput,
+	PostalStreetSearchInput,
+	PostalZipSearchInput,
+} from "@repo/ui/general/PostalAddressSearchFields";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { ImagePlus, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { LOCATION_TYPE_OPTIONS } from "@/constants/organization";
-import { addOrganizationSchemaBase } from "@/schemas/organization.schema";
+import {
+	addOrganizationSchemaBase,
+	organizationLocationPostalAutosuggestValidators,
+} from "@/schemas/organization.schema";
 
 const LOGO_ACCEPT = ".png,.jpg,.jpeg,image/png,image/jpeg";
+
+function buildPostalOnChangeValidator(validator: unknown) {
+	return validator ? { onChange: validator as never } : undefined;
+}
+
+function applyResolvedLocationPostalFields(
+	setFieldValue: (name: string, value: string) => void,
+	fields: PostalFormBindingsNoCountry<Record<string, unknown>>,
+	address: PostalAddressValue,
+): void {
+	setFieldValue(fields.street, address.street);
+	setFieldValue(fields.city, address.city);
+	setFieldValue(fields.state, address.state);
+	setFieldValue(fields.zipCode, address.zipCode);
+}
 
 export type LocationBlockForm = {
 	Field: (props: {
@@ -44,6 +74,14 @@ export type LocationBlockForm = {
 	}) => React.ReactNode;
 };
 
+type LocationBlockFormWithPostalContext = LocationBlockForm & {
+	Subscribe: (props: {
+		selector: (state: { values: unknown }) => PostalAddressValue;
+		children: (postal: PostalAddressValue) => React.ReactNode;
+	}) => React.ReactNode;
+	setFieldValue: (name: string, value: string) => void;
+};
+
 type LocationBlockProps = {
 	form: LocationBlockForm;
 	index: number;
@@ -59,7 +97,16 @@ export function LocationBlock({
 	canRemove,
 	isPending = false,
 }: LocationBlockProps) {
+	const formPostal = form as unknown as LocationBlockFormWithPostalContext;
 	const prefix = `locations[${index}]` as const;
+	const locationPostalFields: PostalFormBindingsNoCountry<
+		Record<string, unknown>
+	> = {
+		street: `${prefix}.address`,
+		city: `${prefix}.city`,
+		state: `${prefix}.state`,
+		zipCode: `${prefix}.zipCode`,
+	};
 	const photoInputRef = useRef<HTMLInputElement>(null);
 	const [photoFile, setPhotoFile] = useState<File | null>(null);
 	const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -84,9 +131,16 @@ export function LocationBlock({
 	const locationValidators =
 		addOrganizationSchemaBase.shape.locations.element.shape;
 
+	const submissionAttempts = useStore(
+		// LocationBlockForm narrows the Field API; parent always passes the full TanStack form.
+		// @ts-expect-error -- store exists at runtime on the concrete form instance
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<div className="space-y-4 rounded-lg border p-4">
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<span className="text-sm font-medium">Location {index + 1}</span>
 				{canRemove && (
 					<Button
@@ -108,8 +162,11 @@ export function LocationBlock({
 					validators={{ onChange: locationValidators.locationName }}
 				>
 					{(field) => {
-						const isInvalid =
-							field.state.meta.isTouched && !field.state.meta.isValid;
+						const isInvalid = formFieldShowInvalid(
+							field.state.meta.isTouched,
+							field.state.meta.isValid,
+							submissionAttempts,
+						);
 						return (
 							<Field data-invalid={isInvalid}>
 								<FieldLabel htmlFor={field.name}>
@@ -129,119 +186,191 @@ export function LocationBlock({
 					}}
 				</form.Field>
 
-				<form.Field
-					name={`${prefix}.address`}
-					validators={{ onChange: locationValidators.address }}
+				<formPostal.Subscribe
+					selector={(state) =>
+						postalSnapshotFromForm(
+							state.values as Record<string, unknown>,
+							locationPostalFields,
+						)
+					}
 				>
-					{(field) => {
-						const isInvalid =
-							field.state.meta.isTouched && !field.state.meta.isValid;
-						return (
-							<Field data-invalid={isInvalid}>
-								<FieldLabel htmlFor={field.name}>
-									Address <RequiredStar />
-								</FieldLabel>
-								<Input
-									id={field.name}
-									placeholder="Street address"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-									aria-invalid={isInvalid}
-								/>
-								{isInvalid && <FieldError errors={field.state.meta.errors} />}
-							</Field>
-						);
-					}}
-				</form.Field>
+					{(postal) => (
+						<>
+							<form.Field
+								name={`${prefix}.address`}
+								validators={buildPostalOnChangeValidator(
+									organizationLocationPostalAutosuggestValidators.street,
+								)}
+							>
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel htmlFor={field.name}>
+												Address <RequiredStar />
+											</FieldLabel>
+											<PostalStreetSearchInput
+												inputId={field.name}
+												postalContext={postal}
+												value={String(field.state.value ?? "")}
+												onChange={(v) => field.handleChange(v)}
+												onBlur={field.handleBlur}
+												placeholder="Street address"
+												onResolvedAddress={(addr) =>
+													applyResolvedLocationPostalFields(
+														formPostal.setFieldValue,
+														locationPostalFields,
+														addr,
+													)
+												}
+											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
+							</form.Field>
 
-				<div className="grid gap-4 sm:grid-cols-3">
-					<form.Field
-						name={`${prefix}.city`}
-						validators={{ onChange: locationValidators.city }}
-					>
-						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
-							return (
-								<Field data-invalid={isInvalid}>
-									<FieldLabel htmlFor={field.name}>
-										City <RequiredStar />
-									</FieldLabel>
-									<Input
-										id={field.name}
-										placeholder="City"
-										value={field.state.value}
-										onBlur={field.handleBlur}
-										onChange={(e) => field.handleChange(e.target.value)}
-										aria-invalid={isInvalid}
-									/>
-									{isInvalid && <FieldError errors={field.state.meta.errors} />}
-								</Field>
-							);
-						}}
-					</form.Field>
+							<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+								<form.Field
+									name={`${prefix}.city`}
+									validators={buildPostalOnChangeValidator(
+										organizationLocationPostalAutosuggestValidators.city,
+									)}
+								>
+									{(field) => {
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
+										return (
+											<Field data-invalid={isInvalid}>
+												<FieldLabel htmlFor={field.name}>
+													City <RequiredStar />
+												</FieldLabel>
+												<PostalCitySearchInput
+													inputId={field.name}
+													postalContext={postal}
+													value={String(field.state.value ?? "")}
+													onChange={(v) => field.handleChange(v)}
+													onBlur={field.handleBlur}
+													placeholder="City"
+													onResolvedAddress={(addr) =>
+														applyResolvedLocationPostalFields(
+															formPostal.setFieldValue,
+															locationPostalFields,
+															addr,
+														)
+													}
+												/>
+												{isInvalid && (
+													<FieldError errors={field.state.meta.errors} />
+												)}
+											</Field>
+										);
+									}}
+								</form.Field>
 
-					<form.Field
-						name={`${prefix}.state`}
-						validators={{ onChange: locationValidators.state }}
-					>
-						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
-							return (
-								<Field data-invalid={isInvalid}>
-									<FieldLabel htmlFor={field.name}>
-										State <RequiredStar />
-									</FieldLabel>
-									<Input
-										id={field.name}
-										placeholder="State"
-										value={field.state.value}
-										onBlur={field.handleBlur}
-										onChange={(e) => field.handleChange(e.target.value)}
-										aria-invalid={isInvalid}
-									/>
-									{isInvalid && <FieldError errors={field.state.meta.errors} />}
-								</Field>
-							);
-						}}
-					</form.Field>
+								<form.Field
+									name={`${prefix}.state`}
+									validators={buildPostalOnChangeValidator(
+										organizationLocationPostalAutosuggestValidators.state,
+									)}
+								>
+									{(field) => {
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
+										return (
+											<Field data-invalid={isInvalid}>
+												<FieldLabel htmlFor={field.name}>
+													State <RequiredStar />
+												</FieldLabel>
+												<PostalStateSearchInput
+													inputId={field.name}
+													postalContext={postal}
+													value={String(field.state.value ?? "")}
+													onChange={(v) => field.handleChange(v)}
+													onBlur={field.handleBlur}
+													placeholder="State"
+													onResolvedAddress={(addr) =>
+														applyResolvedLocationPostalFields(
+															formPostal.setFieldValue,
+															locationPostalFields,
+															addr,
+														)
+													}
+												/>
+												{isInvalid && (
+													<FieldError errors={field.state.meta.errors} />
+												)}
+											</Field>
+										);
+									}}
+								</form.Field>
 
-					<form.Field
-						name={`${prefix}.zipCode`}
-						validators={{ onChange: locationValidators.zipCode }}
-					>
-						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
-							return (
-								<Field data-invalid={isInvalid}>
-									<FieldLabel htmlFor={field.name}>
-										ZIP Code <RequiredStar />
-									</FieldLabel>
-									<Input
-										id={field.name}
-										placeholder="ZIP"
-										value={field.state.value}
-										onBlur={field.handleBlur}
-										onChange={(e) => field.handleChange(e.target.value)}
-										aria-invalid={isInvalid}
-									/>
-									{isInvalid && <FieldError errors={field.state.meta.errors} />}
-								</Field>
-							);
-						}}
-					</form.Field>
-				</div>
+								<form.Field
+									name={`${prefix}.zipCode`}
+									validators={buildPostalOnChangeValidator(
+										organizationLocationPostalAutosuggestValidators.zipCode,
+									)}
+								>
+									{(field) => {
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
+										return (
+											<Field data-invalid={isInvalid}>
+												<FieldLabel htmlFor={field.name}>
+													ZIP Code <RequiredStar />
+												</FieldLabel>
+												<PostalZipSearchInput
+													inputId={field.name}
+													postalContext={postal}
+													value={String(field.state.value ?? "")}
+													onChange={(v) => field.handleChange(v)}
+													onBlur={field.handleBlur}
+													placeholder="ZIP"
+													onResolvedAddress={(addr) =>
+														applyResolvedLocationPostalFields(
+															formPostal.setFieldValue,
+															locationPostalFields,
+															addr,
+														)
+													}
+												/>
+												{isInvalid && (
+													<FieldError errors={field.state.meta.errors} />
+												)}
+											</Field>
+										);
+									}}
+								</form.Field>
+							</div>
+						</>
+					)}
+				</formPostal.Subscribe>
 
 				<form.Field
 					name={`${prefix}.locationType`}
 					validators={{ onChange: locationValidators.locationType }}
 				>
 					{(field) => {
-						const isInvalid =
-							field.state.meta.isTouched && !field.state.meta.isValid;
+						const isInvalid = formFieldShowInvalid(
+							field.state.meta.isTouched,
+							field.state.meta.isValid,
+							submissionAttempts,
+						);
 						return (
 							<Field data-invalid={isInvalid}>
 								<FieldLabel htmlFor={field.name}>
@@ -272,11 +401,14 @@ export function LocationBlock({
 					}}
 				</form.Field>
 
-				<div className="grid gap-4 sm:grid-cols-2">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<form.Field name={`${prefix}.phone`}>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>Phone</FieldLabel>
@@ -300,8 +432,11 @@ export function LocationBlock({
 						validators={{ onChange: locationValidators.email }}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel htmlFor={field.name}>Email</FieldLabel>

@@ -1,5 +1,12 @@
-import { isAdminPortalRole, UserRole } from "@repo/shared";
+import {
+	formatStaffLogicDocumentTitle,
+	isAdminPortalRole,
+	ORGANIZATION_PORTAL_DISPLAY_NAME,
+	staffLogicDocumentTitleTemplate,
+	UserRole,
+} from "@repo/shared";
 import MainLayoutShell from "@repo/ui/general/MainLayoutShell";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -8,6 +15,16 @@ import { AppSidebar } from "@/components/sidebar/AppSidebar";
 import { AuthProvider } from "@/contexts/auth.context";
 import { authClient } from "@/lib/auth-client";
 import { OrganizationsService } from "@/services/organizations.service";
+
+export const metadata: Metadata = {
+	title: {
+		default: formatStaffLogicDocumentTitle(
+			"Organization",
+			ORGANIZATION_PORTAL_DISPLAY_NAME,
+		),
+		template: staffLogicDocumentTitleTemplate(ORGANIZATION_PORTAL_DISPLAY_NAME),
+	},
+};
 
 export default async function OrgLayout({ children }: { children: ReactNode }) {
 	const headersList = await headers();

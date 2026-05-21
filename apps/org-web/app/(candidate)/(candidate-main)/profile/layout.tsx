@@ -1,5 +1,11 @@
 import PageContainer from "@repo/ui/general/PageContainer";
+import type { Metadata } from "next";
 import CandidateMainShell from "@/components/candidate-layout/CandidateMainShell";
+
+export const metadata: Metadata = {
+	title: "Profile",
+	description: "Your candidate profile and account details",
+};
 
 const ProfileLayout = ({ children }: { children: React.ReactNode }) => {
 	return (

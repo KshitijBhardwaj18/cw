@@ -1,3 +1,5 @@
+"use client";
+
 import {
 	CERTIFIED_BUSINESS_CLASSIFICATION_OPTIONS,
 	ORGANIZATION_INDUSTRY_OPTIONS,
@@ -20,7 +22,7 @@ import { useRef } from "react";
 import { toast } from "sonner";
 import type { VendorProfileApi } from "@/hooks/use-vendor-profile";
 
-interface VendorProfileLeftFieldsProps {
+interface VendorProfileIdentitySectionProps {
 	form: VendorProfileApi;
 	logoFile: File | null;
 	logoPreview: string | null;
@@ -28,13 +30,13 @@ interface VendorProfileLeftFieldsProps {
 	setLogoPreview: (url: string | null) => void;
 }
 
-export function VendorProfileLeftFields({
+export function VendorProfileIdentitySection({
 	form,
 	logoFile,
 	logoPreview,
 	setLogoFile,
 	setLogoPreview,
-}: VendorProfileLeftFieldsProps) {
+}: VendorProfileIdentitySectionProps) {
 	const logoInputRef = useRef<HTMLInputElement>(null);
 
 	const handleLogoClick = () => logoInputRef.current?.click();

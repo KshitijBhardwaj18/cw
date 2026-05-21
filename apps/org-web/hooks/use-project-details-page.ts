@@ -1,9 +1,8 @@
 "use client";
 
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useOrgContext } from "@/contexts/org-context";
 import {
@@ -19,28 +18,50 @@ import type { ProjectDetailRequisitionStatusFilter } from "@/types/project";
 
 const REQUISITIONS_PAGE_SIZE = 20;
 
+const PROJECT_DETAILS_PARAMS = {
+	SEARCH: "reqSearch",
+	PAGE: "reqPage",
+	STATUS: "reqStatus",
+} as const;
+
 export function useProjectDetailsPage(projectId: string) {
 	const { id: orgId } = useOrgContext();
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "reqSearch", pageParamKey: "reqPage" },
-	);
 
-	const [addRequisitionsOpen, setAddRequisitionsOpen] = useState(false);
+	const { page: requisitionsPage, setPage: setRequisitionsPage } =
+		usePaginationControls({
+			pageParamKey: PROJECT_DETAILS_PARAMS.PAGE,
+			defaultLimit: REQUISITIONS_PAGE_SIZE,
+		});
 
-	const pageParam = Number(searchParams.get("reqPage") ?? "1");
-	const requisitionsPage =
-		Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs,
+	} = useSearchWithFilters({
+		search: { paramKey: PROJECT_DETAILS_PARAMS.SEARCH },
+		pagination: { pageParamKey: PROJECT_DETAILS_PARAMS.PAGE },
+		filters: [
+			{
+				id: PROJECT_DETAILS_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				options: [
+					{ label: "All Statuses", value: "all" },
+					{ label: "Open", value: "Open" },
+					{ label: "Closed", value: "Closed" },
+					{ label: "On Hold", value: "On Hold" },
+				],
+			},
+		],
+	});
 
-	const statusParam = searchParams.get("reqStatus") ?? "all";
 	const status =
-		statusParam === "all" ||
-		statusParam === "Open" ||
-		statusParam === "Closed" ||
-		statusParam === "On Hold"
-			? (statusParam as ProjectDetailRequisitionStatusFilter)
-			: "all";
+		(values[
+			PROJECT_DETAILS_PARAMS.STATUS
+		] as ProjectDetailRequisitionStatusFilter) || "all";
 
 	const listParams = useMemo<ProjectRequisitionsListParams>(
 		() => ({
@@ -67,52 +88,7 @@ export function useProjectDetailsPage(projectId: string) {
 	const requisitionsTotal = requisitionsQuery.data?.total ?? 0;
 	const requisitionsTotalPages = requisitionsQuery.data?.totalPages ?? 1;
 
-	useEffect(() => {
-		if (
-			requisitionsTotalPages >= 1 &&
-			requisitionsPage > requisitionsTotalPages
-		) {
-			pushParams({ reqPage: String(requisitionsTotalPages) });
-		}
-	}, [requisitionsPage, requisitionsTotalPages, pushParams]);
-
-	const setStatus = useCallback(
-		(val: ProjectDetailRequisitionStatusFilter) => {
-			pushParams({
-				reqStatus: val === "all" ? null : val,
-				reqPage: null,
-			});
-		},
-		[pushParams],
-	);
-
-	const setRequisitionsPage = useCallback(
-		(p: number) => {
-			pushParams({ reqPage: String(p) });
-		},
-		[pushParams],
-	);
-
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "status",
-				label: "Status",
-				value: status,
-				onValueChange: (val: string) =>
-					setStatus(val as ProjectDetailRequisitionStatusFilter),
-				placeholder: "All Statuses",
-				options: [
-					{ label: "All Statuses", value: "all" },
-					{ label: "Open", value: "Open" },
-					{ label: "Closed", value: "Closed" },
-					{ label: "On Hold", value: "On Hold" },
-				],
-			},
-		],
-		[setStatus, status],
-	);
-
+	const [addRequisitionsOpen, setAddRequisitionsOpen] = useState(false);
 	const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
 	const [requisitionToRemove, setRequisitionToRemove] = useState<string | null>(
 		null,
@@ -175,10 +151,9 @@ export function useProjectDetailsPage(projectId: string) {
 		requisitionsTotalPages,
 		addRequisitionsOpen,
 		setAddRequisitionsOpen,
-		search: localSearch,
-		setSearch: handleSearchChange,
+		localSearch,
+		handleSearchChange,
 		status,
-		setStatus,
 		removeDialogOpen,
 		setRemoveDialogOpen,
 		requisitionToRemove,

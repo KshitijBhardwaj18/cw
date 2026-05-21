@@ -1,10 +1,21 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { RequisitionStatus } from "@repo/db";
 import { Transform, Type } from "class-transformer";
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
+import {
+	IsEnum,
+	IsInt,
+	IsOptional,
+	IsString,
+	IsUUID,
+	Max,
+	Min,
+} from "class-validator";
 
 export class QueryRequisitionTemplatesDto {
-	@ApiPropertyOptional({ description: "Search by template name" })
+	@ApiPropertyOptional({
+		description:
+			"Search template name, occupation, specialty, or location (contains, case-insensitive)",
+	})
 	@IsOptional()
 	@Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
 	@IsString()
@@ -16,6 +27,20 @@ export class QueryRequisitionTemplatesDto {
 	@IsOptional()
 	@IsEnum(RequisitionStatus)
 	status?: RequisitionStatus;
+
+	@ApiPropertyOptional({
+		description: "Filter by organization occupation link id",
+	})
+	@IsOptional()
+	@IsUUID()
+	organizationOccupationId?: string;
+
+	@ApiPropertyOptional({
+		description: "Filter by organization specialty link id",
+	})
+	@IsOptional()
+	@IsUUID()
+	organizationSpecialtyId?: string;
 
 	@ApiPropertyOptional({ default: 1 })
 	@IsOptional()

@@ -17,7 +17,7 @@ const CandidateMainShell = ({ title, children }: CandidateMainShellProps) => {
 			headerActions={<HeaderUserMenu />}
 		>
 			<div>
-				<div className="mx-auto w-full max-w-5xl p-3 sm:p-4 sm:pb-0 md:p-6 md:pb-0 lg:p-8 lg:pb-0">
+				<div className="mx-auto w-full max-w-5xl px-3 pt-3 sm:px-4 sm:pt-4 sm:pb-0 md:px-6 md:pt-6 md:pb-0 lg:px-8 lg:pt-8 lg:pb-0">
 					<CandidateProfileCompleteBanner />
 				</div>
 				{children}

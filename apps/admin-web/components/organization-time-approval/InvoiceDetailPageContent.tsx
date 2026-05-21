@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency, formatDate, formatDateRange } from "@repo/shared";
+import { formatDate, formatDateRange, formatUsdLedger } from "@repo/shared";
 import {
 	Accordion,
 	AccordionContent,
@@ -95,7 +95,7 @@ export default function InvoiceDetailPageContent({
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 				<MetricCard
 					title="TOTAL AMOUNT"
-					value={formatCurrency(invoice.totalAmount, "USD", "en-US", 2, 2)}
+					value={formatUsdLedger(invoice.totalAmount)}
 				/>
 				<MetricCard
 					title="TOTAL HOURS"
@@ -149,7 +149,7 @@ export default function InvoiceDetailPageContent({
 									/>
 									<DetailItem
 										label="Amount"
-										value={formatCurrency(dept.amount, "USD", "en-US", 2, 2)}
+										value={formatUsdLedger(dept.amount)}
 										flow="row"
 										className="gap-2"
 										labelClassName="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70"

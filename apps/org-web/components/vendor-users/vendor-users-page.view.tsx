@@ -34,7 +34,8 @@ export type VendorUsersPageViewProps = {
 	currentPage: number;
 	pageSize: number;
 	handlePaginationChange: (page: number, pageSize: number) => void;
-	isLoading: boolean;
+	isUsersLoading: boolean;
+	isMetricsLoading: boolean;
 	isError: boolean;
 	error: unknown;
 	canManageTeam: boolean;
@@ -67,7 +68,8 @@ export function VendorUsersPageView(props: VendorUsersPageViewProps) {
 		currentPage,
 		pageSize,
 		handlePaginationChange,
-		isLoading,
+		isUsersLoading,
+		isMetricsLoading,
 		isError,
 		error,
 		canManageTeam,
@@ -84,7 +86,7 @@ export function VendorUsersPageView(props: VendorUsersPageViewProps) {
 		handleConfirmDelete,
 	} = props;
 
-	if (isLoading) {
+	if (isMetricsLoading) {
 		return (
 			<div className="space-y-6">
 				<Skeleton className="h-24 w-full max-w-xl" />
@@ -148,7 +150,7 @@ export function VendorUsersPageView(props: VendorUsersPageViewProps) {
 					filterConfigs={filterConfigs}
 				/>
 
-				{totalFiltered === 0 ? (
+				{totalFiltered === 0 && !isUsersLoading ? (
 					<ConfigPageEmptyState
 						hasSearch={search.trim() !== ""}
 						searchEmptyTitle="No users in this view"
@@ -168,6 +170,8 @@ export function VendorUsersPageView(props: VendorUsersPageViewProps) {
 						totalCount={totalFiltered}
 						currentPage={currentPage}
 						onPaginationChange={handlePaginationChange}
+						isLoading={isUsersLoading}
+						loadingLabel="Loading Users..."
 						emptyState={null}
 					/>
 				)}
@@ -175,6 +179,7 @@ export function VendorUsersPageView(props: VendorUsersPageViewProps) {
 
 			{canManageTeam ? (
 				<AddVendorUserDialog
+					key={userDialogOpen ? (editingUser?.id ?? "__add__") : "__closed__"}
 					open={userDialogOpen}
 					onOpenChange={handleUserDialogOpenChange}
 					editingUser={editingUser}

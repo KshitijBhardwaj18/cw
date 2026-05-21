@@ -5,9 +5,9 @@ import { getLabel, OrganizationType } from "@repo/shared";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { ORGANIZATION_TYPE_OPTIONS } from "@/constants/organization";
 import { useAuth } from "@/contexts";
@@ -15,6 +15,11 @@ import { useOrganizations } from "@/queries/organizations.query";
 import { OrganizationCard } from "./OrganizationCard";
 
 const PAGE_SIZE = 8;
+
+export const ORG_BY_TYPE_PARAMS = {
+	PAGE: "orgTPage",
+	SEARCH: "orgTSearch",
+} as const;
 
 type OrganizationsByTypePageContentProps = {
 	organizationType: string;
@@ -25,16 +30,18 @@ const VALID_TYPES = Object.values(OrganizationType);
 export function OrganizationsByTypePageContent({
 	organizationType,
 }: OrganizationsByTypePageContentProps) {
-	const router = useRouter();
 	const { ability } = useAuth();
-	const {
-		page,
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
+
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: ORG_BY_TYPE_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange, hasActiveSearch } =
+		useDebouncedSearch({
+			paramKey: ORG_BY_TYPE_PARAMS.SEARCH,
+			pageParamKey: ORG_BY_TYPE_PARAMS.PAGE,
+		});
 
 	const isValidType = VALID_TYPES.includes(
 		organizationType as OrganizationType,
@@ -125,11 +132,7 @@ export function OrganizationsByTypePageContent({
 						<ConfigPagePagination
 							page={page}
 							totalPages={totalPages}
-							onPageChange={(p) =>
-								router.push(
-									`/organizations/by-type/${organizationType}${buildSearchParams({ page: p })}`,
-								)
-							}
+							onPageChange={setPage}
 						/>
 					)}
 				</>

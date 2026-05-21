@@ -110,7 +110,7 @@ export function EditComplianceItemUsageDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="flex max-h-[90vh] min-w-[70vw] flex-col p-0">
+			<DialogContent className="flex max-h-[90dvh] min-w-0 w-full max-w-[min(100vw-2rem,80rem)] flex-col p-0 sm:min-w-[70vw]">
 				<DialogHeader className="shrink-0 px-6 pt-6">
 					<DialogTitle>Edit Compliance Item Usage</DialogTitle>
 					<p className="text-muted-foreground text-sm">

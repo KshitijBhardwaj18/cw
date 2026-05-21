@@ -1,5 +1,6 @@
 "use client";
 
+import { formatUsdLedger, formatUsdPerHour } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -72,7 +73,13 @@ export function SubmitTimecardDialog({
 
 	if (!shift) return null;
 
-	const scheduledHours = computeShiftHours(shift.startTime, shift.endTime, 0);
+	const regularRow = rows.find((r) => !r.isOvertime);
+	const regularBreakMin = Number.parseInt(regularRow?.breakMin ?? "0", 10);
+	const scheduledHours = computeShiftHours(
+		shift.startTime,
+		shift.endTime,
+		Number.isNaN(regularBreakMin) ? 0 : regularBreakMin,
+	);
 	const overtimeHours = Math.max(0, totalHours - scheduledHours);
 
 	return (
@@ -174,13 +181,14 @@ export function SubmitTimecardDialog({
 								Estimated Pay
 							</p>
 							<p className="text-xl font-bold text-primary">
-								${estimatedPay.toFixed(2)}
+								{formatUsdLedger(estimatedPay)}
 							</p>
 						</div>
 						<div className="min-w-0 max-w-full text-right space-y-0.5 sm:max-w-[55%]">
 							<p className="text-xs text-muted-foreground font-medium">Rate</p>
 							<p className="break-words text-sm font-semibold">
-								${shift.ratePerHour}/hr × {totalHours.toFixed(2)} hrs
+								{formatUsdPerHour(shift.ratePerHour)} × {totalHours.toFixed(2)}{" "}
+								hrs
 							</p>
 						</div>
 					</div>

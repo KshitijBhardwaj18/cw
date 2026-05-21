@@ -9,36 +9,69 @@ import {
 	EmptyHeader,
 	EmptyTitle,
 } from "@repo/ui/components/empty";
+import { Skeleton } from "@repo/ui/components/skeleton";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { Plus } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { TAG_TYPE_OPTIONS } from "@/constants/tags";
 import { useAuth } from "@/contexts";
 import { useTags } from "@/queries/tags.query";
 import { TagCard } from "./TagCard";
 import { TagFormDialog } from "./TagFormDialog";
-import { TagsFilters } from "./TagsFilters";
+import { type StatusFilter, TagsFilters } from "./TagsFilters";
 
 const PAGE_SIZE = 10;
+const TAG_PARAMS = {
+	PAGE: "tagPage",
+	SEARCH: "tagSearch",
+	TYPE: "type",
+	STATUS: "status",
+} as const;
 
 export function TagsPageContent() {
 	const [createOpen, setCreateOpen] = useState(false);
-	const searchParams = useSearchParams();
-	const router = useRouter();
-	const {
-		page,
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
 
-	const typeFilter = searchParams.get("type") ?? "";
-	const statusParam = searchParams.get("status") ?? "all";
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: TAG_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const {
+		searchValue: localSearch,
+		handleSearchChange,
+		searchFromUrl,
+		values,
+		filterConfigs,
+	} = useSearchWithFilters({
+		search: { paramKey: TAG_PARAMS.SEARCH },
+		pagination: { pageParamKey: TAG_PARAMS.PAGE },
+		filters: [
+			{
+				id: TAG_PARAMS.TYPE,
+				label: "Type",
+				type: "select",
+				defaultValue: "",
+				options: [{ label: "All Types", value: "all" }, ...TAG_TYPE_OPTIONS],
+			},
+			{
+				id: TAG_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				options: [
+					{ label: "All", value: "all" },
+					{ label: "Active", value: "active" },
+					{ label: "Inactive", value: "inactive" },
+				],
+			},
+		],
+	});
+
+	const typeFilter = values[TAG_PARAMS.TYPE] || "";
+	const statusParam = (values[TAG_PARAMS.STATUS] as StatusFilter) || "all";
 
 	const showOnSubmission =
 		statusParam === "active"
@@ -47,7 +80,7 @@ export function TagsPageContent() {
 				? false
 				: undefined;
 
-	const { data: response } = useTags({
+	const { data: response, isLoading } = useTags({
 		page,
 		limit: PAGE_SIZE,
 		search: searchFromUrl || undefined,
@@ -55,7 +88,10 @@ export function TagsPageContent() {
 		showOnSubmission,
 	});
 
-	const { data: tags, total, totalPages } = response;
+	const tags = response?.data ?? [];
+	const total = response?.total ?? 0;
+	const totalPages = response?.totalPages ?? 0;
+	const hasActiveSearch = !!searchFromUrl.trim();
 	const hasActiveFilters = !!(
 		hasActiveSearch ||
 		typeFilter ||
@@ -67,6 +103,22 @@ export function TagsPageContent() {
 	const groupedTags = useMemo(
 		() => groupByKey(tags, (tag: TagResponseType) => tag.type),
 		[tags],
+	);
+
+	const onFilterChange = useCallback(
+		(updates: { type?: string; status?: StatusFilter }) => {
+			if ("type" in updates) {
+				filterConfigs
+					.find((c) => c.id === TAG_PARAMS.TYPE)
+					?.onValueChange(updates.type ?? "");
+			}
+			if ("status" in updates) {
+				filterConfigs
+					.find((c) => c.id === TAG_PARAMS.STATUS)
+					?.onValueChange(updates.status ?? "all");
+			}
+		},
+		[filterConfigs],
 	);
 
 	return (
@@ -100,9 +152,19 @@ export function TagsPageContent() {
 					placeholder: "Search tags by name or description...",
 				}}
 			/>
-			<TagsFilters />
+			<TagsFilters
+				typeFilter={typeFilter}
+				statusFilter={statusParam as StatusFilter}
+				onFilterChange={onFilterChange}
+			/>
 
-			{tags.length === 0 ? (
+			{isLoading ? (
+				<div className="space-y-6">
+					{[1, 2, 3, 4, 5].map((i) => (
+						<Skeleton key={i} className="h-32 w-full rounded-xl" />
+					))}
+				</div>
+			) : tags.length === 0 ? (
 				<Empty className="border">
 					<EmptyHeader>
 						<EmptyTitle>No tags yet</EmptyTitle>
@@ -134,9 +196,7 @@ export function TagsPageContent() {
 					<ConfigPagePagination
 						page={page}
 						totalPages={totalPages}
-						onPageChange={(p) =>
-							router.push(`/tags${buildSearchParams({ page: p })}`)
-						}
+						onPageChange={setPage}
 					/>
 				</>
 			)}

@@ -8,7 +8,7 @@ import {
 import { Button } from "@repo/ui/components/button";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
 import { Download, Plus } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -21,19 +21,17 @@ import { useAuth } from "@/contexts";
 import { useComplianceSummary } from "@/queries/compliance.query";
 import { ComplianceService } from "@/services";
 import type { ComplianceTableRowType } from "@/types/compliance";
+import { COMPLIANCE_PARAMS } from "./ComplianceCategoryPageContent";
 import { ComplianceFormDialog } from "./ComplianceFormDialog";
 import { ComplianceTableWrapper } from "./ComplianceTableWrapper";
 
 const CompliancePageContent = () => {
 	const { ability } = useAuth();
 	const canCreateCompliance = ability.can(Action.Create, "ComplianceListItem");
-	const {
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
+
+	const { localSearch, searchFromUrl, handleSearchChange, hasActiveSearch } =
+		useDebouncedSearch({ paramKey: COMPLIANCE_PARAMS.SEARCH });
+
 	const { data: summary } = useComplianceSummary(
 		hasActiveSearch ? searchFromUrl : undefined,
 	);
@@ -155,19 +153,18 @@ const CompliancePageContent = () => {
 
 						return (
 							<div key={category} className="flex flex-col gap-3">
-								<div className="flex items-center justify-between">
+								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<div className="flex items-center gap-2">
 										<h3 className="text-lg font-semibold">
 											{COMPLIANCE_CATEGORY_LABELS[category]}
 										</h3>
 										{total > 5 && (
 											<Link
-												href={`/compliance/${complianceCategoryToSlug(category)}${buildSearchParams(
-													{
-														page: 1,
-														search: hasActiveSearch ? searchFromUrl : undefined,
-													},
-												)}`}
+												href={`/compliance/${complianceCategoryToSlug(category)}${
+													hasActiveSearch
+														? `?${COMPLIANCE_PARAMS.SEARCH}=${encodeURIComponent(searchFromUrl)}`
+														: ""
+												}`}
 												className="text-sm font-medium text-primary underline-offset-4 hover:underline"
 											>
 												View All ({total})

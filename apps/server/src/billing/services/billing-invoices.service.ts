@@ -326,7 +326,7 @@ export class BillingInvoicesService {
 		const where = {
 			organizationId: orgId,
 			...(isPendingStatuses && {
-				status: { in: [InvoiceStatus.DRAFT, InvoiceStatus.SUBMITTED] },
+				status: InvoiceStatus.SUBMITTED,
 			}),
 			...(!isPendingStatuses && statusValue && { status: statusValue }),
 			...(dto.search && {
@@ -950,6 +950,7 @@ export class BillingInvoicesService {
 		const invoice = await this.getInvoice(orgId, invoiceId);
 		const csvEscape = (v: string | number | Date | null | undefined) =>
 			`"${String(v ?? "").replaceAll('"', '""')}"`;
+		const approvedLineItems = invoice.lineItems.filter((li) => !li.isDisputed);
 		const lines = [
 			["Invoice Number", invoice.invoiceNumber].map(csvEscape).join(","),
 			["Invoice Date", invoice.invoiceDate].map(csvEscape).join(","),
@@ -959,7 +960,7 @@ export class BillingInvoicesService {
 			["Description", "Quantity", "Unit Price", "Amount"]
 				.map(csvEscape)
 				.join(","),
-			...invoice.lineItems.map((li) =>
+			...approvedLineItems.map((li) =>
 				[li.description, li.quantity, li.unitPrice, li.amount]
 					.map(csvEscape)
 					.join(","),
@@ -1011,7 +1012,7 @@ export class BillingInvoicesService {
 		doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#CCCCCC").stroke();
 		doc.moveDown(0.4);
 
-		for (const li of invoice.lineItems) {
+		for (const li of invoice.lineItems.filter((l) => !l.isDisputed)) {
 			const y = doc.y;
 			doc.fontSize(10).text(li.description ?? "—", 50, y, { width: 240 });
 			doc.text(String(li.quantity ?? 0), 300, y, { width: 50, align: "right" });
@@ -1323,7 +1324,7 @@ export class BillingInvoicesService {
 			...invoice,
 			subtotal: adjustedSubtotal,
 			totalAmount: adjustedTotalAmount,
-			lineItems: approvedItems,
+			lineItems: enrichedLineItems,
 			departmentDetails,
 			draftSummary: {
 				totalAmountForPeriod: approvedAmount,
@@ -1376,7 +1377,7 @@ export class BillingInvoicesService {
 		return this.prisma.invoice.count({
 			where: {
 				organizationId: orgId,
-				status: { in: [InvoiceStatus.DRAFT, InvoiceStatus.SUBMITTED] },
+				status: InvoiceStatus.SUBMITTED,
 			},
 		});
 	}

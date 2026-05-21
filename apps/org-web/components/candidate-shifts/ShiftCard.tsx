@@ -1,10 +1,10 @@
 "use client";
 
+import { formatUsdPerHour } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
 	Card,
-	CardAction,
 	CardContent,
 	CardDescription,
 	CardHeader,
@@ -78,9 +78,11 @@ export function ShiftCard({
 			)}
 			onClick={() => onClick?.(shift)}
 		>
-			<CardHeader>
-				<div className="flex items-center gap-2 flex-wrap">
-					<CardTitle className="text-lg">{shift.title}</CardTitle>
+			<CardHeader className="space-y-3">
+				<div className="flex flex-wrap items-center gap-2">
+					<CardTitle className="min-w-0 text-base font-semibold leading-snug sm:text-lg">
+						{shift.title}
+					</CardTitle>
 					{shift.status === "IN_PROGRESS" && isMine && (
 						<Badge variant="success">Claimed</Badge>
 					)}
@@ -97,23 +99,26 @@ export function ShiftCard({
 						</Badge>
 					)}
 				</div>
-				<CardDescription className="flex flex-wrap items-center gap-4 font-medium py-1">
+				<CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-2 py-0 font-medium">
 					<div className="flex items-center gap-1.5">
-						<Calendar className="size-4" />
+						<Calendar className="size-4 shrink-0" />
 						{format(parseISO(shift.date), "EEE, MMM d, yyyy")}
 					</div>
 					<div className="flex items-center gap-1.5">
-						<Clock className="size-4" />
+						<Clock className="size-4 shrink-0" />
 						{shift.startTime} – {shift.endTime}
 					</div>
-					<Badge variant="success">${shift.ratePerHour}/hr</Badge>
+					<Badge variant="success" className="shrink-0">
+						{formatUsdPerHour(shift.ratePerHour)}
+					</Badge>
 				</CardDescription>
 
-				<CardAction>
-					{shift.status !== "CANCELLED" && shift.status !== "COMPLETED" && (
+				{shift.status !== "CANCELLED" && shift.status !== "COMPLETED" && (
+					<div className="pt-1">
 						<Button
 							size="sm"
 							variant={actionVariant}
+							className="w-full sm:w-auto sm:self-end"
 							disabled={isActionLoading}
 							aria-busy={Boolean(isActionLoading)}
 							onClick={handleAction}
@@ -127,8 +132,8 @@ export function ShiftCard({
 								actionLabel
 							)}
 						</Button>
-					)}
-				</CardAction>
+					</div>
+				)}
 			</CardHeader>
 
 			<CardContent className="space-y-4">

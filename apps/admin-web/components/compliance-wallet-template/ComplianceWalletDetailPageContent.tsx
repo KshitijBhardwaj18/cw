@@ -179,10 +179,10 @@ export default function ComplianceWalletDetailPageContent({
 								{items.map((item) => (
 									<div
 										key={item.id}
-										className="bg-muted/50 flex items-center justify-between rounded-lg border px-4 py-3"
+										className="bg-muted/50 flex min-w-0 flex-col gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
 									>
-										<div>
-											<p className="text-sm font-medium">
+										<div className="min-w-0 flex-1">
+											<p className="wrap-break-word text-sm font-medium">
 												{item.complianceListItem.name}
 											</p>
 											<p className="text-muted-foreground text-xs">
@@ -197,7 +197,7 @@ export default function ComplianceWalletDetailPageContent({
 											<Button
 												variant="ghost"
 												size="icon"
-												className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8"
+												className="h-8 w-8 shrink-0 self-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:self-center"
 												aria-label="Remove item"
 												onClick={() =>
 													handleRemoveItem(item.complianceListItemId)

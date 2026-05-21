@@ -9,6 +9,7 @@ import {
 import { Banner } from "@repo/ui/general/Banner";
 import PaginationControls from "@repo/ui/general/PaginationControls";
 import { TintedBar } from "@repo/ui/general/TintedBar";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import {
 	AlertCircle,
 	CheckCircle2,
@@ -16,7 +17,6 @@ import {
 	ShieldCheck,
 	XCircle,
 } from "lucide-react";
-import { useState } from "react";
 import { COMPLIANCE_STATUS_CONFIG } from "@/constants/candidate/submissions";
 import type { CandidateSubmissionDetail } from "@/types/candidate-submission";
 
@@ -29,13 +29,21 @@ interface ComplianceStatusProps {
 	};
 }
 
+const COMP_PARAMS = {
+	PAGE: "compPage",
+	LIMIT: "compLimit",
+} as const;
+
 export function ComplianceStatus({
 	heading,
 	complianceStatus,
 	documentsBanner,
 }: ComplianceStatusProps) {
-	const [page, setPage] = useState(1);
-	const [limit, setLimit] = useState(10);
+	const { page, setPage, limit, setLimit } = usePaginationControls({
+		pageParamKey: COMP_PARAMS.PAGE,
+		limitParamKey: COMP_PARAMS.LIMIT,
+		defaultLimit: 10,
+	});
 
 	const paginatedItems = complianceStatus.items.slice(
 		(page - 1) * limit,

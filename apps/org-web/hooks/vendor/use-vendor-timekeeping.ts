@@ -1,5 +1,8 @@
-import { useLocalDebouncedSearch } from "@repo/ui/hooks/use-local-debounced-search";
-import { useCallback, useState } from "react";
+"use client";
+
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useVendorTimekeepingColumns } from "@/hooks/tables/use-vendor-timekeeping-columns";
 import {
@@ -12,7 +15,6 @@ import {
 import type { VendorTimekeepingFormValues } from "@/schemas/vendor-timekeeping.schema";
 import type { VendorTimekeepingEntry } from "@/types/vendor-timekeeping";
 
-const SEARCH_DEBOUNCE_MS = 300;
 const DEFAULT_LIMIT = 20;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
@@ -21,26 +23,39 @@ export type UseVendorTimekeepingOptions = {
 	allowEditActions?: boolean;
 };
 
+export const VT_PARAMS = {
+	PAGE: "vtPage",
+	LIMIT: "vtLimit",
+	SEARCH: "vtSearch",
+} as const;
+
 export function useVendorTimekeeping(options?: UseVendorTimekeepingOptions) {
 	const allowEditActions = options?.allowEditActions ?? true;
 	const [editEntry, setEditEntry] = useState<VendorTimekeepingEntry | null>(
 		null,
 	);
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-	const [page, setPage] = useState(1);
-	const [limit, setLimit] = useState(DEFAULT_LIMIT);
-	const {
-		search,
-		debouncedSearch,
-		setSearch: setSearchBase,
-	} = useLocalDebouncedSearch("", { wait: SEARCH_DEBOUNCE_MS });
+
+	const { page, setPage, limit, setLimit } = usePaginationControls({
+		pageParamKey: VT_PARAMS.PAGE,
+		limitParamKey: VT_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+		{
+			paramKey: VT_PARAMS.SEARCH,
+			pageParamKey: VT_PARAMS.PAGE,
+		},
+	);
 
 	const metricsQuery = useVendorTimekeepingMetrics();
 	const payCodesQuery = useVendorTimekeepingPayCodes();
 	const entriesQuery = useVendorTimekeepingEntries({
 		page,
 		limit,
-		search: debouncedSearch.trim() || undefined,
+		search: searchFromUrl.trim() || undefined,
 	});
 
 	const updateEntry = useUpdateVendorTimekeepingEntry();
@@ -54,19 +69,6 @@ export function useVendorTimekeeping(options?: UseVendorTimekeepingOptions) {
 	const { columns } = useVendorTimekeepingColumns({
 		onEditRow: allowEditActions ? handleEditRow : undefined,
 	});
-
-	const setSearchAndResetPage = useCallback(
-		(v: string) => {
-			setSearchBase(v);
-			setPage(1);
-		},
-		[setSearchBase],
-	);
-
-	const setLimitAndResetPage = (l: number) => {
-		setLimit(l);
-		setPage(1);
-	};
 
 	const handleSaveEdit = (updated: VendorTimekeepingFormValues) => {
 		if (!editEntry) return;
@@ -128,10 +130,10 @@ export function useVendorTimekeeping(options?: UseVendorTimekeepingOptions) {
 		page,
 		setPage,
 		limit,
-		setLimit: setLimitAndResetPage,
+		setLimit,
 		pageSizeOptions: PAGE_SIZE_OPTIONS,
-		search,
-		setSearch: setSearchAndResetPage,
+		search: localSearch,
+		setSearch: handleSearchChange,
 		isEntriesLoading: entriesQuery.isLoading,
 		isEntriesError: entriesQuery.isError,
 		handleSubmitAllPending,

@@ -92,7 +92,7 @@ export function CredentialComplianceActionDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-md">
+			<DialogContent className="max-h-[90dvh] max-w-md overflow-y-auto">
 				<input
 					ref={fileInputRef}
 					type="file"

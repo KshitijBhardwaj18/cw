@@ -13,6 +13,8 @@ import {
 	InputGroupInput,
 } from "@repo/ui/components/input-group";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
+import { useStore } from "@tanstack/react-form";
 import { Loader2, User } from "lucide-react";
 import { useCreateAccountStepForm } from "@/hooks/candidate/use-create-account-step-form";
 import {
@@ -39,6 +41,11 @@ export function CreateAccountStep({
 		onValuesChange,
 	});
 
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
+
 	return (
 		<>
 			<div className="space-y-1">
@@ -63,8 +70,11 @@ export function CreateAccountStep({
 						validators={{ onChange: createAccountBaseSchema.shape.firstName }}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel
@@ -105,8 +115,11 @@ export function CreateAccountStep({
 						validators={{ onChange: createAccountBaseSchema.shape.lastName }}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel
@@ -147,8 +160,11 @@ export function CreateAccountStep({
 						validators={{ onChange: createAccountBaseSchema.shape.email }}
 					>
 						{(field) => {
-							const isInvalid =
-								field.state.meta.isTouched && !field.state.meta.isValid;
+							const isInvalid = formFieldShowInvalid(
+								field.state.meta.isTouched,
+								field.state.meta.isValid,
+								submissionAttempts,
+							);
 							return (
 								<Field data-invalid={isInvalid}>
 									<FieldLabel

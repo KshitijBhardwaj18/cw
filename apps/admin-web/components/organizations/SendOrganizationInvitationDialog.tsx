@@ -72,7 +72,10 @@ export function SendOrganizationInvitationDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-lg" showCloseButton>
+			<DialogContent
+				className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"
+				showCloseButton
+			>
 				<DialogHeader>
 					<DialogTitle>
 						{isBulk ? "Send Bulk Invitations" : "Send Organization Invitation"}

@@ -64,11 +64,29 @@ export class VendorUsersService {
 	async getVendorContext(session: UserSession) {
 		const actor = resolveVendorActor(session);
 		this.assertVendorPortalActor(actor);
+		const organizationId = session.session.activeOrganizationId ?? null;
+
+		const [vendor, organization] = await Promise.all([
+			this.prisma.vendor.findUnique({
+				where: { id: actor.vendorId },
+				select: { name: true },
+			}),
+			organizationId
+				? this.prisma.organization.findUnique({
+						where: { id: organizationId },
+						select: { name: true, slug: true },
+					})
+				: null,
+		]);
+
 		return {
 			vendorId: actor.vendorId,
 			vendorUserId: actor.vendorUserId,
 			vendorUserRole: actor.vendorUserRole,
-			organizationId: session.session.activeOrganizationId ?? null,
+			organizationId,
+			vendorName: vendor?.name ?? null,
+			organizationName: organization?.name ?? null,
+			organizationSlug: organization?.slug ?? null,
 		};
 	}
 

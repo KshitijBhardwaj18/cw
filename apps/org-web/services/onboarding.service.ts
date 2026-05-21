@@ -77,6 +77,7 @@ export type CandidateMeOnboarding = {
 	resumeUrl: string | null;
 	showProfileBanner: boolean;
 	preferredContractLengths: CandidatePreferredContractLength[];
+	inviteStatus: string | null;
 };
 
 export type SaveMeOnboardingInput = {

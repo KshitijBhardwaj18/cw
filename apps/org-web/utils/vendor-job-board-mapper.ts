@@ -1,3 +1,4 @@
+import { formatUsdPerHour } from "@repo/shared";
 import type {
 	VendorRequisitionCandidateRow,
 	VendorRequisitionDetail,
@@ -5,11 +6,6 @@ import type {
 } from "@/services/vendor-requisitions.service";
 import type { VendorCandidateListRow } from "@/types/vendor-candidates";
 import type { Candidate, Requisition } from "@/types/vendor-jobs-board";
-
-function formatUsdPerHour(rate: number | null | undefined): string {
-	if (rate == null || Number.isNaN(rate)) return "—";
-	return `$${rate.toFixed(2)}/hr`;
-}
 
 function formatLocation(loc: VendorRequisitionListItem["location"]): string {
 	if (!loc) return "—";

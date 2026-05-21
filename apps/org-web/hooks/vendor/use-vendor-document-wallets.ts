@@ -1,38 +1,40 @@
-import { useLocalDebouncedSearch } from "@repo/ui/hooks/use-local-debounced-search";
-import { useCallback, useState } from "react";
+"use client";
+
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useDocumentWalletListColumns } from "@/hooks/tables/use-document-wallet-list-columns";
 import {
 	useVendorDocumentWalletsList,
 	useVendorDocumentWalletsMetrics,
 } from "@/queries/vendor-document-wallets.queries";
 
-const SEARCH_DEBOUNCE_MS = 300;
 const LIST_LIMIT = 20;
 
-export function useVendorDocumentWallets() {
-	const [page, setPage] = useState(1);
-	const {
-		search,
-		debouncedSearch,
-		setSearch: setSearchBase,
-	} = useLocalDebouncedSearch("", { wait: SEARCH_DEBOUNCE_MS });
+export const DW_PARAMS = {
+	PAGE: "dwPage",
+	SEARCH: "dwSearch",
+} as const;
 
-	const setSearchAndResetPage = useCallback(
-		(v: string) => {
-			setSearchBase(v);
-			setPage(1);
+export function useVendorDocumentWallets() {
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: DW_PARAMS.PAGE,
+		defaultLimit: LIST_LIMIT,
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+		{
+			paramKey: DW_PARAMS.SEARCH,
+			pageParamKey: DW_PARAMS.PAGE,
 		},
-		[setSearchBase],
 	);
 
 	const listQuery = useVendorDocumentWalletsList({
 		page,
 		limit: LIST_LIMIT,
-		search: debouncedSearch.trim() || undefined,
+		search: searchFromUrl.trim() || undefined,
 	});
 
 	const metricsQuery = useVendorDocumentWalletsMetrics();
-
 	const columns = useDocumentWalletListColumns();
 
 	return {
@@ -45,8 +47,8 @@ export function useVendorDocumentWallets() {
 		page,
 		setPage,
 		limit: LIST_LIMIT,
-		search,
-		setSearch: setSearchAndResetPage,
+		search: localSearch,
+		setSearch: handleSearchChange,
 		isListLoading: listQuery.isLoading,
 		isListError: listQuery.isError,
 	};

@@ -41,6 +41,8 @@ export type PerDiemShiftListItem = {
 	notifications: number;
 	createdBy: string;
 	createdAt: string;
+	hasConflict: boolean;
+	conflictReason: string | null;
 };
 
 export type PerDiemShiftStatusCounts = {
@@ -88,6 +90,9 @@ export type CommandCenterShiftLocationsResponse = {
 	locations: CommandCenterShiftLocation[];
 	counts: CommandCenterShiftsSummaryCounts;
 	filtersMeta: CommandCenterShiftFiltersMetaResponse;
+	page: number;
+	limit: number;
+	totalLocations: number;
 };
 
 export type VendorPerDiemShiftsQueryParams = {
@@ -145,6 +150,8 @@ export class PerDiemShiftsService {
 		search?: string;
 		department?: string;
 		occupation?: string;
+		page?: number;
+		limit?: number;
 	}) {
 		return ApiClient.get<CommandCenterShiftLocationsResponse>(
 			`${PER_DIEM_SHIFTS_API_URL}/command-center/locations`,

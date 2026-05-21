@@ -70,7 +70,7 @@ export function OvertimeEntryFormSection({
 								<CardHeader className="border-b">
 									<form.Field name={`overtimeEntries[${index}].date`}>
 										{(subField) => (
-											<Field className="w-full max-w-[200px]">
+											<Field className="w-full max-w-full sm:max-w-[200px]">
 												<FieldLabel>Overtime Date</FieldLabel>
 												<FieldContent>
 													<DatePicker
@@ -105,7 +105,7 @@ export function OvertimeEntryFormSection({
 									</CardAction>
 								</CardHeader>
 
-								<CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
+								<CardContent className="grid grid-cols-1 gap-4 md:grid-cols-4">
 									<form.Field name={`overtimeEntries[${index}].startTime`}>
 										{(subField) => (
 											<Field>

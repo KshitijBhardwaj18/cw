@@ -7,6 +7,7 @@ import {
 	validateImageFile,
 } from "@repo/shared";
 import { useForm } from "@tanstack/react-form";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useCreateOrganization } from "@/queries/organizations.query";
@@ -44,6 +45,7 @@ const defaultFormValues: AddOrganizationFormValues = {
 export function useOrganizationCreatePage() {
 	const logoInputRef = useRef<HTMLInputElement>(null);
 	const agreementInputRef = useRef<HTMLInputElement>(null);
+	const router = useRouter();
 
 	const [logoFile, setLogoFile] = useState<File | null>(null);
 	const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -112,11 +114,7 @@ export function useOrganizationCreatePage() {
 	});
 
 	const handleClose = () => {
-		form.reset(defaultFormValues);
-		setLogoFile(null);
-		setLogoPreview(null);
-		setAgreementFile(null);
-		setAgreementUploadDate(null);
+		router.push("/organizations");
 	};
 
 	const handleOpenChange = (nextOpen: boolean) => {

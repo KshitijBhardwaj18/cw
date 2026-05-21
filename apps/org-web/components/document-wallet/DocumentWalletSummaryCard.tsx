@@ -3,7 +3,6 @@
 import { Button } from "@repo/ui/components/button";
 import {
 	Card,
-	CardAction,
 	CardContent,
 	CardDescription,
 	CardHeader,
@@ -27,22 +26,28 @@ export function DocumentWalletSummaryCard({
 	return (
 		<Card className="shadow-sm">
 			<CardHeader className="border-b pb-6">
-				<div className="min-w-0 space-y-1">
-					<CardTitle className="text-2xl font-bold">Document Wallet</CardTitle>
-					<CardDescription>
-						{readOnly
-							? "Compliance status for this candidate. Uploads are completed in the candidate portal."
-							: "Manage your compliance documents and certifications"}
-					</CardDescription>
-				</div>
-				{!readOnly && onUploadClick ? (
-					<CardAction>
-						<Button type="button" onClick={onUploadClick}>
+				<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+					<div className="min-w-0 space-y-1">
+						<CardTitle className="text-xl font-bold sm:text-2xl">
+							Document Wallet
+						</CardTitle>
+						<CardDescription>
+							{readOnly
+								? "Compliance status for this candidate. Uploads are completed in the candidate portal."
+								: "Manage your compliance documents and certifications"}
+						</CardDescription>
+					</div>
+					{!readOnly && onUploadClick ? (
+						<Button
+							type="button"
+							className="w-full shrink-0 sm:w-auto"
+							onClick={onUploadClick}
+						>
 							<Upload className="size-4" aria-hidden />
 							Upload Document
 						</Button>
-					</CardAction>
-				) : null}
+					) : null}
+				</div>
 			</CardHeader>
 
 			<CardContent className="space-y-6">

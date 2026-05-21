@@ -184,15 +184,57 @@ export class RequisitionTemplatesService {
 			organizationId: orgId,
 			...(query.search
 				? {
-						templateName: {
-							contains: query.search,
-							mode: "insensitive",
-						},
+						OR: [
+							{
+								templateName: {
+									contains: query.search,
+									mode: "insensitive",
+								},
+							},
+							{
+								organizationOccupation: {
+									occupation: {
+										name: {
+											contains: query.search,
+											mode: "insensitive",
+										},
+									},
+								},
+							},
+							{
+								organizationSpecialty: {
+									specialty: {
+										name: {
+											contains: query.search,
+											mode: "insensitive",
+										},
+									},
+								},
+							},
+							{
+								location: {
+									name: {
+										contains: query.search,
+										mode: "insensitive",
+									},
+								},
+							},
+						],
 					}
 				: {}),
 			...(query.status
 				? {
 						status: query.status as RequisitionStatus,
+					}
+				: {}),
+			...(query.organizationOccupationId
+				? {
+						organizationOccupationId: query.organizationOccupationId,
+					}
+				: {}),
+			...(query.organizationSpecialtyId
+				? {
+						organizationSpecialtyId: query.organizationSpecialtyId,
 					}
 				: {}),
 		};

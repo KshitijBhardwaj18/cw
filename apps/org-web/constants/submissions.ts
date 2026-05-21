@@ -75,6 +75,17 @@ export const SUBMISSION_STAGE_SELECT_OPTIONS: {
 	label: t.label,
 }));
 
+/** Stages that represent an active pipeline entry (excludes terminal WITHDRAWN/REJECTED). */
+export const ACTIVE_SUBMISSION_STAGES: SubmissionStageKey[] = [
+	"SUBMITTED",
+	"QUALIFIED",
+	"SHORTLISTED",
+	"INTERVIEW_SCHEDULED",
+	"INTERVIEW_COMPLETED",
+	"OFFERED",
+	"ACCEPTED",
+];
+
 export type SubmissionAgingFilter = "ALL" | SubmissionAgingBucket;
 
 export type SubmissionAgingStatCardContent = {

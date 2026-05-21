@@ -22,7 +22,7 @@ export function OfferAcceptanceSummaryCard({
 						Offer Acceptance Summary
 					</h3>
 				</div>
-				<div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+				<div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
 					<div className="space-y-1">
 						<p className="text-sm text-muted-foreground">Accepted By</p>
 						<p className="font-semibold">{summary.acceptedByName}</p>

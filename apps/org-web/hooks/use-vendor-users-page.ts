@@ -1,10 +1,9 @@
 "use client";
 
 import { VendorUserRole } from "@repo/shared";
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -33,18 +32,53 @@ function statusFilterToApi(status: string): "ACTIVE" | "INACTIVE" | undefined {
 	return undefined;
 }
 
+export const V_USERS_PARAMS = {
+	PAGE: "vuPage",
+	SEARCH: "vuSearch",
+	ROLE: "vuRole",
+	STATUS: "vuStatus",
+} as const;
+
 export function useVendorUsersPage() {
 	const queryClient = useQueryClient();
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "vuSearch", pageParamKey: "vuPage" },
-	);
 
-	const pageParam = Number(searchParams.get("vuPage") ?? "1");
-	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-	const roleFilter = searchParams.get("vuRole") ?? "all";
-	const statusFilter = searchParams.get("vuStatus") ?? "all";
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: V_USERS_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		pagination: { pageParamKey: V_USERS_PARAMS.PAGE },
+		search: { paramKey: V_USERS_PARAMS.SEARCH },
+		filters: [
+			{
+				id: V_USERS_PARAMS.ROLE,
+				label: "Role",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All",
+				options: [...VENDOR_USER_ROLE_FILTER_OPTIONS],
+			},
+			{
+				id: V_USERS_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				placeholder: "All",
+				options: [...VENDOR_USER_STATUS_FILTER_OPTIONS],
+			},
+		],
+	});
+
+	const roleFilter = values[V_USERS_PARAMS.ROLE] || "all";
+	const statusFilter = values[V_USERS_PARAMS.STATUS] || "all";
 
 	const [filtersExpanded, setFiltersExpanded] = useState(true);
 
@@ -58,25 +92,16 @@ export function useVendorUsersPage() {
 
 	const setRoleFilter = useCallback(
 		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ vuRole: clear ? null : v, vuPage: null });
+			onFilterChange({ [V_USERS_PARAMS.ROLE]: v || "all" });
 		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const setStatusFilter = useCallback(
 		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ vuStatus: clear ? null : v, vuPage: null });
+			onFilterChange({ [V_USERS_PARAMS.STATUS]: v || "all" });
 		},
-		[pushParams],
-	);
-
-	const setPage = useCallback(
-		(p: number) => {
-			pushParams({ vuPage: String(p) });
-		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const listParams = useMemo((): VendorPortalUsersQueryParams => {
@@ -241,31 +266,10 @@ export function useVendorUsersPage() {
 		[updateUserMutation, invalidateVendorPortal],
 	);
 
-	const isLoading = usersListPending && (usersList?.items.length ?? 0) === 0;
+	const isUsersLoading =
+		usersListPending && (usersList?.items.length ?? 0) === 0;
 	const isError = usersListError;
 	const error = usersListErr;
-
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "vendor-user-role",
-				label: "Role",
-				value: roleFilter,
-				onValueChange: setRoleFilter,
-				placeholder: "All",
-				options: [...VENDOR_USER_ROLE_FILTER_OPTIONS],
-			},
-			{
-				id: "vendor-user-status",
-				label: "Status",
-				value: statusFilter,
-				onValueChange: setStatusFilter,
-				placeholder: "All",
-				options: [...VENDOR_USER_STATUS_FILTER_OPTIONS],
-			},
-		],
-		[roleFilter, setRoleFilter, setStatusFilter, statusFilter],
-	);
 
 	return {
 		search: localSearch,
@@ -283,7 +287,8 @@ export function useVendorUsersPage() {
 		currentPage: page,
 		pageSize: PAGE_SIZE,
 		handlePaginationChange,
-		isLoading,
+		isUsersLoading,
+		isMetricsLoading: metricsQuery.isLoading,
 		isError,
 		error,
 		refetch: invalidateVendorPortal,
@@ -300,6 +305,6 @@ export function useVendorUsersPage() {
 		userToDelete,
 		setUserToDelete,
 		handleConfirmDelete,
-		filterConfigs,
+		filterConfigs: hookFilterConfigs,
 	};
 }

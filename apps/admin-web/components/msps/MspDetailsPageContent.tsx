@@ -18,7 +18,11 @@ import {
 } from "@repo/ui/components/tabs";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
 import UserAvatar from "@repo/ui/general/UserAvatar";
-import { useListFilters } from "@repo/ui/hooks/use-list-filters";
+import {
+	LIST_FILTER_KEYS,
+	useListFilters,
+} from "@repo/ui/hooks/use-list-filters";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { ArrowLeft, Building2, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -44,6 +48,10 @@ type MspDetailsPageContentProps = {
 
 export function MspDetailsPageContent({ mspId }: MspDetailsPageContentProps) {
 	const [editOpen, setEditOpen] = useState(false);
+	const [activeTab, setActiveTab] = useTabSwitch(
+		["profile", "documents", "notes"],
+		{ alsoClearParamKeys: LIST_FILTER_KEYS },
+	);
 	const documentsFilters = useListFilters();
 	const notesFilters = useListFilters();
 
@@ -158,19 +166,23 @@ export function MspDetailsPageContent({ mspId }: MspDetailsPageContentProps) {
 				</Button>
 			</div>
 
-			<Tabs defaultValue="profile" className="w-full flex flex-col gap-4">
+			<Tabs
+				defaultValue={activeTab}
+				onValueChange={setActiveTab}
+				className="space-y-4 flex-col"
+			>
 				<ScrollableLineTabsRow>
 					<TabsList
 						variant="line"
 						className="inline-flex h-auto w-max min-w-full flex-nowrap justify-start gap-0 rounded-none border-0 bg-transparent p-0"
 					>
-						<TabsTrigger className="flex-none" value="profile">
+						<TabsTrigger className="flex-none py-3 px-4" value="profile">
 							Profile
 						</TabsTrigger>
-						<TabsTrigger className="flex-none" value="documents">
+						<TabsTrigger className="flex-none py-3 px-4" value="documents">
 							Documents
 						</TabsTrigger>
-						<TabsTrigger className="flex-none" value="notes">
+						<TabsTrigger className="flex-none py-3 px-4" value="notes">
 							Notes
 						</TabsTrigger>
 					</TabsList>

@@ -11,8 +11,11 @@ import {
 	differenceInCalendarDays,
 	formatDistanceToNowStrict,
 	startOfDay,
+	startOfMonth,
+	startOfWeek,
 } from "date-fns";
 import { PrismaService } from "src/prisma/prisma.service";
+import type { FinancialPeriod } from "./dto/vendor-dashboard-financial-query.dto";
 
 type VendorDashboardInvoiceBucket = "paid" | "pending" | "disputed";
 type VendorDashboardAlertSeverity = "info" | "warning" | "error";
@@ -196,7 +199,12 @@ export class VendorDashboardService {
 				where: { organizationId, vendorId, isActive: true },
 			}),
 			this.prisma.candidate.count({
-				where: { organizationId, vendorId, createdAt: { gte: weekAgo } },
+				where: {
+					organizationId,
+					vendorId,
+					isActive: true,
+					createdAt: { gte: weekAgo },
+				},
 			}),
 			this.prisma.placement.count({
 				where: {
@@ -209,6 +217,7 @@ export class VendorDashboardService {
 				where: {
 					organizationId,
 					candidate: { is: { vendorId } },
+					status: { in: [PlacementStatus.ACTIVE, PlacementStatus.ENDING_SOON] },
 					createdAt: { gte: monthAgo },
 				},
 			}),
@@ -288,13 +297,21 @@ export class VendorDashboardService {
 			(placementCountByStatus.get(PlacementStatus.ACTIVE) ?? 0) +
 			(placementCountByStatus.get(PlacementStatus.ENDING_SOON) ?? 0) +
 			(placementCountByStatus.get(PlacementStatus.COMPLETED) ?? 0);
+		// Exclude UPCOMING and PENDING from denominator — placements that haven't started
+		const startedPlacements = [...placementCountByStatus.entries()]
+			.filter(
+				([status]) =>
+					status !== PlacementStatus.UPCOMING &&
+					status !== PlacementStatus.PENDING,
+			)
+			.reduce((sum, [, count]) => sum + count, 0);
 		const totalPlacements = [...placementCountByStatus.values()].reduce(
 			(sum, count) => sum + count,
 			0,
 		);
 		const placementSuccessRate =
-			totalPlacements > 0
-				? Math.round((successfulPlacements / totalPlacements) * 1000) / 10
+			startedPlacements > 0
+				? Math.round((successfulPlacements / startedPlacements) * 1000) / 10
 				: 0;
 
 		return {
@@ -313,16 +330,33 @@ export class VendorDashboardService {
 		};
 	}
 
-	private async getInvoiceAggregates(organizationId: string, vendorId: string) {
+	private resolvePeriodStart(period?: FinancialPeriod): Date | undefined {
+		if (!period) return undefined;
+		const now = new Date();
+		if (period === "this-week") return startOfWeek(now, { weekStartsOn: 1 });
+		if (period === "this-month") return startOfMonth(now);
+		const quarter = Math.floor(now.getMonth() / 3);
+		return new Date(now.getFullYear(), quarter * 3, 1);
+	}
+
+	private async getInvoiceAggregates(
+		organizationId: string,
+		vendorId: string,
+		period?: FinancialPeriod,
+	) {
+		const periodStart = this.resolvePeriodStart(period);
+		const dateFilter = periodStart ? { invoiceDate: { gte: periodStart } } : {};
+		const where = { organizationId, vendorId, ...dateFilter };
+
 		const [invoiceStatusCounts, invoiceAmountRows] = await Promise.all([
 			this.prisma.invoice.groupBy({
 				by: ["status"],
-				where: { organizationId, vendorId },
+				where,
 				_count: { _all: true },
 			}),
 			this.prisma.invoice.groupBy({
 				by: ["status"],
-				where: { organizationId, vendorId },
+				where,
 				_sum: { totalAmount: true },
 			}),
 		]);
@@ -390,10 +424,12 @@ export class VendorDashboardService {
 	async getFinancial(
 		organizationId: string,
 		vendorId: string,
+		period?: FinancialPeriod,
 	): Promise<VendorDashboardResponse["financial"]> {
 		const { amountByStatus } = await this.getInvoiceAggregates(
 			organizationId,
 			vendorId,
+			period,
 		);
 		return this.mapFinancial(amountByStatus);
 	}
@@ -401,10 +437,12 @@ export class VendorDashboardService {
 	async getInvoiceStatus(
 		organizationId: string,
 		vendorId: string,
+		period?: FinancialPeriod,
 	): Promise<VendorDashboardResponse["invoiceStatus"]> {
 		const { countByStatus } = await this.getInvoiceAggregates(
 			organizationId,
 			vendorId,
+			period,
 		);
 		return this.mapInvoiceStatus(countByStatus);
 	}
@@ -657,11 +695,13 @@ export class VendorDashboardService {
 	async getUpcomingShifts(
 		organizationId: string,
 	): Promise<VendorDashboardResponse["upcomingShifts"]> {
+		const today = startOfDay(new Date());
 		const rows = await this.prisma.perDiemShift.findMany({
 			where: {
 				organizationId,
 				isPublic: true,
 				status: PerDiemShiftStatus.OPEN,
+				shiftDate: { gte: today },
 			},
 			select: {
 				id: true,

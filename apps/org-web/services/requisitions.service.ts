@@ -38,12 +38,22 @@ export type PendingRequisitionApprovalsResponse = {
 export type RequisitionDetailResponse = {
 	id: string;
 	type: RequisitionTemplateType;
+	status: string;
 	templateId: string;
+	templateName: string | null;
+	locationName: string | null;
+	departmentName: string | null;
+	occupationName: string | null;
+	specialtyName: string | null;
+	hiringManagerName: string | null;
+	requirementNames: string[];
 	jobDetails: JobPostingFlowValues["jobDetails"];
 	submissionSettings: JobPostingFlowValues["submissionSettings"] & {
 		selectedVendorIds: string[];
 	};
-	publishSettings: JobPostingFlowValues["publishSettings"];
+	publishSettings: JobPostingFlowValues["publishSettings"] & {
+		publishedAt: string | null;
+	};
 };
 
 export type CreateRequisitionApiPayload = {

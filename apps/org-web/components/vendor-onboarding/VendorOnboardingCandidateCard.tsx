@@ -50,7 +50,7 @@ export function VendorOnboardingCandidateCard({
 
 	return (
 		<Card>
-			<CardHeader className="flex items-center gap-4">
+			<CardHeader className="flex flex-wrap items-center gap-4">
 				<Avatar className="size-12 border">
 					<AvatarFallback className="bg-muted text-primary font-semibold">
 						{candidate.initials}
@@ -70,7 +70,7 @@ export function VendorOnboardingCandidateCard({
 						</div>
 					</div>
 				</div>
-				<CardAction>
+				<CardAction className="shrink-0">
 					<Badge
 						variant={STATUS_VARIANT_MAP[candidate.status]}
 						className="space-x-1"

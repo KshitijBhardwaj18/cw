@@ -10,6 +10,7 @@ import {
 import { CustomAlertDialog } from "@repo/ui/general/CustomAlertDialog";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import { SearchBar } from "@repo/ui/general/SearchBar";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
 import { Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -23,6 +24,10 @@ import {
 import type { PlatformUserTableRow, UserDto } from "@/types/users";
 import { splitFullName } from "@/utils/users";
 import { UserFormDialog } from "./UserFormDialog";
+
+export const PU_PARAMS = {
+	SEARCH: "puSearch",
+} as const;
 
 const buildPlatformRows = (users: UserDto[]): PlatformUserTableRow[] =>
 	users.map((user) => {
@@ -41,7 +46,11 @@ const buildPlatformRows = (users: UserDto[]): PlatformUserTableRow[] =>
 	});
 
 const PlatformUsers = () => {
-	const [searchValue, setSearchValue] = useState("");
+	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+		{
+			paramKey: PU_PARAMS.SEARCH,
+		},
+	);
 	const [selectedDeleteUser, setSelectedDeleteUser] =
 		useState<PlatformUserTableRow | null>(null);
 
@@ -94,7 +103,7 @@ const PlatformUsers = () => {
 	const rows = useMemo(() => buildPlatformRows(data ?? []), [data]);
 
 	const filteredRows = useMemo(() => {
-		const term = searchValue.trim().toLowerCase();
+		const term = searchFromUrl.trim().toLowerCase();
 		if (!term) {
 			return rows;
 		}
@@ -111,7 +120,7 @@ const PlatformUsers = () => {
 				row.status,
 			].some((value) => value.toLowerCase().includes(term)),
 		);
-	}, [rows, searchValue]);
+	}, [rows, searchFromUrl]);
 
 	const handleConfirmDelete = () => {
 		if (!selectedDeleteUser) {
@@ -132,7 +141,7 @@ const PlatformUsers = () => {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<SearchBar value={searchValue} onChange={setSearchValue} />
+			<SearchBar value={localSearch} onChange={handleSearchChange} />
 			{isLoading && (
 				<Empty className="border-muted/50">
 					<EmptyHeader>

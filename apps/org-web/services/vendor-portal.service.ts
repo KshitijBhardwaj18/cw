@@ -34,6 +34,8 @@ export type VendorContextResponse = {
 	vendorUserId: string;
 	vendorUserRole: VendorUserRole;
 	organizationId: string | null;
+	/** Resolved from Vendor row (session only has vendorId). */
+	vendorName: string | null;
 	organizationName: string | null;
 	organizationSlug: string | null;
 };

@@ -11,14 +11,14 @@ import { Skeleton } from "@repo/ui/components/skeleton";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { AlertCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useQueryState } from "nuqs";
+import { useMemo } from "react";
 import { useVendorOrgSession } from "@/components/vendor-layout/VendorOrgBridge";
 import { PLACEMENT_STATUS_FILTER_OPTIONS } from "@/constants/placements";
 import { useVendorPlacementListColumns } from "@/hooks/tables/use-vendor-placement-list-columns";
 import { usePlacementsPage } from "@/hooks/use-placements-page";
 import type { PlacementTab } from "@/types/placement";
 import type {
-	PlacementListMockRow,
 	PlacementMetricStats,
 	PlacementTabCounts,
 	PlacementTabValue,
@@ -27,14 +27,6 @@ import { mapPlacementCardToVendorTableRow } from "@/utils/map-placement-card-to-
 import { PlacementBottomSummaryCard } from "./PlacementBottomSummaryCard";
 import { PlacementsMetricCards } from "./PlacementsMetricCards";
 import { PlacementsTabsSection } from "./PlacementsTabsSection";
-
-function rowMatchesTab(row: PlacementListMockRow, tab: PlacementTab): boolean {
-	if (tab === "upcoming") return row.status === "upcoming";
-	if (tab === "active") {
-		return row.status === "active" || row.status === "ending_soon";
-	}
-	return row.status === "completed";
-}
 
 interface VendorPlacementsDashboardContentProps {
 	detailBasePath: string;
@@ -50,7 +42,8 @@ export function VendorPlacementsDashboardContent({
 		placementCounts,
 		tabCounts,
 		placements,
-		isLoading,
+		isPlacementsLoading,
+		isCountsLoading,
 		isError,
 		search,
 		setSearch,
@@ -58,7 +51,9 @@ export function VendorPlacementsDashboardContent({
 		setFiltersExpanded,
 	} = usePlacementsPage({ fixedVendorId: vendorId });
 
-	const [statusFilter, setStatusFilter] = useState("all");
+	const [statusFilter, setStatusFilter] = useQueryState("plStatus", {
+		defaultValue: "all",
+	});
 
 	const columns = useVendorPlacementListColumns(detailBasePath);
 
@@ -74,23 +69,11 @@ export function VendorPlacementsDashboardContent({
 
 	const filteredRows = useMemo(() => {
 		const mapped = placements.map(mapPlacementCardToVendorTableRow);
-		const q = search.trim().toLowerCase();
 		return mapped.filter((row) => {
-			if (!rowMatchesTab(row, activeTab)) return false;
 			if (statusFilter !== "all" && row.status !== statusFilter) return false;
-			if (!q) return true;
-			const hay = [
-				row.candidateName,
-				row.displayId,
-				row.jobTitle,
-				row.department,
-				row.location,
-			]
-				.join(" ")
-				.toLowerCase();
-			return hay.includes(q);
+			return true;
 		});
-	}, [placements, activeTab, statusFilter, search]);
+	}, [placements, statusFilter]);
 
 	const filterConfigs = useMemo(
 		() => [
@@ -98,12 +81,12 @@ export function VendorPlacementsDashboardContent({
 				id: "placement-status",
 				label: "Status",
 				value: statusFilter,
-				onValueChange: setStatusFilter,
+				onValueChange: (v: string) => setStatusFilter(v || "all"),
 				placeholder: "All Statuses",
 				options: PLACEMENT_STATUS_FILTER_OPTIONS,
 			},
 		],
-		[statusFilter],
+		[statusFilter, setStatusFilter],
 	);
 
 	const handleTabChangeWrapped = (value: string) => {
@@ -131,13 +114,13 @@ export function VendorPlacementsDashboardContent({
 		<div className="space-y-6">
 			<ConfigPageHeader
 				title="Placement Dashboard"
-				total={isLoading ? placementCounts.total : filteredRows.length}
+				total={isCountsLoading ? placementCounts.total : filteredRows.length}
 				itemLabel="placement"
 				itemLabelPlural="placements"
 				description="Track all active candidate assignments and placements"
 			/>
 
-			{isLoading ? (
+			{isCountsLoading ? (
 				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 					{Array.from({ length: 4 }).map((_, i) => (
 						<Skeleton key={i} className="h-28 w-full rounded-lg" />
@@ -156,7 +139,7 @@ export function VendorPlacementsDashboardContent({
 				filterConfigs={filterConfigs}
 			/>
 
-			{isLoading ? (
+			{isCountsLoading ? (
 				<div className="space-y-4">
 					<Skeleton className="h-10 w-full max-w-md rounded-md" />
 					<Skeleton className="h-72 w-full rounded-lg" />
@@ -170,11 +153,12 @@ export function VendorPlacementsDashboardContent({
 						rows: filteredRows,
 						columns,
 						totalFiltered: filteredRows.length,
+						isLoading: isPlacementsLoading,
 					}}
 				/>
 			)}
 
-			{!isLoading ? <PlacementBottomSummaryCard stats={metricStats} /> : null}
+			{!isCountsLoading && <PlacementBottomSummaryCard stats={metricStats} />}
 		</div>
 	);
 }

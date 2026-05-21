@@ -121,7 +121,9 @@ export function RequisitionComplianceChecklistPageContent() {
 									name: checklist.name,
 									description: checklist.description ?? undefined,
 									checklistItemCount: checklist.items.length,
-									linkedRequisitionCount: 0,
+									linkedRequisitionCount:
+										(checklist._count?.requisitions ?? 0) +
+										(checklist._count?.requisitionTemplates ?? 0),
 									lastModified: new Date(
 										checklist.updatedAt,
 									).toLocaleDateString("en-US", {

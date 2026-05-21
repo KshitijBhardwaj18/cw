@@ -73,7 +73,7 @@ export function PlacementsContent({
 		placements,
 		totalCount,
 		pageCount,
-		isLoading,
+		isPlacementsLoading,
 		isError,
 		search,
 		setSearch,
@@ -144,7 +144,7 @@ export function PlacementsContent({
 											: "bg-muted text-muted-foreground"
 									}`}
 								>
-									{isLoading ? "—" : tabCounts[tab]}
+									{isPlacementsLoading ? "—" : tabCounts[tab]}
 								</span>
 							</TabsTrigger>
 						))}
@@ -161,7 +161,7 @@ export function PlacementsContent({
 				filterConfigs={filterConfigs}
 			/>
 
-			{isLoading ? (
+			{isPlacementsLoading ? (
 				<PlacementsPageLoading />
 			) : isError ? (
 				<ConfigPageErrorState

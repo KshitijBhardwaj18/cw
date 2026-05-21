@@ -1,8 +1,7 @@
 "use client";
 
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useOrgContext } from "@/contexts/org-context";
@@ -21,23 +20,47 @@ import {
 
 const PAGE_SIZE = 6;
 
-function parseStatusParam(raw: string | null): "all" | ProjectStatus {
-	if (raw === "Active" || raw === "Inactive") return raw;
-	return "all";
-}
+export const PROJ_PARAMS = {
+	PAGE: "projPage",
+	SEARCH: "projSearch",
+	STATUS: "projStatus",
+} as const;
 
 export function useProjectsPage() {
 	const { id: orgId } = useOrgContext();
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "projSearch", pageParamKey: "projPage" },
-	);
 
-	const pageParam = Number(searchParams.get("projPage") ?? "1");
-	const currentPage =
-		Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-	const status = parseStatusParam(searchParams.get("projStatus"));
+	const { page, setPage, resetPage } = usePaginationControls({
+		pageParamKey: PROJ_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const {
+		searchValue,
+		searchFromUrl,
+		handleSearchChange,
+		filterConfigs,
+		values,
+		onFilterChange,
+	} = useSearchWithFilters({
+		pagination: { pageParamKey: PROJ_PARAMS.PAGE },
+		search: { paramKey: PROJ_PARAMS.SEARCH },
+		filters: [
+			{
+				id: PROJ_PARAMS.STATUS,
+				label: "Status",
+				type: "select",
+				defaultValue: "all",
+				options: [
+					{ label: "All Statuses", value: "all" },
+					{ label: "Active", value: "Active" },
+					{ label: "Inactive", value: "Inactive" },
+				],
+				placeholder: "All Statuses",
+			},
+		],
+	});
+
+	const status = values[PROJ_PARAMS.STATUS] as "all" | ProjectStatus;
 
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editTarget, setEditTarget] = useState<ProjectItem | null>(null);
@@ -47,21 +70,11 @@ export function useProjectsPage() {
 	);
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-	const setCurrentPage = useCallback(
-		(p: number) => {
-			pushParams({ projPage: String(p) });
-		},
-		[pushParams],
-	);
-
 	const setStatus = useCallback(
 		(val: "all" | ProjectStatus) => {
-			pushParams({
-				projStatus: val === "all" ? null : val,
-				projPage: null,
-			});
+			onFilterChange(PROJ_PARAMS.STATUS, val);
 		},
-		[pushParams],
+		[onFilterChange],
 	);
 
 	const listQuery = useProjectsList(orgId, {
@@ -72,7 +85,7 @@ export function useProjectsPage() {
 				: status === "Active"
 					? "ACTIVE"
 					: "INACTIVE",
-		page: currentPage,
+		page,
 		limit: PAGE_SIZE,
 	});
 
@@ -98,7 +111,7 @@ export function useProjectsPage() {
 				onSuccess: () => {
 					toast.success("Project created");
 					setCreateOpen(false);
-					pushParams({ page: null });
+					resetPage();
 				},
 				onError: (e) =>
 					toast.error(
@@ -141,8 +154,8 @@ export function useProjectsPage() {
 				toast.success("Project deleted");
 				setDeleteOpen(false);
 				setProjectToDelete(null);
-				if (projects.length === 1 && currentPage > 1) {
-					pushParams({ page: String(Math.max(1, currentPage - 1)) });
+				if (projects.length === 1 && page > 1) {
+					setPage(Math.max(1, page - 1));
 				}
 			},
 			onError: (e) =>
@@ -151,24 +164,6 @@ export function useProjectsPage() {
 				),
 		});
 	};
-
-	const filterConfigs = useMemo(
-		() => [
-			{
-				id: "status",
-				label: "Status",
-				value: status,
-				onValueChange: (val: string) => setStatus(val as "all" | ProjectStatus),
-				placeholder: "All Statuses",
-				options: [
-					{ label: "All Statuses", value: "all" },
-					{ label: "Active", value: "Active" },
-					{ label: "Inactive", value: "Inactive" },
-				],
-			},
-		],
-		[setStatus, status],
-	);
 
 	const isError = listQuery.isError;
 	const listErrorMessage =
@@ -186,7 +181,7 @@ export function useProjectsPage() {
 		isError,
 		listErrorMessage,
 		refetchList,
-		search: localSearch,
+		search: searchValue,
 		setSearch: handleSearchChange,
 		status,
 		setStatus,
@@ -202,8 +197,8 @@ export function useProjectsPage() {
 		setFiltersExpanded,
 		filteredCount,
 		paginatedProjects: projects,
-		currentPage,
-		setCurrentPage,
+		currentPage: page,
+		setCurrentPage: setPage,
 		totalPages,
 		filterConfigs,
 		handleCreateProject,

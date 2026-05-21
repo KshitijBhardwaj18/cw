@@ -243,6 +243,9 @@ export class BillingSpendAnalyticsService {
 	}
 
 	async listOpenCommittedBreakdown(orgId: string, dto: QuerySpendAnalyticsDto) {
+		const page = dto.page ?? 1;
+		const limit = dto.limit ?? 20;
+		const offset = (page - 1) * limit;
 		const periodFrom = dto.periodFrom ? new Date(dto.periodFrom) : null;
 		const periodTo = dto.periodTo ? new Date(dto.periodTo) : null;
 		const costCenterTrimmed = dto.costCenter?.trim() || null;
@@ -285,13 +288,23 @@ export class BillingSpendAnalyticsService {
 			);
 		}
 
+		if (dto.vendorId) {
+			whereFragments.push(
+				Prisma.sql`EXISTS (
+					SELECT 1 FROM "placement" pv
+					WHERE pv."requisitionId" = r."id"
+					AND pv."vendorId" = ${dto.vendorId}::uuid
+				)`,
+			);
+		}
+
 		if (dto.projectId) {
 			whereFragments.push(Prisma.sql`r."projectId" = ${dto.projectId}::uuid`);
 		}
 
 		const whereSql = Prisma.join(whereFragments, " AND ");
 
-		type Row = {
+		type RawRow = {
 			id: string;
 			requisitionUuid: string;
 			requisitionId: string;
@@ -301,10 +314,12 @@ export class BillingSpendAnalyticsService {
 			type: "OPEN" | "COMMITTED";
 			openSpend: number | null;
 			committedSpend: number | null;
+			totalCount: bigint;
+			totalOpenSpend: number;
+			totalCommittedSpend: number;
 		};
 
-		const limit = Math.min(dto.limit ?? 50, 200);
-		const rows = await this.prisma.$queryRaw<Row[]>`
+		const rows = await this.prisma.$queryRaw<RawRow[]>`
 			WITH req AS (
 				SELECT
 					r."id" AS "reqId",
@@ -330,7 +345,7 @@ export class BillingSpendAnalyticsService {
 			placement_stats AS (
 				SELECT
 					p."requisitionId" AS "reqId",
-					COUNT(*) FILTER (WHERE p."status" IN ('UPCOMING','ACTIVE','PENDING'))::int AS "filledCount",
+					COUNT(*) FILTER (WHERE p."status" IN ('UPCOMING','ACTIVE','PENDING','ENDING_SOON','ON_HOLD'))::int AS "filledCount",
 					COUNT(*) FILTER (WHERE p."status" = 'UPCOMING')::int AS "committedCount",
 					COALESCE(SUM(
 						CASE
@@ -360,8 +375,8 @@ export class BillingSpendAnalyticsService {
 					COALESCE(ps."committedSpend", 0)::float8 AS "committedSpend"
 				FROM req r
 				LEFT JOIN placement_stats ps ON ps."reqId" = r."reqId"
-			)
-			SELECT * FROM (
+			),
+			unioned AS (
 				SELECT
 					(d."reqId"::text || '-OPEN') AS "id",
 					d."reqId"::text AS "requisitionUuid",
@@ -396,11 +411,39 @@ export class BillingSpendAnalyticsService {
 					CASE WHEN d."committedSpend" > 0 THEN d."committedSpend" ELSE NULL END AS "committedSpend"
 				FROM derived d
 				WHERE d."committedSpend" > 0
-			) u
+			)
+			SELECT
+				u.*,
+				COUNT(*) OVER() AS "totalCount",
+				COALESCE(SUM(COALESCE(u."openSpend", 0)) OVER(), 0)::float8 AS "totalOpenSpend",
+				COALESCE(SUM(COALESCE(u."committedSpend", 0)) OVER(), 0)::float8 AS "totalCommittedSpend"
+			FROM unioned u
 			ORDER BY COALESCE(u."openSpend", u."committedSpend") DESC NULLS LAST
 			LIMIT ${limit}
+			OFFSET ${offset}
 		`;
 
-		return { data: rows };
+		const total = Number(rows[0]?.totalCount ?? 0);
+		const totalOpenSpend = Number(rows[0]?.totalOpenSpend ?? 0);
+		const totalCommittedSpend = Number(rows[0]?.totalCommittedSpend ?? 0);
+
+		const data = rows.map(
+			({
+				totalCount: _tc,
+				totalOpenSpend: _tos,
+				totalCommittedSpend: _tcs,
+				...row
+			}) => row,
+		);
+
+		return {
+			data,
+			total,
+			page,
+			limit,
+			totalPages: Math.ceil(total / limit) || 1,
+			totalOpenSpend,
+			totalCommittedSpend,
+		};
 	}
 }

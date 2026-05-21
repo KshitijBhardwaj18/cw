@@ -1,76 +1,49 @@
-import { CANDIDATE_WORKFORCE_TYPE_OPTIONS } from "@repo/shared";
-import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
-import type { TalentCommunityQuery } from "@/services/talent-community.service";
+"use client";
 
-const DEFAULT_PAGE_SIZE = 20;
+import { CANDIDATE_WORKFORCE_TYPE_OPTIONS } from "@repo/shared";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useCallback, useMemo, useState } from "react";
+import type {
+	TalentCommunityQuery,
+	TalentCommunityTab,
+} from "@/services/talent-community.service";
+
+const DEFAULT_PAGE_SIZE = 10;
 
 export interface UseTalentCommunityFiltersOptions {
 	pageSize?: number;
+	activeTab?: TalentCommunityTab;
 }
+
+export const TALENT_COMMUNITY_PARAMS = {
+	PAGE: "tcPage",
+	LIMIT: "tcLimit",
+	SEARCH: "tcSearch",
+	WORKFORCE_TYPE: "tcWfType",
+	INVITE_STATUS: "tcInvite",
+	PLACEMENT_STATUS: "tcPlacement",
+} as const;
 
 export function useTalentCommunityFilters(
 	options?: UseTalentCommunityFiltersOptions,
 ) {
 	const pageSize = options?.pageSize ?? DEFAULT_PAGE_SIZE;
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
-	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ paramKey: "tcSearch", pageParamKey: "tcPage" },
-	);
+	const activeTab = options?.activeTab;
 
-	const pageParam = Number(searchParams.get("tcPage") ?? "1");
-	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+	const { page, setPage, limit, setLimit } = usePaginationControls({
+		pageParamKey: TALENT_COMMUNITY_PARAMS.PAGE,
+		limitParamKey: TALENT_COMMUNITY_PARAMS.LIMIT,
+		defaultLimit: pageSize,
+	});
 
-	const workforceTypeFilter = searchParams.get("tcWfType") ?? "all";
-	const statusFilter = searchParams.get("tcInvite") ?? "all";
-
-	const [filtersExpanded, setFiltersExpanded] = useState(false);
-
-	const setPage = useCallback(
-		(p: number) => {
-			pushParams({ tcPage: String(p) });
-		},
-		[pushParams],
-	);
-
-	const setWorkforceTypeFilter = useCallback(
-		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ tcWfType: clear ? null : v, tcPage: null });
-		},
-		[pushParams],
-	);
-
-	const setStatusFilter = useCallback(
-		(v: string) => {
-			const clear = !v || v === "all";
-			pushParams({ tcInvite: clear ? null : v, tcPage: null });
-		},
-		[pushParams],
-	);
-
-	const query = useMemo<Omit<TalentCommunityQuery, "tab">>(
-		() => ({
-			search: searchFromUrl?.trim() || undefined,
-			workforceType:
-				workforceTypeFilter !== "all" ? workforceTypeFilter : undefined,
-			inviteStatus: statusFilter !== "all" ? statusFilter : undefined,
-			page,
-			limit: pageSize,
-		}),
-		[searchFromUrl, workforceTypeFilter, statusFilter, page, pageSize],
-	);
-
-	const filterConfigs = useMemo(
+	const talentCommunityFilters = useMemo(
 		() => [
 			{
-				id: "talent-filter-workforce-type",
+				id: TALENT_COMMUNITY_PARAMS.WORKFORCE_TYPE,
 				label: "Workforce Type",
-				value: workforceTypeFilter,
-				onValueChange: setWorkforceTypeFilter,
+				type: "select" as const,
+				defaultValue: "all",
 				placeholder: "All",
 				options: [
 					{ value: "all", label: "All Types" },
@@ -81,24 +54,84 @@ export function useTalentCommunityFilters(
 				],
 			},
 			{
-				id: "talent-filter-status",
-				label: "Status",
-				value: statusFilter,
-				onValueChange: setStatusFilter,
+				id: TALENT_COMMUNITY_PARAMS.PLACEMENT_STATUS,
+				label: "Placement Status",
+				type: "select" as const,
+				defaultValue: "all",
 				placeholder: "All",
 				options: [
 					{ value: "all", label: "All Status" },
-					{ value: "PENDING", label: "Invite Pending" },
-					{ value: "ACCEPTED", label: "Accepted" },
-					{ value: "EXPIRED", label: "Expired" },
+					{ value: "ACTIVE", label: "Active" },
+					{ value: "UPCOMING", label: "Upcoming" },
+					{ value: "ENDING_SOON", label: "Ending Soon" },
+					{ value: "COMPLETED", label: "Completed" },
+					{ value: "TERMINATED", label: "Terminated" },
+					{ value: "ON_HOLD", label: "On Hold" },
+					{ value: "PENDING", label: "Pending" },
+					{ value: "INACTIVE", label: "Inactive" },
 				],
 			},
 		],
+		[],
+	);
+
+	const {
+		searchValue: localSearch,
+		searchFromUrl,
+		handleSearchChange,
+		values,
+		filterConfigs: hookFilterConfigs,
+		onFilterChange,
+	} = useSearchWithFilters({
+		pagination: { pageParamKey: TALENT_COMMUNITY_PARAMS.PAGE },
+		search: { paramKey: TALENT_COMMUNITY_PARAMS.SEARCH },
+		filters: activeTab === "talent-community" ? talentCommunityFilters : [],
+	});
+
+	const workforceTypeFilter =
+		values[TALENT_COMMUNITY_PARAMS.WORKFORCE_TYPE] || "all";
+	const placementStatusFilter =
+		values[TALENT_COMMUNITY_PARAMS.PLACEMENT_STATUS] || "all";
+	const statusFilter = values[TALENT_COMMUNITY_PARAMS.INVITE_STATUS] || "all";
+
+	const [filtersExpanded, setFiltersExpanded] = useState(false);
+
+	const setWorkforceTypeFilter = useCallback(
+		(v: string) => {
+			onFilterChange({
+				[TALENT_COMMUNITY_PARAMS.WORKFORCE_TYPE]: v === "all" ? null : v,
+			});
+		},
+		[onFilterChange],
+	);
+
+	const setPlacementStatusFilter = useCallback(
+		(v: string) => {
+			onFilterChange({
+				[TALENT_COMMUNITY_PARAMS.PLACEMENT_STATUS]: v === "all" ? null : v,
+			});
+		},
+		[onFilterChange],
+	);
+
+	const query = useMemo<Omit<TalentCommunityQuery, "tab">>(
+		() => ({
+			search: searchFromUrl?.trim() || undefined,
+			workforceType:
+				workforceTypeFilter !== "all" ? workforceTypeFilter : undefined,
+			inviteStatus: statusFilter !== "all" ? statusFilter : undefined,
+			placementStatus:
+				placementStatusFilter !== "all" ? placementStatusFilter : undefined,
+			page,
+			limit,
+		}),
 		[
-			setStatusFilter,
-			setWorkforceTypeFilter,
-			statusFilter,
+			searchFromUrl,
 			workforceTypeFilter,
+			statusFilter,
+			placementStatusFilter,
+			page,
+			limit,
 		],
 	);
 
@@ -110,13 +143,15 @@ export function useTalentCommunityFilters(
 		setFiltersExpanded,
 		page,
 		setPage,
-		pageSize,
+		pageSize: limit,
+		setLimit,
 		workforceTypeFilter,
 		setWorkforceTypeFilter,
+		placementStatusFilter,
+		setPlacementStatusFilter,
 		statusFilter,
-		setStatusFilter,
 		query,
 		resetPage: () => setPage(1),
-		filterConfigs,
+		filterConfigs: hookFilterConfigs,
 	};
 }

@@ -1,3 +1,6 @@
+"use client";
+
+import { getLabel, ORGANIZATION_INDUSTRY_OPTIONS } from "@repo/shared";
 import {
 	SidebarHeader,
 	SidebarMenu,
@@ -5,12 +8,23 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@repo/ui/components/sidebar";
+import { OrganizationBrandBlock } from "@repo/ui/general/OrganizationBrandBlock";
 import { cn } from "@repo/ui/lib/utils";
 import { Building } from "lucide-react";
 import Image from "next/image";
+import { useOptionalOrgContext } from "@/contexts/org-context";
+
+const PRODUCT_LOGO = "/images/logo.png";
 
 const SidebarLogo = () => {
 	const { open, openMobile } = useSidebar();
+	const org = useOptionalOrgContext();
+	const expanded = open || openMobile;
+	const orgName = org?.name?.trim() ?? "";
+	const industryLabel = org
+		? getLabel(ORGANIZATION_INDUSTRY_OPTIONS, org.industry)
+		: "";
+
 	return (
 		<SidebarHeader className={cn(open && "p-0 mb-2")}>
 			<SidebarMenu>
@@ -20,16 +34,38 @@ const SidebarLogo = () => {
 						className={cn(
 							!open && "h-12 text-sm group-data-[collapsible=icon]:p-0!",
 							open &&
-								"h-14 group-data-[collapsible=icon]:my-4 hover:bg-transparent border-b flex items-center",
+								cn(
+									"group-data-[collapsible=icon]:my-4 hover:bg-transparent border-b flex w-full",
+									org && orgName
+										? "h-auto min-h-14 items-start py-3"
+										: "h-14 items-center",
+								),
 						)}
 					>
-						{open || openMobile ? (
-							<Image
-								src={"/images/logo.png"}
-								alt="Logo"
-								width={200}
-								height={40}
-								className="h-10 w-auto object-contain"
+						{expanded ? (
+							org && orgName ? (
+								<OrganizationBrandBlock
+									size="sm"
+									name={orgName}
+									avatarUrl={org.logo ?? ""}
+									subtitle={industryLabel}
+								/>
+							) : (
+								<Image
+									src={PRODUCT_LOGO}
+									alt="Logo"
+									width={200}
+									height={40}
+									className="h-10 w-auto object-contain rounded-lg"
+								/>
+							)
+						) : org && orgName ? (
+							<OrganizationBrandBlock
+								size="sm"
+								showText={false}
+								name={orgName}
+								avatarUrl={org.logo ?? ""}
+								avatarClassName="size-8"
 							/>
 						) : (
 							<div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">

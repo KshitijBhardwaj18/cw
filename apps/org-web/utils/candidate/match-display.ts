@@ -1,12 +1,13 @@
+import { formatUsdPerHour, formatUsdWhole } from "@repo/shared";
 import { getShiftTypeLabel } from "@/constants/candidate/matches-and-job-search";
 import type { CandidateMatchListItem } from "@/types/candidate-matches";
 
 export function formatMatchPayLabel(job: CandidateMatchListItem): string {
 	if (job.incentiveType && job.incentiveAmount != null) {
-		return `${job.incentiveType}: $${job.incentiveAmount.toLocaleString()}`;
+		return `${job.incentiveType}: ${formatUsdWhole(job.incentiveAmount)}`;
 	}
 	if (job.billRate != null) {
-		return `$${job.billRate}/hr`;
+		return formatUsdPerHour(job.billRate);
 	}
 	return "—";
 }

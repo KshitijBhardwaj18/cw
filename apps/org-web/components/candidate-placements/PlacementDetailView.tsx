@@ -59,16 +59,21 @@ export function PlacementDetailView({
 
 			<Card>
 				<CardHeader className="border-b">
-					<div className="flex items-start justify-between gap-4">
-						<div>
-							<CardTitle className="font-semibold">{detail.jobTitle}</CardTitle>
-							<CardDescription className="text-base">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+						<div className="min-w-0">
+							<CardTitle className="text-lg font-semibold sm:text-xl">
+								{detail.jobTitle}
+							</CardTitle>
+							<CardDescription className="text-base wrap-break-word">
 								{detail.facilityName}
 							</CardDescription>
 						</div>
 						<Badge
 							variant="secondary"
-							className={cn("w-fit shrink-0 text-xs font-medium", badgeClass)}
+							className={cn(
+								"w-fit shrink-0 self-start text-xs font-medium",
+								badgeClass,
+							)}
 						>
 							{detail.statusLabel}
 						</Badge>
@@ -90,7 +95,7 @@ export function PlacementDetailView({
 						</span>
 					</div>
 					<div className="bg-muted/60 rounded-lg px-4 py-4 sm:px-6">
-						<div className="grid gap-6 sm:grid-cols-3">
+						<div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
 							<DetailItem label="Start Date" value={detail.summary.startDate} />
 							<DetailItem label="End Date" value={detail.summary.endDate} />
 							<DetailItem label="Pay Rate" value={detail.summary.payRate} />
@@ -134,7 +139,7 @@ export function PlacementDetailView({
 				</CardContent>
 			</Card>
 
-			<Button variant="outline" asChild>
+			<Button variant="outline" className="w-full sm:w-auto" asChild>
 				<Link href={timecardHref}>View Timecards</Link>
 			</Button>
 		</div>

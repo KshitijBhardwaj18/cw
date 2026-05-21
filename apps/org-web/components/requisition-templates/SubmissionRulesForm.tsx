@@ -26,10 +26,12 @@ import {
 import { Textarea } from "@repo/ui/components/textarea";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import RequiredStar from "@repo/ui/general/RequiredStar";
+import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { cn } from "@repo/ui/lib/utils";
 import { useForm, useStore } from "@tanstack/react-form";
 import { CheckCircle2 } from "lucide-react";
 import { useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import {
 	REQUISITION_TEMPLATE_APPROVER_ROLE_OPTIONS,
 	REQUISITION_TEMPLATE_WORKFLOW_TYPE_OPTIONS,
@@ -39,6 +41,7 @@ import {
 	requisitionTemplateSubmissionRulesBaseSchema,
 	requisitionTemplateSubmissionRulesSchema,
 } from "@/schemas/requisition-template-submission-rules.schema";
+import { STEP_VALIDATION_TOAST } from "./CreateRequisitionTemplatePageContent";
 
 const defaultValues: RequisitionTemplateSubmissionRulesFormValues = {
 	approvalRequired: false,
@@ -78,6 +81,9 @@ export function SubmissionRulesForm({
 		validators: {
 			onSubmit: requisitionTemplateSubmissionRulesSchema,
 		},
+		onSubmitInvalid: () => {
+			toast.error(STEP_VALIDATION_TOAST);
+		},
 		onSubmit: ({ value }) => {
 			onSubmit(value);
 		},
@@ -99,6 +105,11 @@ export function SubmissionRulesForm({
 	);
 	const workflowType = useStore(form.store, (s) => s.values.workflowType);
 	const isCandidateOnly = workflowType === "CANDIDATE_ONLY";
+
+	const submissionAttempts = useStore(
+		form.store,
+		(s) => s.submissionAttempts ?? 0,
+	);
 
 	return (
 		<Card>
@@ -192,9 +203,11 @@ export function SubmissionRulesForm({
 									<div className="mt-5 space-y-4 border-t border-border pt-5">
 										<form.Field name="approverRole">
 											{(field) => {
-												const isInvalid =
-													field.state.meta.isTouched &&
-													!field.state.meta.isValid;
+												const isInvalid = formFieldShowInvalid(
+													field.state.meta.isTouched,
+													field.state.meta.isValid,
+													submissionAttempts,
+												);
 												return (
 													<Field data-invalid={isInvalid}>
 														<FieldLabel>
@@ -261,8 +274,11 @@ export function SubmissionRulesForm({
 								>
 									{(field) => {
 										const selected = field.state.value;
-										const isInvalid =
-											field.state.meta.isTouched && !field.state.meta.isValid;
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
 										return (
 											<Field data-invalid={isInvalid}>
 												<FieldLabel>
@@ -418,9 +434,11 @@ export function SubmissionRulesForm({
 											}}
 										>
 											{(field) => {
-												const isInvalid =
-													field.state.meta.isTouched &&
-													!field.state.meta.isValid;
+												const isInvalid = formFieldShowInvalid(
+													field.state.meta.isTouched,
+													field.state.meta.isValid,
+													submissionAttempts,
+												);
 												return (
 													<Field data-invalid={isInvalid}>
 														<FieldLabel>Select Vendors</FieldLabel>
@@ -474,8 +492,11 @@ export function SubmissionRulesForm({
 										}}
 									>
 										{(field) => {
-											const isInvalid =
-												field.state.meta.isTouched && !field.state.meta.isValid;
+											const isInvalid = formFieldShowInvalid(
+												field.state.meta.isTouched,
+												field.state.meta.isValid,
+												submissionAttempts,
+											);
 											return (
 												<Field data-invalid={isInvalid}>
 													<FieldLabel htmlFor="internal-notes">
@@ -525,12 +546,13 @@ export function SubmissionRulesForm({
 						>
 							Cancel
 						</Button>
-						<Button
-							type="submit"
-							disabled={form.state.isSubmitting || isPending}
-						>
-							{form.state.isSubmitting || isPending ? "Saving..." : "Finish"}
-						</Button>
+						<form.Subscribe selector={(s) => s.isSubmitting}>
+							{(isSubmitting) => (
+								<Button type="submit" disabled={isSubmitting || isPending}>
+									{isSubmitting || isPending ? "Saving..." : "Finish"}
+								</Button>
+							)}
+						</form.Subscribe>
 					</div>
 				</form>
 			</CardContent>

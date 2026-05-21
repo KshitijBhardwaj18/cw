@@ -60,7 +60,7 @@ export function ComplianceItemRow({
 
 	return (
 		<div className="bg-muted/20 px-4 py-4">
-			<div className="grid grid-cols-3 gap-4">
+			<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
 				<div className="flex items-start gap-3">
 					<div className="bg-muted mt-0.5 size-2 shrink-0 rounded-full" />
 					<div>

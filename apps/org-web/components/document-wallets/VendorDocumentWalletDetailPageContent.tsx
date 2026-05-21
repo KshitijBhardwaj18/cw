@@ -1,6 +1,10 @@
 "use client";
 
-import { VendorUserRole } from "@repo/shared";
+import {
+	COMPLIANCE_LIST_ITEM_CATEGORIES,
+	getComplianceListItemCategoryLabel,
+	VendorUserRole,
+} from "@repo/shared";
 import {
 	Empty,
 	EmptyDescription,
@@ -8,15 +12,20 @@ import {
 	EmptyMedia,
 	EmptyTitle,
 } from "@repo/ui/components/empty";
-import { Skeleton } from "@repo/ui/components/skeleton";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
+import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { FolderOpen } from "lucide-react";
+import { useState } from "react";
 import { DocumentWalletCategoryCollapsible } from "@/components/document-wallet/DocumentWalletCategoryCollapsible";
-import { DocumentWalletListFilters } from "@/components/document-wallet/DocumentWalletListFilters";
 import { DocumentWalletSummaryCard } from "@/components/document-wallet/DocumentWalletSummaryCard";
 import { useAuth } from "@/contexts/auth.context";
 import { useVendorDocumentWalletDetailPage } from "@/hooks/vendor/use-vendor-document-wallet-detail-page";
+import {
+	DocumentWalletSkeleton,
+	ItemsSkeleton,
+	SummarySkeleton,
+} from "../document-wallet/DocumentWalletSkeleton";
 
 export interface VendorDocumentWalletDetailPageContentProps {
 	candidateId: string;
@@ -25,6 +34,8 @@ export interface VendorDocumentWalletDetailPageContentProps {
 export function VendorDocumentWalletDetailPageContent({
 	candidateId,
 }: VendorDocumentWalletDetailPageContentProps) {
+	const [filtersExpanded, setFiltersExpanded] = useState(false);
+
 	const { session } = useAuth();
 	const isVendorViewOnly =
 		session.user.subRole === VendorUserRole.VENDOR_VIEW_ONLY;
@@ -59,46 +70,39 @@ export function VendorDocumentWalletDetailPageContent({
 	}
 
 	if (summaryQuery.isLoading || !summaryQuery.data) {
-		return (
-			<div className="space-y-6">
-				<Skeleton className="h-24 w-full max-w-lg rounded-lg" />
-				<Skeleton className="h-48 w-full rounded-lg" />
-			</div>
-		);
+		return <DocumentWalletSkeleton />;
 	}
 
 	const { candidate, ...summary } = summaryQuery.data;
+	const items = itemsQuery.data;
+	const isItemsLoading = itemsQuery.isLoading;
 
 	const contactLine = [candidate.email, candidate.phone]
 		.filter(Boolean)
 		.join(" · ");
 
-	if (!itemsQuery.data) {
-		return (
-			<div className="space-y-6">
-				<ConfigPageHeader
-					title={candidate.name}
-					total={0}
-					itemLabel="document"
-					itemLabelPlural="documents"
-					description={`${candidate.specialty}${contactLine ? ` · ${contactLine}` : ""}`}
-					backLink={{
-						href: "/vendor/document-wallets",
-						label: "Back to Document Wallets",
-					}}
-				/>
-				<Skeleton className="h-64 w-full rounded-lg" />
-			</div>
-		);
-	}
-
-	const items = itemsQuery.data;
+	const filterConfigs = [
+		{
+			id: "category",
+			label: "Category",
+			value: categoryKey ?? "all",
+			onValueChange: (v: string) => setCategoryKey(v === "all" ? undefined : v),
+			placeholder: "All Categories",
+			options: [
+				{ value: "all", label: "All Categories" },
+				...COMPLIANCE_LIST_ITEM_CATEGORIES.map((c) => ({
+					value: c,
+					label: getComplianceListItemCategoryLabel(c),
+				})),
+			],
+		},
+	];
 
 	return (
 		<div className="space-y-6">
 			<ConfigPageHeader
 				title={candidate.name}
-				total={items.total}
+				total={items?.total ?? 0}
 				itemLabel="document"
 				itemLabelPlural="documents"
 				description={`${candidate.specialty}${contactLine ? ` · ${contactLine}` : ""}`}
@@ -108,16 +112,24 @@ export function VendorDocumentWalletDetailPageContent({
 				}}
 			/>
 
-			<DocumentWalletSummaryCard summary={summary} readOnly />
+			{summaryQuery.isFetching && !summary ? (
+				<SummarySkeleton />
+			) : (
+				<DocumentWalletSummaryCard summary={summary} readOnly />
+			)}
 
-			<DocumentWalletListFilters
-				search={search}
+			<SearchWithFilters
+				searchPlaceholder="Search requirements…"
+				searchValue={search}
 				onSearchChange={setSearch}
-				categoryKey={categoryKey}
-				onCategoryKeyChange={setCategoryKey}
+				filtersExpanded={filtersExpanded}
+				onFiltersExpandedChange={setFiltersExpanded}
+				filterConfigs={filterConfigs}
 			/>
 
-			{items.total === 0 ? (
+			{isItemsLoading || !items ? (
+				<ItemsSkeleton />
+			) : items.total === 0 ? (
 				<Empty className="border-muted/50 py-12">
 					<EmptyHeader>
 						<EmptyMedia variant="icon">

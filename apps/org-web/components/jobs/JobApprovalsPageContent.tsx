@@ -12,12 +12,11 @@ import {
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import PaginationControls from "@repo/ui/general/PaginationControls";
 import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
-import { useUrlQueryState } from "@repo/ui/hooks/use-url-query-state";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { cn } from "@repo/ui/lib/utils";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { FileText } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { toast } from "sonner";
 import { AccessBlockedState } from "@/components/general/AccessBlockedState";
 import { useOrgContext } from "@/contexts/org-context";
@@ -28,44 +27,39 @@ import {
 } from "@/queries/requisitions.queries";
 import { PendingApprovalCard } from "./PendingApprovalCard";
 
+const APPROVAL_PARAMS = {
+	PAGE: "jaPage",
+	LIMIT: "jaLimit",
+	SEARCH: "jaSearch",
+} as const;
+
 export function JobApprovalsPageContent() {
 	const ability = useAbility();
 	const canReadApprovals = ability.can(Action.Read, "RequisitionApprovals");
 	const canUpdateApprovals = ability.can(Action.Update, "RequisitionApprovals");
 	const { id: orgId } = useOrgContext();
-	const searchParams = useSearchParams();
-	const { pushParams } = useUrlQueryState();
+
+	const { page, setPage, limit, setLimit } = usePaginationControls({
+		pageParamKey: APPROVAL_PARAMS.PAGE,
+		limitParamKey: APPROVAL_PARAMS.LIMIT,
+		defaultLimit: 20,
+	});
+
 	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
-		{ wait: 350, paramKey: "jaSearch", pageParamKey: "jaPage" },
-	);
-
-	const pageParam = Number(searchParams.get("jaPage") ?? "1");
-	const currentPage =
-		Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-	const limitParam = Number(searchParams.get("jaLimit") ?? "20");
-	const limit = [10, 20, 50].includes(limitParam) ? limitParam : 20;
-
-	const setCurrentPage = useCallback(
-		(p: number) => {
-			pushParams({ jaPage: String(p) });
+		{
+			wait: 350,
+			paramKey: APPROVAL_PARAMS.SEARCH,
+			pageParamKey: APPROVAL_PARAMS.PAGE,
 		},
-		[pushParams],
-	);
-
-	const setLimit = useCallback(
-		(l: number) => {
-			pushParams({ jaLimit: String(l), page: null });
-		},
-		[pushParams],
 	);
 
 	const query = useMemo(
 		() => ({
-			page: currentPage,
+			page,
 			limit,
 			search: searchFromUrl.trim() || undefined,
 		}),
-		[currentPage, limit, searchFromUrl],
+		[page, limit, searchFromUrl],
 	);
 	const pendingQuery = usePendingRequisitionApprovals(orgId, query, {
 		enabled: canReadApprovals,
@@ -193,9 +187,9 @@ export function JobApprovalsPageContent() {
 			</div>
 
 			<PaginationControls
-				currentPage={currentPage}
+				currentPage={page}
 				pageCount={pageCount}
-				goToPage={setCurrentPage}
+				goToPage={setPage}
 				limit={limit}
 				setLimit={setLimit}
 				pageSizeOptions={[10, 20, 50]}

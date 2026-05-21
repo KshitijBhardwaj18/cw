@@ -2,7 +2,9 @@
 
 import { Action, subjectInstance, useAbility } from "@repo/casl";
 import { getLabel } from "@repo/shared";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
+import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { JOB_SUBMISSION_PRIMARY_ADVANCE } from "@/constants/job-submission-primary-action";
 import {
@@ -25,6 +27,10 @@ export interface UseJobCandidateSubmissionsSectionArgs {
 	allowedStages: readonly SubmissionStageKey[];
 }
 
+const SUBMISSION_PARAMS = {
+	PAGE: "subPage",
+} as const;
+
 const EMPTY_STAGE_COUNTS: Record<SubmissionStageKey, number> =
 	Object.fromEntries(
 		SUBMISSION_STAGE_TABS.map(({ stage }) => [stage, 0]),
@@ -42,30 +48,23 @@ export function useJobCandidateSubmissionsSection({
 	});
 	const stageCounts = stageCountsData ?? EMPTY_STAGE_COUNTS;
 
-	const [activeStage, setActiveStage] = useState<SubmissionStageKey | null>(
-		null,
-	);
-	const [page, setPage] = useState(1);
-	const [historyRow, setHistoryRow] = useState<SubmissionListRow | null>(null);
-	const [rejectRow, setRejectRow] = useState<SubmissionListRow | null>(null);
-
 	const visibleTabs = useMemo(
 		() => SUBMISSION_STAGE_TABS.filter((t) => allowedStages.includes(t.stage)),
 		[allowedStages],
 	);
 
-	useEffect(() => {
-		if (visibleTabs.length === 0) {
-			setActiveStage(null);
-			return;
-		}
-		setActiveStage((prev) => {
-			if (prev && visibleTabs.some((t) => t.stage === prev)) {
-				return prev;
-			}
-			return visibleTabs[0].stage;
-		});
-	}, [visibleTabs]);
+	const [activeStage, setActiveStage] = useTabSwitch<SubmissionStageKey>(
+		visibleTabs.map(({ stage }) => stage),
+		{ alsoClearParamKeys: [SUBMISSION_PARAMS.PAGE] },
+	);
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: SUBMISSION_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
+
+	const [historyRow, setHistoryRow] = useState<SubmissionListRow | null>(null);
+	const [rejectRow, setRejectRow] = useState<SubmissionListRow | null>(null);
+	const [offerRow, setOfferRow] = useState<SubmissionListRow | null>(null);
 
 	const { data: listData, isLoading: listLoading } = useOrgSubmissionsList(
 		orgId,
@@ -86,11 +85,6 @@ export function useJobCandidateSubmissionsSection({
 	const totalPages = listData?.totalPages ?? 0;
 	const isLoading = listLoading;
 
-	const handleStageChange = useCallback((stage: SubmissionStageKey) => {
-		setActiveStage(stage);
-		setPage(1);
-	}, []);
-
 	const handleAdvance = useCallback(
 		(row: SubmissionListRow) => {
 			const next = JOB_SUBMISSION_PRIMARY_ADVANCE[row.stage];
@@ -101,6 +95,10 @@ export function useJobCandidateSubmissionsSection({
 					subjectInstance("Submission", { stage: row.stage }),
 				)
 			) {
+				return;
+			}
+			if (next.next === "OFFERED") {
+				setOfferRow(row);
 				return;
 			}
 			updateStage.mutate(
@@ -120,6 +118,45 @@ export function useJobCandidateSubmissionsSection({
 			);
 		},
 		[ability, updateStage],
+	);
+
+	const confirmOffer = useCallback(
+		(params: {
+			startDate: string;
+			endDate: string;
+			billRate: number | null;
+		}) => {
+			if (!offerRow) return;
+			if (
+				!ability.can(
+					Action.Update,
+					subjectInstance("Submission", { stage: offerRow.stage }),
+				)
+			) {
+				return;
+			}
+			updateStage.mutate(
+				{
+					submissionId: offerRow.id,
+					stage: "OFFERED",
+					startDate: params.startDate,
+					endDate: params.endDate,
+					billRate: params.billRate ?? undefined,
+				},
+				{
+					onSuccess: () => {
+						toast.success("Offer extended.");
+						setOfferRow(null);
+					},
+					onError: (e) => {
+						toast.error(
+							e instanceof Error ? e.message : "Could not extend offer.",
+						);
+					},
+				},
+			);
+		},
+		[ability, offerRow, updateStage],
 	);
 
 	const confirmReject = useCallback(() => {
@@ -158,13 +195,16 @@ export function useJobCandidateSubmissionsSection({
 		setHistoryRow,
 		rejectRow,
 		setRejectRow,
+		offerRow,
+		setOfferRow,
 		visibleTabs,
 		rows,
 		totalPages,
 		isLoading,
 		updateStage,
-		handleStageChange,
+		handleStageChange: setActiveStage,
 		handleAdvance,
 		confirmReject,
+		confirmOffer,
 	};
 }

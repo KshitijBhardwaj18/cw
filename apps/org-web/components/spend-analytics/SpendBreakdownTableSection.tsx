@@ -11,7 +11,7 @@ import {
 } from "@repo/ui/components/card";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { CustomTable } from "@repo/ui/general/CustomTable";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { SpendBreakdownRow } from "@/constants/spend-analytics";
 import { useSpendBreakdownColumns } from "@/hooks/tables/use-spend-breakdown-columns";
 import { CancelRequisitionDialog } from "./CancelRequisitionDialog";
@@ -19,12 +19,24 @@ import { CancelRequisitionDialog } from "./CancelRequisitionDialog";
 export type SpendBreakdownTableSectionProps = {
 	orgId: string;
 	data?: SpendBreakdownRow[];
+	total: number;
+	page: number;
+	onPaginationChange: (page: number, limit: number) => void;
+	limit: number;
+	totalOpenSpend?: number;
+	totalCommittedSpend?: number;
 	isLoading?: boolean;
 };
 
 export function SpendBreakdownTableSection({
 	orgId,
 	data,
+	total,
+	page,
+	onPaginationChange,
+	limit,
+	totalOpenSpend = 0,
+	totalCommittedSpend = 0,
 	isLoading = false,
 }: SpendBreakdownTableSectionProps) {
 	const ability = useAbility();
@@ -37,24 +49,6 @@ export function SpendBreakdownTableSection({
 		onCancelRequest: (row) => setCancelRow(row),
 		canCancel,
 	});
-
-	const totalOpenSpend = useMemo(
-		() =>
-			rows.reduce((sum, r) => sum + (r.openSpend != null ? r.openSpend : 0), 0),
-		[rows],
-	);
-
-	const totalCommittedSpend = useMemo(
-		() =>
-			rows.reduce(
-				(sum, r) => sum + (r.committedSpend != null ? r.committedSpend : 0),
-				0,
-			),
-		[rows],
-	);
-
-	const effectiveOpenTotal = totalOpenSpend;
-	const effectiveCommittedTotal = totalCommittedSpend;
 
 	return (
 		<>
@@ -88,8 +82,12 @@ export function SpendBreakdownTableSection({
 								columns={columns}
 								enableSorting
 								enablePagination
-								paginationMode="client"
-								pageSize={10}
+								paginationMode="server"
+								totalCount={total}
+								currentPage={page}
+								pageSize={limit}
+								onPaginationChange={onPaginationChange}
+								pageSizeOptions={[10, 20, 30, 50]}
 								className="rounded-none border-0 border-b-0"
 								emptyState={
 									<p className="text-muted-foreground py-8 text-center text-sm">
@@ -99,19 +97,19 @@ export function SpendBreakdownTableSection({
 							/>
 							<div className="bg-muted/30 flex flex-wrap items-center justify-end gap-6 border-t px-4 py-3 text-sm">
 								<span className="text-muted-foreground font-medium">
-									Totals:
+									Totals (all pages):
 								</span>
 								<div className="flex flex-wrap items-center gap-6">
 									<span className="text-muted-foreground">
 										Open Spend:{" "}
 										<span className="font-semibold text-violet-700 tabular-nums dark:text-violet-300">
-											{formatCurrency(effectiveOpenTotal)}
+											{formatCurrency(totalOpenSpend)}
 										</span>
 									</span>
 									<span className="text-muted-foreground">
 										Committed Spend:{" "}
 										<span className="font-semibold text-amber-800 tabular-nums dark:text-amber-300">
-											{formatCurrency(effectiveCommittedTotal)}
+											{formatCurrency(totalCommittedSpend)}
 										</span>
 									</span>
 								</div>

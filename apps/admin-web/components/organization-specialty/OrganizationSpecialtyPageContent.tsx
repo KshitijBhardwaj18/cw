@@ -3,12 +3,17 @@
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
-import { useConfigPageSearch } from "@repo/ui/hooks/use-config-page-search";
-import { useRouter } from "next/navigation";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useOrganizationSpecialtiesPaginated } from "@/queries/organization-specialties.query";
 import { OrganizationSpecialtiesTableWrapper } from "./OrganizationSpecialtiesTableWrapper";
 
 const PAGE_SIZE = 10;
+
+export const ORG_SPECIALTY_PARAMS = {
+	PAGE: "osPage",
+	SEARCH: "osSearch",
+} as const;
 
 interface OrganizationSpecialtyPageContentProps {
 	organizationId: string;
@@ -17,16 +22,16 @@ interface OrganizationSpecialtyPageContentProps {
 export default function OrganizationSpecialtyPageContent({
 	organizationId,
 }: OrganizationSpecialtyPageContentProps) {
-	const router = useRouter();
+	const { page, setPage } = usePaginationControls({
+		pageParamKey: ORG_SPECIALTY_PARAMS.PAGE,
+		defaultLimit: PAGE_SIZE,
+	});
 
-	const {
-		page,
-		searchFromUrl,
-		hasActiveSearch,
-		localSearch,
-		handleSearchChange,
-		buildSearchParams,
-	} = useConfigPageSearch();
+	const { localSearch, searchFromUrl, handleSearchChange, hasActiveSearch } =
+		useDebouncedSearch({
+			paramKey: ORG_SPECIALTY_PARAMS.SEARCH,
+			pageParamKey: ORG_SPECIALTY_PARAMS.PAGE,
+		});
 
 	const { data: paginated } = useOrganizationSpecialtiesPaginated(
 		organizationId,
@@ -74,7 +79,7 @@ export default function OrganizationSpecialtyPageContent({
 						<ConfigPagePagination
 							page={page}
 							totalPages={totalPages}
-							onPageChange={(p) => router.push(buildSearchParams({ page: p }))}
+							onPageChange={setPage}
 						/>
 					)}
 				</>

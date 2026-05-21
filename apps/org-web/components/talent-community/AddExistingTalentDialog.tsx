@@ -58,7 +58,7 @@ export function AddExistingTalentDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={(val) => !val && handleClose()}>
-			<DialogContent className="flex max-h-[90vh] max-w-7xl flex-col overflow-hidden p-0 sm:max-w-7xl">
+			<DialogContent className="flex max-h-[90dvh] max-w-7xl flex-col overflow-hidden p-0 sm:max-w-7xl">
 				<DialogHeader className="border-b px-6 py-4">
 					<DialogTitle className="text-lg font-semibold">
 						Add Existing Talent to Community
@@ -90,7 +90,7 @@ export function AddExistingTalentDialog({
 									onChange={(e) => setSearch(e.target.value)}
 								/>
 							</div>
-							<div className="grid gap-3 sm:grid-cols-3">
+							<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 								<div className="space-y-2">
 									<label
 										htmlFor="add-existing-workforce-group"

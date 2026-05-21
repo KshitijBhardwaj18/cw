@@ -9,7 +9,8 @@ import {
 	EmptyTitle,
 } from "@repo/ui/components/empty";
 import { SearchBar } from "@repo/ui/general/SearchBar";
-import { useMemo, useState } from "react";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { useMemo } from "react";
 import { toast } from "sonner";
 import { METRIC_TYPE_OPTIONS } from "@/constants/metrics";
 import { useAuth } from "@/contexts";
@@ -21,12 +22,16 @@ export function MetricsPageContent() {
 	const { ability } = useAuth();
 	const { data: metrics } = useMetrics();
 	const updateStatus = useUpdateMetricStatus();
-	const [search, setSearch] = useState("");
+	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+		{
+			paramKey: "search",
+		},
+	);
 
 	const canUpdate = ability.can(Action.Update, "Metric");
 
 	const filteredAndGrouped = useMemo(() => {
-		const q = search.trim().toLowerCase();
+		const q = searchFromUrl.trim().toLowerCase();
 		const filtered = q
 			? metrics.filter(
 					(m) =>
@@ -35,7 +40,7 @@ export function MetricsPageContent() {
 				)
 			: metrics;
 		return groupMetricsByType(filtered);
-	}, [metrics, search]);
+	}, [metrics, searchFromUrl]);
 
 	const orderedTypes = METRIC_TYPE_OPTIONS.map((o) => o.value).filter((t) =>
 		filteredAndGrouped.has(t),
@@ -69,8 +74,8 @@ export function MetricsPageContent() {
 				</div>
 				<SearchBar
 					placeholder="Search metrics..."
-					value={search}
-					onChange={setSearch}
+					value={localSearch}
+					onChange={handleSearchChange}
 				/>
 			</div>
 
@@ -79,7 +84,7 @@ export function MetricsPageContent() {
 					<EmptyHeader>
 						<EmptyTitle>No metrics found</EmptyTitle>
 						<EmptyDescription>
-							{search.trim()
+							{searchFromUrl.trim()
 								? "Try a different search term."
 								: "There are no metrics to display."}
 						</EmptyDescription>

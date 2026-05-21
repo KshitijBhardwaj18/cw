@@ -172,7 +172,7 @@ export function FinalInvoiceDetailPageContent({
 					{invoiceSummaryStatusBadge(detail.status)}
 				</CardHeader>
 				<CardContent className="space-y-6">
-					<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 						{[
 							{ label: "Invoice number", value: detail.invoiceNumber },
 							{
