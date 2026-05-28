@@ -1,3 +1,4 @@
+import { QuestionType } from "@repo/shared";
 import { z } from "zod";
 import { QUESTION_TYPE_REQUIRES_OPTIONS } from "@/constants/questionnaire";
 
@@ -7,7 +8,7 @@ const questionFormBaseSchema = z.object({
 		.trim()
 		.min(1, "Question text is required")
 		.max(500, "Question text must be less than 500 characters"),
-	type: z.enum(["CHECKBOX", "SELECT", "RADIO_BUTTON", "TEXT"]),
+	type: z.nativeEnum(QuestionType),
 	options: z.array(z.string()),
 	required: z.boolean(),
 	includeInSubmission: z.boolean(),
@@ -15,11 +16,7 @@ const questionFormBaseSchema = z.object({
 
 export const questionFormSchema = questionFormBaseSchema.superRefine(
 	(data, ctx) => {
-		if (
-			QUESTION_TYPE_REQUIRES_OPTIONS.includes(
-				data.type as "CHECKBOX" | "SELECT" | "RADIO_BUTTON",
-			)
-		) {
+		if (QUESTION_TYPE_REQUIRES_OPTIONS.includes(data.type)) {
 			const validOptions = data.options.filter((o) => o.trim().length > 0);
 			if (validOptions.length === 0) {
 				ctx.addIssue({

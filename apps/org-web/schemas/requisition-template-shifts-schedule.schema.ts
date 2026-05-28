@@ -1,22 +1,14 @@
+import { ShiftType } from "@repo/shared";
 import { z } from "zod";
 
-const REQUISITION_TEMPLATE_SHIFT_TYPE_VALUES = [
-	"DAYS",
-	"EVENINGS",
-	"NIGHTS",
-	"ROTATING",
-	"WEEKENDS_ONLY",
-] as const;
-
 export const requisitionTemplateShiftsScheduleSchema = z.object({
-	startDate: z.string().min(1, "Start date is required"),
 	lengthWeeks: z
 		.number({ required_error: "Length (weeks) is required" })
 		.int("Must be a whole number")
 		.min(1, "Length must be at least 1 week"),
 	startTime: z.string().min(1, "Start time is required"),
 	endTime: z.string().min(1, "End time is required"),
-	shiftType: z.enum(REQUISITION_TEMPLATE_SHIFT_TYPE_VALUES, {
+	shiftType: z.nativeEnum(ShiftType, {
 		required_error: "Shift type is required",
 		invalid_type_error: "Shift type is required",
 	}),

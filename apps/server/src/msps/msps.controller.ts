@@ -30,10 +30,13 @@ import { PermissionsGuard } from "src/common/guards/permissions.guard";
 import { DocumentsService } from "../documents/documents.service";
 import { NotesService } from "../notes/notes.service";
 import { CreateMspDocumentMultipartDto } from "./dto/create-msp-document-multipart.dto";
+import { CreateMspLinkedOrgDto } from "./dto/create-msp-linked-org.dto";
 import { CreateMspMultipartDto } from "./dto/create-msp-multipart.dto";
 import { CreateMspNoteDto } from "./dto/create-msp-note.dto";
 import { PaginatedMspsQueryDto } from "./dto/paginated-msps.dto";
+import { UpdateMspLinkedOrgDto } from "./dto/update-msp-linked-org.dto";
 import { MspsService } from "./msps.service";
+import { MspLinkedOrgsService } from "./services/msp-linked-orgs.service";
 
 const FILE_FIELDS = [
 	{ name: "logo", maxCount: 1 },
@@ -48,6 +51,7 @@ export class MspsController {
 		private readonly mspsService: MspsService,
 		private readonly documentsService: DocumentsService,
 		private readonly notesService: NotesService,
+		private readonly mspLinkedOrgsService: MspLinkedOrgsService,
 	) {}
 
 	@Get()
@@ -267,11 +271,121 @@ export class MspsController {
 		return this.notesService.createForMsp(mspId, dto, session.user.id);
 	}
 
+	@Get(":id/financial-summary")
+	@ApiOperation({ summary: "Get MSP financial summary" })
+	@ApiResponse({ status: 200, description: "Aggregated portfolio and revenue" })
+	@ApiResponse({ status: 404, description: "MSP not found" })
+	@Permissions({ action: Action.Read, subject: "MSP" })
+	async getFinancialSummary(@Param("id") mspId: string) {
+		return this.mspLinkedOrgsService.getFinancialSummary(mspId);
+	}
+
+	@Get(":id/linked-orgs")
+	@ApiOperation({ summary: "List linked organizations for MSP" })
+	@ApiResponse({ status: 200, description: "Linked orgs with financials" })
+	@ApiResponse({ status: 404, description: "MSP not found" })
+	@Permissions({ action: Action.List, subject: "MSPLinkedOrg" })
+	async listLinkedOrgs(@Param("id") mspId: string) {
+		return this.mspLinkedOrgsService.list(mspId);
+	}
+
+	@Post(":id/linked-orgs/agreement")
+	@UseInterceptors(
+		FileFieldsInterceptor([{ name: "agreement", maxCount: 1 }], {
+			limits: { fileSize: FILE_MAX_SIZE },
+		}),
+	)
+	@ApiConsumes("multipart/form-data")
+	@ApiBody({
+		schema: {
+			type: "object",
+			required: ["agreement"],
+			properties: {
+				agreement: {
+					type: "string",
+					format: "binary",
+					description: "Addendum agreement PDF",
+				},
+			},
+		},
+	})
+	@ApiOperation({ summary: "Upload an addendum agreement file" })
+	@ApiResponse({ status: 201, description: "File uploaded" })
+	@Permissions({ action: Action.Create, subject: "MSPLinkedOrg" })
+	async uploadAddendumAgreement(
+		@Param("id") mspId: string,
+		@UploadedFiles()
+		files: { agreement?: Express.Multer.File[] },
+	) {
+		const file = files?.agreement?.[0];
+		if (!file?.buffer) {
+			throw new BadRequestException("Addendum file is required.");
+		}
+		return this.mspLinkedOrgsService.uploadAddendum(mspId, file);
+	}
+
+	@Post(":id/linked-orgs")
+	@ApiOperation({ summary: "Link an organization to MSP" })
+	@ApiResponse({ status: 201, description: "Organization linked" })
+	@ApiResponse({ status: 409, description: "Organization already linked" })
+	@Permissions({ action: Action.Create, subject: "MSPLinkedOrg" })
+	async createLinkedOrg(
+		@Param("id") mspId: string,
+		@Body() dto: CreateMspLinkedOrgDto,
+	) {
+		return this.mspLinkedOrgsService.create(mspId, dto);
+	}
+
+	@Patch(":id/linked-orgs/:linkedOrgId")
+	@ApiOperation({ summary: "Update a linked organization" })
+	@ApiResponse({ status: 200, description: "Linked organization updated" })
+	@ApiResponse({ status: 404, description: "Linked org not found" })
+	@Permissions({ action: Action.Update, subject: "MSPLinkedOrg" })
+	async updateLinkedOrg(
+		@Param("id") mspId: string,
+		@Param("linkedOrgId") linkedOrgId: string,
+		@Body() dto: UpdateMspLinkedOrgDto,
+	) {
+		return this.mspLinkedOrgsService.update(mspId, linkedOrgId, dto);
+	}
+
+	@Delete(":id/linked-orgs/:linkedOrgId")
+	@HttpCode(HttpStatus.NO_CONTENT)
+	@ApiOperation({ summary: "Unlink an organization from MSP" })
+	@ApiResponse({ status: 204, description: "Unlinked" })
+	@ApiResponse({ status: 404, description: "Linked org not found" })
+	@Permissions({ action: Action.Delete, subject: "MSPLinkedOrg" })
+	async deleteLinkedOrg(
+		@Param("id") mspId: string,
+		@Param("linkedOrgId") linkedOrgId: string,
+	): Promise<void> {
+		return this.mspLinkedOrgsService.delete(mspId, linkedOrgId);
+	}
+
+	@Get(":id/linked-orgs/:linkedOrgId/agreement-signed-url")
+	@ApiOperation({ summary: "Get signed URL for addendum agreement" })
+	@ApiResponse({ status: 200, description: "Signed URL" })
+	@ApiResponse({
+		status: 404,
+		description: "Linked org or agreement not found",
+	})
+	@Permissions({ action: Action.Read, subject: "MSPLinkedOrg" })
+	async getLinkedOrgAgreementSignedUrl(
+		@Param("id") mspId: string,
+		@Param("linkedOrgId") linkedOrgId: string,
+	) {
+		const signedUrl = await this.mspLinkedOrgsService.getAgreementSignedUrl(
+			mspId,
+			linkedOrgId,
+		);
+		return { signedUrl };
+	}
+
 	private parseJsonBody(raw: string): Record<string, unknown> {
 		try {
 			return JSON.parse(raw) as Record<string, unknown>;
 		} catch {
-			throw new BadRequestException("Invalid data JSON");
+			throw new BadRequestException("Invalid data JSON.");
 		}
 	}
 }

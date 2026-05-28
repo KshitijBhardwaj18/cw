@@ -1,54 +1,52 @@
 "use client";
 
-import { getInitials } from "@repo/shared";
+import {
+	CANDIDATE_SOURCE_OPTIONS,
+	CandidateSource,
+	getInitials,
+	getLabel,
+	VENDOR_CANDIDATE_PORTAL_STATUS_OPTIONS,
+} from "@repo/shared";
 import { Avatar, AvatarFallback } from "@repo/ui/components/avatar";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { cn } from "@repo/ui/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CheckCircle2, CircleX, FileText } from "lucide-react";
+import { CheckCircle2, CircleX, FileText, MinusCircle } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
-import { VENDOR_CANDIDATE_STATUS } from "@/constants/vendor-candidates";
-import type {
-	VendorCandidateListRow,
-	VendorCandidateSource,
-} from "@/types/vendor-candidates";
+import type { VendorCandidateListRow } from "@/types/vendor-candidates";
 
 const COL = "max-w-[260px] min-w-0 px-2";
 
 function statusBadgeVariant(
 	status: VendorCandidateListRow["status"],
 ): "success" | "warning" | "inactive" {
-	if (status === VENDOR_CANDIDATE_STATUS.ACTIVE) return "success";
-	if (status === VENDOR_CANDIDATE_STATUS.ONBOARDING) return "warning";
-	return "inactive";
-}
-
-function statusLabel(status: VendorCandidateListRow["status"]): string {
-	if (status === VENDOR_CANDIDATE_STATUS.ACTIVE) return "Active";
-	if (status === VENDOR_CANDIDATE_STATUS.ONBOARDING) return "Onboarding";
-	return "Inactive";
-}
-
-function sourceLabel(source: VendorCandidateSource): string {
-	switch (source) {
-		case "DIRECT":
-			return "Direct";
-		case "PREVIOUS_WORKER":
-			return "Prev. worker";
+	switch (status) {
+		case "ACTIVE":
+			return "success";
+		case "ONBOARDING":
+			return "warning";
 		default:
-			return "Vendor";
+			return "inactive";
 	}
 }
 
+function statusLabel(status: VendorCandidateListRow["status"]): string {
+	return getLabel(VENDOR_CANDIDATE_PORTAL_STATUS_OPTIONS, status);
+}
+
+function sourceLabel(source: VendorCandidateListRow["source"]): string {
+	return getLabel(CANDIDATE_SOURCE_OPTIONS, source);
+}
+
 function sourceBadgeVariant(
-	source: VendorCandidateSource,
+	source: VendorCandidateListRow["source"],
 ): "info" | "secondary" | "outline" {
 	switch (source) {
-		case "DIRECT":
+		case CandidateSource.DIRECT:
 			return "secondary";
-		case "PREVIOUS_WORKER":
+		case CandidateSource.PREVIOUS_WORKER:
 			return "outline";
 		default:
 			return "info";
@@ -118,29 +116,30 @@ export function useVendorCandidateListColumns() {
 			{
 				id: "documents",
 				header: "Documents",
-				accessorFn: (r) => (r.documentsComplete ? 1 : 0),
+				accessorFn: (r) =>
+					r.documentsRequired && !r.documentsComplete ? 0 : 1,
 				cell: ({ row }) => {
-					const complete = row.original.documentsComplete;
+					const { documentsRequired, documentsComplete } = row.original;
+					if (!documentsRequired) {
+						return (
+							<div className="text-muted-foreground flex min-w-36 items-center gap-1.5 text-sm">
+								<MinusCircle className="size-4 shrink-0" />
+								<span>Not required</span>
+							</div>
+						);
+					}
+					if (documentsComplete) {
+						return (
+							<div className="flex min-w-36 items-center gap-1.5 text-sm text-green-700 dark:text-green-400">
+								<CheckCircle2 className="size-4 shrink-0" />
+								<span>Complete</span>
+							</div>
+						);
+					}
 					return (
-						<div
-							className={cn(
-								"flex min-w-36 items-center gap-1.5 text-sm",
-								complete
-									? "text-green-700 dark:text-green-400"
-									: "text-red-700 dark:text-red-400",
-							)}
-						>
-							{complete ? (
-								<>
-									<CheckCircle2 className="size-4 shrink-0" />
-									<span>Complete</span>
-								</>
-							) : (
-								<>
-									<CircleX className="size-4 shrink-0" />
-									<span>Incomplete</span>
-								</>
-							)}
+						<div className="flex min-w-36 items-center gap-1.5 text-sm text-red-700 dark:text-red-400">
+							<CircleX className="size-4 shrink-0" />
+							<span>Incomplete</span>
 						</div>
 					);
 				},

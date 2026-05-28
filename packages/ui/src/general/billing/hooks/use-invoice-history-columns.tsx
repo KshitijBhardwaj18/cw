@@ -1,5 +1,6 @@
 "use client";
 
+import { shortId } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -32,8 +33,11 @@ export function useInvoiceHistoryColumns({
 				header: "INVOICE ID",
 				cell: ({ row }) => (
 					<div className="flex flex-col space-y-0.5">
-						<span className="text-sm font-medium text-foreground">
-							{row.original.id}
+						<span
+							className="text-sm font-medium text-foreground"
+							title={row.original.id}
+						>
+							{shortId(row.original.id)}
 						</span>
 						<span className="text-muted-foreground text-xs font-medium">
 							{row.original.lineItems} line items

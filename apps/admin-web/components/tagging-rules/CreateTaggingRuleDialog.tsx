@@ -28,8 +28,9 @@ import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { useDialogFormEntitySnapshot } from "@/hooks/use-dialog-form-entity-snapshot";
 import {
 	useCreateTaggingRuleMutation,
 	useTaggingRulesQuestionsQuery,
@@ -97,10 +98,13 @@ export function CreateTaggingRuleDialog({
 	onOpenChange,
 	organizationId,
 	initialRule,
-}: CreateTaggingRuleDialogProps) {
+}: Readonly<CreateTaggingRuleDialogProps>) {
+	const snapshotRule =
+		useDialogFormEntitySnapshot(open, initialRule ?? null) ?? undefined;
+	const isEdit = !!snapshotRule;
+
 	const createMutation = useCreateTaggingRuleMutation(organizationId);
 	const updateMutation = useUpdateTaggingRuleMutation(organizationId);
-	const isEdit = !!initialRule;
 
 	const { data: occupations = [] } = useQuery({
 		queryKey: ["tagging-rules", "occupations", organizationId],
@@ -119,8 +123,8 @@ export function CreateTaggingRuleDialog({
 	});
 
 	const form = useForm({
-		defaultValues: initialRule
-			? ruleToFormValues(initialRule)
+		defaultValues: snapshotRule
+			? ruleToFormValues(snapshotRule)
 			: getDefaultFormValues(),
 		validators: { onSubmit: taggingRuleFormSchema },
 		onSubmitInvalid: () => {
@@ -153,13 +157,12 @@ export function CreateTaggingRuleDialog({
 			};
 			const onSaved = () => {
 				onOpenChange(false);
-				form.reset();
 			};
 
-			if (isEdit && initialRule) {
+			if (isEdit && snapshotRule) {
 				updateMutation.mutate(
 					{
-						taggingRuleId: initialRule.id,
+						taggingRuleId: snapshotRule.id,
 						payload: {
 							ruleName: payload.ruleName,
 							questionId: payload.questionId,
@@ -195,15 +198,15 @@ export function CreateTaggingRuleDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
+	const wasOpenRef = useRef(false);
 	useEffect(() => {
-		if (!open) {
-			form.reset();
-		} else if (initialRule) {
-			form.reset(ruleToFormValues(initialRule));
-		} else {
-			form.reset(getDefaultFormValues());
+		if (open && !wasOpenRef.current) {
+			form.reset(
+				snapshotRule ? ruleToFormValues(snapshotRule) : getDefaultFormValues(),
+			);
 		}
-	}, [open, initialRule, form]);
+		wasOpenRef.current = open;
+	}, [open, snapshotRule, form]);
 
 	type FormValuesSlice = {
 		sourceType: QuestionSourceType;

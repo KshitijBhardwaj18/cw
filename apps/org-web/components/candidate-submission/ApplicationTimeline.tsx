@@ -1,6 +1,5 @@
 "use client";
 
-import { formatDateOrPlaceholder } from "@repo/shared";
 import {
 	Card,
 	CardContent,
@@ -8,6 +7,7 @@ import {
 	CardTitle,
 } from "@repo/ui/components/card";
 import { CheckCircle2, Circle, Clock } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { ApplicationTimelineItem } from "@/types/submission-detail";
 
 interface ApplicationTimelineProps {
@@ -18,7 +18,8 @@ interface ApplicationTimelineProps {
 export function ApplicationTimeline({
 	heading,
 	items,
-}: ApplicationTimelineProps) {
+}: Readonly<ApplicationTimelineProps>) {
+	const { fmtDateTime } = useUserTimezone();
 	return (
 		<Card>
 			<CardHeader>
@@ -55,7 +56,7 @@ export function ApplicationTimeline({
 									{item.title}
 								</h3>
 								<p className="text-sm text-muted-foreground">
-									{formatDateOrPlaceholder(item.occurredAt)}
+									{fmtDateTime(item.occurredAt)}
 								</p>
 							</div>
 							<div className="border border-border bg-muted/50 text-foreground rounded-md p-4 text-sm">

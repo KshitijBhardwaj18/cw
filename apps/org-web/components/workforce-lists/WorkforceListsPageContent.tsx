@@ -4,7 +4,7 @@ import { Action, useAbility } from "@repo/casl";
 import { Button } from "@repo/ui/components/button";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { Plus, Users } from "lucide-react";
 import { useWorkforceListsPage } from "@/hooks/use-workforce-lists-page";
@@ -22,8 +22,12 @@ export function WorkforceListsPageContent() {
 		setCreateDialogOpen,
 		filteredLists,
 		paginatedLists,
+		totalCount,
 		currentPage,
 		setCurrentPage,
+		limit,
+		setLimit,
+		pageSizeOptions,
 		totalPages,
 		search,
 		setSearch,
@@ -42,7 +46,7 @@ export function WorkforceListsPageContent() {
 			<div className="space-y-6">
 				<ConfigPageHeader
 					title="Workforce Lists"
-					total={filteredLists.length}
+					total={totalCount}
 					itemLabel="list"
 					itemLabelPlural="lists"
 					description="Organize your workforce into custom lists for better tracking and management."
@@ -103,10 +107,16 @@ export function WorkforceListsPageContent() {
 								/>
 							))}
 						</div>
-						<ConfigPagePagination
-							page={currentPage}
-							totalPages={totalPages}
-							onPageChange={setCurrentPage}
+						<PaginationControls
+							currentPage={currentPage}
+							pageCount={totalPages}
+							goToPage={setCurrentPage}
+							limit={limit}
+							setLimit={setLimit}
+							pageSizeOptions={pageSizeOptions}
+							totalItems={totalCount}
+							itemLabel="list"
+							itemLabelPlural="lists"
 						/>
 					</>
 				)}

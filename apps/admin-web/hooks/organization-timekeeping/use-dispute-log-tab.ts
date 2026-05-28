@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useDisputeStatusCounts,
 	useDisputes,
@@ -16,6 +17,7 @@ export function useDisputeLogTab(
 ) {
 	const orgId = organizationId;
 	const { searchFromUrl } = urlState;
+	const { tz } = useUserTimezone();
 
 	const [disputePage, setDisputePage] = useState(1);
 
@@ -33,8 +35,11 @@ export function useDisputeLogTab(
 	const disputeCountsQuery = useDisputeStatusCounts(orgId);
 
 	const filteredDisputeLogs = useMemo(
-		() => (disputesQuery.data?.data ?? []).map(toDisputeLogEntry),
-		[disputesQuery.data],
+		() =>
+			(disputesQuery.data?.data ?? []).map((item) =>
+				toDisputeLogEntry(item, tz),
+			),
+		[disputesQuery.data, tz],
 	);
 
 	const disputeStatusCounts = useMemo(() => {

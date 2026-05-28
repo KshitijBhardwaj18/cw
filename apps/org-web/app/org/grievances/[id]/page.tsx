@@ -6,7 +6,7 @@ type GrievanceDetailPageProps = {
 
 export default async function GrievanceDetailPage({
 	params,
-}: GrievanceDetailPageProps) {
+}: Readonly<GrievanceDetailPageProps>) {
 	const { id } = await params;
 	return <GrievanceDetailsPageContent key={id} grievanceId={id} />;
 }

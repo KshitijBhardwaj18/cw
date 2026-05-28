@@ -1,5 +1,6 @@
 "use client";
 
+import { TimesheetEntryStatus } from "@repo/shared";
 import type { DataSourceFilter } from "@repo/ui/general/timekeeping/types";
 import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useState } from "react";
@@ -38,13 +39,13 @@ export function useTimekeepingUrlState() {
 				id: ATK_PARAMS.GROUPED_STATUS,
 				label: "Grouped Status",
 				type: "select",
-				defaultValue: "PENDING",
+				defaultValue: TimesheetEntryStatus.PENDING,
 				options: [
 					{ label: "All", value: "ALL" },
-					{ label: "Pending", value: "PENDING" },
-					{ label: "Approved", value: "APPROVED" },
-					{ label: "Disputed", value: "DISPUTED" },
-					{ label: "Rejected", value: "REJECTED" },
+					{ label: "Pending", value: TimesheetEntryStatus.PENDING },
+					{ label: "Approved", value: TimesheetEntryStatus.APPROVED },
+					{ label: "Disputed", value: TimesheetEntryStatus.DISPUTED },
+					{ label: "Rejected", value: TimesheetEntryStatus.REJECTED },
 				],
 			},
 		],

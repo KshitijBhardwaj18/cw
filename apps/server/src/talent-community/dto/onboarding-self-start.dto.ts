@@ -1,15 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsEmail, IsNotEmpty, IsString, IsUUID } from "class-validator";
+import { IsEmail, IsNotEmpty, IsString } from "class-validator";
 
 export class OnboardingSelfStartDto {
-	@ApiProperty({
-		format: "uuid",
-		description: "Organization the candidate is joining",
-	})
-	@IsUUID()
-	organizationId: string;
-
 	@ApiProperty({ description: "First name" })
 	@Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
 	@IsString()

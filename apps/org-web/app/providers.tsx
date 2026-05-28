@@ -6,7 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { ReactQueryClientProvider } from "@/lib/tanstack-query";
 
-const Providers = ({ children }: { children: React.ReactNode }) => {
+const Providers = ({ children }: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<ThemeProvider
 			attribute="class"

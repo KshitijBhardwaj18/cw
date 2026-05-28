@@ -70,7 +70,7 @@ export function ContactInformationStep({
 	onBack,
 	onContinue,
 	onValuesChange,
-}: ContactInformationStepProps) {
+}: Readonly<ContactInformationStepProps>) {
 	const { form } = useContactInformationStepForm({
 		defaultValues,
 		onContinue,

@@ -43,7 +43,7 @@ export function GrievanceTaskItem({
 	completedAtIso,
 	onCycleState,
 	canCycleState = false,
-}: GrievanceTaskItemProps) {
+}: Readonly<GrievanceTaskItemProps>) {
 	const statusControl = (
 		<span
 			className={cn(

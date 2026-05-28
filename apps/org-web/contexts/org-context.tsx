@@ -8,10 +8,10 @@ const OrgContextContext = createContext<OrgContext | null>(null);
 export function OrgContextProvider({
 	org,
 	children,
-}: {
+}: Readonly<{
 	org: OrgContext;
 	children: React.ReactNode;
-}) {
+}>) {
 	return (
 		<OrgContextContext.Provider value={org}>
 			{children}

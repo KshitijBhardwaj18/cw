@@ -6,7 +6,7 @@ type InvoiceDraftDetailPageProps = {
 
 export default async function InvoiceDraftDetailPage({
 	params,
-}: InvoiceDraftDetailPageProps) {
+}: Readonly<InvoiceDraftDetailPageProps>) {
 	const { id } = await params;
 	return <InvoiceDraftDetailPageContent draftId={id} />;
 }

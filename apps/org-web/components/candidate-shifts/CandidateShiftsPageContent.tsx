@@ -7,24 +7,22 @@ import {
 	TabsTrigger,
 } from "@repo/ui/components/tabs";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
+import { MetricCard } from "@repo/ui/general/MetricCard";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
-import { Calendar, Clock, Layers } from "lucide-react";
+import { Calendar, CheckCircle2, Clock, Layers, Send } from "lucide-react";
 import { toast } from "sonner";
 import {
 	CANDIDATE_SHIFTS_COPY,
 	CANDIDATE_SHIFTS_TABS,
 } from "@/constants/candidate/shifts";
-import { useAuth } from "@/contexts/auth.context";
 import { useCandidateShifts } from "@/hooks/candidate/use-candidate-shifts";
 import { CandidatePortalContentSkeleton } from "../candidate-placements/CandidatePortalContentSkeleton";
 import { AvailableShiftsTabContent } from "./AvailableShiftsTabContent";
 import { MyShiftCalendarTabContent } from "./MyShiftCalendarTabContent";
 import { MyShiftsTabContent } from "./MyShiftsTabContent";
-import { WorkerDetailCard } from "./WorkerDetailCard";
 
 function CandidateShiftsPageContent() {
-	const { session } = useAuth();
 	const {
 		activeTab,
 		setActiveTab,
@@ -75,13 +73,26 @@ function CandidateShiftsPageContent() {
 				itemLabelPlural="shifts"
 			/>
 
-			<WorkerDetailCard
-				name={session.user.name}
-				workerType="internal"
-				activeShiftsCount={counts?.myShifts ?? 0}
-				availableShiftsCount={counts?.available ?? 0}
-				isLoading={countsLoading}
-			/>
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+				<MetricCard
+					title="Active"
+					value={countsLoading ? "…" : String(counts?.active ?? 0)}
+					icon={Clock}
+					variant="primary"
+				/>
+				<MetricCard
+					title="Available to Claim"
+					value={countsLoading ? "…" : String(counts?.available ?? 0)}
+					icon={Send}
+					variant="info"
+				/>
+				<MetricCard
+					title="Completed"
+					value={countsLoading ? "…" : String(counts?.completed ?? 0)}
+					icon={CheckCircle2}
+					variant="success"
+				/>
+			</div>
 
 			<SearchWithFilters
 				searchPlaceholder={CANDIDATE_SHIFTS_COPY.searchPlaceholder}
@@ -155,6 +166,7 @@ function CandidateShiftsPageContent() {
 								goToPage: setAvailablePage,
 								limit: pageSize,
 								setLimit: setPageSize,
+								totalItems: availableShiftsData?.total ?? 0,
 							}}
 							onAction={handleAction}
 							isActionLoading={isClaimingShift}
@@ -168,6 +180,7 @@ function CandidateShiftsPageContent() {
 					) : (
 						<MyShiftsTabContent
 							workerType="internal"
+							isInternalWorkforce={counts?.isInternal ?? false}
 							shifts={myShifts}
 							pagination={{
 								currentPage: myShiftsPage,
@@ -175,6 +188,7 @@ function CandidateShiftsPageContent() {
 								goToPage: setMyShiftsPage,
 								limit: pageSize,
 								setLimit: setPageSize,
+								totalItems: myShiftsData?.total ?? 0,
 							}}
 						/>
 					)}

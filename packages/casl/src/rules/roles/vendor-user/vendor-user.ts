@@ -1,46 +1,55 @@
+import { UserRole } from "@repo/shared";
 import { Action } from "../../../types/actions";
 import {
 	type Can,
-	CRU_ACTIONS,
-	CRUD_ACTIONS,
-	READ_UPDATE_ACTIONS,
+	CREATE_DELETE_ACTIONS,
+	CREATE_READ_LIST_UPDATE_ACTIONS,
+	CREATE_READ_LIST_UPDATE_DELETE_ACTIONS,
+	READ_ACTIONS,
+	READ_LIST_ACTIONS,
+	READ_LIST_CREATE_ACTIONS,
+	READ_LIST_UPDATE_ACTIONS,
+	READ_LIST_UPDATE_CREATE_ACTIONS,
+	READ_LIST_UPDATE_DELETE_ACTIONS,
+	UPDATE_ACTIONS,
 } from "../../helpers";
 
-const LIST = [Action.Read, Action.List] as const;
-
 export function defineVendorUserRules(can: Can) {
-	can([...LIST], "Dashboard");
-	can(
-		[Action.Read, Action.List],
-		[
-			"Vendor",
-			"OrganizationVendor",
-			"Billing",
-			"Occupation",
-			"Specialty",
-			"ComplianceWalletTemplate",
-			"Questionnaire",
-			"Question",
-		],
-	);
+	can(READ_LIST_ACTIONS, "Dashboard");
+	can(READ_LIST_ACTIONS, [
+		"Vendor",
+		"OrganizationVendor",
+		"Billing",
+		"Occupation",
+		"Specialty",
+		"ComplianceWalletTemplate",
+		"Questionnaire",
+		"Question",
+	]);
 
-	can(CRUD_ACTIONS, "OrganizationVendor");
-	can([Action.Read, Action.List], "Member");
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, "OrganizationVendor");
+	can(READ_LIST_ACTIONS, "Member");
 
-	can(READ_UPDATE_ACTIONS, ["PerDiemShift", "Timesheet"]);
+	can(READ_LIST_UPDATE_ACTIONS, ["PerDiemShift", "Timesheet"]);
 
-	can(CRU_ACTIONS, "Note", {
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "Note", {
 		type: { not: "BILLING" },
 	});
-	can(CRUD_ACTIONS, "Document", { type: { not: "FINANCE" } });
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, "Document", {
+		type: { not: "FINANCE" },
+	});
 
-	can([Action.Read, Action.List, Action.Update, Action.Delete], "Placement");
+	can(READ_LIST_UPDATE_DELETE_ACTIONS, "Placement");
+	can(READ_ACTIONS, "User", { role: UserRole.VENDOR_USER });
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "CandidateCompliance");
+	can(Action.Manage, "CandidateSubmission");
 
-	can([Action.Read, Action.List], "Requisition");
-	can([Action.Read, Action.List, Action.Create], "Submission");
-	can([Action.Create, Action.Delete], "VendorUserSavedRequisition");
-	can([Action.Read, Action.List, Action.Create, Action.Update], "Candidate");
-	can([Action.Update], "Credentials");
-	can([Action.Read, Action.List], "OrganizationOccupation");
-	can([Action.Read, Action.List], "CandidateCompliance");
+	can(READ_LIST_ACTIONS, "Requisition");
+	can(READ_LIST_CREATE_ACTIONS, "Submission");
+	can(CREATE_DELETE_ACTIONS, "VendorUserSavedRequisition");
+	can(READ_LIST_UPDATE_CREATE_ACTIONS, "Candidate");
+	can(UPDATE_ACTIONS, "Credentials");
+	can(READ_LIST_ACTIONS, "OrganizationOccupation");
+	can(READ_LIST_ACTIONS, "OrganizationLocation");
+	can(READ_LIST_ACTIONS, "Department");
 }

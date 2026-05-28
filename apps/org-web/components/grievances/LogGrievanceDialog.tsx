@@ -1,5 +1,6 @@
 "use client";
 
+import { GrievanceType } from "@repo/shared";
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Badge } from "@repo/ui/components/badge";
 import {
@@ -35,7 +36,7 @@ import {
 import { type LogGrievanceFormValues, logGrievanceSchema } from "@/schemas";
 
 const INITIAL_VALUES: LogGrievanceFormValues = {
-	type: "CLINICAL",
+	type: GrievanceType.CLINICAL,
 	workerId: "",
 	placementId: "none",
 	description: "",
@@ -44,18 +45,16 @@ const INITIAL_VALUES: LogGrievanceFormValues = {
 export type LogGrievanceDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	orgId: string;
 };
 
 export function LogGrievanceDialog({
 	open,
 	onOpenChange,
-	orgId,
-}: LogGrievanceDialogProps) {
+}: Readonly<LogGrievanceDialogProps>) {
 	const router = useRouter();
 	const { data: logOptions, isLoading: optionsLoading } =
-		useGrievanceLogOptions(orgId, open);
-	const createMutation = useCreateGrievance(orgId);
+		useGrievanceLogOptions(open);
+	const createMutation = useCreateGrievance();
 
 	const form = useForm({
 		defaultValues: INITIAL_VALUES,
@@ -174,7 +173,7 @@ export function LogGrievanceDialog({
 													htmlFor="grievance-type-behavioral"
 													className={cn(
 														"cursor-pointer rounded-lg border p-4 transition-colors",
-														field.state.value === "BEHAVIORAL"
+														field.state.value === GrievanceType.BEHAVIORAL
 															? "border-primary ring-primary/30 ring-2"
 															: "hover:border-border/80",
 													)}
@@ -182,7 +181,7 @@ export function LogGrievanceDialog({
 													<div className="flex items-start gap-3">
 														<RadioGroupItem
 															id="grievance-type-behavioral"
-															value="BEHAVIORAL"
+															value={GrievanceType.BEHAVIORAL}
 															className="mt-1"
 														/>
 														<div className="min-w-0 flex-1 space-y-2">
@@ -203,7 +202,7 @@ export function LogGrievanceDialog({
 													htmlFor="grievance-type-clinical"
 													className={cn(
 														"cursor-pointer rounded-lg border p-4 transition-colors",
-														field.state.value === "CLINICAL"
+														field.state.value === GrievanceType.CLINICAL
 															? "border-primary ring-primary/30 ring-2"
 															: "hover:border-border/80",
 													)}
@@ -211,7 +210,7 @@ export function LogGrievanceDialog({
 													<div className="flex items-start gap-3">
 														<RadioGroupItem
 															id="grievance-type-clinical"
-															value="CLINICAL"
+															value={GrievanceType.CLINICAL}
 															className="mt-1"
 														/>
 														<div className="min-w-0 flex-1 space-y-2">

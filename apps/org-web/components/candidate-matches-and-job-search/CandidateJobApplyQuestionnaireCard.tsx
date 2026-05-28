@@ -11,7 +11,7 @@ export interface CandidateJobApplyQuestionnaireCardProps {
 
 export function CandidateJobApplyQuestionnaireCard({
 	rows,
-}: CandidateJobApplyQuestionnaireCardProps) {
+}: Readonly<CandidateJobApplyQuestionnaireCardProps>) {
 	return (
 		<CandidateJobApplySectionCard
 			icon={FileText}

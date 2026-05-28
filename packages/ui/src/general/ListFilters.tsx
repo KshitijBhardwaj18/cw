@@ -45,7 +45,7 @@ export function ListFilters({
 	typeFilter,
 	dateRangeFilter,
 	className,
-}: ListFiltersProps) {
+}: Readonly<ListFiltersProps>) {
 	const hasFilters = typeFilter ?? dateRangeFilter;
 	if (!hasFilters) return null;
 

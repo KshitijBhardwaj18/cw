@@ -5,13 +5,11 @@ import {
 	staffLogicDocumentTitleTemplate,
 	UserRole,
 } from "@repo/shared";
-import MainLayoutShell from "@repo/ui/general/MainLayoutShell";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import HeaderUserMenu from "@/components/header/HeaderUserMenu";
-import { AppSidebar } from "@/components/sidebar/AppSidebar";
+import OrgMainShellWithContext from "@/components/org-layout/OrgMainShellWithContext";
 import { AuthProvider } from "@/contexts/auth.context";
 import { authClient } from "@/lib/auth-client";
 import { OrganizationsService } from "@/services/organizations.service";
@@ -26,7 +24,9 @@ export const metadata: Metadata = {
 	},
 };
 
-export default async function OrgLayout({ children }: { children: ReactNode }) {
+export default async function OrgLayout({
+	children,
+}: Readonly<{ children: ReactNode }>) {
 	const headersList = await headers();
 
 	const session = await authClient.getSession({
@@ -39,6 +39,8 @@ export default async function OrgLayout({ children }: { children: ReactNode }) {
 		return redirect("/sign-in");
 	}
 
+	const hasOrgHost = headersList.get("x-org-slug") !== null;
+
 	if (session.data.user.role === UserRole.CANDIDATE_USER) {
 		return redirect("/dashboard");
 	}
@@ -47,8 +49,7 @@ export default async function OrgLayout({ children }: { children: ReactNode }) {
 		return redirect("/vendor/dashboard");
 	}
 
-	const orgId = headersList.get("x-org-id");
-	if (orgId && !isAdminPortalRole(session.data.user.role)) {
+	if (hasOrgHost && !isAdminPortalRole(session.data.user.role)) {
 		if (session.data.user.role === UserRole.ORGANIZATION_USER) {
 			try {
 				await OrganizationsService.getMyMembership();
@@ -62,13 +63,7 @@ export default async function OrgLayout({ children }: { children: ReactNode }) {
 
 	return (
 		<AuthProvider>
-			<MainLayoutShell
-				sidebar={<AppSidebar />}
-				title="Organization Portal"
-				headerActions={<HeaderUserMenu />}
-			>
-				{children}
-			</MainLayoutShell>
+			<OrgMainShellWithContext>{children}</OrgMainShellWithContext>
 		</AuthProvider>
 	);
 }

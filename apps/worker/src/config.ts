@@ -29,8 +29,11 @@ export const config = {
 		},
 		defaults: {
 			from: process.env.SMTP_FROM || process.env.SMTP_USER || "",
-			fromName: process.env.SMTP_FROM_NAME || "StaffLogic",
+			fromName: process.env.SMTP_FROM_NAME || "Staff Logic",
 		},
+		staffLogicLogoUrl:
+			process.env.STAFF_LOGIC_LOGO_URL ||
+			`${process.env.ADMIN_FRONTEND_URL || "http://localhost:3000"}/images/logo.png`,
 	},
 	orgPortalBaseUrl: process.env.ORG_PORTAL_BASE_URL || "http://localhost:3002",
 } as const;

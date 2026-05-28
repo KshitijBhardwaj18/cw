@@ -1,6 +1,7 @@
 "use client";
 
 import { OTPForm } from "@repo/ui/components/auth-otp-form";
+import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { Separator } from "@repo/ui/components/separator";
 import Link from "next/link";
@@ -14,11 +15,9 @@ import { PreferencesQuestionnairesStep } from "@/components/candidate-sign-up/st
 import { ProfessionalDetailsStep } from "@/components/candidate-sign-up/steps/ProfessionalDetailsStep";
 import { SubmissionReadinessStep } from "@/components/candidate-sign-up/steps/SubmissionReadinessStep";
 import { useCandidateSignUp } from "@/hooks/candidate/use-candidate-sign-up";
-import { yearsOfExperienceToProfessionalBand } from "@/schemas/candidate-sign-up.schema";
 
 export function CandidateSignUpView() {
 	const {
-		orgId,
 		isInviteMode,
 		step,
 		meData,
@@ -41,6 +40,7 @@ export function CandidateSignUpView() {
 		selfResumeKey,
 		handleStep0Continue,
 		handleStep1Back,
+		handleLogout,
 		handleStep1Continue,
 		handleStep2Back,
 		handleStep2Continue,
@@ -52,6 +52,11 @@ export function CandidateSignUpView() {
 		handleSelfSubmissionFinalize,
 		handleInviteSubmissionFinalize,
 		inviteFinalizePending,
+		questionnaires,
+		questionnaireAnswers,
+		questionnairesLoading,
+		savingScopeId,
+		handleSaveScopeAnswers,
 		handleInviteStep0Continue,
 		handleInviteContactContinue,
 		handleInviteProfessionalContinue,
@@ -66,18 +71,11 @@ export function CandidateSignUpView() {
 	const preferencesDefaultValues = useMemo(
 		() => ({
 			...step4Values,
-			preferredContractLengths: step4Values.preferredContractLengths?.length
-				? step4Values.preferredContractLengths
-				: (step2Values.preferredContractLengths ?? []),
+			preferredContractLengths: step4Values.preferredContractLengths ?? [],
 			totalProfessionalExperienceBand:
-				step4Values.totalProfessionalExperienceBand ??
-				yearsOfExperienceToProfessionalBand(step2Values.yearsOfExperience),
+				step4Values.totalProfessionalExperienceBand,
 		}),
-		[
-			step4Values,
-			step2Values.preferredContractLengths,
-			step2Values.yearsOfExperience,
-		],
+		[step4Values],
 	);
 
 	const occupationLabel = useMemo(() => meData?.occupationName ?? "", [meData]);
@@ -151,7 +149,6 @@ export function CandidateSignUpView() {
 										inviteMode
 										occupationId={meData.occupationId}
 										occupationName={meData.occupationName}
-										orgId={meData.organizationId}
 										existingResumeKey={selfResumeKey}
 										onRequestResumeSignedUrl={requestResumeSignedUrl}
 									/>
@@ -162,7 +159,6 @@ export function CandidateSignUpView() {
 										onBack={() => pushStep(2)}
 										onSubmit={handleInviteLocationSubmit}
 										onValuesChange={setStep3Values}
-										orgId={meData.organizationId}
 									/>
 								)}
 								{step === 4 && (
@@ -172,6 +168,11 @@ export function CandidateSignUpView() {
 										onBack={handlePreferencesStepBack}
 										onContinue={handlePreferencesStepContinue}
 										onValuesChange={setStep4Values}
+										questionnaires={questionnaires}
+										questionnaireAnswers={questionnaireAnswers}
+										questionnairesLoading={questionnairesLoading}
+										savingScopeId={savingScopeId}
+										onSaveScopeAnswers={handleSaveScopeAnswers}
 									/>
 								)}
 								{step === 5 && (
@@ -215,7 +216,6 @@ export function CandidateSignUpView() {
 										onBack={handleStep2Back}
 										onContinue={handleStep2Continue}
 										onValuesChange={setStep2Values}
-										orgId={orgId}
 										existingResumeKey={selfResumeKey}
 										onRequestResumeSignedUrl={requestResumeSignedUrl}
 									/>
@@ -226,7 +226,6 @@ export function CandidateSignUpView() {
 										onBack={handleStep3Back}
 										onSubmit={handleStep3Submit}
 										onValuesChange={setStep3Values}
-										orgId={orgId ?? ""}
 									/>
 								)}
 								{step === 4 && (
@@ -236,6 +235,11 @@ export function CandidateSignUpView() {
 										onBack={handlePreferencesStepBack}
 										onContinue={handlePreferencesStepContinue}
 										onValuesChange={setStep4Values}
+										questionnaires={questionnaires}
+										questionnaireAnswers={questionnaireAnswers}
+										questionnairesLoading={questionnairesLoading}
+										savingScopeId={savingScopeId}
+										onSaveScopeAnswers={handleSaveScopeAnswers}
 									/>
 								)}
 								{step === 5 && (
@@ -252,12 +256,14 @@ export function CandidateSignUpView() {
 						<div className="text-center">
 							<p className="text-muted-foreground text-sm">
 								Already have an account?{" "}
-								<Link
-									href="/sign-in"
-									className="font-medium underline underline-offset-4 hover:text-foreground"
+								<Button
+									variant="link"
+									size="sm"
+									onClick={handleLogout}
+									className="font-medium underline underline-offset-4 hover:text-foreground p-0 text-muted-foreground"
 								>
 									Sign In
-								</Link>
+								</Button>
 							</p>
 						</div>
 					</CardContent>

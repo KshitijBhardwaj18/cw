@@ -1,6 +1,17 @@
+import { RequisitionType, ShiftType } from "@repo/shared";
 import type { JobPostingPublishValues } from "@/schemas/job-posting-publish.schema";
 import type { JobPostingSubmissionValues } from "@/schemas/job-posting-submission.schema";
 import type { JobPostingFlowValues } from "@/types/job-posting-flow";
+
+/** Local-date `YYYY-MM-DD` (no UTC drift) — used as the default start/end. */
+function relativeIsoDate(days = 0, baseIso?: string): string {
+	const d = baseIso ? new Date(`${baseIso}T12:00:00`) : new Date();
+	if (days !== 0) d.setDate(d.getDate() + days);
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, "0");
+	const day = String(d.getDate()).padStart(2, "0");
+	return `${y}-${m}-${day}`;
+}
 
 /** Shown when a wizard step fails full-form (Zod) validation on submit. */
 export const JOB_POSTING_STEP_VALIDATION_TOAST =
@@ -92,7 +103,7 @@ export const JOB_POSTING_PUBLISH_MODE_OPTIONS: Array<
 
 export const DEFAULT_JOB_POSTING_VALUES: JobPostingFlowValues = {
 	typeSelection: {
-		type: "LONG_TERM_ORDER",
+		type: RequisitionType.LONG_TERM_ORDER,
 	},
 	templateSelection: {
 		templateId: "",
@@ -103,10 +114,10 @@ export const DEFAULT_JOB_POSTING_VALUES: JobPostingFlowValues = {
 		department: "",
 		unitName: "",
 		occupation: "",
-		specialty: "",
-		shiftType: "NIGHTS",
-		startDate: "",
-		endDate: "",
+		specialty: [],
+		shiftType: ShiftType.NIGHT,
+		startDate: relativeIsoDate(),
+		endDate: relativeIsoDate(),
 		lengthWeeks: 1,
 		startTime: "",
 		endTime: "",

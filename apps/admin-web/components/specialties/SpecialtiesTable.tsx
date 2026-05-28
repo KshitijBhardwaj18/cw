@@ -16,7 +16,7 @@ export function SpecialtiesTable({
 	onEdit,
 	onDelete,
 	actions,
-}: SpecialtiesTableProps) {
+}: Readonly<SpecialtiesTableProps>) {
 	const { columns } = useSpecialtyColumns({ onEdit, onDelete, actions });
 
 	return <CustomTable columns={columns} data={data} enableSorting={false} />;

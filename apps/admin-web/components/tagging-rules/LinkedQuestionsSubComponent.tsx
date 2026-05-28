@@ -35,7 +35,7 @@ export function LinkedQuestionsSubComponent({
 	rule,
 	organizationId: _organizationId,
 	onViewQuestion,
-}: LinkedQuestionsSubComponentProps) {
+}: Readonly<LinkedQuestionsSubComponentProps>) {
 	const questions = rule.taggingRuleQuestions;
 
 	return (

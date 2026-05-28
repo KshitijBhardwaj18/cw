@@ -4,7 +4,7 @@ type OrganizationWorkforcePageProps = {
 
 export default async function OrganizationWorkforcePage({
 	params,
-}: OrganizationWorkforcePageProps) {
+}: Readonly<OrganizationWorkforcePageProps>) {
 	await params;
 	return (
 		<div className="space-y-6">

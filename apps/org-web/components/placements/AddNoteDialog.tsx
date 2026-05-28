@@ -26,7 +26,7 @@ export function AddNoteDialog({
 	onOpenChange,
 	onSubmit,
 	isPending = false,
-}: AddNoteDialogProps) {
+}: Readonly<AddNoteDialogProps>) {
 	const form = useForm({
 		defaultValues: {
 			text: "",

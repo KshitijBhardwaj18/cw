@@ -40,34 +40,40 @@ import {
 	FileText,
 	Flag,
 	Shield,
-	Star,
 	User,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { PriorityFactorsCard } from "@/components/candidate-shared/PriorityFactorsCard";
 import { JobOfferAdjustmentDialog } from "@/components/jobs/job-details/JobOfferAdjustmentDialog";
+import {
+	ScheduleInterviewDialog,
+	type ScheduleInterviewValues,
+} from "@/components/submissions/ScheduleInterviewDialog";
 import type { SubmissionStageKey } from "@/constants/submissions";
 import { SUBMISSION_STAGE_SELECT_OPTIONS } from "@/constants/submissions";
-import { useOrgContext } from "@/contexts/org-context";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useOrgSubmissionDetail,
 	useUpdateOrgSubmissionStage,
 } from "@/queries/submissions.queries";
+import { SubmissionsService } from "@/services/submissions.service";
 import {
 	formatBillRateDisplay,
 	formatHoursPerWeek,
-	formatIsoDateOnly,
 	formatScheduleFromTimes,
 	formatShiftTypeHuman,
-	formatSubmissionDetailDate,
 } from "@/utils/submission-detail-format";
 
 interface SubmissionDetailPageContentProps {
 	submissionId: string;
 }
 
-function UppercaseField({ label, value }: { label: string; value: string }) {
+function UppercaseField({
+	label,
+	value,
+}: Readonly<{ label: string; value: string }>) {
 	return (
 		<div className="space-y-1">
 			<p className="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
@@ -80,21 +86,23 @@ function UppercaseField({ label, value }: { label: string; value: string }) {
 
 export function SubmissionDetailPageContent({
 	submissionId,
-}: SubmissionDetailPageContentProps) {
-	const { id: orgId } = useOrgContext();
+}: Readonly<SubmissionDetailPageContentProps>) {
+	const { fmtShortDate, fmtDateTimeZone } = useUserTimezone();
 	const ability = useAbility();
 	const {
 		data: detail,
 		isLoading,
 		isError,
 		error,
-	} = useOrgSubmissionDetail(orgId, submissionId);
+	} = useOrgSubmissionDetail(submissionId);
 
-	const updateStage = useUpdateOrgSubmissionStage(orgId);
+	const updateStage = useUpdateOrgSubmissionStage();
 
 	const [hiringStage, setHiringStage] =
 		useState<SubmissionStageKey>("SUBMITTED");
 	const [offerDialogOpen, setOfferDialogOpen] = useState(false);
+	const [scheduleInterviewDialogOpen, setScheduleInterviewDialogOpen] =
+		useState(false);
 
 	useEffect(() => {
 		if (detail) {
@@ -151,6 +159,34 @@ export function SubmissionDetailPageContent({
 		[submissionId, updateStage],
 	);
 
+	const handleScheduleInterviewConfirm = useCallback(
+		(values: ScheduleInterviewValues) => {
+			updateStage.mutate(
+				{
+					submissionId,
+					stage: "INTERVIEW_SCHEDULED",
+					interviewDate: values.interviewDate,
+					interviewLocation: values.interviewLocation,
+					interviewNotes: values.interviewNotes,
+				},
+				{
+					onSuccess: () => {
+						toast.success("Interview scheduled");
+						setScheduleInterviewDialogOpen(false);
+					},
+					onError: (err) => {
+						toast.error(
+							err instanceof Error
+								? err.message
+								: "Failed to schedule interview",
+						);
+					},
+				},
+			);
+		},
+		[submissionId, updateStage],
+	);
+
 	const errMsg =
 		error instanceof Error ? error.message : "Could not load submission.";
 
@@ -195,6 +231,10 @@ export function SubmissionDetailPageContent({
 		if (stageUnchanged) return;
 		if (hiringStage === "OFFERED") {
 			setOfferDialogOpen(true);
+			return;
+		}
+		if (hiringStage === "INTERVIEW_SCHEDULED") {
+			setScheduleInterviewDialogOpen(true);
 			return;
 		}
 		updateStage.mutate(
@@ -244,7 +284,7 @@ export function SubmissionDetailPageContent({
 							<div className="text-left sm:text-right">
 								<p className="text-muted-foreground text-xs">Submitted on</p>
 								<p className="text-sm font-medium">
-									{formatSubmissionDetailDate(detail.submittedAt)}
+									{fmtShortDate(detail.submittedAt)}
 								</p>
 							</div>
 						</CardContent>
@@ -333,11 +373,11 @@ export function SubmissionDetailPageContent({
 						<CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<UppercaseField
 								label="Start date"
-								value={formatIsoDateOnly(detail.employment.startDate)}
+								value={fmtShortDate(detail.employment.startDate)}
 							/>
 							<UppercaseField
 								label="End date"
-								value={formatIsoDateOnly(detail.employment.endDate)}
+								value={fmtShortDate(detail.employment.endDate)}
 							/>
 							<UppercaseField label="Bill rate" value={billDisplay} />
 							<UppercaseField label="Overtime rate" value={otDisplay} />
@@ -495,11 +535,11 @@ export function SubmissionDetailPageContent({
 											<span className="font-medium text-foreground">
 												Start:{" "}
 											</span>
-											{formatSubmissionDetailDate(rto.start)}
+											{fmtShortDate(rto.start)}
 										</span>
 										<span>
 											<span className="font-medium text-foreground">End: </span>
-											{formatSubmissionDetailDate(rto.end)}
+											{fmtShortDate(rto.end)}
 										</span>
 									</div>
 								</div>
@@ -508,29 +548,7 @@ export function SubmissionDetailPageContent({
 					</CardContent>
 				</Card>
 
-				{detail.priorityFactors.length > 0 ? (
-					<Card>
-						<CardHeader>
-							<div className="flex items-center gap-2">
-								<Star className="text-primary size-4" />
-								<CardTitle className="text-base">Priority factors</CardTitle>
-							</div>
-						</CardHeader>
-						<CardContent>
-							<div className="flex flex-wrap gap-2">
-								{detail.priorityFactors.map((tag) => (
-									<Badge
-										key={tag}
-										variant="secondary"
-										className="border-sky-200 bg-sky-50 px-3 py-1 text-sky-900 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100"
-									>
-										{tag}
-									</Badge>
-								))}
-							</div>
-						</CardContent>
-					</Card>
-				) : null}
+				<PriorityFactorsCard tags={detail.priorityFactors} />
 
 				{showCompliance ? (
 					<Card>
@@ -561,7 +579,7 @@ export function SubmissionDetailPageContent({
 									<ul className="space-y-3">
 										{detail.compliance.items.map((item) => (
 											<li
-												key={item.title}
+												key={item.complianceListItemId}
 												className="bg-muted/50 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-3 sm:flex-nowrap"
 											>
 												<div className="bg-primary flex size-6 shrink-0 items-center justify-center rounded-md">
@@ -580,17 +598,31 @@ export function SubmissionDetailPageContent({
 														size="sm"
 														variant="default"
 														className="gap-1"
-														onClick={() => {
-															if (item.documentUrl) {
+														disabled={!item.hasDocument}
+														onClick={async () => {
+															if (!item.hasDocument) {
+																toast.message("View document", {
+																	description: `${item.title} has no file uploaded yet.`,
+																});
+																return;
+															}
+															try {
+																const { signedUrl } =
+																	await SubmissionsService.getComplianceDocumentSignedUrl(
+																		submissionId,
+																		item.complianceListItemId,
+																	);
 																window.open(
-																	item.documentUrl,
+																	signedUrl,
 																	"_blank",
 																	"noopener,noreferrer",
 																);
-															} else {
-																toast.message("View document", {
-																	description: `${item.title} has no file URL yet.`,
-																});
+															} catch (err) {
+																toast.error(
+																	err instanceof Error
+																		? err.message
+																		: "Failed to load document",
+																);
 															}
 														}}
 													>
@@ -602,11 +634,29 @@ export function SubmissionDetailPageContent({
 														size="sm"
 														variant="outline"
 														className="gap-1 border-primary text-primary"
-														onClick={() =>
-															toast.message("Download", {
-																description: `${item.title} (download when document storage is wired).`,
-															})
-														}
+														disabled={!item.hasDocument}
+														onClick={async () => {
+															if (!item.hasDocument) {
+																toast.message("Download", {
+																	description: `${item.title} has no file uploaded yet.`,
+																});
+																return;
+															}
+															try {
+																const { signedUrl } =
+																	await SubmissionsService.getComplianceDocumentSignedUrl(
+																		submissionId,
+																		item.complianceListItemId,
+																	);
+																window.location.assign(signedUrl);
+															} catch (err) {
+																toast.error(
+																	err instanceof Error
+																		? err.message
+																		: "Failed to download document",
+																);
+															}
+														}}
 													>
 														<Download className="size-4" />
 														Download
@@ -615,6 +665,38 @@ export function SubmissionDetailPageContent({
 											</li>
 										))}
 									</ul>
+								</div>
+							) : null}
+						</CardContent>
+					</Card>
+				) : null}
+
+				{detail.interview.scheduledAt ? (
+					<Card>
+						<CardHeader>
+							<div className="flex items-center gap-2">
+								<Calendar className="text-primary size-4" />
+								<CardTitle className="text-base">Interview scheduled</CardTitle>
+							</div>
+						</CardHeader>
+						<CardContent className="space-y-2">
+							<p className="text-sm font-medium">
+								{fmtDateTimeZone(detail.interview.scheduledAt)}
+							</p>
+							{detail.interview.location ? (
+								<DetailItem
+									label="Location"
+									value={detail.interview.location}
+								/>
+							) : null}
+							{detail.interview.notes ? (
+								<div>
+									<p className="text-muted-foreground text-xs font-medium">
+										Notes
+									</p>
+									<p className="whitespace-pre-wrap text-sm">
+										{detail.interview.notes}
+									</p>
 								</div>
 							) : null}
 						</CardContent>
@@ -648,6 +730,17 @@ export function SubmissionDetailPageContent({
 					if (!open) setOfferDialogOpen(false);
 				}}
 				onConfirm={handleOfferConfirm}
+			/>
+
+			<ScheduleInterviewDialog
+				open={scheduleInterviewDialogOpen}
+				candidateName={detail.candidateName}
+				jobTitle={detail.jobTitle}
+				isPending={updateStage.isPending}
+				onOpenChange={(open) => {
+					if (!open) setScheduleInterviewDialogOpen(false);
+				}}
+				onSubmit={handleScheduleInterviewConfirm}
 			/>
 		</>
 	);

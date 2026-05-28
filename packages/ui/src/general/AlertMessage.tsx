@@ -6,7 +6,7 @@ interface AlertMessageProps {
 	variant?: "default" | "destructive" | "info" | "success";
 }
 
-const AlertMessage = ({ message, variant }: AlertMessageProps) => {
+const AlertMessage = ({ message, variant }: Readonly<AlertMessageProps>) => {
 	const variants = {
 		default: {
 			className: "text-yellow-800 border-yellow-500/10 bg-yellow-500/10",

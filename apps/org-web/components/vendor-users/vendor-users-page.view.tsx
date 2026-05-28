@@ -8,6 +8,7 @@ import {
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { CustomAlertDialog } from "@repo/ui/general/CustomAlertDialog";
 import { CustomTable } from "@repo/ui/general/CustomTable";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import {
 	SearchWithFilters,
 	type SearchWithFiltersFilterConfig,
@@ -55,7 +56,7 @@ export type VendorUsersPageViewProps = {
 	handleConfirmDelete: () => void;
 };
 
-export function VendorUsersPageView(props: VendorUsersPageViewProps) {
+export function VendorUsersPageView(props: Readonly<VendorUsersPageViewProps>) {
 	const {
 		search,
 		setSearch,
@@ -160,20 +161,30 @@ export function VendorUsersPageView(props: VendorUsersPageViewProps) {
 						icon={Users}
 					/>
 				) : (
-					<CustomTable
-						data={rows}
-						columns={columns}
-						enableSorting
-						enablePagination
-						paginationMode="server"
-						pageSize={pageSize}
-						totalCount={totalFiltered}
-						currentPage={currentPage}
-						onPaginationChange={handlePaginationChange}
-						isLoading={isUsersLoading}
-						loadingLabel="Loading Users..."
-						emptyState={null}
-					/>
+					<>
+						<CustomTable
+							data={rows}
+							columns={columns}
+							enableSorting
+							enablePagination={false}
+							isLoading={isUsersLoading}
+							loadingLabel="Loading Users..."
+							emptyState={null}
+						/>
+						<PaginationControls
+							currentPage={currentPage}
+							pageCount={Math.max(1, Math.ceil(totalFiltered / pageSize))}
+							goToPage={(nextPage) =>
+								handlePaginationChange(nextPage, pageSize)
+							}
+							limit={pageSize}
+							setLimit={(nextLimit) => handlePaginationChange(1, nextLimit)}
+							pageSizeOptions={[5, 10, 20, 50]}
+							totalItems={totalFiltered}
+							itemLabel="user"
+							itemLabelPlural="users"
+						/>
+					</>
 				)}
 			</div>
 
@@ -196,7 +207,7 @@ export function VendorUsersPageView(props: VendorUsersPageViewProps) {
 				title="Remove user?"
 				description={
 					userToDelete
-						? `Are you sure you want to remove ${userToDelete.fullName} (${userToDelete.email})? This action cannot be undone.`
+						? `Are you sure you want to remove ${`${userToDelete.firstName} ${userToDelete.lastName}`.trim()} (${userToDelete.email})? This action cannot be undone.`
 						: ""
 				}
 				cancelText="Cancel"

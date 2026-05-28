@@ -23,7 +23,7 @@ type OrganizationDepartmentsPageContentProps = {
 
 export function OrganizationDepartmentsPageContent({
 	organizationId,
-}: OrganizationDepartmentsPageContentProps) {
+}: Readonly<OrganizationDepartmentsPageContentProps>) {
 	const { page, setPage } = usePaginationControls({
 		pageParamKey: DEPT_PARAMS.PAGE,
 		defaultLimit: PAGE_SIZE,

@@ -11,7 +11,7 @@ interface DocumentsStepFooterProps {
 export function DocumentsStepFooter({
 	onBack,
 	onNext,
-}: DocumentsStepFooterProps) {
+}: Readonly<DocumentsStepFooterProps>) {
 	const router = useRouter();
 
 	return (

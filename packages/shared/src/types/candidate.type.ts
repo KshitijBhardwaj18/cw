@@ -9,7 +9,13 @@ export type CandidateTalentType = Prisma.CandidateGetPayload<{
 				specialty: { select: { id: true; name: true; acronym: true } };
 			};
 		};
+		candidateTags: {
+			include: {
+				tag: { select: { id: true; name: true } };
+			};
+		};
 		vendor: { select: { id: true; name: true } };
+		placements: { select: { status: true } };
 	};
 }>;
 

@@ -3,7 +3,7 @@ import {
 	ComplianceChecklistItemPhase,
 	InterviewType,
 	MemberRole,
-	RequisitionStatus,
+	RequisitionTemplateStatus,
 	RequisitionType,
 	ShiftType,
 	WorkflowType,
@@ -11,9 +11,9 @@ import {
 import { Transform, Type } from "class-transformer";
 import {
 	ArrayMaxSize,
+	ArrayUnique,
 	IsArray,
 	IsBoolean,
-	IsDateString,
 	IsEnum,
 	IsInt,
 	IsNumber,
@@ -51,10 +51,21 @@ export class CreateRequisitionTemplateDto {
 	@IsUUID()
 	occupationId: string;
 
-	@ApiPropertyOptional()
+	@ApiPropertyOptional({
+		type: [String],
+		description:
+			"Specialty ids (organizationSpecialty.id). Optional; empty array or omit when no specialties apply.",
+	})
 	@IsOptional()
+	@IsArray()
+	@ArrayUnique()
+	@ArrayMaxSize(50)
+	@IsUUID("all", { each: true })
+	specialtyIds?: string[];
+
+	@ApiProperty()
 	@IsUUID()
-	specialtyId?: string;
+	locationId: string;
 
 	@ApiProperty()
 	@IsUUID()
@@ -80,18 +91,9 @@ export class CreateRequisitionTemplateDto {
 	@IsString({ each: true })
 	benefitsPerks?: string[];
 
-	@ApiProperty({ enum: [RequisitionStatus.ACTIVE, RequisitionStatus.DRAFT] })
-	@IsEnum(RequisitionStatus)
-	status: RequisitionStatus;
-
-	@ApiProperty()
-	@IsDateString()
-	startDate: string;
-
-	@ApiPropertyOptional()
-	@IsOptional()
-	@IsDateString()
-	endDate?: string;
+	@ApiProperty({ enum: RequisitionTemplateStatus })
+	@IsEnum(RequisitionTemplateStatus)
+	status: RequisitionTemplateStatus;
 
 	@ApiProperty()
 	@Type(() => Number)

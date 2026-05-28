@@ -3,13 +3,14 @@
 import { formatCurrency } from "@repo/shared";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { SpendAnalyticsRow } from "@/services/billing.service";
-import { fmtShortDate } from "@/utils/format";
 
 const NUM = "px-2 text-right tabular-nums";
 const TEXT = "min-w-0 max-w-[14rem] px-2 truncate";
 
 export function useSpendAnalyticsListColumns() {
+	const { fmtShortDate } = useUserTimezone();
 	return useMemo<ColumnDef<SpendAnalyticsRow>[]>(
 		() => [
 			{
@@ -84,6 +85,6 @@ export function useSpendAnalyticsListColumns() {
 				),
 			},
 		],
-		[],
+		[fmtShortDate],
 	);
 }

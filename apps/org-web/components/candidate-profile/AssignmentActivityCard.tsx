@@ -7,7 +7,13 @@ import {
 	CardTitle,
 } from "@repo/ui/components/card";
 import { ActionBar } from "@repo/ui/general/ActionBar";
-import { Building2, Calendar, FileText, History } from "lucide-react";
+import {
+	CalendarCheck,
+	CalendarClock,
+	CalendarMinus,
+	FileText,
+} from "lucide-react";
+import { candidatePlacementsListPath } from "@/utils/candidate-portal-routes";
 
 const ACTIVITY_LINKS = [
 	{
@@ -16,19 +22,19 @@ const ACTIVITY_LINKS = [
 		href: "/submissions",
 	},
 	{
-		label: "Current Assignment",
-		icon: Calendar,
-		href: "/placements",
+		label: "Active Placements",
+		icon: CalendarCheck,
+		href: candidatePlacementsListPath("active"),
 	},
 	{
-		label: "Past Assignments",
-		icon: Building2,
-		href: "/placements",
+		label: "Upcoming Placements",
+		icon: CalendarClock,
+		href: candidatePlacementsListPath("upcoming"),
 	},
 	{
-		label: "Timecard History",
-		icon: History,
-		href: "/shifts",
+		label: "Past Placements",
+		icon: CalendarMinus,
+		href: candidatePlacementsListPath("past"),
 	},
 ] as const;
 

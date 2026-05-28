@@ -15,7 +15,7 @@ export function QuestionDeleteDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: QuestionDeleteDialogProps) {
+}: Readonly<QuestionDeleteDialogProps>) {
 	const preview = question
 		? `${question.questionText.slice(0, 60)}${question.questionText.length > 60 ? "..." : ""}`
 		: "";

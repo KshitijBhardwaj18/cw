@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate, formatUsdPerHour } from "@repo/shared";
+import { formatUsdPerHour } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
@@ -19,12 +19,13 @@ import {
 	Calendar,
 	Clock,
 	DollarSign,
-	Globe,
 	MapPin,
 	MoreHorizontal,
+	Pencil,
 	User,
 	X,
 } from "lucide-react";
+import Link from "next/link";
 import type { Shift } from "@/constants/shifts";
 import {
 	SHIFT_TYPE_CLASS,
@@ -32,6 +33,7 @@ import {
 	STATUS_BADGE_CLASS,
 	STATUS_LABEL,
 } from "@/constants/shifts";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 interface ShiftCardProps {
 	shift: Shift;
@@ -47,7 +49,8 @@ export function ShiftCard({
 	onCancelShift,
 	showActionsMenu = true,
 	showBottomDetails = true,
-}: ShiftCardProps) {
+}: Readonly<ShiftCardProps>) {
+	const { fmtCalendarDate, fmtDateTime } = useUserTimezone();
 	const statusClass = STATUS_BADGE_CLASS[shift.status];
 	const statusLabel = STATUS_LABEL[shift.status];
 	const shiftTypeClass = SHIFT_TYPE_CLASS[shift.shiftType];
@@ -60,12 +63,6 @@ export function ShiftCard({
 					<div className="flex flex-wrap items-center gap-2">
 						<h3 className="font-semibold text-base">{shift.title}</h3>
 						<Badge className={statusClass}>{statusLabel}</Badge>
-						{shift.isPublic && (
-							<Badge className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400">
-								<Globe className="size-3" />
-								Public
-							</Badge>
-						)}
 						{shift.hasConflict && (
 							<Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
 								<AlertTriangle className="size-3" />
@@ -93,6 +90,14 @@ export function ShiftCard({
 								>
 									View Details
 								</DropdownMenuItem>
+								{shift.status === "OPEN" && !shift.claimedBy && (
+									<DropdownMenuItem className="cursor-pointer" asChild>
+										<Link href={`/org/shifts/${shift.id}/edit`}>
+											<Pencil className="size-4" />
+											Edit Shift
+										</Link>
+									</DropdownMenuItem>
+								)}
 								{shift.status !== "COMPLETED" &&
 									shift.status !== "CANCELLED" && (
 										<>
@@ -114,7 +119,7 @@ export function ShiftCard({
 				<div className="mt-2 flex flex-wrap items-center gap-3 text-muted-foreground text-sm">
 					<span className="flex items-center gap-1">
 						<Calendar className="size-3.5" />
-						{formatDate(shift.date, "EEE, MMM d")}
+						{fmtCalendarDate(shift.date)}
 					</span>
 					<span className="flex items-center gap-1">
 						<Clock className="size-3.5" />
@@ -161,7 +166,9 @@ export function ShiftCard({
 							{shift.claimedBy ?? "Not claimed"}
 						</p>
 						{shift.claimedAt && (
-							<p className="text-muted-foreground text-xs">{shift.claimedAt}</p>
+							<p className="text-muted-foreground text-xs">
+								{fmtDateTime(shift.claimedAt)}
+							</p>
 						)}
 					</div>
 				</div>

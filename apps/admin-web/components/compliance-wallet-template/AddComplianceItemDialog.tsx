@@ -28,7 +28,7 @@ import {
 } from "@/constants/compliance";
 import {
 	useComplianceItemsByIds,
-	useComplianceItemsPaginated,
+	useWalletTemplatePickerItems,
 } from "@/queries/compliance.query";
 
 const PAGE_SIZE = 10;
@@ -52,7 +52,7 @@ export function AddComplianceItemDialog({
 	onOpenChange,
 	currentItemIds,
 	onAddItems,
-}: AddComplianceItemDialogProps) {
+}: Readonly<AddComplianceItemDialogProps>) {
 	const [selectedItems, setSelectedItems] = useState<
 		Map<string, ComplianceResponseType>
 	>(new Map());
@@ -71,11 +71,14 @@ export function AddComplianceItemDialog({
 		[setSearchBase],
 	);
 
-	const { data: paginated, isPending } = useComplianceItemsPaginated(
+	const searchTerm = debouncedSearch.trim() || undefined;
+	const hasActiveSearch = Boolean(searchTerm);
+
+	const { data: paginated, isPending } = useWalletTemplatePickerItems(
 		page,
 		PAGE_SIZE,
-		debouncedSearch,
-		{ enabled: open, status: "ACTIVE" },
+		searchTerm,
+		{ enabled: open },
 	);
 
 	const { data: itemsByIds } = useComplianceItemsByIds(currentItemIds, {
@@ -83,11 +86,10 @@ export function AddComplianceItemDialog({
 	});
 
 	useEffect(() => {
-		if (open) {
-			setSelectedItems(new Map());
-			setSearchBase("");
-			setPage(1);
-		}
+		if (!open) return;
+		setSelectedItems(new Map());
+		setSearchBase("");
+		setPage(1);
 	}, [open, setSearchBase]);
 
 	const currentIdsSet = new Set(currentItemIds);
@@ -95,7 +97,9 @@ export function AddComplianceItemDialog({
 		(item) => item.status === ComplianceListItemStatus.INACTIVE,
 	);
 	const activeItems: ComplianceResponseType[] = paginated?.data ?? [];
-	const items: ComplianceResponseType[] = [...inactiveInWallet, ...activeItems];
+	const items: ComplianceResponseType[] = hasActiveSearch
+		? activeItems
+		: [...inactiveInWallet, ...activeItems];
 	const totalPages = paginated?.totalPages ?? 0;
 
 	const isInactive = (item: ComplianceResponseType) =>
@@ -213,7 +217,9 @@ export function AddComplianceItemDialog({
 							onRowClick={handleRowClick}
 							emptyState={
 								<p className="text-muted-foreground py-8 text-center text-sm">
-									No compliance items found.
+									{hasActiveSearch
+										? "No compliance items match your search."
+										: "No compliance items found."}
 								</p>
 							}
 						/>

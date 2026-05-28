@@ -1,17 +1,24 @@
 "use client";
 
-import { getLabel } from "@repo/shared";
+import { enumToTitleText, getLabel } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
 import type { ColumnDef, Row } from "@tanstack/react-table";
 import { ChevronDown, ChevronRight, Edit, Trash2 } from "lucide-react";
 import { useMemo } from "react";
-import { CONDITION_OPTIONS } from "@/schemas/tagging-rule.schema";
+import {
+	CATEGORY_OPTIONS,
+	CONDITION_OPTIONS,
+} from "@/schemas/tagging-rule.schema";
 import type { TaggingRuleWithDetails } from "@/services/tagging-rules.service";
 
 function getConditionLabel(value: string): string {
 	return getLabel(CONDITION_OPTIONS, value) ?? value;
+}
+
+function getCategoryLabel(value: string): string {
+	return getLabel(CATEGORY_OPTIONS, value) ?? (enumToTitleText(value) || value);
 }
 
 function getQuestionSource(row: TaggingRuleWithDetails): {
@@ -54,7 +61,9 @@ export function useTaggingRuleColumns({
 				header: "Rule Name",
 				cell: ({ row }) => (
 					<div className="space-y-0.5">
-						<div className="font-medium">{row.original.category}</div>
+						<div className="font-medium">
+							{getCategoryLabel(row.original.category)}
+						</div>
 						<div className="text-muted-foreground text-sm">
 							{row.original.ruleName}
 						</div>
@@ -191,7 +200,9 @@ export function useTaggingRuleColumns({
 						{
 							id: "actions",
 							header: "Actions",
-							cell: ({ row }: { row: Row<TaggingRuleWithDetails> }) => (
+							cell: ({
+								row,
+							}: Readonly<{ row: Row<TaggingRuleWithDetails> }>) => (
 								<div className="flex items-center gap-2">
 									{onEdit && (
 										<Button

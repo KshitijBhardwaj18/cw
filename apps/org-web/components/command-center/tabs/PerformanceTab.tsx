@@ -9,7 +9,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import {
 	PERFORMANCE_DATE_RANGE_OPTIONS,
 	PERFORMANCE_METRIC_TYPE_LABELS,
@@ -39,10 +39,15 @@ export const PerformanceTab = () => {
 		applyCustomDateRange,
 		summaryStats,
 		groupedMetrics,
+		lastRefreshedAt,
 		showCustomDateInputs,
 		isLoading,
 		isError,
 	} = usePerformanceMetrics();
+
+	const lastRefreshedLabel = lastRefreshedAt
+		? `Last refreshed ${formatDistanceToNow(new Date(lastRefreshedAt), { addSuffix: true })}`
+		: "Awaiting first refresh";
 
 	const todayYmd = todayYmdLocal();
 	const hasRangeOrderError = Boolean(
@@ -78,6 +83,9 @@ export const PerformanceTab = () => {
 					<h3 className="text-xl font-semibold">Performance Metrics</h3>
 					<p className="text-muted-foreground text-sm">
 						Track key performance indicators against organizational goals
+					</p>
+					<p className="text-muted-foreground text-xs">
+						Refreshes every 24 hours · {lastRefreshedLabel}
 					</p>
 				</div>
 

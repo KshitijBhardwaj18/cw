@@ -15,7 +15,7 @@ export function OccupationTransferButtons({
 	onMoveToAvailable,
 	canMoveToSelected,
 	canMoveToAvailable,
-}: OccupationTransferButtonsProps) {
+}: Readonly<OccupationTransferButtonsProps>) {
 	return (
 		<div className="flex flex-col items-center justify-center gap-2 pt-16">
 			<Button

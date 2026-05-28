@@ -20,7 +20,9 @@ export async function generateMetadata({
 	};
 }
 
-export default async function TimecardDetailPage({ params }: PageProps) {
+export default async function TimecardDetailPage({
+	params,
+}: Readonly<PageProps>) {
 	const { placementId, timecardId } = await params;
 
 	return (

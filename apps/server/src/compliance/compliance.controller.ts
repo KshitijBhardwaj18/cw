@@ -99,6 +99,25 @@ export class ComplianceController {
 		});
 	}
 
+	@Get("wallet-template-picker")
+	@ApiOperation({
+		summary:
+			"Active compliance items selectable for a candidate document wallet template (INTERNAL_TASK items are excluded server-side)",
+	})
+	@Permissions({ action: Action.List, subject: "ComplianceListItem" })
+	async getWalletTemplatePickerItems(
+		@Query() query: PaginatedComplianceQueryDto,
+	) {
+		return this.complianceService.getWalletTemplatePickerItems({
+			category: query.category,
+			search: query.search,
+			ids: query.ids,
+			all: query.all,
+			page: query.page,
+			limit: query.limit,
+		});
+	}
+
 	@Post()
 	@UseInterceptors(
 		FileFieldsInterceptor(COMPLIANCE_FILE_FIELDS, {
@@ -216,7 +235,7 @@ export class ComplianceController {
 		try {
 			return JSON.parse(raw) as Record<string, unknown>;
 		} catch {
-			throw new BadRequestException("Invalid data JSON");
+			throw new BadRequestException("Invalid data JSON.");
 		}
 	}
 }

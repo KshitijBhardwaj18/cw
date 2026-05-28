@@ -1,5 +1,6 @@
 "use client";
 
+import { enumToTitleText, shortId } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -19,8 +20,11 @@ export const useRequisitionPerformanceColumns = ({
 				accessorKey: "requisitionId",
 				header: "Requisition ID",
 				cell: ({ row }) => (
-					<span className="text-primary font-medium">
-						{row.original.requisitionId}
+					<span
+						className="text-primary font-medium"
+						title={row.original.requisitionId}
+					>
+						{shortId(row.original.requisitionId)}
 					</span>
 				),
 			},
@@ -64,6 +68,8 @@ export const useRequisitionPerformanceColumns = ({
 			{
 				accessorKey: "status",
 				header: "Status",
+				cell: ({ row }) =>
+					row.original.status ? enumToTitleText(row.original.status) : "—",
 			},
 			{
 				id: "actions",

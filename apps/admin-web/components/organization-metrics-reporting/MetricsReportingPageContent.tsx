@@ -22,7 +22,7 @@ type MetricsReportingPageContentProps = {
 
 function MetricsReportingPageContent({
 	organizationId,
-}: MetricsReportingPageContentProps) {
+}: Readonly<MetricsReportingPageContentProps>) {
 	const [tab, setTab] = useTabSwitch(["kpis", "aging-rules"], {
 		alsoClearParamKeys: [METRICS_REPORTING_PARAMS.SEARCH],
 	});
@@ -63,7 +63,7 @@ function MetricsReportingPageContent({
 				</TabsContent>
 
 				<TabsContent value="aging-rules" className="mt-0">
-					<AgingRulesTabContent />
+					<AgingRulesTabContent organizationId={organizationId} />
 				</TabsContent>
 			</Tabs>
 		</div>

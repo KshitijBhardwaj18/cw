@@ -19,7 +19,6 @@ interface LocationPreferencesStepProps {
 	onBack: () => void;
 	onSubmit: (values: LocationPreferencesFormValues) => void;
 	onValuesChange?: (values: LocationPreferencesFormValues) => void;
-	orgId: string;
 }
 
 export function LocationPreferencesStep({
@@ -27,8 +26,7 @@ export function LocationPreferencesStep({
 	onBack,
 	onSubmit,
 	onValuesChange,
-	orgId,
-}: LocationPreferencesStepProps) {
+}: Readonly<LocationPreferencesStepProps>) {
 	const {
 		form,
 		locations,
@@ -42,7 +40,6 @@ export function LocationPreferencesStep({
 		defaultValues,
 		onSubmit,
 		onValuesChange,
-		orgId,
 	});
 
 	const submissionAttempts = useStore(

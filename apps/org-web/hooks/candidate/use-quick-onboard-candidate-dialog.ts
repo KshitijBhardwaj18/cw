@@ -1,25 +1,23 @@
 "use client";
 
-import { CandidateWorkforceType } from "@repo/shared";
+import { VendorCandidateWorkforceType } from "@repo/shared";
 import { useForm, useStore } from "@tanstack/react-form";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import {
-	useOrgOccupations,
-	useSpecialtiesForOccupation,
-} from "@/queries/talent-community.queries";
+	useOrgOccupationSpecialties,
+	useShiftTemplateOccupations,
+} from "@/queries/shift-templates.queries";
 import { useInviteVendorCandidate } from "@/queries/vendor-candidates.queries";
 import { quickOnboardCandidateSchema } from "@/schemas/vendor-quick-onboard.schema";
 
 export function useQuickOnboardCandidateDialog({
 	onOpenChange,
-	orgId,
 }: {
 	onOpenChange: (open: boolean) => void;
-	orgId: string;
 }) {
-	const { data: occupationsData, isLoading: isLoadingOccupations } =
-		useOrgOccupations(orgId);
+	const { data: orgOccupations, isLoading: isLoadingOccupations } =
+		useShiftTemplateOccupations();
 	const inviteMutation = useInviteVendorCandidate();
 
 	const form = useForm({
@@ -28,7 +26,7 @@ export function useQuickOnboardCandidateDialog({
 			lastName: "",
 			occupationId: "",
 			specialtyId: "",
-			workforceType: CandidateWorkforceType.INTERNAL_FULL_TIME,
+			workforceType: VendorCandidateWorkforceType.EXTERNAL_1099,
 			email: "",
 			phoneNumber: "",
 		},
@@ -70,11 +68,28 @@ export function useQuickOnboardCandidateDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
-	const { data: specialtiesData, isLoading: isLoadingSpecialties } =
-		useSpecialtiesForOccupation(orgId, selectedOccupationId);
+	const occupationItems = useMemo(
+		() =>
+			(orgOccupations ?? []).map((o) => ({
+				occupationId: o.id,
+				occupation: { name: o.name },
+			})),
+		[orgOccupations],
+	);
 
-	const occupationItems = occupationsData?.data ?? [];
-	const specialties = specialtiesData ?? [];
+	const organizationOccupationId = useMemo(
+		() =>
+			(orgOccupations ?? []).find((o) => o.id === selectedOccupationId)
+				?.organizationOccupationId ?? null,
+		[orgOccupations, selectedOccupationId],
+	);
+	const { data: specialtyRows, isLoading: isLoadingSpecialties } =
+		useOrgOccupationSpecialties(organizationOccupationId);
+	const specialties = useMemo(
+		() =>
+			(specialtyRows ?? []).map((s) => ({ id: s.specialtyId, name: s.name })),
+		[specialtyRows],
+	);
 
 	const handleOpenChange = useCallback(
 		(next: boolean) => {

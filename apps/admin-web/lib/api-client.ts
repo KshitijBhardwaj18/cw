@@ -49,7 +49,7 @@ export class ApiClient {
 			const serverHeaders = await ApiClient.getServerSideHeaders();
 
 			const client = axios.create({
-				baseURL: envConfig.apiUrl,
+				baseURL: typeof window === "undefined" ? envConfig.apiUrl : "",
 				withCredentials: config.withCredentials ?? true,
 				headers: {
 					[AUTH_PORTAL_HEADER]: AUTH_PORTAL_ADMIN,
@@ -110,8 +110,6 @@ export class ApiClient {
 	}
 
 	static sse(path: string): EventSource {
-		return new EventSource(`${envConfig.apiUrl}${path}`, {
-			withCredentials: true,
-		});
+		return new EventSource(path, { withCredentials: true });
 	}
 }

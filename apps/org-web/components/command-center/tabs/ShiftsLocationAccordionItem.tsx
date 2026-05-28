@@ -22,7 +22,7 @@ export const ShiftsLocationAccordionItem = ({
 	shifts,
 	onViewDetails,
 	onCancelShift,
-}: ShiftsLocationAccordionItemProps) => {
+}: Readonly<ShiftsLocationAccordionItemProps>) => {
 	const filledCount = shifts.filter((shift) => shift.claimedBy != null).length;
 	const openCount = shifts.filter((shift) => shift.status === "OPEN").length;
 	const inProgressCount = shifts.filter(

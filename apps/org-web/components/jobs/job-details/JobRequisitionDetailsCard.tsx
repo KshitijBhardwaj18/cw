@@ -9,18 +9,16 @@ import {
 import { DetailItem } from "@repo/ui/components/detail-item";
 import type { ReactNode } from "react";
 
-const cardSectionTitleClassName =
-	"text-muted-foreground text-sm font-semibold tracking-wide uppercase";
 const detailItemLabelClassName =
 	"text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 
 function DetailBlock({
 	children,
 	className = "",
-}: {
+}: Readonly<{
 	children: ReactNode;
 	className?: string;
-}) {
+}>) {
 	return (
 		<div
 			className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 ${className}`}
@@ -60,13 +58,11 @@ export function JobRequisitionDetailsCard({
 	hoursPerWeek,
 	schedule,
 	interviewRequired,
-}: JobRequisitionDetailsCardProps) {
+}: Readonly<JobRequisitionDetailsCardProps>) {
 	return (
 		<Card>
-			<CardHeader>
-				<CardTitle className={cardSectionTitleClassName}>
-					Requisition details
-				</CardTitle>
+			<CardHeader className="border-b">
+				<CardTitle className="text-xl">Requisition details</CardTitle>
 			</CardHeader>
 			<CardContent className="space-y-0 divide-y px-0 pb-0">
 				<div className="px-6 pt-0 pb-4">

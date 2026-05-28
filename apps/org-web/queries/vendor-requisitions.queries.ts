@@ -30,6 +30,23 @@ export const vendorRequisitionsKeys = {
 			requisitionId,
 			params,
 		] as const,
+	submittableCandidates: (
+		requisitionId: string,
+		params: { page?: number; limit?: number; search?: string },
+	) =>
+		[
+			...vendorRequisitionsKeys.all,
+			"submittable-candidates",
+			requisitionId,
+			params,
+		] as const,
+	candidateCompliance: (requisitionId: string, candidateId: string) =>
+		[
+			...vendorRequisitionsKeys.all,
+			"candidate-compliance",
+			requisitionId,
+			candidateId,
+		] as const,
 };
 
 export function useVendorRequisitionsList(params: {
@@ -38,6 +55,7 @@ export function useVendorRequisitionsList(params: {
 	search?: string;
 	specialtyId?: string;
 	locationId?: string;
+	savedOnly?: boolean;
 }) {
 	return useQuery({
 		queryKey: vendorRequisitionsKeys.list(params),
@@ -67,6 +85,51 @@ export function useVendorRequisitionCandidates(
 		queryFn: () =>
 			VendorRequisitionsService.listCandidates(requisitionId as string, params),
 		enabled: (options?.enabled ?? true) && Boolean(requisitionId),
+	});
+}
+
+export function useVendorSubmittableCandidates(
+	requisitionId: string | null,
+	params: { page?: number; limit?: number; search?: string },
+	options?: { enabled?: boolean },
+) {
+	return useQuery({
+		queryKey: vendorRequisitionsKeys.submittableCandidates(
+			requisitionId ?? "",
+			params,
+		),
+		queryFn: () =>
+			VendorRequisitionsService.listSubmittableCandidates(
+				requisitionId as string,
+				params,
+			),
+		enabled: (options?.enabled ?? true) && Boolean(requisitionId),
+		staleTime: 30_000,
+		refetchOnMount: "always",
+	});
+}
+
+export function useVendorCandidateAcceptanceCriteriaStatus(
+	requisitionId: string | null,
+	candidateId: string | null,
+	options?: { enabled?: boolean },
+) {
+	return useQuery({
+		queryKey: vendorRequisitionsKeys.candidateCompliance(
+			requisitionId ?? "",
+			candidateId ?? "",
+		),
+		queryFn: () =>
+			VendorRequisitionsService.getCandidateAcceptanceCriteriaStatus(
+				requisitionId as string,
+				candidateId as string,
+			),
+		enabled:
+			(options?.enabled ?? true) &&
+			Boolean(requisitionId) &&
+			Boolean(candidateId),
+		staleTime: 30_000,
+		refetchOnMount: "always",
 	});
 }
 

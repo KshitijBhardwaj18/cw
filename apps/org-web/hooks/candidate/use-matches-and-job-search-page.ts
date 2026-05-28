@@ -2,28 +2,57 @@
 
 import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import {
 	buildContractTypeOptions,
 	buildLocationOptions,
 	buildShiftTypeOptions,
 	buildSpecialtyOptions,
-	CANDIDATE_JOB_SEARCH_PAGE_SIZE,
+	CANDIDATE_JOB_SEARCH_DEFAULT_LIMIT,
+	CANDIDATE_JOB_SEARCH_PAGE_SIZE_OPTIONS,
+	CANDIDATE_MATCHES_SHIFT_TYPE_ORDER,
+	CANDIDATE_MATCHES_TABS,
+	type CandidateMatchesTab,
 	CONTRACT_TYPE_LABELS,
-	SHIFT_TYPE_LABELS,
 	CANDIDATE_MATCHES_URL_KEYS as U,
 } from "@/constants/candidate/matches-and-job-search";
 import { useCandidateMatches } from "@/queries/candidate-matches.queries";
+import { useCandidateOccupationSpecialties } from "@/queries/candidate-org-occupations.queries";
 import { useOrganizationLocationsForOnboarding } from "@/queries/organizations.queries";
-import { useSpecialtiesForOccupation } from "@/queries/talent-community.queries";
 import { useCandidateOrganizationId } from "./use-candidate-organization-id";
 
 export function useMatchesAndJobSearchPage() {
 	const { organizationId, occupationId } = useCandidateOrganizationId();
+	const router = useRouter();
+	const searchParams = useSearchParams();
+	const rawTab = searchParams.get(U.tab);
+	const tab: CandidateMatchesTab = CANDIDATE_MATCHES_TABS.includes(
+		rawTab as CandidateMatchesTab,
+	)
+		? (rawTab as CandidateMatchesTab)
+		: "all";
 
-	const { page, setPage } = usePaginationControls({
+	const setTab = useCallback(
+		(next: CandidateMatchesTab) => {
+			const params = new URLSearchParams(searchParams.toString());
+			if (next === "all") {
+				params.delete(U.tab);
+			} else {
+				params.set(U.tab, next);
+			}
+			params.delete(U.page);
+			const qs = params.toString();
+			router.replace(qs ? `?${qs}` : "?");
+		},
+		[router, searchParams],
+	);
+
+	const { page, limit, setPage, setLimit } = usePaginationControls({
 		pageParamKey: U.page,
-		defaultLimit: CANDIDATE_JOB_SEARCH_PAGE_SIZE,
+		limitParamKey: U.limit,
+		defaultLimit: CANDIDATE_JOB_SEARCH_DEFAULT_LIMIT,
+		pageSizeOptions: CANDIDATE_JOB_SEARCH_PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -68,32 +97,49 @@ export function useMatchesAndJobSearchPage() {
 	const shiftType = values[U.shiftType] || "all";
 	const contractType = values[U.contractType] || "all";
 
-	const [filtersExpanded, setFiltersExpanded] = useState(true);
+	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-	const locationsQuery = useOrganizationLocationsForOnboarding(
-		organizationId ?? undefined,
-	);
-	const specialtiesQuery = useSpecialtiesForOccupation(
-		organizationId ?? "",
-		occupationId,
-	);
+	const locationsQuery = useOrganizationLocationsForOnboarding();
+
+	const specialtiesQuery = useCandidateOccupationSpecialties(occupationId, {
+		enabled: Boolean(organizationId),
+	});
 
 	const queryParams = useMemo(
 		() => ({
 			page,
-			limit: CANDIDATE_JOB_SEARCH_PAGE_SIZE,
+			limit,
 			search: searchFromUrl.trim() || undefined,
 			specialtyId: specialtyId !== "all" ? specialtyId : undefined,
 			locationId: locationId !== "all" ? locationId : undefined,
 			shiftType: shiftType !== "all" ? shiftType : undefined,
 			contractType: contractType !== "all" ? contractType : undefined,
+			savedOnly: tab === "saved" ? true : undefined,
 		}),
-		[page, searchFromUrl, specialtyId, locationId, shiftType, contractType],
+		[
+			page,
+			limit,
+			searchFromUrl,
+			specialtyId,
+			locationId,
+			shiftType,
+			contractType,
+			tab,
+		],
 	);
 
 	const matchesQuery = useCandidateMatches(queryParams, {
 		enabled: Boolean(organizationId),
 	});
+
+	const savedCountQuery = useCandidateMatches(
+		{ savedOnly: true, page: 1, limit: 1 },
+		{ enabled: Boolean(organizationId) },
+	);
+	const allCountQuery = useCandidateMatches(
+		{ page: 1, limit: 1 },
+		{ enabled: Boolean(organizationId) },
+	);
 
 	const handleSpecialtyChange = useCallback(
 		(v: string) => {
@@ -125,8 +171,11 @@ export function useMatchesAndJobSearchPage() {
 
 	const filterConfigs = useMemo(() => {
 		const locations = locationsQuery.data?.data ?? [];
-		const specialties = specialtiesQuery.data ?? [];
-		const shiftTypeOptions = Object.keys(SHIFT_TYPE_LABELS);
+		const specialties = (specialtiesQuery.data ?? []).map((s) => ({
+			id: s.specialtyId,
+			name: s.name,
+		}));
+		const shiftTypeOptions = [...CANDIDATE_MATCHES_SHIFT_TYPE_ORDER];
 		const contractTypeOptions = Object.keys(CONTRACT_TYPE_LABELS);
 
 		return [
@@ -203,9 +252,16 @@ export function useMatchesAndJobSearchPage() {
 		setFiltersExpanded,
 		page,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions: CANDIDATE_JOB_SEARCH_PAGE_SIZE_OPTIONS,
+		tab,
+		setTab,
 		totalPages: matchesQuery.data?.totalPages ?? 1,
 		paginatedJobs: matchesQuery.data?.items ?? [],
 		totalFiltered: matchesQuery.data?.total ?? 0,
+		allCount: allCountQuery.data?.total ?? 0,
+		savedCount: savedCountQuery.data?.total ?? 0,
 		filterConfigs,
 		isLoading: matchesQuery.isPending,
 		isError: matchesQuery.isError,

@@ -15,19 +15,24 @@ import { useDebouncedValue } from "@tanstack/react-pacer";
 import { AlertCircle, CheckCircle2, Loader2, PenLine } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PriorityFactorsCard } from "@/components/candidate-shared/PriorityFactorsCard";
 import {
 	usePatchVendorCandidateJobBoardProfile,
 	useVendorCandidateJobBoardProfile,
 } from "@/queries/vendor-candidates.queries";
-import { useVendorSubmitCandidateSubmission } from "@/queries/vendor-requisitions.queries";
 import {
+	useVendorRequisitionDetail,
+	useVendorSubmitCandidateSubmission,
+} from "@/queries/vendor-requisitions.queries";
+import {
+	candidateProfileSchema,
 	type ReviewSubmitFormValues,
 	reviewSubmitSchema,
 } from "@/schemas/vendor-jobs-board.schema";
 import type { Candidate, Requisition } from "@/types/vendor-jobs-board";
+import { mapDetailToRequisition } from "@/utils/vendor-job-board-mapper";
 import {
 	mapJobBoardProfileToReviewFormValues,
-	mergeJobBoardProfileIntoCandidate,
 	reviewFormValuesToPatchBody,
 	type VendorCandidateJobBoardProfile,
 } from "@/utils/vendor-job-board-profile";
@@ -35,6 +40,7 @@ import { BasicInfoSection } from "./review-submit-sections/BasicInfoSection";
 import { QuestionnaireSection } from "./review-submit-sections/QuestionnaireSection";
 import { RtoSection } from "./review-submit-sections/RtoSection";
 import { SubmissionSection } from "./review-submit-sections/SubmissionSection";
+import { VendorComplianceSection } from "./review-submit-sections/VendorComplianceSection";
 
 const PREVIEW_DEBOUNCE_MS = 400;
 
@@ -70,15 +76,17 @@ export function ReviewSubmitDialog({
 	open,
 	onOpenChange,
 	onBack,
-}: ReviewSubmitDialogProps) {
+}: Readonly<ReviewSubmitDialogProps>) {
 	const savedProfileQuery = useVendorCandidateJobBoardProfile(
 		candidate?.id ?? null,
 		{
 			enabled: open && !!candidate?.id,
 		},
 	);
+	const requisitionId = requisition?.id ?? null;
+	const detailQuery = useVendorRequisitionDetail(requisitionId);
 
-	if (!requisition || !candidate) return null;
+	if (!requisition || !candidate || !requisitionId) return null;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -107,9 +115,12 @@ export function ReviewSubmitDialog({
 					</div>
 				)}
 
-				{savedProfileQuery.data && (
+				{savedProfileQuery.data && detailQuery.data && (
 					<ReviewSubmitFormLoaded
 						requisition={requisition}
+						requirements={
+							mapDetailToRequisition(detailQuery.data).requirements || []
+						}
 						candidate={candidate}
 						savedProfile={savedProfileQuery.data}
 						open={open}
@@ -124,20 +135,23 @@ export function ReviewSubmitDialog({
 
 function ReviewSubmitFormLoaded({
 	requisition,
+	requirements,
 	candidate,
 	savedProfile,
 	open,
 	onOpenChange,
 	onBack,
-}: {
+}: Readonly<{
 	requisition: Requisition;
+	requirements: string[];
 	candidate: Candidate;
 	savedProfile: VendorCandidateJobBoardProfile;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onBack: () => void;
-}) {
+}>) {
 	const [isEditing, setIsEditing] = useState(false);
+	const [complianceApproved, setComplianceApproved] = useState(false);
 	const submitMutation = useVendorSubmitCandidateSubmission();
 	const patchProfileMutation = usePatchVendorCandidateJobBoardProfile();
 
@@ -145,6 +159,7 @@ function ReviewSubmitFormLoaded({
 		defaultValues: mapJobBoardProfileToReviewFormValues(savedProfile, {
 			email: candidate.email,
 			phone: candidate.phone,
+			requirements,
 		}),
 		validators: {
 			onMount: reviewSubmitSchema,
@@ -220,11 +235,6 @@ function ReviewSubmitFormLoaded({
 		form.setFieldValue("questionnaire", merged);
 	}, [previewProfileQuery.data, isEditing, form]);
 
-	const displayCandidate = mergeJobBoardProfileIntoCandidate(
-		candidate,
-		savedProfile,
-	);
-
 	const handleAdjustOrDone = () => {
 		if (!isEditing) {
 			setIsEditing(true);
@@ -232,7 +242,7 @@ function ReviewSubmitFormLoaded({
 		}
 
 		const value = form.state.values as ReviewSubmitFormValues;
-		const parsed = reviewSubmitSchema.safeParse(value);
+		const parsed = candidateProfileSchema.safeParse(value);
 		if (!parsed.success) {
 			toast.error("Fix validation errors before saving");
 			return;
@@ -249,8 +259,10 @@ function ReviewSubmitFormLoaded({
 						mapJobBoardProfileToReviewFormValues(updated, {
 							email: candidate.email,
 							phone: candidate.phone,
+							requirements,
 						}),
 					);
+					void form.validateAllFields("submit");
 					setIsEditing(false);
 					toast.success("Candidate information updated");
 				},
@@ -329,6 +341,7 @@ function ReviewSubmitFormLoaded({
 					occupationDisplayName={savedProfile.occupationName}
 					specialtiesDisplayLabel={savedProfile.specialtiesLabel}
 				/>
+				<PriorityFactorsCard tags={candidate.tags} variant="inline" />
 				{questionnaireUpdating && (
 					<p className="text-muted-foreground text-xs flex items-center gap-2">
 						<Loader2 className="size-3.5 animate-spin shrink-0" />
@@ -337,7 +350,12 @@ function ReviewSubmitFormLoaded({
 				)}
 				<QuestionnaireSection form={form} isEditing={isEditing} />
 				<RtoSection form={form} isEditing={isEditing} />
-				<SubmissionSection form={form} candidate={displayCandidate} />
+				<VendorComplianceSection
+					requisitionId={requisition.id}
+					candidateId={candidate.id}
+					onAllApprovedChange={setComplianceApproved}
+				/>
+				<SubmissionSection form={form} />
 			</form>
 
 			<DialogFooter className="pt-4 border-t gap-3">
@@ -359,7 +377,10 @@ function ReviewSubmitFormLoaded({
 								<Button
 									type="button"
 									disabled={
-										isSubmitting || submitMutation.isPending || !canSubmit
+										isSubmitting ||
+										submitMutation.isPending ||
+										!canSubmit ||
+										!complianceApproved
 									}
 									onClick={() => void form.handleSubmit()}
 								>
@@ -375,6 +396,11 @@ function ReviewSubmitFormLoaded({
 										</>
 									)}
 								</Button>
+								{!complianceApproved && (
+									<p className="text-muted-foreground text-xs">
+										Approve all compliance items to submit
+									</p>
+								)}
 							</div>
 						)}
 					</form.Subscribe>

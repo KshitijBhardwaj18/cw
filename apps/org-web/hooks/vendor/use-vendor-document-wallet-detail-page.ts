@@ -4,7 +4,10 @@ import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { DOCUMENT_WALLET_LIST_PAGE_SIZE } from "@/constants/document-wallet";
+import {
+	DOCUMENT_WALLET_DEFAULT_LIMIT,
+	DOCUMENT_WALLET_PAGE_SIZE_OPTIONS,
+} from "@/constants/document-wallet";
 import {
 	useVendorCandidateDocumentSignedUrl,
 	useVendorCandidateDocumentWalletItems,
@@ -15,14 +18,17 @@ import type { CandidateDocumentWalletItem } from "@/types/candidate-document-wal
 
 export const DWD_PARAMS = {
 	PAGE: "dwdPage",
+	LIMIT: "dwdLimit",
 	SEARCH: "dwdSearch",
 	CATEGORY: "dwdCategory",
 } as const;
 
 export function useVendorDocumentWalletDetailPage(candidateId: string) {
-	const { page, setPage } = usePaginationControls({
+	const { page, limit, setPage, setLimit } = usePaginationControls({
 		pageParamKey: DWD_PARAMS.PAGE,
-		defaultLimit: DOCUMENT_WALLET_LIST_PAGE_SIZE,
+		limitParamKey: DWD_PARAMS.LIMIT,
+		defaultLimit: DOCUMENT_WALLET_DEFAULT_LIMIT,
+		pageSizeOptions: DOCUMENT_WALLET_PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -59,7 +65,7 @@ export function useVendorDocumentWalletDetailPage(candidateId: string) {
 	const summaryQuery = useVendorCandidateDocumentWalletSummary(candidateId);
 	const itemsQuery = useVendorCandidateDocumentWalletItems(candidateId, {
 		page,
-		limit: DOCUMENT_WALLET_LIST_PAGE_SIZE,
+		limit,
 		search: searchFromUrl.trim() || undefined,
 		categoryKey,
 	});
@@ -87,31 +93,45 @@ export function useVendorDocumentWalletDetailPage(candidateId: string) {
 		[signedUrlMutation],
 	);
 
-	const runComplianceReview = useCallback(
-		(item: CandidateDocumentWalletItem, status: "APPROVED" | "PENDING") => {
-			const apiStatus = status === "APPROVED" ? "APPROVED" : "MISSING";
+	const approveCompliance = useCallback(
+		(item: CandidateDocumentWalletItem) => {
 			setReviewActionItemId(item.complianceListItemId);
 			updateStatusMutation.mutate(
 				{
 					complianceListItemId: item.complianceListItemId,
-					body: { status: apiStatus },
+					body: { status: "APPROVED" },
 				},
 				{
-					onSuccess: () => {
-						toast.success(
-							status === "APPROVED"
-								? "Document approved."
-								: "Document sent back. The candidate can upload a new file.",
-						);
-					},
-					onError: (e) => {
+					onSuccess: () => toast.success("Document approved."),
+					onError: (e) =>
 						toast.error(
 							e instanceof Error ? e.message : "Could not update status.",
-						);
-					},
-					onSettled: () => {
-						setReviewActionItemId(null);
-					},
+						),
+					onSettled: () => setReviewActionItemId(null),
+				},
+			);
+		},
+		[updateStatusMutation],
+	);
+
+	const rejectCompliance = useCallback(
+		(item: CandidateDocumentWalletItem, reason: string) => {
+			setReviewActionItemId(item.complianceListItemId);
+			updateStatusMutation.mutate(
+				{
+					complianceListItemId: item.complianceListItemId,
+					body: { status: "REJECTED", notes: reason },
+				},
+				{
+					onSuccess: () =>
+						toast.success(
+							"Document rejected. The candidate can re-upload after addressing the reason.",
+						),
+					onError: (e) =>
+						toast.error(
+							e instanceof Error ? e.message : "Could not update status.",
+						),
+					onSettled: () => setReviewActionItemId(null),
 				},
 			);
 		},
@@ -121,6 +141,9 @@ export function useVendorDocumentWalletDetailPage(candidateId: string) {
 	return {
 		page,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions: DOCUMENT_WALLET_PAGE_SIZE_OPTIONS,
 		search: localSearch,
 		setSearch: handleSearchChange,
 		categoryKey,
@@ -128,7 +151,9 @@ export function useVendorDocumentWalletDetailPage(candidateId: string) {
 		summaryQuery,
 		itemsQuery,
 		openDocument,
-		runComplianceReview,
+		approveCompliance,
+		rejectCompliance,
+		isReviewSubmitting: updateStatusMutation.isPending,
 		reviewActionItemId,
 	};
 }

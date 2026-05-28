@@ -7,7 +7,9 @@ type TimekeepingContextValue = ReturnType<typeof useTimekeeping>;
 
 const TimekeepingContext = createContext<TimekeepingContextValue | null>(null);
 
-export function TimekeepingProvider({ children }: { children: ReactNode }) {
+export function TimekeepingProvider({
+	children,
+}: Readonly<{ children: ReactNode }>) {
 	const value = useTimekeeping();
 	return (
 		<TimekeepingContext.Provider value={value}>

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SubmissionStageKey } from "@/constants/submissions";
+import { requisitionsKeys } from "@/queries/requisitions.queries";
 import type {
 	OrgSubmissionsAgingStatsParams,
 	OrgSubmissionsListParams,
@@ -8,29 +9,18 @@ import { SubmissionsService } from "@/services/submissions.service";
 
 export const submissionsKeys = {
 	all: ["submissions"] as const,
-	statsRoot: (orgId: string) =>
-		[...submissionsKeys.all, "org", orgId, "stats"] as const,
-	statsStages: (orgId: string) =>
-		[...submissionsKeys.statsRoot(orgId), "stages"] as const,
-	statsAging: (orgId: string, params: Record<string, string | undefined>) =>
-		[...submissionsKeys.statsRoot(orgId), "aging", params] as const,
-	listsRoot: (orgId: string) =>
-		[...submissionsKeys.all, "org", orgId, "list"] as const,
-	list: (
-		orgId: string,
-		params: Record<string, string | number | boolean | undefined>,
-	) => [...submissionsKeys.listsRoot(orgId), params] as const,
+	statsRoot: () => [...submissionsKeys.all, "org", "stats"] as const,
+	statsStages: () => [...submissionsKeys.statsRoot(), "stages"] as const,
+	statsAging: (params: Record<string, string | undefined>) =>
+		[...submissionsKeys.statsRoot(), "aging", params] as const,
+	listsRoot: () => [...submissionsKeys.all, "org", "list"] as const,
+	list: (params: Record<string, string | number | boolean | undefined>) =>
+		[...submissionsKeys.listsRoot(), params] as const,
 	/** Per-stage totals for a single requisition (tab badges on job details). */
-	jobStageCounts: (orgId: string, requisitionId: string) =>
-		[
-			...submissionsKeys.all,
-			"org",
-			orgId,
-			"job-stage-counts",
-			requisitionId,
-		] as const,
-	detail: (orgId: string, submissionId: string) =>
-		[...submissionsKeys.all, "detail", orgId, submissionId] as const,
+	jobStageCounts: (requisitionId: string) =>
+		[...submissionsKeys.all, "org", "job-stage-counts", requisitionId] as const,
+	detail: (submissionId: string) =>
+		[...submissionsKeys.all, "detail", submissionId] as const,
 };
 
 function listParamsRecord(
@@ -66,71 +56,62 @@ function agingStatsParamsRecord(
 }
 
 export function useJobSubmissionStageCounts(
-	orgId: string | undefined,
 	requisitionId: string | null,
 	options?: { enabled?: boolean },
 ) {
 	return useQuery({
-		queryKey: submissionsKeys.jobStageCounts(orgId ?? "", requisitionId ?? ""),
+		queryKey: submissionsKeys.jobStageCounts(requisitionId ?? ""),
 		queryFn: () =>
 			SubmissionsService.getRequisitionStageCounts(requisitionId as string),
-		enabled: (options?.enabled ?? true) && !!orgId && !!requisitionId,
+		enabled: (options?.enabled ?? true) && !!requisitionId,
 		refetchOnMount: "always",
 	});
 }
 
 export function useOrgSubmissionsList(
-	orgId: string | undefined,
 	params: OrgSubmissionsListParams,
 	options?: { enabled?: boolean },
 ) {
 	return useQuery({
-		queryKey: submissionsKeys.list(orgId ?? "", listParamsRecord(params)),
+		queryKey: submissionsKeys.list(listParamsRecord(params)),
 		queryFn: () => SubmissionsService.list(params),
-		enabled: !!orgId && (options?.enabled ?? true),
+		enabled: options?.enabled ?? true,
 		refetchOnMount: "always",
 	});
 }
 
-export function useOrgSubmissionStageCounts(
-	orgId: string | undefined,
-	options?: { enabled?: boolean },
-) {
+export function useOrgSubmissionStageCounts(options?: { enabled?: boolean }) {
 	return useQuery({
-		queryKey: submissionsKeys.statsStages(orgId ?? ""),
+		queryKey: submissionsKeys.statsStages(),
 		queryFn: () => SubmissionsService.getStageStats(),
-		enabled: !!orgId && (options?.enabled ?? true),
+		enabled: options?.enabled ?? true,
 		refetchOnMount: "always",
 	});
 }
 
 export function useOrgSubmissionAgingCounts(
-	orgId: string | undefined,
 	params: OrgSubmissionsAgingStatsParams,
 	options?: { enabled?: boolean },
 ) {
 	const keyParams = agingStatsParamsRecord(params);
 	return useQuery({
-		queryKey: submissionsKeys.statsAging(orgId ?? "", keyParams),
+		queryKey: submissionsKeys.statsAging(keyParams),
 		queryFn: () => SubmissionsService.getAgingStats(params),
-		enabled: !!orgId && (options?.enabled ?? true),
+		enabled: options?.enabled ?? true,
 		refetchOnMount: "always",
 	});
 }
 
-export function useOrgSubmissionDetail(
-	orgId: string | undefined,
-	submissionId: string,
-) {
+export function useOrgSubmissionDetail(submissionId: string) {
 	return useQuery({
-		queryKey: submissionsKeys.detail(orgId ?? "", submissionId),
+		queryKey: submissionsKeys.detail(submissionId),
 		queryFn: () => SubmissionsService.get(submissionId),
-		enabled: !!orgId && !!submissionId,
+		enabled: !!submissionId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useUpdateOrgSubmissionStage(orgId: string | undefined) {
+export function useUpdateOrgSubmissionStage() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -139,32 +120,43 @@ export function useUpdateOrgSubmissionStage(orgId: string | undefined) {
 			startDate,
 			endDate,
 			billRate,
+			interviewDate,
+			interviewLocation,
+			interviewNotes,
 		}: {
 			submissionId: string;
 			stage: SubmissionStageKey;
 			startDate?: string;
 			endDate?: string;
 			billRate?: number;
+			interviewDate?: string;
+			interviewLocation?: string;
+			interviewNotes?: string;
 		}) =>
 			SubmissionsService.updateStage(submissionId, {
 				stage,
 				startDate,
 				endDate,
 				billRate,
+				interviewDate,
+				interviewLocation,
+				interviewNotes,
 			}),
 		onSuccess: (_data, variables) => {
-			if (!orgId) return;
 			void queryClient.invalidateQueries({
-				queryKey: submissionsKeys.detail(orgId, variables.submissionId),
+				queryKey: submissionsKeys.detail(variables.submissionId),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: submissionsKeys.listsRoot(orgId),
+				queryKey: submissionsKeys.listsRoot(),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: [...submissionsKeys.all, "org", orgId, "job-stage-counts"],
+				queryKey: [...submissionsKeys.all, "org", "job-stage-counts"],
 			});
 			void queryClient.invalidateQueries({
-				queryKey: submissionsKeys.statsRoot(orgId),
+				queryKey: submissionsKeys.statsRoot(),
+			});
+			void queryClient.invalidateQueries({
+				queryKey: requisitionsKeys.all,
 			});
 			// OFFERED creates a placement; ACCEPTED activates it — invalidate placements list
 			if (variables.stage === "OFFERED" || variables.stage === "ACCEPTED") {

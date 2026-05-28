@@ -18,7 +18,7 @@ type WorkforceListDetailsPageContentProps = {
 
 export function WorkforceListDetailsPageContent({
 	listId,
-}: WorkforceListDetailsPageContentProps) {
+}: Readonly<WorkforceListDetailsPageContentProps>) {
 	const {
 		search,
 		setSearch,

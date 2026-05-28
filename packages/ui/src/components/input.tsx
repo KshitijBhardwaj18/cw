@@ -1,7 +1,11 @@
 import { cn } from "@repo/ui/lib/utils";
 import type * as React from "react";
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+function Input({
+	className,
+	type,
+	...props
+}: Readonly<React.ComponentProps<"input">>) {
 	return (
 		<input
 			type={type}

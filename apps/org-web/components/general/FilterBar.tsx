@@ -37,14 +37,14 @@ export function FilterBar({
 	values,
 	onChange,
 	className,
-}: FilterBarProps) {
+}: Readonly<FilterBarProps>) {
 	const [expanded, setExpanded] = useState(false);
 
 	const primaryFields = fields.filter((f) => f.primary);
 	const secondaryFields = fields.filter((f) => !f.primary);
 	const hasSecondary = secondaryFields.length > 0;
 
-	const renderField = (field: FilterFieldConfig) => {
+	const renderField = (field: Readonly<FilterFieldConfig>) => {
 		if (field.type === "date") {
 			return (
 				<div key={field.key} className="flex flex-col gap-1.5">

@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	title: "Spend Analytics",
 };
 
-const SpendAnalyticsLayout = ({ children }: { children: React.ReactNode }) => {
+const SpendAnalyticsLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.List, subject: "SpendAnalytics" }]}

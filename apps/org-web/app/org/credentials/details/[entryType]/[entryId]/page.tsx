@@ -7,7 +7,7 @@ type CredentialEntryDetailsPageProps = {
 
 export default async function CredentialEntryDetailsPage({
 	params,
-}: CredentialEntryDetailsPageProps) {
+}: Readonly<CredentialEntryDetailsPageProps>) {
 	const { entryType, entryId } = await params;
 
 	const safeEntryType: CredentialEntryDetailType =

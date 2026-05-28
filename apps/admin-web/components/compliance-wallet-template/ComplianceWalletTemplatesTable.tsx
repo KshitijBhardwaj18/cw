@@ -18,7 +18,7 @@ export function ComplianceWalletTemplatesTable({
 	canUpdate,
 	canDelete,
 	onDelete,
-}: ComplianceWalletTemplatesTableProps) {
+}: Readonly<ComplianceWalletTemplatesTableProps>) {
 	const { columns } = useComplianceWalletTemplateColumns({
 		organizationId,
 		canUpdate,

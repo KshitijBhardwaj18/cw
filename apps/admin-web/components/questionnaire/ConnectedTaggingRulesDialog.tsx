@@ -26,7 +26,7 @@ interface ConnectedTaggingRulesDialogProps {
 export function ConnectedTaggingRulesDialog({
 	question,
 	onOpenChange,
-}: ConnectedTaggingRulesDialogProps) {
+}: Readonly<ConnectedTaggingRulesDialogProps>) {
 	if (!question) return null;
 
 	return (

@@ -9,7 +9,10 @@ interface AuthLayoutProps {
 	contentClassName?: string;
 }
 
-export function AuthLayout({ children, contentClassName }: AuthLayoutProps) {
+export function AuthLayout({
+	children,
+	contentClassName,
+}: Readonly<AuthLayoutProps>) {
 	const org = useOrgContext();
 
 	return (

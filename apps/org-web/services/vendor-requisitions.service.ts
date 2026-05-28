@@ -1,5 +1,9 @@
-import type { PagePaginatedResponse } from "@repo/shared";
+import type {
+	CandidateComplianceStatus,
+	PagePaginatedResponse,
+} from "@repo/shared";
 import { ApiClient } from "@/lib/api-client";
+import type { VendorCandidateListRow } from "@/types/vendor-candidates";
 
 const BASE = "/api/vendor/requisitions";
 
@@ -30,10 +34,13 @@ export type VendorRequisitionListItem = {
 	organizationOccupation: {
 		occupation: { id: string; name: string };
 	} | null;
-	organizationSpecialty: {
-		specialty: { id: string; name: string };
-	} | null;
+	requisitionSpecialties: Array<{
+		organizationSpecialty: {
+			specialty: { id: string; name: string };
+		};
+	}>;
 	organization: { name: string };
+	isSaved: boolean;
 };
 
 export type VendorRequisitionDetail = VendorRequisitionListItem & {
@@ -48,6 +55,11 @@ export type VendorRequisitionDetail = VendorRequisitionListItem & {
 	acceptanceCriteria: Array<{
 		complianceListItem: { id: string; name: string };
 	}>;
+	complianceChecklist?: {
+		items: Array<{
+			complianceListItem: { id: string; name: string };
+		}>;
+	} | null;
 	savedByVendorUser: boolean;
 };
 
@@ -61,6 +73,7 @@ export type VendorRequisitionCandidateRow = {
 	experience: string;
 	availability: string;
 	matchScore: number;
+	tags: string[];
 	submissionStage?: string;
 };
 
@@ -69,6 +82,34 @@ export type VendorRequisitionCandidatesTab =
 	| "matched"
 	| "submitted";
 
+export type VendorCandidateAcceptanceCriterionStatus =
+	`${CandidateComplianceStatus}`;
+
+export interface VendorCandidateAcceptanceCriterionItem {
+	id: string;
+	name: string;
+	responseStyle:
+		| "PENDING_FILE_UPLOAD"
+		| "INTERNAL_TASK"
+		| "DOWNLOAD_AND_UPLOAD"
+		| "LINK";
+	status: VendorCandidateAcceptanceCriterionStatus;
+	satisfied: boolean;
+	rejectionReason: string | null;
+	documentName: string | null;
+	expirationDate: string | null;
+	link: string | null;
+	instructionalNotes: string | null;
+	expirationType: "EXPIRATION_DATE" | "EXPIRATION_RULE" | "NON_EXPIRABLE";
+	expirationRuleValue: number | null;
+	expirationRuleUnit: "DAYS" | "MONTHS" | "YEARS" | null;
+}
+
+export interface VendorCandidateAcceptanceCriteriaStatus {
+	items: VendorCandidateAcceptanceCriterionItem[];
+	allApproved: boolean;
+}
+
 export class VendorRequisitionsService {
 	static async list(query: {
 		page?: number;
@@ -76,8 +117,13 @@ export class VendorRequisitionsService {
 		search?: string;
 		specialtyId?: string;
 		locationId?: string;
+		savedOnly?: boolean;
 	}): Promise<
-		PagePaginatedResponse<VendorRequisitionListItem> & { totalPages: number }
+		PagePaginatedResponse<VendorRequisitionListItem> & {
+			totalPages: number;
+			totalOpenings: number;
+			averageBillRate: number | null;
+		}
 	> {
 		return ApiClient.get(BASE, query as Record<string, unknown>);
 	}
@@ -103,6 +149,25 @@ export class VendorRequisitionsService {
 	> {
 		return ApiClient.get(
 			`${BASE}/${requisitionId}/candidates`,
+			query as Record<string, unknown>,
+		);
+	}
+
+	static async getCandidateAcceptanceCriteriaStatus(
+		requisitionId: string,
+		candidateId: string,
+	): Promise<VendorCandidateAcceptanceCriteriaStatus> {
+		return ApiClient.get<VendorCandidateAcceptanceCriteriaStatus>(
+			`${BASE}/${requisitionId}/candidates/${candidateId}/compliance`,
+		);
+	}
+
+	static async listSubmittableCandidates(
+		requisitionId: string,
+		query: { page?: number; limit?: number; search?: string },
+	): Promise<PagePaginatedResponse<VendorCandidateListRow>> {
+		return ApiClient.get(
+			`${BASE}/${requisitionId}/submittable-candidates`,
 			query as Record<string, unknown>,
 		);
 	}

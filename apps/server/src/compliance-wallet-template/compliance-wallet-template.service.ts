@@ -3,7 +3,7 @@ import {
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
-import type { Prisma } from "@repo/db";
+import { ComplianceListItemResponseStyle, type Prisma } from "@repo/db";
 import type {
 	CombinationRow,
 	CombinationsFilter,
@@ -233,7 +233,7 @@ export class ComplianceWalletTemplateService {
 			});
 
 		if (!template) {
-			throw new NotFoundException("Compliance wallet template not found");
+			throw new NotFoundException("Compliance wallet template not found.");
 		}
 
 		return {
@@ -268,18 +268,39 @@ export class ComplianceWalletTemplateService {
 			});
 
 		if (!template) {
-			throw new NotFoundException("Compliance wallet template not found");
+			throw new NotFoundException("Compliance wallet template not found.");
 		}
 
 		if (complianceListItemIds.length > 0) {
 			const items = await this.prismaService.complianceListItem.findMany({
 				where: { id: { in: complianceListItemIds } },
-				select: { id: true, status: true, name: true },
+				select: {
+					id: true,
+					status: true,
+					name: true,
+					responseStyle: true,
+					displayToCandidate: true,
+				},
 			});
 			const inactiveItems = items.filter((item) => item.status === "INACTIVE");
 			if (inactiveItems.length > 0) {
 				throw new BadRequestException(
 					`Cannot add inactive compliance items to wallet: ${inactiveItems.map((i) => i.name).join(", ")}`,
+				);
+			}
+			const internalTaskItems = items.filter(
+				(item) =>
+					item.responseStyle === ComplianceListItemResponseStyle.INTERNAL_TASK,
+			);
+			if (internalTaskItems.length > 0) {
+				throw new BadRequestException(
+					`Internal task items cannot be added to a candidate document wallet: ${internalTaskItems.map((i) => i.name).join(", ")}`,
+				);
+			}
+			const hiddenItems = items.filter((item) => !item.displayToCandidate);
+			if (hiddenItems.length > 0) {
+				throw new BadRequestException(
+					`Items hidden from candidates cannot be added to a candidate document wallet: ${hiddenItems.map((i) => i.name).join(", ")}`,
 				);
 			}
 		}
@@ -315,7 +336,7 @@ export class ComplianceWalletTemplateService {
 			});
 
 		if (!template) {
-			throw new NotFoundException("Compliance wallet template not found");
+			throw new NotFoundException("Compliance wallet template not found.");
 		}
 
 		await this.prismaService.complianceWalletTemplateItem.deleteMany({

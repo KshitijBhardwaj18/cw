@@ -75,11 +75,23 @@ export class SubmissionsService {
 			startDate?: string;
 			endDate?: string;
 			billRate?: number;
+			interviewDate?: string;
+			interviewLocation?: string;
+			interviewNotes?: string;
 		},
 	) {
 		return ApiClient.patch<OrgSubmissionDetail>(
 			`${BASE}/${submissionId}`,
 			body,
+		);
+	}
+
+	static async getComplianceDocumentSignedUrl(
+		submissionId: string,
+		complianceListItemId: string,
+	) {
+		return ApiClient.get<{ signedUrl: string }>(
+			`${BASE}/${submissionId}/compliance/${complianceListItemId}/signed-url`,
 		);
 	}
 }

@@ -1,7 +1,11 @@
 "use client";
 
-import type { ComplianceResponseType } from "@repo/shared";
-import { ComplianceListItemExpirationType } from "@repo/shared";
+import {
+	ComplianceChecklistItemPhase,
+	ComplianceListItemExpirationType,
+	ComplianceListItemStatus,
+	type ComplianceResponseType,
+} from "@repo/shared";
 import { useForm, useStore } from "@tanstack/react-form";
 import type { FormEvent } from "react";
 import {
@@ -13,7 +17,6 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { JOB_POSTING_STEP_VALIDATION_TOAST } from "@/constants/job-posting-flow";
-import { useOrgContext } from "@/contexts/org-context";
 import { useSubmissionAcceptanceCriteriaColumns } from "@/hooks/tables/use-submission-acceptance-criteria-columns";
 import {
 	useActiveComplianceListItems,
@@ -23,9 +26,9 @@ import { useOrgVendors } from "@/queries/talent-community.queries";
 import {
 	type JobPostingSubmissionValues,
 	jobPostingSubmissionSchema,
+	normalizeJobPostingSubmissionVendorFields,
 } from "@/schemas/job-posting-submission.schema";
 import type {
-	ChecklistItemPhase,
 	ComplianceItemUsageRow,
 	ComplianceItemUsageType,
 } from "@/types/requisition-compliance-checklist";
@@ -35,7 +38,7 @@ function complianceListItemToUsageRow(
 		ComplianceResponseType,
 		"id" | "name" | "category" | "expirationType" | "displayToCandidate"
 	>,
-	checklistPhase?: ChecklistItemPhase,
+	checklistPhase?: ComplianceChecklistItemPhase,
 ): ComplianceItemUsageRow {
 	return {
 		id: item.id,
@@ -62,35 +65,39 @@ export function useJobPostingSubmissionSettingsStepForm({
 	isPending = false,
 }: UseJobPostingSubmissionSettingsStepFormProps) {
 	const lockFields = isPending;
-	const { id: orgId } = useOrgContext();
 	const checklistId = complianceTemplateId.trim();
-	const checklistQuery = useComplianceChecklist(orgId, checklistId);
+	const checklistQuery = useComplianceChecklist(checklistId);
 	const { data: listItemsData } = useActiveComplianceListItems(
 		undefined,
 		!checklistId,
 	);
 	const complianceListItems = listItemsData?.data ?? [];
-	const vendorsQuery = useOrgVendors(orgId);
+	const vendorsQuery = useOrgVendors();
 
 	const [acceptanceCriteriaIds, setAcceptanceCriteriaIds] = useState<string[]>(
 		() => [...(initialValues.acceptanceCriteriaIds ?? [])],
 	);
 
-	const [mockItemUsages, setMockItemUsages] = useState<
+	const [itemUsages, setItemUsages] = useState<
 		Record<string, ComplianceItemUsageType>
 	>({});
 
 	const form = useForm({
-		defaultValues: {
+		defaultValues: normalizeJobPostingSubmissionVendorFields({
 			...initialValues,
 			acceptanceCriteriaIds: initialValues.acceptanceCriteriaIds ?? [],
-		},
+		}),
 		validators: { onSubmit: jobPostingSubmissionSchema },
 		onSubmitInvalid: () => {
 			toast.error(JOB_POSTING_STEP_VALIDATION_TOAST);
 		},
 		onSubmit: ({ value }) => {
-			onSubmit({ ...value, acceptanceCriteriaIds });
+			onSubmit(
+				normalizeJobPostingSubmissionVendorFields({
+					...value,
+					acceptanceCriteriaIds,
+				}),
+			);
 		},
 	});
 
@@ -100,18 +107,19 @@ export function useJobPostingSubmissionSettingsStepForm({
 			if (!data?.items) return;
 
 			const activeItems = data.items.filter(
-				(i) => i.complianceListItem.status === "ACTIVE",
+				(i) => i.complianceListItem.status === ComplianceListItemStatus.ACTIVE,
 			);
 			const submissionPhaseIds = new Set(
 				activeItems
-					.filter((i) => i.phase === "SUBMISSION")
+					.filter((i) => i.phase === ComplianceChecklistItemPhase.SUBMISSION)
 					.map((i) => i.complianceListItemId),
 			);
 			const usages: Record<string, ComplianceItemUsageType> = {};
 			for (const i of activeItems) {
-				usages[i.complianceListItemId] = i.phase as ChecklistItemPhase;
+				usages[i.complianceListItemId] =
+					i.phase as ComplianceChecklistItemPhase;
 			}
-			setMockItemUsages(usages);
+			setItemUsages(usages);
 
 			const fromInitial = initialValues.acceptanceCriteriaIds ?? [];
 			const valid = fromInitial.filter((id) => submissionPhaseIds.has(id));
@@ -123,10 +131,10 @@ export function useJobPostingSubmissionSettingsStepForm({
 
 		const next = [...(initialValues.acceptanceCriteriaIds ?? [])];
 		setAcceptanceCriteriaIds(next);
-		setMockItemUsages((prev) => {
+		setItemUsages((prev) => {
 			const merged: Record<string, ComplianceItemUsageType> = {};
 			for (const id of next) {
-				merged[id] = prev[id] ?? "SUBMISSION";
+				merged[id] = prev[id] ?? ComplianceChecklistItemPhase.SUBMISSION;
 			}
 			return merged;
 		});
@@ -136,16 +144,44 @@ export function useJobPostingSubmissionSettingsStepForm({
 		form.setFieldValue("acceptanceCriteriaIds", acceptanceCriteriaIds);
 	}, [acceptanceCriteriaIds, form.setFieldValue]);
 
+	const submissionType = useStore(form.store, (s) => s.values.submissionType);
 	const vendorAccess = useStore(form.store, (s) => s.values.vendorAccess);
+
+	useEffect(() => {
+		const syncVendorFields = () => {
+			const current = form.state.values;
+			const normalized = normalizeJobPostingSubmissionVendorFields(current);
+			if (normalized.vendorAccess !== current.vendorAccess) {
+				form.setFieldValue("vendorAccess", normalized.vendorAccess);
+			}
+			const currentIds = current.selectedVendorIds ?? [];
+			const normalizedIds = normalized.selectedVendorIds ?? [];
+			if (
+				currentIds.length !== normalizedIds.length ||
+				currentIds.some((id, i) => id !== normalizedIds[i])
+			) {
+				form.setFieldValue("selectedVendorIds", normalizedIds);
+			}
+		};
+
+		syncVendorFields();
+		const subscription = form.store.subscribe(syncVendorFields);
+		return () => {
+			subscription.unsubscribe();
+		};
+	}, [form]);
 
 	const acceptanceCriteriaRows = useMemo((): ComplianceItemUsageRow[] => {
 		if (checklistId && checklistQuery.data?.items) {
 			return checklistQuery.data.items
-				.filter((row) => row.complianceListItem.status === "ACTIVE")
+				.filter(
+					(row) =>
+						row.complianceListItem.status === ComplianceListItemStatus.ACTIVE,
+				)
 				.map((row) =>
 					complianceListItemToUsageRow(
 						row.complianceListItem,
-						row.phase as ChecklistItemPhase,
+						row.phase as ComplianceChecklistItemPhase,
 					),
 				);
 		}
@@ -157,7 +193,9 @@ export function useJobPostingSubmissionSettingsStepForm({
 	const placementRowIds = useMemo(() => {
 		return new Set(
 			acceptanceCriteriaRows
-				.filter((r) => r.checklistPhase === "PLACEMENT")
+				.filter(
+					(r) => r.checklistPhase === ComplianceChecklistItemPhase.PLACEMENT,
+				)
 				.map((r) => r.id),
 		);
 	}, [acceptanceCriteriaRows]);
@@ -186,9 +224,12 @@ export function useJobPostingSubmissionSettingsStepForm({
 				}
 				return prev.filter((id) => id !== itemId);
 			});
-			setMockItemUsages((prev) => {
+			setItemUsages((prev) => {
 				if (checked) {
-					return { ...prev, [itemId]: prev[itemId] ?? "SUBMISSION" };
+					return {
+						...prev,
+						[itemId]: prev[itemId] ?? ComplianceChecklistItemPhase.SUBMISSION,
+					};
 				}
 				const { [itemId]: _removed, ...rest } = prev;
 				return rest;
@@ -197,20 +238,20 @@ export function useJobPostingSubmissionSettingsStepForm({
 		[placementRowIds],
 	);
 
-	const onMockUsageChange = useCallback(
+	const handleAcceptanceCriterionUsageChange = useCallback(
 		(itemId: string, usage: ComplianceItemUsageType) => {
 			if (placementRowIds.has(itemId)) return;
-			setMockItemUsages((prev) => ({ ...prev, [itemId]: usage }));
+			setItemUsages((prev) => ({ ...prev, [itemId]: usage }));
 		},
 		[placementRowIds],
 	);
 
 	const { columns: acceptanceCriteriaColumns } =
 		useSubmissionAcceptanceCriteriaColumns({
-			itemUsages: mockItemUsages,
+			itemUsages,
 			selectedIds: selectedIdsForTable,
 			onToggleSelected: toggleCriterion,
-			onUsageChange: onMockUsageChange,
+			onUsageChange: handleAcceptanceCriterionUsageChange,
 			disabled: lockFields,
 		});
 
@@ -233,6 +274,7 @@ export function useJobPostingSubmissionSettingsStepForm({
 	return {
 		form,
 		lockFields,
+		submissionType,
 		vendorAccess,
 		vendorsQuery,
 		acceptanceCriteriaColumns,

@@ -39,7 +39,7 @@ export function VendorShiftClaimingTabContent({
 	setLimit,
 	isFilteredEmpty,
 	showPrimaryAction = true,
-}: VendorShiftClaimingTabContentProps) {
+}: Readonly<VendorShiftClaimingTabContentProps>) {
 	const isEmptyState = totalCount === 0;
 
 	const currentEmptyState = isEmptyState
@@ -87,7 +87,10 @@ export function VendorShiftClaimingTabContent({
 					goToPage={goToPage}
 					limit={limit}
 					setLimit={setLimit}
-					pageSizeOptions={[10, 20, 30, 40]}
+					pageSizeOptions={[5, 10, 20, 50]}
+					totalItems={totalCount}
+					itemLabel="shift"
+					itemLabelPlural="shifts"
 				/>
 			)}
 		</div>

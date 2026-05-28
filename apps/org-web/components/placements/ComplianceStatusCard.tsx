@@ -49,7 +49,7 @@ interface ComplianceStatusCardProps {
 export function ComplianceStatusCard({
 	variant,
 	count,
-}: ComplianceStatusCardProps) {
+}: Readonly<ComplianceStatusCardProps>) {
 	const config = STATUS_CARD_VARIANTS[variant];
 	const Icon = config.icon;
 	return (

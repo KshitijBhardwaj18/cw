@@ -15,7 +15,7 @@ const MatchingLogicActions = ({
 	canSave,
 	onReset,
 	onSave,
-}: MatchingLogicActionsProps) => (
+}: Readonly<MatchingLogicActionsProps>) => (
 	<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<Button variant="outline" onClick={onReset} disabled={isSaving}>
 			Reset to Defaults

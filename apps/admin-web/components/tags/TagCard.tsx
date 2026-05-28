@@ -17,7 +17,7 @@ type TagCardProps = {
 	tag: TagResponseType;
 };
 
-export function TagCard({ tag }: TagCardProps) {
+export function TagCard({ tag }: Readonly<TagCardProps>) {
 	const [editOpen, setEditOpen] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 

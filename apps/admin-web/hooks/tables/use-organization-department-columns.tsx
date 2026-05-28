@@ -58,7 +58,9 @@ export function useOrganizationDepartmentColumns({
 						{
 							id: ORGANIZATION_DEPARTMENT_COLUMN_KEYS.actions,
 							header: ORGANIZATION_DEPARTMENT_COLUMN_HEADERS.actions,
-							cell: ({ row }: { row: Row<OrganizationDepartmentType> }) => (
+							cell: ({
+								row,
+							}: Readonly<{ row: Row<OrganizationDepartmentType> }>) => (
 								<div className="flex items-center gap-2">
 									{onEdit && (
 										<Button

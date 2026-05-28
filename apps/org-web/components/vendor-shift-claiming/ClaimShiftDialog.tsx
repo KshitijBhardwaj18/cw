@@ -26,10 +26,12 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { CheckCircle2, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type {
 	ClaimableShift,
 	QualifiedCandidate,
 } from "@/types/vendor-claim-shifts";
+import { formatVendorShiftBoundaryTime } from "@/utils/time-entry";
 
 const CANDIDATES_PAGE_SIZE = 10;
 
@@ -49,7 +51,8 @@ export function ClaimShiftDialog({
 	shift,
 	candidates,
 	isLoadingCandidates = false,
-}: ClaimShiftDialogProps) {
+}: Readonly<ClaimShiftDialogProps>) {
+	const { fmtCalendarDate } = useUserTimezone();
 	const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(
 		null,
 	);
@@ -84,6 +87,9 @@ export function ClaimShiftDialog({
 
 	if (!shift) return null;
 
+	const dateLabel = fmtCalendarDate(shift.date);
+	const clockLabel = `${formatVendorShiftBoundaryTime(shift.startTime)} – ${formatVendorShiftBoundaryTime(shift.endTime)}`;
+
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
 			<DialogContent className="max-h-[90dvh] overflow-y-auto">
@@ -112,12 +118,8 @@ export function ClaimShiftDialog({
 									value={shift.facilityName.split("-")[1]?.trim() || "—"}
 									flow="row"
 								/>
-								<DetailItem label="Date:" value={shift.date} flow="row" />
-								<DetailItem
-									label="Time:"
-									value={`${shift.startTime} - ${shift.endTime}`}
-									flow="row"
-								/>
+								<DetailItem label="Date:" value={dateLabel} flow="row" />
+								<DetailItem label="Time:" value={clockLabel} flow="row" />
 								<DetailItem
 									label="Bill Rate:"
 									value={shift.billRate}

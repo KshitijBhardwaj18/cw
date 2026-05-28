@@ -12,7 +12,7 @@ const SpendProgressCard = ({
 	current,
 	total,
 	title = "Expected Annual Spend Progress",
-}: SpendProgressCardProps) => {
+}: Readonly<SpendProgressCardProps>) => {
 	const percentage = Math.round((current / total) * 100);
 
 	return (

@@ -2,6 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { ShiftType } from "@repo/db";
 import { Transform, Type } from "class-transformer";
 import {
+	ArrayUnique,
+	IsArray,
 	IsBoolean,
 	IsEnum,
 	IsNotEmpty,
@@ -57,16 +59,16 @@ export class CreatePerDiemShiftDto {
 	@Min(0)
 	vendorRate: number;
 
-	@ApiPropertyOptional({ description: "Optional specialtyId override" })
+	@ApiPropertyOptional({
+		description:
+			"Zero or more specialty ids the shift accepts. Empty = any specialty (occupation match alone is enough). A candidate qualifies if they hold AT LEAST ONE of the listed specialties.",
+		type: [String],
+	})
 	@IsOptional()
-	@IsUUID("4")
-	specialtyId?: string | null;
-
-	@ApiPropertyOptional({ default: true })
-	@IsOptional()
-	@Type(() => Boolean)
-	@IsBoolean()
-	isPublic?: boolean = true;
+	@IsArray()
+	@ArrayUnique()
+	@IsUUID("4", { each: true })
+	specialtyIds?: string[];
 
 	@ApiPropertyOptional({ default: false })
 	@IsOptional()

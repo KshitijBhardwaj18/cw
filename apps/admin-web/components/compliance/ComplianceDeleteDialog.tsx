@@ -15,7 +15,7 @@ export function ComplianceDeleteDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: ComplianceDeleteDialogProps) {
+}: Readonly<ComplianceDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={!!item}

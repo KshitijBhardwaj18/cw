@@ -1,5 +1,6 @@
 "use client";
 
+import { splitFullNameToFirstLast as splitFullName } from "@repo/shared";
 import {
 	Empty,
 	EmptyDescription,
@@ -14,7 +15,6 @@ import { useMemo } from "react";
 import { useOrganizationUserColumns } from "@/hooks/tables/use-organization-user-columns";
 import { useOrganizationUsers } from "@/queries/users.query";
 import type { OrganizationUserTableRow, UserDto } from "@/types/users";
-import { splitFullName } from "@/utils/users";
 
 export const OU_PARAMS = {
 	SEARCH: "ouSearch",
@@ -36,8 +36,8 @@ const buildOrganizationRows = (users: UserDto[]): OrganizationUserTableRow[] =>
 			email: user.email,
 			officePhone: user.officePhone ?? null,
 			phoneNumber: user.phoneNumber ?? null,
-			role: user.role,
-			status: user.status,
+			role: user.role as OrganizationUserTableRow["role"],
+			status: user.status as OrganizationUserTableRow["status"],
 		};
 
 		const members = user.members ?? [];

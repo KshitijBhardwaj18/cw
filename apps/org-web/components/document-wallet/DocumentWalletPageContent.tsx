@@ -11,14 +11,16 @@ import {
 	EmptyMedia,
 	EmptyTitle,
 } from "@repo/ui/components/empty";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { FolderOpen } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { DocumentWalletCategoryCollapsible } from "@/components/document-wallet/DocumentWalletCategoryCollapsible";
 import { DocumentWalletSummaryCard } from "@/components/document-wallet/DocumentWalletSummaryCard";
 import { DocumentWalletUploadDialog } from "@/components/document-wallet/DocumentWalletUploadDialog";
 import { useDocumentWalletPage } from "@/hooks/candidate/use-document-wallet-page";
+import { useMarkCandidateComplianceLinkSubmitted } from "@/queries/candidate-document-wallet.queries";
 import type { CandidateDocumentWalletItem } from "@/types/candidate-document-wallet";
 import {
 	DocumentWalletSkeleton,
@@ -36,7 +38,11 @@ export function DocumentWalletPageContent() {
 		isSummaryLoading,
 		items,
 		isItemsLoading,
+		page,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions,
 		search,
 		setSearch,
 		categoryKey,
@@ -46,9 +52,10 @@ export function DocumentWalletPageContent() {
 		uploadOpen,
 		setUploadOpen,
 		openUpload,
-		uploadOptionsQuery,
 		defaultComplianceListItemId,
 	} = useDocumentWalletPage();
+
+	const markLinkMutation = useMarkCandidateComplianceLinkSubmitted();
 
 	if (onboardingLoading || !organizationId) {
 		return <DocumentWalletSkeleton />;
@@ -56,6 +63,16 @@ export function DocumentWalletPageContent() {
 
 	const handleItemAction = (item: CandidateDocumentWalletItem) => {
 		openUpload(item.complianceListItemId);
+	};
+
+	const handleMarkLinkItem = (item: CandidateDocumentWalletItem) => {
+		markLinkMutation.mutate(item.complianceListItemId, {
+			onSuccess: () => toast.success("Marked as submitted"),
+			onError: (err) =>
+				toast.error(
+					err instanceof Error ? err.message : "Failed to mark as submitted",
+				),
+		});
 	};
 
 	const filterConfigs = [
@@ -80,10 +97,7 @@ export function DocumentWalletPageContent() {
 			{isSummaryLoading || !summary ? (
 				<SummarySkeleton />
 			) : (
-				<DocumentWalletSummaryCard
-					summary={summary}
-					onUploadClick={() => openUpload()}
-				/>
+				<DocumentWalletSummaryCard summary={summary} />
 			)}
 
 			<SearchWithFilters
@@ -122,7 +136,6 @@ export function DocumentWalletPageContent() {
 							<DocumentWalletCategoryCollapsible
 								key={category.categoryKey}
 								category={category}
-								onCategoryUploadClick={() => openUpload()}
 								onUploadItem={handleItemAction}
 								onReplaceItem={handleItemAction}
 								onViewItem={(item) => {
@@ -131,14 +144,26 @@ export function DocumentWalletPageContent() {
 								onDownloadItem={(item) => {
 									void openDocument(item.complianceListItemId);
 								}}
+								onMarkLinkItem={handleMarkLinkItem}
+								markingLinkForId={
+									markLinkMutation.isPending
+										? (markLinkMutation.variables ?? null)
+										: null
+								}
 							/>
 						))}
 					</div>
 
-					<ConfigPagePagination
-						page={items.page}
-						totalPages={items.totalPages}
-						onPageChange={setPage}
+					<PaginationControls
+						currentPage={page}
+						pageCount={items.totalPages}
+						goToPage={setPage}
+						limit={limit}
+						setLimit={setLimit}
+						pageSizeOptions={pageSizeOptions}
+						totalItems={items.total}
+						itemLabel="requirement"
+						itemLabelPlural="requirements"
 					/>
 				</>
 			)}
@@ -146,8 +171,15 @@ export function DocumentWalletPageContent() {
 			<DocumentWalletUploadDialog
 				open={uploadOpen}
 				onOpenChange={setUploadOpen}
-				pickerItems={uploadOptionsQuery.data ?? []}
-				defaultComplianceListItemId={defaultComplianceListItemId}
+				item={
+					(items?.categories
+						.flatMap((c) => c.items)
+						.find(
+							(i) => i.complianceListItemId === defaultComplianceListItemId,
+						) ??
+						null) ||
+					null
+				}
 				uploadMutation={uploadMutation}
 			/>
 		</div>

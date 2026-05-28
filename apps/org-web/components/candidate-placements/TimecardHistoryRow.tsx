@@ -1,9 +1,12 @@
+"use client";
+
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { cn } from "@repo/ui/lib/utils";
 import { Calendar, Check, Clock } from "lucide-react";
 import Link from "next/link";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { CandidateTimecardListItem } from "@/types/candidate-timecard";
 import { candidatePlacementTimecardDetailPath } from "@/utils/candidate-portal-routes";
 
@@ -31,6 +34,18 @@ const STATUS_BADGE: Record<
 	},
 };
 
+const APPROVED_ON_PREFIX = "Approved on ";
+
+function formatTimesheetFooterNote(
+	note: string,
+	fmtShortDate: (v: string | Date | null | undefined) => string,
+): string {
+	if (!note.startsWith(APPROVED_ON_PREFIX)) return note;
+	const raw = note.slice(APPROVED_ON_PREFIX.length).trim();
+	if (!raw || Number.isNaN(Date.parse(raw))) return note;
+	return `${APPROVED_ON_PREFIX}${fmtShortDate(raw)}`;
+}
+
 export interface TimecardHistoryRowProps {
 	item: CandidateTimecardListItem;
 	placementId: string;
@@ -42,10 +57,13 @@ export function TimecardHistoryRow({
 	item,
 	placementId,
 	onContinueEntry,
-}: TimecardHistoryRowProps) {
+}: Readonly<TimecardHistoryRowProps>) {
 	const badge = STATUS_BADGE[item.status];
 	const StatusIcon = badge.icon;
 	const detailHref = candidatePlacementTimecardDetailPath(placementId, item.id);
+	const { fmtShortDate, fmtCalendarDate } = useUserTimezone();
+	const weekEndingLabel = fmtCalendarDate(item.weekEndingDate);
+	const footerNote = formatTimesheetFooterNote(item.footerNote, fmtShortDate);
 
 	return (
 		<Card className="shadow-none">
@@ -56,7 +74,7 @@ export function TimecardHistoryRow({
 						<div className="text-muted-foreground flex flex-wrap gap-x-5 gap-y-1 text-sm">
 							<span className="inline-flex items-center gap-1.5">
 								<Calendar className="size-4 shrink-0 opacity-80" aria-hidden />
-								Week Ending: {item.weekEndingDate}
+								Week Ending: {weekEndingLabel}
 							</span>
 							<span className="inline-flex items-center gap-1.5">
 								<Clock className="size-4 shrink-0 opacity-80" aria-hidden />
@@ -73,7 +91,7 @@ export function TimecardHistoryRow({
 				</div>
 
 				<div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-					<p className="text-muted-foreground text-sm">{item.footerNote}</p>
+					<p className="text-muted-foreground text-sm">{footerNote}</p>
 					<div className="flex shrink-0 justify-end sm:justify-start">
 						{item.status === "draft" ? (
 							<Button

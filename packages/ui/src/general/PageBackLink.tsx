@@ -17,7 +17,7 @@ export function PageBackLink({
 	children,
 	className,
 	...props
-}: PageBackLinkProps) {
+}: Readonly<PageBackLinkProps>) {
 	return (
 		<Link
 			className={cn(

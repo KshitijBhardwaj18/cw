@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 
 const MatchesAndJobSearchLayout = ({
 	children,
-}: {
+}: Readonly<{
 	children: React.ReactNode;
-}) => {
+}>) => {
 	return (
 		<CandidateMainShell title="Matches & Job Search">
 			<PageContainer>{children}</PageContainer>

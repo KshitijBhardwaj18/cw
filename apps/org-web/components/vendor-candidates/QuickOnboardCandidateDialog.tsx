@@ -1,9 +1,9 @@
 "use client";
 
 import {
-	type CandidateWorkforceType,
 	getLabel,
 	VENDOR_CANDIDATE_WORKFORCE_TYPE_OPTIONS,
+	type VendorCandidateWorkforceType,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -33,14 +33,12 @@ import { quickOnboardCandidateSchema } from "@/schemas/vendor-quick-onboard.sche
 type QuickOnboardCandidateDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	orgId: string;
 };
 
 export function QuickOnboardCandidateDialog({
 	open,
 	onOpenChange,
-	orgId,
-}: QuickOnboardCandidateDialogProps) {
+}: Readonly<QuickOnboardCandidateDialogProps>) {
 	const {
 		form,
 		occupationItems,
@@ -51,7 +49,7 @@ export function QuickOnboardCandidateDialog({
 		selectedOccupationId,
 		submissionAttempts,
 		handleOpenChange,
-	} = useQuickOnboardCandidateDialog({ onOpenChange, orgId });
+	} = useQuickOnboardCandidateDialog({ onOpenChange });
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
@@ -271,7 +269,7 @@ export function QuickOnboardCandidateDialog({
 									<Select
 										value={field.state.value}
 										onValueChange={(val) => {
-											field.handleChange(val as CandidateWorkforceType);
+											field.handleChange(val as VendorCandidateWorkforceType);
 											field.handleBlur();
 										}}
 									>

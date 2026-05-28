@@ -9,7 +9,7 @@ import {
 import { TINTED_METRIC_TONE_STYLES } from "@repo/ui/general/TintedMetricCard";
 import { cn } from "@repo/ui/lib/utils";
 import { Mail, MessageCircle, Phone } from "lucide-react";
-import type { SupportContactChannel } from "@/components/candidate-support/mock-candidate-support";
+import type { SupportContactChannel } from "@/types/candidate-support";
 
 const ICONS = {
 	email: Mail,
@@ -17,17 +17,19 @@ const ICONS = {
 	chat: MessageCircle,
 } as const;
 
+export type { SupportContactChannel };
+
 export interface SupportHeroCardProps {
 	title?: string;
 	subtitle?: string;
-	channels: readonly SupportContactChannel[];
+	channels?: readonly SupportContactChannel[];
 }
 
 export function SupportHeroCard({
 	title = "How can we help?",
-	subtitle = "Browse our FAQ or contact our support team",
-	channels,
-}: SupportHeroCardProps) {
+	subtitle = "Browse our FAQ below or submit a direct assistance request",
+	channels = [],
+}: Readonly<SupportHeroCardProps>) {
 	const sky = TINTED_METRIC_TONE_STYLES.sky;
 
 	return (
@@ -40,38 +42,55 @@ export function SupportHeroCard({
 					</CardDescription>
 				</div>
 
-				<div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
-					{channels.map((channel) => {
-						const Icon = ICONS[channel.id as keyof typeof ICONS] ?? Mail;
-						return (
-							<div
-								key={channel.id}
-								className={cn(
-									"flex flex-col  gap-2 rounded-lg border border-sky-200/80 bg-white/70 px-4 py-3",
-									"dark:border-sky-800/50 dark:bg-sky-950/30",
-								)}
-							>
-								<div className="flex items-center gap-2">
-									<span
-										className={cn(
-											"flex size-8 shrink-0 items-center justify-center rounded-md",
-											sky.iconWrap,
-										)}
-										aria-hidden
-									>
-										<Icon className="size-4" />
-									</span>
-									<span className={cn("text-sm font-medium", sky.title)}>
-										{channel.label}
-									</span>
+				{channels.length === 0 ? (
+					<p
+						className={cn(
+							"rounded-lg border border-sky-200/80 bg-white/70 px-4 py-3 text-sm",
+							sky.value,
+							"dark:border-sky-800/50 dark:bg-sky-950/30",
+						)}
+					>
+						Organization-specific phone, email, and chat details are not
+						available in the app yet. Use{" "}
+						<strong className="font-semibold text-foreground">
+							Direct Assistance
+						</strong>{" "}
+						below to reach the team.
+					</p>
+				) : (
+					<div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
+						{channels.map((channel) => {
+							const Icon = ICONS[channel.id as keyof typeof ICONS] ?? Mail;
+							return (
+								<div
+									key={channel.id}
+									className={cn(
+										"flex flex-col  gap-2 rounded-lg border border-sky-200/80 bg-white/70 px-4 py-3",
+										"dark:border-sky-800/50 dark:bg-sky-950/30",
+									)}
+								>
+									<div className="flex items-center gap-2">
+										<span
+											className={cn(
+												"flex size-8 shrink-0 items-center justify-center rounded-md",
+												sky.iconWrap,
+											)}
+											aria-hidden
+										>
+											<Icon className="size-4" />
+										</span>
+										<span className={cn("text-sm font-medium", sky.title)}>
+											{channel.label}
+										</span>
+									</div>
+									<p className={cn("pl-10 text-sm", sky.value)}>
+										{channel.value}
+									</p>
 								</div>
-								<p className={cn("pl-10 text-sm", sky.value)}>
-									{channel.value}
-								</p>
-							</div>
-						);
-					})}
-				</div>
+							);
+						})}
+					</div>
+				)}
 			</CardHeader>
 		</Card>
 	);

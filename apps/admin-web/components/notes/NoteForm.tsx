@@ -22,7 +22,7 @@ export interface NoteFormProps {
 	isPending: boolean;
 }
 
-export function NoteForm({ onSubmit, isPending }: NoteFormProps) {
+export function NoteForm({ onSubmit, isPending }: Readonly<NoteFormProps>) {
 	const form = useForm({
 		defaultValues: {
 			type: "",

@@ -31,7 +31,7 @@ export function JobsCreateEditPageContent({
 	mode,
 	jobId,
 	presetTemplateId = null,
-}: JobsCreateEditPageContentProps) {
+}: Readonly<JobsCreateEditPageContentProps>) {
 	const ability = useAbility();
 	const canReadRequisition = ability.can(Action.Read, "Requisition");
 	const canUpdateRequisition = ability.can(Action.Update, "Requisition");
@@ -142,6 +142,7 @@ export function JobsCreateEditPageContent({
 					onCancel={page.handleCancel}
 					onSubmit={page.handleTypeStepSubmit}
 					isPending={page.isPending}
+					locked={mode === "edit"}
 				/>
 			)}
 			{page.step === 1 && (
@@ -154,6 +155,7 @@ export function JobsCreateEditPageContent({
 					onCancel={page.handleCancel}
 					onSubmit={page.handleTemplateSubmit}
 					isPending={page.isPending}
+					locked={mode === "edit"}
 				/>
 			)}
 			{page.step === 2 && (

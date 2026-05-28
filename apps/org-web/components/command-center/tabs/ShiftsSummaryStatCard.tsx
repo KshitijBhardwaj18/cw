@@ -13,7 +13,7 @@ type ShiftsSummaryStatCardProps = {
 export const ShiftsSummaryStatCard = ({
 	card,
 	counts,
-}: ShiftsSummaryStatCardProps) => {
+}: Readonly<ShiftsSummaryStatCardProps>) => {
 	const helperText =
 		card.key === "filled"
 			? `${

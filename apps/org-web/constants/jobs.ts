@@ -1,30 +1,31 @@
+import type { ShiftTypeKey } from "@/constants/shifts";
+
 export const ORG_JOBS_STATUS_FILTER_OPTIONS = [
 	{ value: "all", label: "All Statuses" },
 	{ value: "OPEN", label: "Open" },
-	{ value: "OFFER_ACCEPTED", label: "Offer Accepted" },
 	{ value: "FILLED", label: "Filled" },
 	{ value: "DRAFT", label: "Draft" },
-	{ value: "CLOSED", label: "Closed" },
+	{ value: "CANCELLED", label: "Cancelled" },
 ] as const;
 
 export const ORG_JOBS_SHIFT_FILTER_TO_SHIFT_TYPE: Record<
 	string,
-	"DAYS" | "NIGHTS" | "EVENINGS" | "ROTATING" | "WEEKENDS_ONLY" | undefined
+	ShiftTypeKey | undefined
 > = {
 	all: undefined,
-	day: "DAYS",
-	night: "NIGHTS",
-	evening: "EVENINGS",
+	day: "DAY",
+	evening: "EVENING",
+	night: "NIGHT",
 	rotating: "ROTATING",
-	weekend: "WEEKENDS_ONLY",
+	flexible: "FLEXIBLE",
 };
 
 export const ORG_JOBS_SHIFT_FILTER_OPTIONS = [
 	{ value: "all", label: "All Shifts / Types" },
-	{ value: "day", label: "Day" },
-	{ value: "night", label: "Night" },
-	{ value: "evening", label: "Evening" },
-	{ value: "rotating", label: "Rotating" },
-	{ value: "weekend", label: "Weekend" },
+	{ value: "day", label: "Day Shift" },
+	{ value: "evening", label: "Evening Shift" },
+	{ value: "night", label: "Night Shift" },
+	{ value: "rotating", label: "Rotating Shift" },
+	{ value: "flexible", label: "Flexible" },
 	{ value: "permanent", label: "Permanent role" },
 ] as const;

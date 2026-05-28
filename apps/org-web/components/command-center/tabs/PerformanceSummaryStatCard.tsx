@@ -13,7 +13,7 @@ type PerformanceSummaryStatCardProps = {
 export const PerformanceSummaryStatCard = ({
 	card,
 	valueByKey,
-}: PerformanceSummaryStatCardProps) => {
+}: Readonly<PerformanceSummaryStatCardProps>) => {
 	const Icon = card.icon;
 
 	return (

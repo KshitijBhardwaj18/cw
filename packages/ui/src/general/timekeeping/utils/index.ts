@@ -1,4 +1,4 @@
-import { formatDateRange } from "@repo/shared";
+import { formatDateRange, TimesheetEntryStatus } from "@repo/shared";
 import type { LucideIcon } from "lucide-react";
 import {
 	Building2,
@@ -119,9 +119,9 @@ export const disputeStatusToTimeEntryStatus: Record<
 	DisputeStatus,
 	TimeEntryStatus
 > = {
-	Open: "DISPUTED",
-	Resolved: "APPROVED",
-	Rejected: "DISPUTED",
+	Open: TimesheetEntryStatus.DISPUTED,
+	Resolved: TimesheetEntryStatus.APPROVED,
+	Rejected: TimesheetEntryStatus.DISPUTED,
 };
 
 export const calculateWorkerHours = (logs: TimeLog[]) => {

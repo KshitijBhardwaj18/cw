@@ -10,6 +10,7 @@ import {
 import { useForm } from "@tanstack/react-form";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useComplianceFileSignedUrl,
 	useCreateComplianceItem,
@@ -26,6 +27,10 @@ function getComplianceDefaultValues(
 	item?: ComplianceResponseType,
 	defaultCategory?: ComplianceListItemCategory,
 ): ComplianceFormValues {
+	const responseStyle = (item?.responseStyle ??
+		ComplianceListItemResponseStyle.PENDING_FILE_UPLOAD) as ComplianceListItemResponseStyle;
+	const isInternalTask =
+		responseStyle === ComplianceListItemResponseStyle.INTERNAL_TASK;
 	return {
 		name: item?.name ?? "",
 		category: (item?.category ??
@@ -38,11 +43,10 @@ function getComplianceDefaultValues(
 			null) as ExpirationRuleUnit | null,
 		issuerRequirement: item?.issuerRequirement ?? false,
 		issuer: item?.issuer ?? null,
-		responseStyle: (item?.responseStyle ??
-			ComplianceListItemResponseStyle.PENDING_FILE_UPLOAD) as ComplianceListItemResponseStyle,
+		responseStyle,
 		file: item?.file ?? null,
 		instructionalNotes: item?.instructionalNotes ?? null,
-		displayToCandidate: item?.displayToCandidate ?? false,
+		displayToCandidate: item?.displayToCandidate ?? !isInternalTask,
 		status: (item?.status ?? "ACTIVE") as ComplianceFormValues["status"],
 	};
 }
@@ -62,6 +66,7 @@ export function useComplianceFormDialog({
 	onOpenChange,
 	item,
 }: UseComplianceFormDialogProps) {
+	const { fmtShortDate } = useUserTimezone();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [complianceFile, setComplianceFile] = useState<File | null>(null);
 	const [complianceFileUploadDate, setComplianceFileUploadDate] = useState<
@@ -161,7 +166,7 @@ export function useComplianceFormDialog({
 		}
 		setComplianceFile(file);
 		form.setFieldValue("file", FILE_PLACEHOLDER);
-		setComplianceFileUploadDate(new Date().toLocaleDateString("en-US"));
+		setComplianceFileUploadDate(fmtShortDate(new Date()));
 		e.target.value = "";
 	};
 

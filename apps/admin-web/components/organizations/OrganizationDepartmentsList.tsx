@@ -49,7 +49,7 @@ export function OrganizationDepartmentsList({
 	onLocationsScrollToBottom,
 	onPageChange,
 	onLocationFilterChange,
-}: OrganizationDepartmentsListProps) {
+}: Readonly<OrganizationDepartmentsListProps>) {
 	const { ability } = useAuth();
 	const [createOpen, setCreateOpen] = useState(false);
 	const canCreateDepartment = ability.can(Action.Create, "Organization");

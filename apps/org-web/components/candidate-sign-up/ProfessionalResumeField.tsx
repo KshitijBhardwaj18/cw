@@ -24,7 +24,7 @@ export function ProfessionalResumeField({
 	onRequestResumeSignedUrl,
 	error,
 	"aria-invalid": ariaInvalid,
-}: ProfessionalResumeFieldProps) {
+}: Readonly<ProfessionalResumeFieldProps>) {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [existingLoading, setExistingLoading] = useState(false);
 	const [existingError, setExistingError] = useState<string | null>(null);

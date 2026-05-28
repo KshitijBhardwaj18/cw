@@ -52,7 +52,7 @@ export function DatePicker({
 	"aria-invalid": ariaInvalid,
 	onBlur,
 	clearable = false,
-}: DatePickerProps) {
+}: Readonly<DatePickerProps>) {
 	const [open, setOpen] = React.useState(false);
 	const date = parseDate(value);
 	const minDate = min ? parseDate(min) : undefined;
@@ -78,7 +78,7 @@ export function DatePicker({
 	const { startMonth, endMonth, defaultDisplayMonth } = React.useMemo(() => {
 		const now = new Date();
 		const defaultStart = new Date(now.getFullYear() - 100, 0, 1);
-		const defaultEnd = new Date(now.getFullYear(), 11, 1);
+		const defaultEnd = new Date(now.getFullYear() + 100, 11, 1);
 		const start = minDate
 			? new Date(minDate.getFullYear(), minDate.getMonth(), 1)
 			: defaultStart;

@@ -1,23 +1,26 @@
-import { Action } from "../../../types/actions";
-import { type Can, CRU_ACTIONS, READ_UPDATE_ACTIONS } from "../../helpers";
+import {
+	type Can,
+	CREATE_DELETE_ACTIONS,
+	CREATE_READ_LIST_UPDATE_ACTIONS,
+	READ_LIST_ACTIONS,
+	READ_LIST_UPDATE_ACTIONS,
+	READ_LIST_UPDATE_CREATE_ACTIONS,
+} from "../../helpers";
 
 export function defineCandidateUserRules(can: Can) {
-	can(
-		[Action.Read, Action.List],
-		[
-			"Occupation",
-			"Specialty",
-			"Requisition",
-			"OrganizationOccupation",
-			"OrganizationSpecialty",
-			"OrganizationLocation",
-		],
-	);
-	can([Action.Read, Action.List], "Placement");
-	can(CRU_ACTIONS, ["Organization", "CandidateSubmission"]);
-	can(READ_UPDATE_ACTIONS, "Candidate");
-	can(READ_UPDATE_ACTIONS, "CandidateCompliance");
-	can([Action.Create, Action.Delete], "CandidateSavedRequisition");
-	can([Action.Read, Action.List, Action.Update, Action.Create], "Timesheet");
-	can([Action.Read, Action.List, Action.Update], "PerDiemShift");
+	can(READ_LIST_ACTIONS, [
+		"Occupation",
+		"Specialty",
+		"Requisition",
+		"OrganizationOccupation",
+		"OrganizationSpecialty",
+		"OrganizationLocation",
+	]);
+	can(READ_LIST_ACTIONS, "Placement");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, ["Organization", "CandidateSubmission"]);
+	can(READ_LIST_UPDATE_ACTIONS, "Candidate");
+	can(READ_LIST_UPDATE_ACTIONS, "CandidateCompliance");
+	can(CREATE_DELETE_ACTIONS, "CandidateSavedRequisition");
+	can(READ_LIST_UPDATE_CREATE_ACTIONS, "Timesheet");
+	can(READ_LIST_UPDATE_ACTIONS, "PerDiemShift");
 }

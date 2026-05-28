@@ -1,5 +1,6 @@
 "use client";
 
+import { type AgingRuleStageTransition, AgingRuleUnit } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -24,6 +25,7 @@ import {
 	type AgingRuleRow,
 	STAGE_TRANSITION_OPTIONS,
 } from "@/constants/metrics-reporting";
+import { useUpsertAgingRulesMutation } from "@/queries/aging-rules.query";
 
 const EMPTY_STAGE = "__none__";
 
@@ -31,30 +33,29 @@ type AgingRuleDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	mode: "create" | "edit";
+	organizationId: string;
 	rule: AgingRuleRow | null;
-	onSave: (rule: AgingRuleRow) => void;
+	existingStageValues?: `${AgingRuleStageTransition}`[];
 };
-
-function stageLabelForValue(value: string): string {
-	const found = STAGE_TRANSITION_OPTIONS.find((o) => o.value === value);
-	return found?.label ?? value;
-}
 
 export function AgingRuleDialog({
 	open,
 	onOpenChange,
 	mode,
+	organizationId,
 	rule,
-	onSave,
-}: AgingRuleDialogProps) {
+	existingStageValues = [],
+}: Readonly<AgingRuleDialogProps>) {
 	const [stageValue, setStageValue] = useState(EMPTY_STAGE);
 	const [overdueAfter, setOverdueAfter] = useState("");
 	const [unit, setUnit] = useState<AgingRuleRow["unit"]>("Days");
 
+	const upsertMutation = useUpsertAgingRulesMutation(organizationId);
+
 	useEffect(() => {
 		if (!open) return;
 		if (mode === "edit" && rule) {
-			setStageValue(rule.stageValue || EMPTY_STAGE);
+			setStageValue(rule.stageValue);
 			setOverdueAfter(String(rule.overdueAfter));
 			setUnit(rule.unit);
 			return;
@@ -65,33 +66,43 @@ export function AgingRuleDialog({
 	}, [open, mode, rule]);
 
 	const handleSubmit = () => {
-		const stage = stageValue === EMPTY_STAGE || !stageValue ? "" : stageValue;
-		if (!stage) {
+		const stageTransition =
+			stageValue === EMPTY_STAGE
+				? null
+				: (stageValue as `${AgingRuleStageTransition}`);
+		if (!stageTransition) {
 			toast.error("Select a stage");
 			return;
 		}
 		const n = Number.parseInt(overdueAfter, 10);
-		if (Number.isNaN(n) || n < 1) {
-			toast.error("Enter a valid overdue amount");
+		if (!Number.isFinite(n) || n < 1 || n > 365) {
+			toast.error("Enter a value between 1 and 365");
 			return;
 		}
-		const row: AgingRuleRow = {
-			id:
-				mode === "edit" && rule
-					? rule.id
-					: `ar-${crypto.randomUUID().slice(0, 8)}`,
-			stageValue: stage,
-			stageLabel: stageLabelForValue(stage),
-			overdueAfter: n,
-			unit,
-			indicator:
-				mode === "edit" && rule ? rule.indicator : "overdue_submissions",
-			enabled: mode === "edit" && rule ? rule.enabled : true,
-		};
-		onSave(row);
-		toast.success(mode === "create" ? "Rule created" : "Rule updated");
-		onOpenChange(false);
+		upsertMutation.mutate(
+			{
+				rules: [
+					{
+						stageTransition,
+						thresholdValue: n,
+						thresholdUnit:
+							unit === "Hours" ? AgingRuleUnit.HOURS : AgingRuleUnit.DAYS,
+						isEnabled: rule?.enabled ?? true,
+					},
+				],
+			},
+			{
+				onSuccess: () => {
+					toast.success(mode === "create" ? "Rule created" : "Rule updated");
+					onOpenChange(false);
+				},
+				onError: (err) =>
+					toast.error(err instanceof Error ? err.message : "Save failed"),
+			},
+		);
 	};
+
+	const stageOptions = STAGE_TRANSITION_OPTIONS.filter((o) => o.value !== "");
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -108,19 +119,33 @@ export function AgingRuleDialog({
 				<div className="flex flex-col gap-4">
 					<div className="space-y-2">
 						<Label htmlFor="aging-stage">Stage</Label>
-						<Select value={stageValue} onValueChange={setStageValue}>
+						<Select
+							value={stageValue}
+							onValueChange={setStageValue}
+							disabled={mode === "edit"}
+						>
 							<SelectTrigger id="aging-stage" className="w-full min-w-0">
 								<SelectValue placeholder="Select a stage" />
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value={EMPTY_STAGE}>Select a stage</SelectItem>
-								{STAGE_TRANSITION_OPTIONS.filter((o) => o.value !== "").map(
-									(o) => (
-										<SelectItem key={o.value} value={o.value}>
+								{stageOptions.map((o) => {
+									const isTaken =
+										mode === "create" &&
+										existingStageValues.includes(
+											o.value as `${AgingRuleStageTransition}`,
+										);
+									return (
+										<SelectItem
+											key={o.value}
+											value={o.value}
+											disabled={isTaken}
+										>
 											{o.label}
+											{isTaken ? " (already configured)" : ""}
 										</SelectItem>
-									),
-								)}
+									);
+								})}
 							</SelectContent>
 						</Select>
 					</div>
@@ -161,11 +186,20 @@ export function AgingRuleDialog({
 						type="button"
 						variant="outline"
 						onClick={() => onOpenChange(false)}
+						disabled={upsertMutation.isPending}
 					>
 						Cancel
 					</Button>
-					<Button type="button" onClick={handleSubmit}>
-						{mode === "create" ? "Create" : "Save"}
+					<Button
+						type="button"
+						onClick={handleSubmit}
+						disabled={upsertMutation.isPending}
+					>
+						{upsertMutation.isPending
+							? "Saving…"
+							: mode === "create"
+								? "Create"
+								: "Save"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

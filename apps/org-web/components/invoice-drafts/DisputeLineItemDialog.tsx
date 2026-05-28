@@ -12,7 +12,6 @@ import { Label } from "@repo/ui/components/label";
 import { Textarea } from "@repo/ui/components/textarea";
 import { useMemo, useState } from "react";
 import type { InvoiceDraftDetailLineItem } from "@/constants/invoice-draft-detail";
-import { useOrgContext } from "@/contexts/org-context";
 import { useCreateDispute } from "@/queries/timekeeping.queries";
 
 type Props = {
@@ -27,9 +26,8 @@ export function DisputeLineItemDialog({
 	lineItem,
 	onOpenChange,
 	onSubmitted,
-}: Props) {
-	const { id: orgId } = useOrgContext();
-	const createDispute = useCreateDispute(orgId);
+}: Readonly<Props>) {
+	const createDispute = useCreateDispute();
 	const [reason, setReason] = useState("");
 
 	const canSubmit = useMemo(() => {

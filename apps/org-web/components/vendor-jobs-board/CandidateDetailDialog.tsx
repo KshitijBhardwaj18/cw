@@ -1,5 +1,10 @@
 "use client";
 
+import {
+	getCandidateComplianceStatusLabel,
+	getCandidateComplianceStatusVariant,
+	SubmissionStage,
+} from "@repo/shared";
 import { Avatar, AvatarFallback } from "@repo/ui/components/avatar";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
@@ -25,6 +30,7 @@ import {
 	Tags,
 } from "lucide-react";
 import { useMemo } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useVendorCandidateDocumentWalletItems,
 	useVendorCandidateDocumentWalletSummary,
@@ -34,22 +40,6 @@ import type { CandidateDocumentWalletUiStatus } from "@/types/candidate-document
 import type { Candidate, Requisition } from "@/types/vendor-jobs-board";
 import { mergeJobBoardProfileIntoCandidate } from "@/utils/vendor-job-board-profile";
 import { CandidateMatchCard } from "./CandidateMatchCard";
-
-function mapWalletUiStatus(
-	status: CandidateDocumentWalletUiStatus,
-): "Approved" | "Pending" | "Expired" | "Missing" {
-	switch (status) {
-		case "approved":
-			return "Approved";
-		case "expired":
-			return "Expired";
-		case "pending_upload":
-		case "pending_verification":
-			return "Pending";
-		default:
-			return "Missing";
-	}
-}
 
 interface CandidateDetailDialogProps {
 	candidate: Candidate | null;
@@ -67,7 +57,8 @@ export function CandidateDetailDialog({
 	onOpenChange,
 	onSubmitCandidate,
 	showSubmitCandidate = true,
-}: CandidateDetailDialogProps) {
+}: Readonly<CandidateDetailDialogProps>) {
+	const { fmtShortDate } = useUserTimezone();
 	const profileQuery = useVendorCandidateJobBoardProfile(
 		candidate?.id ?? null,
 		{
@@ -87,7 +78,9 @@ export function CandidateDetailDialog({
 	const merged = useMemo(() => {
 		if (!candidate) return null;
 		const fromProfile = profileQuery.data
-			? mergeJobBoardProfileIntoCandidate(candidate, profileQuery.data)
+			? mergeJobBoardProfileIntoCandidate(candidate, profileQuery.data, {
+					fmtShortDate,
+				})
 			: candidate;
 		const s = summaryQuery.data;
 		return {
@@ -97,20 +90,17 @@ export function CandidateDetailDialog({
 			phone: s?.candidate.phone ?? fromProfile.phone,
 			specialty: s?.candidate.specialty ?? fromProfile.specialty,
 		};
-	}, [candidate, profileQuery.data, summaryQuery.data]);
+	}, [candidate, profileQuery.data, summaryQuery.data, fmtShortDate]);
 
 	const compliance = useMemo(() => {
 		const cats = itemsQuery.data?.categories ?? [];
 		const out: {
 			name: string;
-			status: "Approved" | "Pending" | "Expired" | "Missing";
+			status: CandidateDocumentWalletUiStatus;
 		}[] = [];
 		for (const c of cats) {
 			for (const it of c.items) {
-				out.push({
-					name: it.title,
-					status: mapWalletUiStatus(it.status),
-				});
+				out.push({ name: it.title, status: it.status });
 			}
 		}
 		return out;
@@ -285,17 +275,9 @@ export function CandidateDetailDialog({
 									>
 										<span className="text-sm">{item.name}</span>
 										<Badge
-											variant={
-												item.status === "Approved"
-													? "success"
-													: item.status === "Pending"
-														? "warning"
-														: item.status === "Expired"
-															? "orange"
-															: "error"
-											}
+											variant={getCandidateComplianceStatusVariant(item.status)}
 										>
-											{item.status}
+											{getCandidateComplianceStatusLabel(item.status)}
 										</Badge>
 									</div>
 								))}
@@ -312,7 +294,8 @@ export function CandidateDetailDialog({
 					<Button variant="outline" onClick={() => onOpenChange(false)}>
 						Close
 					</Button>
-					{showSubmitCandidate ? (
+					{showSubmitCandidate &&
+					merged.status !== SubmissionStage.SUBMITTED ? (
 						<div className="flex items-center gap-3">
 							<Button
 								disabled={!requisition}

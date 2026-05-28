@@ -1,7 +1,7 @@
 "use client";
 
 import { useDebouncer } from "@tanstack/react-pacer";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 export interface UseLocalDebouncedSearchOptions {
 	wait?: number;
@@ -12,30 +12,18 @@ export function useLocalDebouncedSearch(
 	options?: UseLocalDebouncedSearchOptions,
 ) {
 	const wait = options?.wait ?? 500;
-	const [search, setSearchImmediate] = useState(initial);
+	const [search, setSearch] = useState(initial);
 	const [debouncedSearch, setDebouncedSearch] = useState(initial);
 
-	const debouncer = useDebouncer((value: string) => setDebouncedSearch(value), {
-		wait,
-	});
+	const debouncer = useDebouncer(setDebouncedSearch, { wait });
 
 	useEffect(() => {
-		setSearchImmediate(initial);
-		setDebouncedSearch(initial);
-		debouncer.cancel();
-	}, [initial, debouncer]);
-
-	const setSearch = useCallback(
-		(value: string) => {
-			setSearchImmediate(value);
-			if (value === debouncedSearch) {
-				debouncer.cancel();
-				return;
-			}
-			debouncer.maybeExecute(value);
-		},
-		[debouncer, debouncedSearch],
-	);
+		if (search === debouncedSearch) {
+			debouncer.cancel();
+			return;
+		}
+		debouncer.maybeExecute(search);
+	}, [search, debouncedSearch, debouncer]);
 
 	return { search, debouncedSearch, setSearch };
 }

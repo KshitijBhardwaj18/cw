@@ -38,15 +38,15 @@ export function SearchWithFilters({
 	filtersExpanded,
 	onFiltersExpandedChange,
 	filterConfigs,
-}: SearchWithFiltersProps) {
+}: Readonly<SearchWithFiltersProps>) {
 	return (
 		<div className="flex flex-col gap-3">
-			<div className="flex flex-col gap-3 sm:flex-row">
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
 				<div className="relative flex-1">
 					<Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
 					<Input
 						placeholder={searchPlaceholder}
-						className="pl-9"
+						className="h-9 pl-9"
 						value={searchValue}
 						onChange={(e) => onSearchChange(e.target.value)}
 					/>
@@ -56,7 +56,7 @@ export function SearchWithFilters({
 						type="button"
 						variant={filtersExpanded ? "secondary" : "default"}
 						onClick={() => onFiltersExpandedChange(!filtersExpanded)}
-						className="shrink-0"
+						className="h-9 w-full shrink-0 sm:w-auto"
 					>
 						<Filter className="size-4" />
 						Filters

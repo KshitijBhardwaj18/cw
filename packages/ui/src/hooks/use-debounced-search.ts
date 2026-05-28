@@ -1,9 +1,14 @@
 "use client";
 
 import { useDebouncer } from "@tanstack/react-pacer";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useUrlQueryState } from "./use-url-query-state";
+import { parseAsString, useQueryStates } from "nuqs";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useState,
+	useTransition,
+} from "react";
 
 export interface UseDebouncedSearchOptions {
 	wait?: number;
@@ -12,62 +17,72 @@ export interface UseDebouncedSearchOptions {
 	alsoClearParamKeys?: string[];
 }
 
+export const DEFAULT_PARAMS = {
+	pageParamKey: "page",
+	searchParamKey: "search",
+} as const;
+
 export function useDebouncedSearch(options?: UseDebouncedSearchOptions) {
 	const wait = options?.wait ?? 500;
-	const paramKey = options?.paramKey ?? "search";
+	const paramKey = options?.paramKey ?? DEFAULT_PARAMS.searchParamKey;
 	const pageParamKey =
-		options?.pageParamKey === undefined ? "page" : options.pageParamKey;
+		options?.pageParamKey === undefined
+			? DEFAULT_PARAMS.pageParamKey
+			: options.pageParamKey;
 	const alsoClear = options?.alsoClearParamKeys ?? [];
 
-	const searchParams = useSearchParams();
-	const searchFromUrl = searchParams.get(paramKey) ?? "";
-	const [localSearch, setLocalSearch] = useState(searchFromUrl);
-	const { replaceParams } = useUrlQueryState();
+	const schema = useMemo(() => {
+		const obj = {
+			[paramKey]: parseAsString.withDefault(""),
+		};
+		if (pageParamKey) {
+			Object.assign(obj, { [pageParamKey]: parseAsString });
+		}
+		for (const key of alsoClear) {
+			Object.assign(obj, { [key]: parseAsString });
+		}
+		return obj;
+	}, [paramKey, pageParamKey, alsoClear]);
 
-	const replaceParamsRef = useRef(replaceParams);
-	replaceParamsRef.current = replaceParams;
+	const [params, setParams] = useQueryStates(schema);
 
-	const alsoClearRef = useRef(alsoClear);
-	alsoClearRef.current = alsoClear;
+	const localSearch = params[paramKey] ?? "";
+	const [debouncedSearch, setDebouncedSearch] = useState(localSearch);
 
-	const paramKeyRef = useRef(paramKey);
-	paramKeyRef.current = paramKey;
-
-	const pageParamKeyRef = useRef(pageParamKey);
-	pageParamKeyRef.current = pageParamKey;
+	const [, startTransition] = useTransition();
 
 	const debouncer = useDebouncer(
 		(value: string) => {
-			const updates: Record<string, string | null> = {
-				[paramKeyRef.current]: value.trim() ? value : null,
-			};
-			if (pageParamKeyRef.current) {
-				updates[pageParamKeyRef.current] = null;
-			}
-			for (const key of alsoClearRef.current) {
-				updates[key] = null;
-			}
-			replaceParamsRef.current(updates);
+			startTransition(() => {
+				setDebouncedSearch(value);
+				const updates: Record<string, string | null> = {};
+				if (pageParamKey) updates[pageParamKey] = null;
+				for (const key of alsoClear) updates[key] = null;
+				setParams(updates);
+			});
 		},
 		{ wait },
 	);
 
 	useEffect(() => {
-		setLocalSearch(searchFromUrl);
-		debouncer.cancel();
-	}, [searchFromUrl, debouncer]);
+		if (localSearch === debouncedSearch) {
+			debouncer.cancel();
+			return;
+		}
+		debouncer.maybeExecute(localSearch);
+	}, [localSearch, debouncedSearch, debouncer]);
 
 	const handleSearchChange = useCallback(
 		(value: string) => {
-			setLocalSearch(value);
-			if (value === searchFromUrl) {
-				debouncer.cancel();
-				return;
-			}
-			debouncer.maybeExecute(value);
+			setParams({ [paramKey]: value || null });
 		},
-		[debouncer, searchFromUrl],
+		[setParams, paramKey],
 	);
 
-	return { localSearch, searchFromUrl, handleSearchChange };
+	return {
+		localSearch,
+		searchFromUrl: debouncedSearch,
+		handleSearchChange,
+		hasActiveSearch: !!debouncedSearch.trim(),
+	};
 }

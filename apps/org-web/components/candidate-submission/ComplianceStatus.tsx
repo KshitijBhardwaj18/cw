@@ -1,5 +1,6 @@
 "use client";
 
+import { getCandidateComplianceStatusLabel } from "@repo/shared";
 import {
 	Card,
 	CardContent,
@@ -38,7 +39,7 @@ export function ComplianceStatus({
 	heading,
 	complianceStatus,
 	documentsBanner,
-}: ComplianceStatusProps) {
+}: Readonly<ComplianceStatusProps>) {
 	const { page, setPage, limit, setLimit } = usePaginationControls({
 		pageParamKey: COMP_PARAMS.PAGE,
 		limitParamKey: COMP_PARAMS.LIMIT,
@@ -78,14 +79,14 @@ export function ComplianceStatus({
 					{paginatedItems.map((item) => {
 						const { tone, icon: Icon } =
 							COMPLIANCE_STATUS_CONFIG[item.status] ||
-							COMPLIANCE_STATUS_CONFIG.Expired;
+							COMPLIANCE_STATUS_CONFIG.EXPIRED;
 
 						return (
 							<TintedBar
 								key={item.label}
 								tone={tone}
 								label={item.label}
-								statusLabel={item.status}
+								statusLabel={getCandidateComplianceStatusLabel(item.status)}
 								icon={Icon}
 							/>
 						);

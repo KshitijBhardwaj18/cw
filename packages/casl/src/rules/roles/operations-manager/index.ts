@@ -1,7 +1,12 @@
 import { COMMAND_CENTER_TAB_CONDITIONS } from "../../../constants/command-center";
-import { Action } from "../../../types/actions";
 import type { AppSubjects } from "../../../types/subjects";
-import type { Can } from "../../helpers";
+import {
+	type Can,
+	CREATE_READ_LIST_UPDATE_ACTIONS,
+	READ_LIST_ACTIONS,
+	READ_LIST_UPDATE_ACTIONS,
+	READ_LIST_UPDATE_DELETE_ACTIONS,
+} from "../../helpers";
 
 const TIMEKEEPING_HIGH_CONTROL_SUBJECTS = [
 	"Timesheet",
@@ -21,12 +26,9 @@ const TIMEKEEPING_ALL_SUBJECTS = [
 	...TIMEKEEPING_READ_ONLY_GROUP_SUBJECTS,
 ] as const satisfies readonly AppSubjects[];
 
-const LIST = [Action.Read, Action.List] as const;
-
 export function defineOperationsManagerRules(can: Can) {
-	can([...LIST], ["Dashboard", "Organization", "MSP"]);
-	can([Action.Update], "MSP");
-	can([...LIST], "MSPLinkedOrg", [
+	can(READ_LIST_ACTIONS, ["Dashboard", "Organization", "MSP"]);
+	can(READ_LIST_ACTIONS, "MSPLinkedOrg", [
 		"id",
 		"mspId",
 		"organizationId",
@@ -35,30 +37,41 @@ export function defineOperationsManagerRules(can: Can) {
 		"possibleCancellationDate",
 	] as const);
 
-	can([Action.Read, Action.List, Action.Update, Action.Delete], "Note", {
+	can(READ_LIST_UPDATE_DELETE_ACTIONS, "Note", {
 		type: { not: "BILLING" },
 	});
 
-	can([...LIST], "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.metrics);
-	can([...LIST], "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.shifts);
 	can(
-		[...LIST],
+		READ_LIST_ACTIONS,
+		"CommandCenter",
+		COMMAND_CENTER_TAB_CONDITIONS.metrics,
+	);
+	can(READ_LIST_ACTIONS, "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.shifts);
+	can(
+		READ_LIST_ACTIONS,
 		"CommandCenter",
 		COMMAND_CENTER_TAB_CONDITIONS["operations-management"],
 	);
-	can([...LIST], "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.performance);
 	can(
-		[...LIST],
+		READ_LIST_ACTIONS,
+		"CommandCenter",
+		COMMAND_CENTER_TAB_CONDITIONS.performance,
+	);
+	can(
+		READ_LIST_ACTIONS,
 		"CommandCenter",
 		COMMAND_CENTER_TAB_CONDITIONS["hiring-funnel"],
 	);
 
-	can([...LIST], "Placement");
-	can([...LIST], [...TIMEKEEPING_ALL_SUBJECTS]);
-	can([...LIST], "Invoice");
-	can([...LIST], "Billing");
+	can(READ_LIST_ACTIONS, "Placement");
+	can(READ_LIST_ACTIONS, [...TIMEKEEPING_ALL_SUBJECTS]);
+	can(READ_LIST_ACTIONS, "Invoice");
 
-	can([...LIST], ["Requisition", "Grievance"]);
+	can(READ_LIST_ACTIONS, ["Requisition", "Grievance"]);
 
-	can([...LIST], "Submission");
+	can(READ_LIST_ACTIONS, "Submission");
+
+	can(READ_LIST_UPDATE_ACTIONS, "User");
+	can(READ_LIST_ACTIONS, "Department");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "Member");
 }

@@ -42,7 +42,11 @@ const STATUS_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
 		InvoiceStatus.CANCELLED,
 	],
 	[InvoiceStatus.PAID]: [InvoiceStatus.CANCELLED],
-	[InvoiceStatus.OVERDUE]: [InvoiceStatus.PAID, InvoiceStatus.CANCELLED],
+	[InvoiceStatus.OVERDUE]: [
+		InvoiceStatus.DISPUTED,
+		InvoiceStatus.PAID,
+		InvoiceStatus.CANCELLED,
+	],
 	[InvoiceStatus.CANCELLED]: [],
 };
 
@@ -134,7 +138,7 @@ export class BillingInvoicesService {
 		const safeStart = startDate ?? endDate;
 		const safeEnd = endDate ?? startDate;
 		if (!safeStart || !safeEnd) return "N/A";
-		return `${safeStart.toLocaleDateString("en-US")} - ${safeEnd.toLocaleDateString("en-US")}`;
+		return `${safeStart.toISOString()} - ${safeEnd.toISOString()}`;
 	}
 
 	private roundHours(value: number): number {
@@ -143,7 +147,7 @@ export class BillingInvoicesService {
 
 	private formatVendorDate(date: Date | null | undefined): string {
 		if (!date) return "N/A";
-		return date.toLocaleDateString("en-US");
+		return date.toISOString();
 	}
 
 	private async getInvoiceOpenDisputedAmount(
@@ -180,7 +184,7 @@ export class BillingInvoicesService {
 	async submit(orgId: string, invoiceId: string, userId: string) {
 		const existing = await this.requireInvoice(orgId, invoiceId);
 		if (existing.status !== InvoiceStatus.DRAFT) {
-			throw new BadRequestException("Only draft invoices can be submitted");
+			throw new BadRequestException("Only draft invoices can be submitted.");
 		}
 		if (existing.lineItems.length === 0) {
 			throw new BadRequestException(
@@ -207,7 +211,7 @@ export class BillingInvoicesService {
 	) {
 		const existing = await this.requireInvoice(orgId, invoiceId);
 		if (existing.status !== InvoiceStatus.SUBMITTED) {
-			throw new BadRequestException("Only submitted invoices can be reviewed");
+			throw new BadRequestException("Only submitted invoices can be reviewed.");
 		}
 
 		return this.prisma.invoice.update({
@@ -231,7 +235,7 @@ export class BillingInvoicesService {
 	) {
 		const existing = await this.requireInvoice(orgId, invoiceId);
 		if (existing.status !== InvoiceStatus.SUBMITTED) {
-			throw new BadRequestException("Only submitted invoices can be approved");
+			throw new BadRequestException("Only submitted invoices can be approved.");
 		}
 
 		return this.prisma.invoice.update({
@@ -303,7 +307,7 @@ export class BillingInvoicesService {
 				lineItems: { orderBy: { createdAt: "asc" } },
 			},
 		});
-		if (!invoice) throw new NotFoundException("Invoice not found");
+		if (!invoice) throw new NotFoundException("Invoice not found.");
 		return invoice;
 	}
 
@@ -799,7 +803,7 @@ export class BillingInvoicesService {
 			this.getInvoiceOpenDisputedAmount(invoiceId),
 		]);
 		if (invoice.vendorId !== vendorId) {
-			throw new NotFoundException("Invoice not found");
+			throw new NotFoundException("Invoice not found.");
 		}
 		const hours = invoice.lineItems.reduce(
 			(sum, li) => sum + Number(li.quantity ?? 0),
@@ -884,12 +888,12 @@ export class BillingInvoicesService {
 			where: { id: invoiceId, organizationId: orgId },
 			select: { id: true, status: true },
 		});
-		if (!invoice) throw new NotFoundException("Invoice not found");
+		if (!invoice) throw new NotFoundException("Invoice not found.");
 		if (invoice.status === InvoiceStatus.CANCELLED) {
-			throw new BadRequestException("Cancelled invoices cannot be routed");
+			throw new BadRequestException("Cancelled invoices cannot be routed.");
 		}
 		if (invoice.status === InvoiceStatus.PAID) {
-			throw new BadRequestException("Paid invoices cannot be routed");
+			throw new BadRequestException("Paid invoices cannot be routed.");
 		}
 
 		const approver = await this.prisma.member.findFirst({
@@ -1072,7 +1076,7 @@ export class BillingInvoicesService {
 			where: { id: invoiceId, organizationId: orgId },
 			include: invoiceDetailInclude,
 		});
-		if (!invoice) throw new NotFoundException("Invoice not found");
+		if (!invoice) throw new NotFoundException("Invoice not found.");
 
 		if (!invoice.lineItems?.length) {
 			const adjustedSubtotal = 0;
@@ -1357,12 +1361,12 @@ export class BillingInvoicesService {
 			where: { id: invoiceId, organizationId: orgId },
 			select: { id: true, status: true },
 		});
-		if (!invoice) throw new NotFoundException("Invoice not found");
+		if (!invoice) throw new NotFoundException("Invoice not found.");
 
 		const allowed = STATUS_TRANSITIONS[invoice.status];
 		if (!allowed.includes(next)) {
 			throw new BadRequestException(
-				`Cannot change status from ${invoice.status} to ${next}`,
+				`This invoice can't move from ${invoice.status.toLowerCase()} to ${next.toLowerCase()}.`,
 			);
 		}
 

@@ -31,7 +31,7 @@ export function InvoiceStatusCard({
 	onUpdateStatus,
 	onRevertStatus,
 	readOnly = false,
-}: InvoiceStatusCardProps) {
+}: Readonly<InvoiceStatusCardProps>) {
 	if (readOnly) {
 		return (
 			<Card>

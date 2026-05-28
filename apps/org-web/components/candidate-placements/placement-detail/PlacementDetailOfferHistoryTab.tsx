@@ -13,9 +13,9 @@ import { useCandidatePlacementOfferHistory } from "@/queries/candidate-placement
 
 export function PlacementDetailOfferHistoryTab({
 	placementId,
-}: {
+}: Readonly<{
 	placementId: string;
-}) {
+}>) {
 	const { data, isPending, isError, error } = useCandidatePlacementOfferHistory(
 		placementId,
 		true,

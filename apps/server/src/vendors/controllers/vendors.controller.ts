@@ -218,7 +218,7 @@ export class VendorsController {
 		try {
 			return JSON.parse(raw) as Record<string, unknown>;
 		} catch {
-			throw new BadRequestException("Invalid data JSON");
+			throw new BadRequestException("Invalid data JSON.");
 		}
 	}
 }

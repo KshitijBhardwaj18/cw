@@ -1,8 +1,10 @@
+import { RequisitionType } from "@repo/shared";
+
 export const REQUISITION_TEMPLATE_TYPE_OPTIONS = [
-	{ value: "LONG_TERM_ORDER", label: "Long-Term Order" },
-	{ value: "PER_DIEM", label: "Per Diem" },
-	{ value: "PERMANENT_ROLE", label: "Permanent Role" },
-	{ value: "INTERNAL_FLEX_POOL", label: "Internal Flex Pool" },
+	{ value: RequisitionType.LONG_TERM_ORDER, label: "Long-Term Order" },
+	{ value: RequisitionType.PER_DIEM, label: "Per Diem" },
+	{ value: RequisitionType.PERMANENT_ROLE, label: "Permanent Role" },
+	{ value: RequisitionType.INTERNAL_FLEX_POOL, label: "Internal Flex Pool" },
 ] as const;
 
 export const REQUISITION_TEMPLATE_STATUS_OPTIONS = [
@@ -16,14 +18,7 @@ export const REQUISITION_STATUS_FILTER_OPTIONS = [
 	{ value: "DRAFT", label: "Draft" },
 ];
 
-/** Shift type options for requisition template (matches Prisma ShiftType enum) */
-export const REQUISITION_TEMPLATE_SHIFT_TYPE_OPTIONS = [
-	{ value: "DAYS", label: "Days" },
-	{ value: "EVENINGS", label: "Evening" },
-	{ value: "NIGHTS", label: "Nights" },
-	{ value: "ROTATING", label: "Rotating" },
-	{ value: "WEEKENDS_ONLY", label: "Weekend Only" },
-] as const;
+export { SHIFT_TYPE_OPTIONS as REQUISITION_TEMPLATE_SHIFT_TYPE_OPTIONS } from "@repo/shared";
 
 /** Interview type options (matches Prisma InterviewType enum) */
 export const REQUISITION_TEMPLATE_INTERVIEW_TYPE_OPTIONS = [

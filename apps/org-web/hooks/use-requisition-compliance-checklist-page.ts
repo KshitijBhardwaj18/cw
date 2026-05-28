@@ -4,7 +4,6 @@ import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
 import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useComplianceChecklistsSuspense,
 	useCreateChecklist,
@@ -23,8 +22,6 @@ const CHECKLIST_PARAMS = {
 } as const;
 
 export function useRequisitionComplianceChecklistPage() {
-	const { id: orgId } = useOrgContext();
-
 	const {
 		page,
 		limit,
@@ -51,7 +48,7 @@ export function useRequisitionComplianceChecklistPage() {
 	const [viewId, setViewId] = useState<string | null>(null);
 	const [deleteId, setDeleteId] = useState<string | null>(null);
 
-	const { data } = useComplianceChecklistsSuspense(orgId, {
+	const { data } = useComplianceChecklistsSuspense({
 		search: hasSearch ? searchFromUrl : undefined,
 		page,
 		limit,
@@ -65,10 +62,10 @@ export function useRequisitionComplianceChecklistPage() {
 		? checklists.find((c) => c.id === deleteId)
 		: null;
 
-	const createMutation = useCreateChecklist(orgId);
-	const updateMutation = useUpdateChecklist(orgId, editId ?? "");
-	const deleteMutation = useDeleteChecklist(orgId);
-	const duplicateMutation = useDuplicateChecklist(orgId);
+	const createMutation = useCreateChecklist();
+	const updateMutation = useUpdateChecklist(editId ?? "");
+	const deleteMutation = useDeleteChecklist();
+	const duplicateMutation = useDuplicateChecklist();
 
 	const handleCreateSubmit = (payload: {
 		templateName: string;

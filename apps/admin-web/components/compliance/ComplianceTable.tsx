@@ -15,7 +15,7 @@ export function ComplianceTable({
 	data,
 	onEdit,
 	onDelete,
-}: ComplianceTableProps) {
+}: Readonly<ComplianceTableProps>) {
 	const { columns } = useComplianceColumns({ onEdit, onDelete });
 
 	return <CustomTable columns={columns} data={data} enableSorting={false} />;

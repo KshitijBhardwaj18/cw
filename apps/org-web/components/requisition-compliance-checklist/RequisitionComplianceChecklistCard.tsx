@@ -19,7 +19,7 @@ export function RequisitionComplianceChecklistCard({
 	onEdit,
 	onDuplicate,
 	onDelete,
-}: RequisitionComplianceChecklistCardProps) {
+}: Readonly<RequisitionComplianceChecklistCardProps>) {
 	const canDelete = checklist.linkedRequisitionCount === 0;
 
 	return (

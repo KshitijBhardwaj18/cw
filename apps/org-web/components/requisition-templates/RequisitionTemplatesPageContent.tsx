@@ -7,8 +7,8 @@ import {
 	ConfigPageErrorState,
 } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
 import LoadingScreen from "@repo/ui/general/LoadingScreen";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { AlertCircle, FileText, Plus } from "lucide-react";
 import { useRequisitionTemplatesPage } from "@/hooks/use-requisition-templates-page";
@@ -126,10 +126,16 @@ export function RequisitionTemplatesPageContent() {
 								/>
 							))}
 						</div>
-						<ConfigPagePagination
-							page={page.page}
-							totalPages={page.totalPages}
-							onPageChange={page.setPage}
+						<PaginationControls
+							currentPage={page.page}
+							pageCount={page.totalPages}
+							goToPage={page.setPage}
+							limit={page.limit}
+							setLimit={page.setLimit}
+							pageSizeOptions={page.pageSizeOptions}
+							totalItems={page.totalCount}
+							itemLabel="template"
+							itemLabelPlural="templates"
 						/>
 					</>
 				)}

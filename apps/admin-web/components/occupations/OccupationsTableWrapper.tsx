@@ -21,7 +21,7 @@ export function OccupationsTableWrapper({
 	data,
 	canEdit = true,
 	canDelete = true,
-}: OccupationsTableWrapperProps) {
+}: Readonly<OccupationsTableWrapperProps>) {
 	const [editOccupation, setEditOccupation] =
 		useState<OccupationResponseType | null>(null);
 	const [deleteTarget, setDeleteTarget] =

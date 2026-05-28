@@ -36,7 +36,9 @@ function statusLabel(status: DocumentWalletListRow["status"]): string {
 	return "Critical";
 }
 
-function StatusIcon({ status }: { status: DocumentWalletListRow["status"] }) {
+function StatusIcon({
+	status,
+}: Readonly<{ status: DocumentWalletListRow["status"] }>) {
 	if (status === DOCUMENT_WALLET_STATUS.COMPLETE) {
 		return <CheckCircle2 className="size-3.5 shrink-0" />;
 	}

@@ -1,25 +1,27 @@
 import type { CandidateCompliance } from "@repo/db";
 import { CandidateComplianceStatus, CredentialExpiryStatus } from "@repo/db";
 import { getDeterministicId, SAMPLE_PDF_URL, SEED_PREFIX } from "../utils";
-import { CANDIDATE_ID } from "./candidates";
+import { CANDIDATE_ID, getCandidatesDataset } from "./candidates";
 import { COMPLIANCE_ITEM_ID } from "./compliance";
+import { getComplianceWalletsDataset } from "./compliance-wallets";
 import { DEPT_ID } from "./departments";
 import { LOCATION_ID } from "./locations";
-import {
-	COMPLIANCE_REQUIREMENTS,
-	PLACEMENT_CANDIDATE_MAP,
-} from "./placement-extras";
+import { OCCUPATION_ID, type OccupationAcronym } from "./occupations";
+import { PLACEMENT_CANDIDATE_MAP } from "./placement-extras";
 import { PLACEMENT_ID } from "./placements";
+import { SPECIALTY_ID, type SpecialtyAcronym } from "./specialties";
 import { USER_ID } from "./users";
 import { VENDOR_ID } from "./vendors";
 
 export const getCandidateCredentialsDataset = (orgId: string) => {
 	const now = Date.now();
 	const day = 24 * 60 * 60 * 1000;
+	const candidates = getCandidatesDataset();
+	const wallets = getComplianceWalletsDataset();
 
 	const rawCompliance: Omit<
 		CandidateCompliance,
-		"updatedAt" | "createdAt" | "notes"
+		"updatedAt" | "createdAt" | "notes" | "issueDate"
 	>[] = [
 		{
 			id: getDeterministicId(`${SEED_PREFIX}cc-sarah-rn`),
@@ -100,6 +102,123 @@ export const getCandidateCredentialsDataset = (orgId: string) => {
 			verifiedAt: new Date(now - 375 * day),
 		},
 		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sam-rn-lic`),
+			candidateId: CANDIDATE_ID.SAM_T_GLOBAL,
+			complianceListItemId: COMPLIANCE_ITEM_ID.RN_LICENSE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 200 * day),
+			documentFileName: "sam_rn_license.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.SAM_T_GLOBAL,
+			uploadedAt: new Date(now - 10 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 9 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sam-bls`),
+			candidateId: CANDIDATE_ID.SAM_T_GLOBAL,
+			complianceListItemId: COMPLIANCE_ITEM_ID.BLS,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 150 * day),
+			documentFileName: "sam_bls.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.SAM_T_GLOBAL,
+			uploadedAt: new Date(now - 10 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 9 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sam-acls`),
+			candidateId: CANDIDATE_ID.SAM_T_GLOBAL,
+			complianceListItemId: COMPLIANCE_ITEM_ID.ACLS,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 150 * day),
+			documentFileName: "sam_acls.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.SAM_T_GLOBAL,
+			uploadedAt: new Date(now - 10 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 9 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-amanda-rn-lic`),
+			candidateId: CANDIDATE_ID.AMANDA_B_TALENT,
+			complianceListItemId: COMPLIANCE_ITEM_ID.RN_LICENSE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 180 * day),
+			documentFileName: "amanda_rn_license.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.AMANDA_B_TALENT,
+			uploadedAt: new Date(now - 15 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 14 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-amanda-bls`),
+			candidateId: CANDIDATE_ID.AMANDA_B_TALENT,
+			complianceListItemId: COMPLIANCE_ITEM_ID.BLS,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 100 * day),
+			documentFileName: "amanda_bls.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.AMANDA_B_TALENT,
+			uploadedAt: new Date(now - 15 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 14 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-amanda-acls`),
+			candidateId: CANDIDATE_ID.AMANDA_B_TALENT,
+			complianceListItemId: COMPLIANCE_ITEM_ID.ACLS,
+			status: CandidateComplianceStatus.PENDING_REVIEW,
+			expiryDate: null,
+			documentFileName: "amanda_acls_pending.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.AMANDA_B_TALENT,
+			uploadedAt: new Date(now - 1 * day),
+			verifiedById: null,
+			verifiedAt: null,
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-chris-rn-lic`),
+			candidateId: CANDIDATE_ID.CHRIS_L_TALENT,
+			complianceListItemId: COMPLIANCE_ITEM_ID.RN_LICENSE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 30 * day),
+			documentFileName: "chris_rn_license.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.CHRIS_L_TALENT,
+			uploadedAt: new Date(now - 40 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 39 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-lisa-pt-lic-new`),
+			candidateId: CANDIDATE_ID.LISA_D_NEW,
+			complianceListItemId: COMPLIANCE_ITEM_ID.PT_LICENSE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "lisa_pt_license.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.LISA_D_NEW,
+			uploadedAt: new Date(now - 50 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 49 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-lisa-bls-new`),
+			candidateId: CANDIDATE_ID.LISA_D_NEW,
+			complianceListItemId: COMPLIANCE_ITEM_ID.BLS,
+			status: CandidateComplianceStatus.PENDING_REVIEW,
+			expiryDate: null,
+			documentFileName: "lisa_bls_new.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.LISA_D_NEW,
+			uploadedAt: new Date(now - 2 * day),
+			verifiedById: null,
+			verifiedAt: null,
+		},
+		{
 			id: getDeterministicId(`${SEED_PREFIX}cc-lisa-flu`),
 			candidateId: CANDIDATE_ID.ISABELLE,
 			complianceListItemId: COMPLIANCE_ITEM_ID.FLU_VACCINE,
@@ -125,12 +244,424 @@ export const getCandidateCredentialsDataset = (orgId: string) => {
 			verifiedById: USER_ID.ALICE,
 			verifiedAt: new Date(now - 745 * day),
 		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-bls`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.BLS,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "bls.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-bg`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.BACKGROUND_CHECK,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "bg_check.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-drug`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.DRUG_SCREENING,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "drug_screening.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-dl`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.DRIVERS_LICENSE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "drivers_license.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-rn`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.RN_LICENSE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "rn_license.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-acls`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.ACLS,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "acls.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-pals`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.PALS,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "pals.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-tncc`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.TNCC,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "tncc.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-ccrn`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.CCRN,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "ccrn.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-tb`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.TB_TEST,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "tb_test.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-covid`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.COVID_VACCINE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: null,
+			documentFileName: "covid_vax.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-flu`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.FLU_VACCINE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "flu_vax.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-sarahp-physical`),
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.PHYSICAL_EXAM,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "physical.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_SARAH_P,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-lisa-license`),
+			candidateId: CANDIDATE_ID.LISA_D_NEW,
+			complianceListItemId: COMPLIANCE_ITEM_ID.PT_LICENSE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "pt_license.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.LISA_D_NEW,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-lisa-bg`),
+			candidateId: CANDIDATE_ID.LISA_D_NEW,
+			complianceListItemId: COMPLIANCE_ITEM_ID.BACKGROUND_CHECK,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "bg_check.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.LISA_D_NEW,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-lisa-drug`),
+			candidateId: CANDIDATE_ID.LISA_D_NEW,
+			complianceListItemId: COMPLIANCE_ITEM_ID.DRUG_SCREENING,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "drug_screening.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.LISA_D_NEW,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-lisa-dl`),
+			candidateId: CANDIDATE_ID.LISA_D_NEW,
+			complianceListItemId: COMPLIANCE_ITEM_ID.DRIVERS_LICENSE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "drivers_license.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.LISA_D_NEW,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-lisa-bls`),
+			candidateId: CANDIDATE_ID.LISA_D_NEW,
+			complianceListItemId: COMPLIANCE_ITEM_ID.BLS,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "bls.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.LISA_D_NEW,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-lisa-physical`),
+			candidateId: CANDIDATE_ID.LISA_D_NEW,
+			complianceListItemId: COMPLIANCE_ITEM_ID.PHYSICAL_EXAM,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "physical.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.LISA_D_NEW,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-david-l-dl`),
+			candidateId: CANDIDATE_ID.DAVID_L,
+			complianceListItemId: COMPLIANCE_ITEM_ID.DRIVERS_LICENSE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "drivers_license.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_DAVID_L,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-david-l-lpn`),
+			candidateId: CANDIDATE_ID.DAVID_L,
+			complianceListItemId: COMPLIANCE_ITEM_ID.LPN_LICENSE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "lpn_license.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_DAVID_L,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-david-l-bls`),
+			candidateId: CANDIDATE_ID.DAVID_L,
+			complianceListItemId: COMPLIANCE_ITEM_ID.BLS,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "bls.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_DAVID_L,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-david-l-physical`),
+			candidateId: CANDIDATE_ID.DAVID_L,
+			complianceListItemId: COMPLIANCE_ITEM_ID.PHYSICAL_EXAM,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "physical.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_DAVID_L,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-david-l-bg`),
+			candidateId: CANDIDATE_ID.DAVID_L,
+			complianceListItemId: COMPLIANCE_ITEM_ID.BACKGROUND_CHECK,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "bg_check.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_DAVID_L,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-david-l-drug`),
+			candidateId: CANDIDATE_ID.DAVID_L,
+			complianceListItemId: COMPLIANCE_ITEM_ID.DRUG_SCREENING,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "drug_screening.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_DAVID_L,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-david-l-tb`),
+			candidateId: CANDIDATE_ID.DAVID_L,
+			complianceListItemId: COMPLIANCE_ITEM_ID.TB_TEST,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "tb_test.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_DAVID_L,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-david-l-covid`),
+			candidateId: CANDIDATE_ID.DAVID_L,
+			complianceListItemId: COMPLIANCE_ITEM_ID.COVID_VACCINE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: null,
+			documentFileName: "covid_vax.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_DAVID_L,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-david-l-flu`),
+			candidateId: CANDIDATE_ID.DAVID_L,
+			complianceListItemId: COMPLIANCE_ITEM_ID.FLU_VACCINE,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "flu_vax.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_DAVID_L,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}cc-david-l-criminal`),
+			candidateId: CANDIDATE_ID.DAVID_L,
+			complianceListItemId: COMPLIANCE_ITEM_ID.CRIMINAL_BACKGROUND_CHECK,
+			status: CandidateComplianceStatus.APPROVED,
+			expiryDate: new Date(now + 365 * day),
+			documentFileName: "criminal_bg.pdf",
+			documentUrl: SAMPLE_PDF_URL,
+			uploadedById: USER_ID.QUINN_DAVID_L,
+			uploadedAt: new Date(now - 30 * day),
+			verifiedById: USER_ID.ALICE,
+			verifiedAt: new Date(now - 29 * day),
+		},
 	];
 
 	for (const entry of PLACEMENT_CANDIDATE_MAP) {
 		const { candidateId, userId } = entry;
+		const candidate = candidates.find((c) => c.id === candidateId);
+		if (!candidate) continue;
 
-		for (const itemId of COMPLIANCE_REQUIREMENTS) {
+		let occAcronym: OccupationAcronym | null = null;
+		for (const [key, val] of Object.entries(OCCUPATION_ID)) {
+			if (val === candidate.occupationId) {
+				occAcronym = key as OccupationAcronym;
+				break;
+			}
+		}
+
+		const candidateSpecAcronyms = new Set<SpecialtyAcronym>();
+		if (candidate.specialtyIds) {
+			for (const sid of candidate.specialtyIds) {
+				for (const [key, val] of Object.entries(SPECIALTY_ID)) {
+					if (val === sid) {
+						candidateSpecAcronyms.add(key as SpecialtyAcronym);
+					}
+				}
+			}
+		}
+
+		const requiredItemIds = new Set<string>();
+		for (const wallet of wallets) {
+			if (wallet.occupationAcronym === occAcronym) {
+				if (
+					wallet.specialtyAcronym === null ||
+					candidateSpecAcronyms.has(wallet.specialtyAcronym)
+				) {
+					for (const itemId of wallet.itemIds) {
+						requiredItemIds.add(itemId);
+					}
+				}
+			}
+		}
+
+		for (const itemId of requiredItemIds) {
 			const status =
 				entry.complianceOverride?.[itemId] ??
 				CandidateComplianceStatus.APPROVED;
@@ -149,9 +680,11 @@ export const getCandidateCredentialsDataset = (orgId: string) => {
 					uploadedById: userId,
 					uploadedAt: new Date(now - 30 * day),
 					verifiedById:
-						status !== CandidateComplianceStatus.PENDING ? USER_ID.ALICE : null,
+						status !== CandidateComplianceStatus.PENDING_REVIEW
+							? USER_ID.ALICE
+							: null,
 					verifiedAt:
-						status !== CandidateComplianceStatus.PENDING
+						status !== CandidateComplianceStatus.PENDING_REVIEW
 							? new Date(now - 29 * day)
 							: null,
 				});
@@ -278,6 +811,28 @@ export const getCandidateCredentialsDataset = (orgId: string) => {
 			vendorName: "MedStaff Solutions",
 			hiringManagerId: USER_ID.BOB_J,
 			hiringManagerName: "Bob Johnson",
+		},
+		{
+			id: getDeterministicId(`${SEED_PREFIX}ces-sarahp-bls`),
+			organizationId: orgId,
+			placementId: PLACEMENT_ID.QUINN_SARAH_P,
+			candidateId: CANDIDATE_ID.SARAH_P,
+			complianceListItemId: COMPLIANCE_ITEM_ID.BLS,
+			status: CredentialExpiryStatus.EXPIRED,
+			expiryDate: new Date(now - 15 * day),
+			workerName: "Sarah Porter",
+			credentialName: "BLS Certification",
+			credentialCategory: "CERTIFICATIONS",
+			credentialTypeLabel: "Certification",
+			jobTitle: "ER Registered Nurse",
+			locationId: LOCATION_ID.URGENT,
+			locationName: "Nova Urgent Care",
+			departmentId: DEPT_ID.ED,
+			departmentName: "Emergency Dept",
+			vendorId: VENDOR_ID.GLOBAL,
+			vendorName: "Global Healthcare",
+			hiringManagerId: USER_ID.DAVID_W,
+			hiringManagerName: "David Wilson",
 		},
 	];
 

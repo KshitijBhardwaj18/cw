@@ -27,6 +27,7 @@ interface AvailableShiftsTabContentProps {
 		goToPage: (page: number) => void;
 		limit: number;
 		setLimit: (limit: number) => void;
+		totalItems?: number;
 	};
 	onAction: (
 		shiftId: string,
@@ -41,7 +42,7 @@ export function AvailableShiftsTabContent({
 	pagination,
 	onAction,
 	isActionLoading,
-}: AvailableShiftsTabContentProps) {
+}: Readonly<AvailableShiftsTabContentProps>) {
 	const [confirmShiftId, setConfirmShiftId] = useState<string | null>(null);
 	const [selectedShift, setSelectedShift] =
 		useState<CandidateShiftListItem | null>(null);
@@ -122,7 +123,11 @@ export function AvailableShiftsTabContent({
 				/>
 			))}
 
-			<PaginationControls {...pagination} />
+			<PaginationControls
+				{...pagination}
+				itemLabel="shift"
+				itemLabelPlural="shifts"
+			/>
 		</div>
 	);
 }

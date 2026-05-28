@@ -1,5 +1,6 @@
 "use client";
 
+import { shortId } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -28,6 +29,7 @@ import {
 	Users,
 } from "lucide-react";
 import { useState } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { Candidate, Requisition } from "@/types/vendor-jobs-board";
 import { RequisitionCandidatesContent } from "./RequisitionCandidatesContent";
 
@@ -48,19 +50,25 @@ export function RequisitionCard({
 	onViewCandidate,
 	onSubmitCandidate,
 	showSubmitCandidate = true,
-}: RequisitionCardProps) {
+}: Readonly<RequisitionCardProps>) {
 	const [isOpen, setIsOpen] = useState(false);
+	const { fmtShortDate } = useUserTimezone();
+	const startDateLabel = fmtShortDate(requisition.startDate);
 
 	return (
 		<Collapsible open={isOpen} onOpenChange={setIsOpen}>
 			<Card className="overflow-hidden">
 				<CardHeader>
 					<CardTitle className="flex min-w-0 flex-col gap-2 text-lg sm:flex-row sm:items-center sm:gap-3">
-						<span className="min-w-0 wrap-break-word font-semibold leading-snug">
+						<span className="min-w-0  font-semibold leading-snug">
 							{requisition.title}
 						</span>
-						<Badge variant="secondary" className="w-fit shrink-0">
-							{requisition.id}
+						<Badge
+							variant="secondary"
+							className="w-fit shrink-0"
+							title={requisition.id}
+						>
+							{shortId(requisition.id)}
 						</Badge>
 					</CardTitle>
 					<CardAction className="flex flex-col gap-2 sm:flex-row">
@@ -117,7 +125,7 @@ export function RequisitionCard({
 						<DetailItem label="Department" value={requisition.department} />
 						<DetailItem label="Vendor Rate" value={requisition.vendorRate} />
 						<DetailItem label="Duration" value={requisition.duration} />
-						<DetailItem label="Start Date" value={requisition.startDate} />
+						<DetailItem label="Start Date" value={startDateLabel} />
 						<DetailItem label="Openings" value={requisition.openings} />
 					</div>
 				</CardContent>

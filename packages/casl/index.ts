@@ -1,11 +1,29 @@
 export { defineAbility } from "./src/ability.factory";
 export { AbilityProvider, useAbility } from "./src/ability-context";
 export {
+	BILLING_CONFIG_SECTION_CONDITIONS,
+	BILLING_CONFIG_SECTIONS,
+	BILLING_TAB_CHECKS,
+	BILLING_TAB_CONDITIONS,
+	BILLING_TAB_ORDER,
+	BILLING_TABS,
+	type BillingConfigSection,
+	type BillingTab,
+	canAccessBillingPage,
+	canReadBillingConfigSection,
+	canUpdateBillingConfigSection,
+} from "./src/constants/billing";
+export {
 	COMMAND_CENTER_ROUTE,
 	COMMAND_CENTER_TAB_CONDITIONS,
 	COMMAND_CENTER_TABS,
 	type CommandCenterTab,
 } from "./src/constants/command-center";
+export {
+	canReadMspLinkedOrgField,
+	MSPLINKEDORG_FEE_FIELDS,
+	type MspLinkedOrgFeeField,
+} from "./src/constants/msp";
 export {
 	PLACEMENT_ACTIVE_STATUSES,
 	PLACEMENT_COMPLETED_STATUSES,

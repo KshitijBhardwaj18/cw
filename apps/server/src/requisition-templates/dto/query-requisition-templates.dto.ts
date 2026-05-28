@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { RequisitionStatus } from "@repo/db";
+import { RequisitionTemplateStatus } from "@repo/db";
 import { Transform, Type } from "class-transformer";
 import {
 	IsEnum,
@@ -21,12 +21,10 @@ export class QueryRequisitionTemplatesDto {
 	@IsString()
 	search?: string;
 
-	@ApiPropertyOptional({
-		enum: [RequisitionStatus.ACTIVE, RequisitionStatus.DRAFT],
-	})
+	@ApiPropertyOptional({ enum: RequisitionTemplateStatus })
 	@IsOptional()
-	@IsEnum(RequisitionStatus)
-	status?: RequisitionStatus;
+	@IsEnum(RequisitionTemplateStatus)
+	status?: RequisitionTemplateStatus;
 
 	@ApiPropertyOptional({
 		description: "Filter by organization occupation link id",

@@ -29,7 +29,7 @@ type CreateRequisitionTemplatePageContentProps = {
 export function CreateRequisitionTemplatePageContent({
 	forcedMode,
 	templateId: templateIdProp,
-}: CreateRequisitionTemplatePageContentProps = {}) {
+}: Readonly<CreateRequisitionTemplatePageContentProps> = {}) {
 	const page = useRequisitionTemplateBuilderPage({
 		forcedMode,
 		templateId: templateIdProp,

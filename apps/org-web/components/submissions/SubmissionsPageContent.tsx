@@ -7,6 +7,8 @@ import {
 } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { CustomTable } from "@repo/ui/general/CustomTable";
+import PaginationControls from "@repo/ui/general/PaginationControls";
+import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
@@ -15,17 +17,14 @@ import {
 	SUBMISSION_STAGE_TABS,
 	type SubmissionStageKey,
 } from "@/constants/submissions";
-import { useOrgContext } from "@/contexts/org-context";
 import { useSubmissionListColumns } from "@/hooks/tables/use-submission-list-columns";
 import { useSubmissionsPage } from "@/hooks/use-submissions-page";
 import { SubmissionAgingStatCards } from "./SubmissionAgingStatCards";
-import { SubmissionSearchFiltersCard } from "./SubmissionSearchFiltersCard";
 import { SubmissionStageTabs } from "./SubmissionStageTabs";
 import { SubmissionsPageLoading } from "./SubmissionsPageLoading";
 
 export function SubmissionsPageContent() {
 	const router = useRouter();
-	const { id: orgId } = useOrgContext();
 	const ability = useAbility();
 
 	const allowedStages = useMemo<SubmissionStageKey[]>(
@@ -53,11 +52,13 @@ export function SubmissionsPageContent() {
 		currentPage,
 		totalPages,
 		pageSize,
+		pageSizeOptions,
 		setPage,
+		setLimit,
 		isLoading,
 		isError,
 		listErrorMessage,
-	} = useSubmissionsPage(orgId, { allowedStages });
+	} = useSubmissionsPage({ allowedStages });
 
 	const columns = useSubmissionListColumns();
 
@@ -108,7 +109,7 @@ export function SubmissionsPageContent() {
 				onAgingFilterChange={setAgingFilter}
 			/>
 
-			<SubmissionSearchFiltersCard
+			<SearchWithFilters
 				searchPlaceholder="Search by candidate name, occupation, specialty, job title, or vendor..."
 				searchValue={search}
 				onSearchChange={setSearch}
@@ -133,19 +134,27 @@ export function SubmissionsPageContent() {
 					icon={FileText}
 				/>
 			) : (
-				<CustomTable
-					data={rows}
-					columns={columns}
-					enableSorting
-					enablePagination={totalPages > 1}
-					paginationMode="server"
-					pageSize={pageSize}
-					totalCount={totalCount}
-					currentPage={currentPage}
-					onPaginationChange={setPage}
-					emptyState={null}
-					onRowClick={(row) => router.push(`/org/submissions/${row.id}`)}
-				/>
+				<>
+					<CustomTable
+						data={rows}
+						columns={columns}
+						enableSorting
+						enablePagination={false}
+						emptyState={null}
+						onRowClick={(row) => router.push(`/org/submissions/${row.id}`)}
+					/>
+					<PaginationControls
+						currentPage={currentPage}
+						pageCount={totalPages}
+						goToPage={setPage}
+						limit={pageSize}
+						setLimit={setLimit}
+						pageSizeOptions={pageSizeOptions}
+						totalItems={totalCount}
+						itemLabel="submission"
+						itemLabelPlural="submissions"
+					/>
+				</>
 			)}
 		</div>
 	);

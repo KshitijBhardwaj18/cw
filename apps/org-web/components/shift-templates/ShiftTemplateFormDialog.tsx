@@ -1,5 +1,6 @@
 "use client";
 
+import { DelayUnit } from "@repo/shared";
 import {
 	Dialog,
 	DialogContent,
@@ -29,8 +30,9 @@ import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useStore } from "@tanstack/react-form";
-import { SHIFT_TYPE_OPTIONS } from "@/constants/shifts";
+import { DELAY_UNIT_OPTIONS, SHIFT_TYPE_OPTIONS } from "@/constants/shifts";
 import { useShiftTemplateFormDialog } from "@/hooks/use-shift-template-form-dialog";
+import { useShiftRoutingSettings } from "@/queries/shift-routing.queries";
 import {
 	useShiftTemplateDepartments,
 	useShiftTemplateLocations,
@@ -52,7 +54,7 @@ export function ShiftTemplateFormDialog({
 	initialValues,
 	onSubmit,
 	isSubmitting,
-}: ShiftTemplateFormDialogProps) {
+}: Readonly<ShiftTemplateFormDialogProps>) {
 	const { form, isEdit, handleOpenChange } = useShiftTemplateFormDialog({
 		open,
 		onOpenChange,
@@ -71,6 +73,8 @@ export function ShiftTemplateFormDialog({
 		useShiftTemplateDepartments();
 	const { data: locations = [], isLoading: loadingLocations } =
 		useShiftTemplateLocations();
+	const { data: routingData } = useShiftRoutingSettings();
+	const routingSettings = routingData?.settings;
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
@@ -340,7 +344,33 @@ export function ShiftTemplateFormDialog({
 										{(field) => (
 											<Switch
 												checked={field.state.value}
-												onCheckedChange={(v) => field.handleChange(v)}
+												onCheckedChange={(v) => {
+													field.handleChange(v);
+													if (v) {
+														const currentDuration = form.getFieldValue(
+															"visibilityUnlockDuration",
+														);
+														const currentUnit = form.getFieldValue(
+															"visibilityUnlockUnit",
+														);
+														if (
+															!currentDuration &&
+															routingSettings?.delayDuration
+														) {
+															form.setFieldValue(
+																"visibilityUnlockDuration",
+																routingSettings.delayDuration,
+															);
+														}
+														if (!currentUnit) {
+															form.setFieldValue(
+																"visibilityUnlockUnit",
+																(routingSettings?.delayUnit as DelayUnit) ??
+																	DelayUnit.HOURS,
+															);
+														}
+													}
+												}}
 											/>
 										)}
 									</form.Field>
@@ -348,33 +378,60 @@ export function ShiftTemplateFormDialog({
 								<form.Subscribe selector={(s) => s.values.limitShiftVisibility}>
 									{(limitVisibility) =>
 										limitVisibility && (
-											<form.Field name="visibilityUnlockHours">
-												{(field) => (
-													<Field>
-														<FieldLabel htmlFor={field.name}>
-															Unlock Hours Before Shift
-														</FieldLabel>
-														<Input
-															id={field.name}
-															type="number"
-															min={0}
-															placeholder="e.g., 2"
-															value={
-																field.state.value !== undefined
-																	? String(field.state.value)
-																	: ""
-															}
-															onChange={(e) =>
-																field.handleChange(
-																	e.target.value
-																		? Number(e.target.value)
-																		: undefined,
-																)
-															}
-														/>
-													</Field>
-												)}
-											</form.Field>
+											<div className="grid grid-cols-2 gap-3">
+												<form.Field name="visibilityUnlockDuration">
+													{(field) => (
+														<Field>
+															<FieldLabel htmlFor={field.name}>
+																Unlock Before Shift
+															</FieldLabel>
+															<Input
+																id={field.name}
+																type="number"
+																min={0}
+																placeholder="e.g., 2"
+																value={
+																	field.state.value !== undefined &&
+																	field.state.value !== null
+																		? String(field.state.value)
+																		: ""
+																}
+																onChange={(e) =>
+																	field.handleChange(
+																		e.target.value
+																			? Number(e.target.value)
+																			: undefined,
+																	)
+																}
+															/>
+														</Field>
+													)}
+												</form.Field>
+												<form.Field name="visibilityUnlockUnit">
+													{(field) => (
+														<Field>
+															<FieldLabel htmlFor={field.name}>Unit</FieldLabel>
+															<Select
+																value={field.state.value ?? DelayUnit.HOURS}
+																onValueChange={(v) =>
+																	field.handleChange(v as DelayUnit)
+																}
+															>
+																<SelectTrigger className="w-full">
+																	<SelectValue />
+																</SelectTrigger>
+																<SelectContent>
+																	{DELAY_UNIT_OPTIONS.map((o) => (
+																		<SelectItem key={o.value} value={o.value}>
+																			{o.label}
+																		</SelectItem>
+																	))}
+																</SelectContent>
+															</Select>
+														</Field>
+													)}
+												</form.Field>
+											</div>
 										)
 									}
 								</form.Subscribe>

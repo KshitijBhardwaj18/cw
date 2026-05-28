@@ -32,7 +32,7 @@ export function OTPForm({
 	onVerifyOTP,
 	onBackToEmail,
 	onResendOTP,
-}: OTPFormProps) {
+}: Readonly<OTPFormProps>) {
 	const [isResending, setIsResending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [resendCooldown, setResendCooldown] = useState(0);

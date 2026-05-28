@@ -17,7 +17,7 @@ export function ShiftTemplateDeleteDialog({
 	onOpenChange,
 	onConfirm,
 	isDeleting = false,
-}: ShiftTemplateDeleteDialogProps) {
+}: Readonly<ShiftTemplateDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={open && !!template}

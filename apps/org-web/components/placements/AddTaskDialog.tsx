@@ -46,7 +46,7 @@ export function AddTaskDialog({
 	onSubmit,
 	isPending = false,
 	assigneeOptions,
-}: AddTaskDialogProps) {
+}: Readonly<AddTaskDialogProps>) {
 	const form = useForm({
 		defaultValues: {
 			title: "",

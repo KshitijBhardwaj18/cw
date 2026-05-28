@@ -42,7 +42,7 @@ export function LocationsSection({
 	form,
 	defaultLocation,
 	isPending = false,
-}: LocationsSectionProps) {
+}: Readonly<LocationsSectionProps>) {
 	return (
 		<div className="space-y-4">
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

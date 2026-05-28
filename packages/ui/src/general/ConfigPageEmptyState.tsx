@@ -43,7 +43,7 @@ export function ConfigPageEmptyState({
 	className,
 	icon: Icon,
 	action,
-}: ConfigPageEmptyStateProps) {
+}: Readonly<ConfigPageEmptyStateProps>) {
 	const title = hasSearch ? (searchEmptyTitle ?? emptyTitle) : emptyTitle;
 	const description = hasSearch ? searchEmptyMessage : emptyMessage;
 	return (
@@ -77,7 +77,7 @@ export function ConfigPageErrorState({
 	className,
 	icon: Icon,
 	action,
-}: ConfigPageErrorStateProps) {
+}: Readonly<ConfigPageErrorStateProps>) {
 	return (
 		<Empty className={cn("border-muted/50 py-12", className)}>
 			<EmptyHeader>

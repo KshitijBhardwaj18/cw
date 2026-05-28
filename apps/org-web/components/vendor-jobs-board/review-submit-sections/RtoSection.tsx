@@ -1,4 +1,4 @@
-import { formatDate, isAfterOrEqual, isFutureDate } from "@repo/shared";
+import { isAfterOrEqual, isFutureDate } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { DatePicker } from "@repo/ui/components/date-picker";
 import {
@@ -10,6 +10,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@repo/ui/components/radio-group";
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { ReviewSubmitFormApi } from "@/schemas/vendor-jobs-board.schema";
 
 export interface RtoSectionProps {
@@ -17,7 +18,8 @@ export interface RtoSectionProps {
 	isEditing: boolean;
 }
 
-export function RtoSection({ form, isEditing }: RtoSectionProps) {
+export function RtoSection({ form, isEditing }: Readonly<RtoSectionProps>) {
+	const { fmtShortDate } = useUserTimezone();
 	const [pendingRto, setPendingRto] = useState<{
 		startDate: string;
 		endDate: string;
@@ -155,8 +157,8 @@ export function RtoSection({ form, isEditing }: RtoSectionProps) {
 									>
 										<span className="text-sm font-medium">
 											{rto.type === "single"
-												? formatDate(rto.startDate)
-												: `${formatDate(rto.startDate)} - ${formatDate(rto.endDate || "")}`}
+												? fmtShortDate(rto.startDate)
+												: `${fmtShortDate(rto.startDate)} - ${fmtShortDate(rto.endDate || "")}`}
 										</span>
 										<Button
 											variant="ghost"

@@ -9,15 +9,20 @@ import type { HiringFunnelSummaryKey } from "@/types/command-center";
 
 export const HIRING_FUNNEL_PARAMS = {
 	PAGE: "hiringFunnelPage",
+	LIMIT: "hiringFunnelLimit",
 	SEARCH: "hiringFunnelSearch",
 	LOCATION: "hiringFunnelLocation",
 	DEPARTMENT: "hiringFunnelDepartment",
 } as const;
 
+const HIRING_FUNNEL_PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
+
 export function useHiringFunnel() {
 	const { page, limit, setPage, setLimit } = usePaginationControls({
 		pageParamKey: HIRING_FUNNEL_PARAMS.PAGE,
+		limitParamKey: HIRING_FUNNEL_PARAMS.LIMIT,
 		defaultLimit: 10,
+		pageSizeOptions: HIRING_FUNNEL_PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -139,5 +144,6 @@ export function useHiringFunnel() {
 		total,
 		setPage,
 		setLimit,
+		pageSizeOptions: HIRING_FUNNEL_PAGE_SIZE_OPTIONS,
 	};
 }

@@ -12,7 +12,7 @@ import { defineSuperAdminRules } from "./roles/super-admin";
 import { defineTechnicalManagerRules } from "./roles/technical-manager";
 import { defineAllVendorUserRules } from "./roles/vendor-user";
 
-export function definePlatformRules(can: Can, _cannot: Cannot, user: User) {
+export function definePlatformRules(can: Can, cannot: Cannot, user: User) {
 	switch (user.role) {
 		case UserRole.SUPER_ADMIN:
 			defineSuperAdminRules(can);
@@ -43,7 +43,7 @@ export function definePlatformRules(can: Can, _cannot: Cannot, user: User) {
 			return;
 
 		case UserRole.PROGRAM_VENDOR_MANAGER:
-			defineProgramVendorManagerRules(can);
+			defineProgramVendorManagerRules(can, cannot);
 			return;
 
 		case UserRole.COMPLIANCE_MANAGER:

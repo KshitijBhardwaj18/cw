@@ -10,8 +10,8 @@ git config --global --add safe.directory "$REPO"
 cd "$REPO"
 
 echo "📥 Fetching latest code..."
-git fetch origin main
-git reset --hard origin/main
+git fetch origin staging
+git reset --hard origin/staging
 
 echo "🔨 Applying database migrations..."
 bun install

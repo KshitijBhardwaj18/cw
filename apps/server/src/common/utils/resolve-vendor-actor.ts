@@ -11,7 +11,7 @@ export type VendorActorContext = {
 
 export function resolveVendorActor(session?: UserSession): VendorActorContext {
 	if (!session?.session) {
-		throw new ForbiddenException("Session required");
+		throw new ForbiddenException("Sign in required.");
 	}
 
 	const roleRaw = session.user.role;
@@ -26,7 +26,7 @@ export function resolveVendorActor(session?: UserSession): VendorActorContext {
 	}
 
 	if (role !== UserRole.VENDOR_USER) {
-		throw new ForbiddenException("Vendor profile required");
+		throw new ForbiddenException("Vendor profile required.");
 	}
 
 	const s = session.session as {
@@ -61,7 +61,7 @@ export function requireVendorPortalActor(
 	const roleRaw = session.user.role;
 	const role = Array.isArray(roleRaw) ? roleRaw[0] : roleRaw;
 	if (role !== UserRole.VENDOR_USER || !ctx.vendorId) {
-		throw new ForbiddenException("Vendor portal access required");
+		throw new ForbiddenException("Vendor portal access required.");
 	}
 	return ctx;
 }

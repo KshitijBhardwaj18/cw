@@ -24,14 +24,14 @@ function resolveAbilityUser(session: UserSession): AbilityUser {
 	let subRole: string | null = null;
 
 	if (!role) {
-		throw new ForbiddenException("User not authenticated");
+		throw new ForbiddenException("Sign in required.");
 	}
 	switch (role) {
 		case UserRole.ORGANIZATION_USER:
 		case UserRole.CANDIDATE_USER:
 		case UserRole.VENDOR_USER:
 			if (!orgId) {
-				throw new ForbiddenException("No active organization in session");
+				throw new ForbiddenException("No active organization in session.");
 			}
 			subRole = user.subRole ?? null;
 			break;
@@ -74,7 +74,7 @@ export class PermissionsGuard implements CanActivate {
 		const user: AuthUser = request.user;
 		const session = request.session as UserSession | undefined;
 		if (!user || !session) {
-			throw new ForbiddenException("User not authenticated");
+			throw new ForbiddenException("Sign in required.");
 		}
 		const abilityUser = resolveAbilityUser(session);
 		const ability = defineAbility(abilityUser);

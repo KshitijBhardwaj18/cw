@@ -6,7 +6,9 @@ export const metadata: Metadata = {
 	title: "Shifts",
 };
 
-const ShiftsLayout = ({ children }: { children: React.ReactNode }) => {
+const ShiftsLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<CandidateMainShell title="Shifts">
 			<PageContainer>{children}</PageContainer>

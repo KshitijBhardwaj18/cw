@@ -14,7 +14,7 @@ export function OrganizationDepartmentsTable({
 	data,
 	onEdit,
 	onDelete,
-}: OrganizationDepartmentsTableProps) {
+}: Readonly<OrganizationDepartmentsTableProps>) {
 	const { columns } = useOrganizationDepartmentColumns({ onEdit, onDelete });
 
 	return <CustomTable columns={columns} data={data} enableSorting={false} />;

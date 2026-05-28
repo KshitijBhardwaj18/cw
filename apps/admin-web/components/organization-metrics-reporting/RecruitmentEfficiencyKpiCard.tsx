@@ -19,7 +19,7 @@ type RecruitmentEfficiencyKpiCardProps = {
 	onEditGoal: (kpi: OrgMetricKpi) => void;
 };
 
-function TrendIcon({ trend }: { trend: OrgMetricKpi["trend"] }) {
+function TrendIcon({ trend }: Readonly<{ trend: OrgMetricKpi["trend"] }>) {
 	if (trend === "up") {
 		return (
 			<TrendingUp
@@ -46,7 +46,7 @@ export function RecruitmentEfficiencyKpiCard({
 	canUpdate,
 	onStatusChange,
 	onEditGoal,
-}: RecruitmentEfficiencyKpiCardProps) {
+}: Readonly<RecruitmentEfficiencyKpiCardProps>) {
 	return (
 		<Card className="gap-0">
 			<CardHeader className="pb-2">

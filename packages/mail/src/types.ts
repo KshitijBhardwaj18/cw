@@ -18,6 +18,7 @@ export type MailPayload = {
 	subject: string;
 	text?: string;
 	html?: string;
+	replyTo?: string;
 	attachments?: Array<{
 		filename: string;
 		content: Buffer | string;

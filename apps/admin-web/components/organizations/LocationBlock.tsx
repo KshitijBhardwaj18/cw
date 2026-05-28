@@ -96,7 +96,7 @@ export function LocationBlock({
 	onRemove,
 	canRemove,
 	isPending = false,
-}: LocationBlockProps) {
+}: Readonly<LocationBlockProps>) {
 	const formPostal = form as unknown as LocationBlockFormWithPostalContext;
 	const prefix = `locations[${index}]` as const;
 	const locationPostalFields: PostalFormBindingsNoCountry<

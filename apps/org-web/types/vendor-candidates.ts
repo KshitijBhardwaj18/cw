@@ -1,6 +1,7 @@
-export type VendorCandidateStatus = "ACTIVE" | "ONBOARDING" | "INACTIVE";
-
-export type VendorCandidateSource = "VENDOR" | "DIRECT" | "PREVIOUS_WORKER";
+import type {
+	CandidateSource,
+	VendorCandidatePortalStatus,
+} from "@repo/shared";
 
 export interface VendorCandidateListRow {
 	id: string;
@@ -11,10 +12,12 @@ export interface VendorCandidateListRow {
 	specialty: string;
 	occupationName: string;
 	locationLine: string;
-	yearsExperienceLabel: string;
-	source: VendorCandidateSource;
+	experienceBandLabel: string;
+	source: CandidateSource;
+	documentsRequired: boolean;
 	documentsComplete: boolean;
-	status: VendorCandidateStatus;
+	status: VendorCandidatePortalStatus;
+	tags: string[];
 }
 
 export interface VendorCandidateMetrics {

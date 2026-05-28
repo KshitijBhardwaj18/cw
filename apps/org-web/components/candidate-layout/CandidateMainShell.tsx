@@ -9,19 +9,18 @@ export type CandidateMainShellProps = {
 	children: React.ReactNode;
 };
 
-const CandidateMainShell = ({ title, children }: CandidateMainShellProps) => {
+const CandidateMainShell = ({
+	title,
+	children,
+}: Readonly<CandidateMainShellProps>) => {
 	return (
 		<MainLayoutShell
 			sidebar={<CandidateAppSidebar />}
 			title={title}
 			headerActions={<HeaderUserMenu />}
 		>
-			<div>
-				<div className="mx-auto w-full max-w-5xl px-3 pt-3 sm:px-4 sm:pt-4 sm:pb-0 md:px-6 md:pt-6 md:pb-0 lg:px-8 lg:pt-8 lg:pb-0">
-					<CandidateProfileCompleteBanner />
-				</div>
-				{children}
-			</div>
+			<CandidateProfileCompleteBanner />
+			{children}
 		</MainLayoutShell>
 	);
 };

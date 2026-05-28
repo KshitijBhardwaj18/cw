@@ -13,55 +13,49 @@ import { GrievancesService } from "@/services/grievances.service";
 
 export const grievancesKeys = {
 	all: ["grievances"] as const,
-	logOptions: (orgId: string) =>
-		[...grievancesKeys.all, "log-options", orgId] as const,
-	counts: (orgId: string) => [...grievancesKeys.all, "counts", orgId] as const,
-	list: (orgId: string, query: GrievanceListQuery) =>
-		[...grievancesKeys.all, "list", orgId, query] as const,
-	detail: (orgId: string, grievanceId: string) =>
-		[...grievancesKeys.all, "detail", orgId, grievanceId] as const,
+	logOptions: () => [...grievancesKeys.all, "log-options"] as const,
+	counts: () => [...grievancesKeys.all, "counts"] as const,
+	list: (query: GrievanceListQuery) =>
+		[...grievancesKeys.all, "list", query] as const,
+	detail: (grievanceId: string) =>
+		[...grievancesKeys.all, "detail", grievanceId] as const,
 };
 
-export function useGrievanceLogOptions(orgId: string, enabled = true) {
+export function useGrievanceLogOptions(enabled = true) {
 	return useQuery({
-		queryKey: grievancesKeys.logOptions(orgId),
+		queryKey: grievancesKeys.logOptions(),
 		queryFn: () => GrievancesService.getLogOptions(),
-		enabled: enabled && !!orgId,
+		enabled: enabled,
 		staleTime: 60_000,
 	});
 }
 
-export function useGrievanceCounts(orgId: string) {
+export function useGrievanceCounts() {
 	return useQuery({
-		queryKey: grievancesKeys.counts(orgId),
+		queryKey: grievancesKeys.counts(),
 		queryFn: () => GrievancesService.getCounts(),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useGrievancesList(orgId: string, query: GrievanceListQuery) {
+export function useGrievancesList(query: GrievanceListQuery) {
 	return useQuery({
-		queryKey: grievancesKeys.list(orgId, query),
+		queryKey: grievancesKeys.list(query),
 		queryFn: () => GrievancesService.list(query),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useGrievancesIndexSuspense(
-	orgId: string,
-	listQuery: GrievanceListQuery,
-) {
+export function useGrievancesIndexSuspense(listQuery: GrievanceListQuery) {
 	return useSuspenseQueries({
 		queries: [
 			{
-				queryKey: grievancesKeys.counts(orgId),
+				queryKey: grievancesKeys.counts(),
 				queryFn: () => GrievancesService.getCounts(),
 				refetchOnMount: "always",
 			},
 			{
-				queryKey: grievancesKeys.list(orgId, listQuery),
+				queryKey: grievancesKeys.list(listQuery),
 				queryFn: () => GrievancesService.list(listQuery),
 				refetchOnMount: "always",
 			},
@@ -69,16 +63,16 @@ export function useGrievancesIndexSuspense(
 	});
 }
 
-export function useGrievanceDetail(orgId: string, grievanceId: string) {
+export function useGrievanceDetail(grievanceId: string) {
 	return useQuery({
-		queryKey: grievancesKeys.detail(orgId, grievanceId),
+		queryKey: grievancesKeys.detail(grievanceId),
 		queryFn: () => GrievancesService.getById(grievanceId),
-		enabled: !!orgId && !!grievanceId,
+		enabled: !!grievanceId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useCreateGrievance(_orgId: string) {
+export function useCreateGrievance() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (body: CreateGrievancePayload) =>
@@ -91,14 +85,14 @@ export function useCreateGrievance(_orgId: string) {
 	});
 }
 
-export function useCreateGrievanceTask(orgId: string, grievanceId: string) {
+export function useCreateGrievanceTask(grievanceId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (body: CreateGrievanceTaskPayload) =>
 			GrievancesService.createTask(grievanceId, body),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: grievancesKeys.detail(orgId, grievanceId),
+				queryKey: grievancesKeys.detail(grievanceId),
 			});
 			void queryClient.invalidateQueries({
 				queryKey: grievancesKeys.all,
@@ -107,7 +101,7 @@ export function useCreateGrievanceTask(orgId: string, grievanceId: string) {
 	});
 }
 
-export function useUpdateGrievanceTask(orgId: string, grievanceId: string) {
+export function useUpdateGrievanceTask(grievanceId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -119,7 +113,7 @@ export function useUpdateGrievanceTask(orgId: string, grievanceId: string) {
 		}) => GrievancesService.updateTask(grievanceId, taskId, { status }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: grievancesKeys.detail(orgId, grievanceId),
+				queryKey: grievancesKeys.detail(grievanceId),
 			});
 			void queryClient.invalidateQueries({
 				queryKey: grievancesKeys.all,

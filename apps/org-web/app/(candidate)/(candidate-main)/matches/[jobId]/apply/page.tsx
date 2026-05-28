@@ -12,7 +12,9 @@ export async function generateMetadata(): Promise<Metadata> {
 	};
 }
 
-export default async function CandidateJobApplyPage({ params }: PageProps) {
+export default async function CandidateJobApplyPage({
+	params,
+}: Readonly<PageProps>) {
 	const { jobId } = await params;
 	return <CandidateJobApplyClientPage jobId={jobId} />;
 }

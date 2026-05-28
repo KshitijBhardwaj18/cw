@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 
 export default function OrgDocumentWalletLayout({
 	children,
-}: {
+}: Readonly<{
 	children: React.ReactNode;
-}) {
+}>) {
 	return (
 		<PermissionsGuard
 			permissions={[

@@ -54,7 +54,6 @@ export class PlacementsController {
 		return this.placementsService.list(orgId, {
 			tab: query.tab,
 			search: query.search,
-			workforceType: query.workforceType,
 			compliance: query.compliance,
 			vendorId: vendorId || undefined,
 			page: query.page,

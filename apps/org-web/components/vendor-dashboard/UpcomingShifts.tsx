@@ -1,11 +1,18 @@
 "use client";
 
 import { Button } from "@repo/ui/components/button";
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@repo/ui/components/empty";
 import { PageSubheading } from "@repo/ui/general/PageSubheading";
 import PaginationControls from "@repo/ui/general/PaginationControls";
 import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { CalendarClock, ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { vendorDashboardKey } from "@/queries/vendor-dashboard.queries";
@@ -29,11 +36,11 @@ const UPCOMING_PARAMS = {
 export function UpcomingShifts({
 	shifts,
 	allowClaim = true,
-}: {
+}: Readonly<{
 	shifts: ClaimableShift[];
 	/** When false, Claim Shift is hidden (Vendor View Only). */
 	allowClaim?: boolean;
-}) {
+}>) {
 	const [expanded, setExpanded] = useState(true);
 	const { page, setPage, limit, setLimit } = usePaginationControls({
 		pageParamKey: UPCOMING_PARAMS.PAGE,
@@ -110,8 +117,21 @@ export function UpcomingShifts({
 
 			{!expanded ? (
 				<div className="flex items-center justify-center border rounded p-6 text-sm text-muted-foreground">
-					{shifts.length} shifts available
+					{totalItems} shifts available
 				</div>
+			) : totalItems === 0 ? (
+				<Empty className="border border-muted/60 py-10">
+					<EmptyMedia variant="icon">
+						<CalendarClock className="text-muted-foreground" />
+					</EmptyMedia>
+					<EmptyHeader>
+						<EmptyTitle>No upcoming open shifts</EmptyTitle>
+						<EmptyDescription>
+							There are no claimable public shifts available right now. Check
+							back later or visit the shift claiming page for more options.
+						</EmptyDescription>
+					</EmptyHeader>
+				</Empty>
 			) : (
 				<div className="flex flex-col gap-4">
 					<div className="border border-border rounded overflow-hidden">
@@ -131,6 +151,9 @@ export function UpcomingShifts({
 						limit={limit}
 						setLimit={setLimit}
 						pageSizeOptions={[5, 10, 20]}
+						totalItems={totalItems}
+						itemLabel="shift"
+						itemLabelPlural="shifts"
 					/>
 				</div>
 			)}

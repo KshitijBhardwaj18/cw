@@ -10,7 +10,10 @@ interface FeeStructureFormProps {
 	onChange: (patch: Partial<BillingFormState>) => void;
 }
 
-export function FeeStructureForm({ state, onChange }: FeeStructureFormProps) {
+export function FeeStructureForm({
+	state,
+	onChange,
+}: Readonly<FeeStructureFormProps>) {
 	return (
 		<div className="space-y-4">
 			<h3 className="text-sm font-bold text-foreground px-1">Fee Structure</h3>

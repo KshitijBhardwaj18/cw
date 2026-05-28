@@ -1,6 +1,7 @@
 import type {
 	CommandCenterWorkforceCounts,
 	CommandCenterWorkforceTypeKey,
+	RequisitionStatus,
 } from "@repo/shared";
 import type { LucideIcon } from "lucide-react";
 
@@ -13,6 +14,8 @@ export type CandidateProcessingFilterKey =
 	| "overdue-submissions"
 	| "aging-qualified"
 	| "aging-shortlisted"
+	| "interview-delayed"
+	| "offer-pending"
 	| "overdue-offers"
 	| "delayed-onboarding";
 
@@ -239,7 +242,7 @@ export interface HiringFunnelStageMetric {
 export interface HiringFunnelJobListingItem {
 	id: string;
 	jobTitle: string;
-	status: "open" | "closed";
+	status: `${RequisitionStatus}`;
 	location: string;
 	department: string;
 	submitted: number;

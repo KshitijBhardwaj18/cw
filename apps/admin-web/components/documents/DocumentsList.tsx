@@ -46,7 +46,7 @@ export function DocumentsList({
 	vendorId,
 	mspId,
 	organizationId,
-}: DocumentsListProps) {
+}: Readonly<DocumentsListProps>) {
 	const [localTypeFilter, setLocalTypeFilter] = useState("");
 	const [localDateFrom, setLocalDateFrom] = useState("");
 	const [localDateTo, setLocalDateTo] = useState("");

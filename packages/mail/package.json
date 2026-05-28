@@ -17,6 +17,7 @@
 		"package": "rm -rf dist && tsc --build --force"
 	},
 	"dependencies": {
+		"@repo/shared": "*",
 		"nodemailer": "^8.0.1"
 	},
 	"devDependencies": {

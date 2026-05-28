@@ -218,7 +218,11 @@ export async function runSummaryRecomputeProcessor(
 						}
 						if (cc?.status === CandidateComplianceStatus.APPROVED) {
 							walletApprovedComplianceItems += 1;
-						} else if (cc?.status === CandidateComplianceStatus.PENDING) {
+						} else if (
+							cc?.status === CandidateComplianceStatus.PENDING_REVIEW
+						) {
+							walletPendingVerificationComplianceItems += 1;
+						} else if (cc?.status === CandidateComplianceStatus.REJECTED) {
 							walletPendingVerificationComplianceItems += 1;
 						} else {
 							// MISSING with a document shouldn't happen, but treat as pending verification.
@@ -586,6 +590,26 @@ export async function runSummaryRecomputeProcessor(
 
 	const weekEnd = new Date(payload.weekEndingDate);
 	if (Number.isNaN(weekEnd.getTime())) return;
+
+	// Closed-week immutability: weeks that ended more than 7 days ago are
+	// historical and should not be recomputed if a summary already exists.
+	// This avoids both unnecessary work and accidental rewrites of stable
+	// rollups when downstream tables (timesheets, disputes) get late edits.
+	const CLOSED_WEEK_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+	const isClosedWeek = Date.now() - weekEnd.getTime() > CLOSED_WEEK_GRACE_MS;
+	if (isClosedWeek) {
+		const existingClosed = await prisma.timekeepingSummary.findFirst({
+			where: {
+				organizationId: payload.organizationId,
+				weekEndingDate: weekEnd,
+				vendorId: null,
+				locationId: null,
+				departmentId: null,
+			},
+			select: { id: true },
+		});
+		if (existingClosed) return;
+	}
 
 	const start = new Date(
 		Date.UTC(

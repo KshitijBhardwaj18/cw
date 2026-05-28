@@ -6,15 +6,19 @@ import { Loader2, Send } from "lucide-react";
 
 export interface CandidateJobApplySubmitCardProps {
 	canSubmit: boolean;
+	isSubmitting: boolean;
 	onCancel: () => void;
 	onSubmit: () => void;
+	submitLabel?: string;
 }
 
 export function CandidateJobApplySubmitCard({
 	canSubmit,
+	isSubmitting,
 	onCancel,
 	onSubmit,
-}: CandidateJobApplySubmitCardProps) {
+	submitLabel = "Submit Application",
+}: Readonly<CandidateJobApplySubmitCardProps>) {
 	return (
 		<Card>
 			<CardContent className="pt-6">
@@ -25,22 +29,22 @@ export function CandidateJobApplySubmitCard({
 						size="sm"
 						className="w-full sm:w-auto"
 						onClick={onCancel}
-						disabled={!canSubmit}
+						disabled={isSubmitting}
 					>
 						Cancel
 					</Button>
 					<Button
 						type="button"
 						className="w-full gap-2 sm:ml-auto sm:w-auto"
-						disabled={!canSubmit}
+						disabled={!canSubmit || isSubmitting}
 						onClick={onSubmit}
 					>
-						{!canSubmit ? (
+						{isSubmitting ? (
 							<Loader2 className="size-4 animate-spin" aria-hidden />
 						) : (
 							<Send className="size-4" aria-hidden />
 						)}
-						{canSubmit ? "Submit Application" : "Submitting…"}
+						{isSubmitting ? "Submitting…" : submitLabel}
 					</Button>
 				</div>
 			</CardContent>

@@ -38,7 +38,7 @@ export function GrievanceStatusFlowCard({
 	completedTaskCount,
 	totalTaskCount,
 	className,
-}: GrievanceStatusFlowCardProps) {
+}: Readonly<GrievanceStatusFlowCardProps>) {
 	const currentIndex = getGrievanceFlowStepIndex(status);
 	const progressPct =
 		totalTaskCount === 0

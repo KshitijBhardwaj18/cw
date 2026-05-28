@@ -11,6 +11,7 @@ import {
 	vendorUserRoleLabel,
 	vendorUserStatusLabel,
 } from "@/constants/vendor-users";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type {
 	VendorPortalUserRow,
 	VendorUserUiStatus,
@@ -43,22 +44,26 @@ export function useVendorUserListColumns({
 	canManageTeam,
 	currentVendorUserId,
 }: UseVendorUserListColumnsOptions) {
+	const { fmtDateTime } = useUserTimezone();
+
 	return useMemo<ColumnDef<VendorPortalUserRow>[]>(
 		() => [
 			{
 				id: "user",
 				header: "User",
-				accessorFn: (r) => r.fullName,
+				accessorFn: (r) => `${r.firstName} ${r.lastName}`.trim(),
 				cell: ({ row }) => (
 					<div className="flex min-w-0 max-w-xs items-center gap-3">
 						<Avatar className="size-9 shrink-0 border border-border">
 							<AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-								{getInitials(row.original.fullName)}
+								{getInitials(
+									`${row.original.firstName} ${row.original.lastName}`.trim(),
+								)}
 							</AvatarFallback>
 						</Avatar>
 						<div className="min-w-0">
 							<p className="truncate font-semibold text-sm">
-								{row.original.fullName}
+								{`${row.original.firstName} ${row.original.lastName}`.trim()}
 							</p>
 						</div>
 					</div>
@@ -115,10 +120,10 @@ export function useVendorUserListColumns({
 			{
 				id: "lastActive",
 				header: "Last active",
-				accessorFn: (r) => r.lastActiveLabel,
+				accessorFn: (r) => r.lastActiveAt,
 				cell: ({ row }) => (
 					<div className="whitespace-nowrap text-sm">
-						{row.original.lastActiveLabel}
+						{fmtDateTime(row.original.lastActiveAt)}
 					</div>
 				),
 			},
@@ -142,7 +147,7 @@ export function useVendorUserListColumns({
 										variant="ghost"
 										size="icon"
 										className="text-muted-foreground size-9"
-										aria-label={`Edit ${row.original.fullName}`}
+										aria-label={`Edit ${`${row.original.firstName} ${row.original.lastName}`.trim()}`}
 										onClick={() => {
 											onEdit(row.original);
 										}}
@@ -154,7 +159,7 @@ export function useVendorUserListColumns({
 										variant="ghost"
 										size="icon"
 										className="text-destructive hover:text-destructive size-9"
-										aria-label={`Remove ${row.original.fullName}`}
+										aria-label={`Remove ${`${row.original.firstName} ${row.original.lastName}`.trim()}`}
 										onClick={() => {
 											onDelete(row.original);
 										}}
@@ -168,6 +173,6 @@ export function useVendorUserListColumns({
 				},
 			},
 		],
-		[onEdit, onDelete, canManageTeam, currentVendorUserId],
+		[fmtDateTime, onEdit, onDelete, canManageTeam, currentVendorUserId],
 	);
 }

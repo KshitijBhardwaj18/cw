@@ -6,7 +6,7 @@ type Props = {
 	type?: "ping" | "spin";
 };
 
-const LoadingScreen = (props: Props) => {
+const LoadingScreen = (props: Readonly<Props>) => {
 	const { className, message, type = "spin" } = props;
 	return (
 		<div

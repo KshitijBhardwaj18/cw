@@ -1,7 +1,15 @@
+import {
+	formatTzShortDate,
+	formatUtcLongDate,
+	type OrganizationTimezone,
+	TimesheetEntryStatus,
+	utcInstantToIsoDateString,
+} from "@repo/shared";
 import type {
 	DisputeLogEntry,
 	DisputeStatus,
 	LocationTimekeeping,
+	TimeEntryStatus,
 	TimeLog,
 	WorkerTimekeeping,
 	WorkerType,
@@ -11,7 +19,6 @@ import type {
 	LocationGrouped,
 	TimeEntryLog,
 } from "@/services/organization-timekeeping.types";
-import { fmtDate } from "@/utils/format";
 
 export const GROUPED_PAGE_SIZE = 20;
 /** Page size for dispute log API (`useDisputes`). */
@@ -33,22 +40,15 @@ export const WORKER_TYPE_LABEL: Record<string, WorkerType> = {
 };
 
 export function workDateToIso(workDate: string | null | undefined): string {
-	if (!workDate) return "";
-	try {
-		const d = new Date(workDate);
-		if (Number.isNaN(d.getTime())) return "";
-		return d.toISOString().slice(0, 10);
-	} catch {
-		return "";
-	}
+	return utcInstantToIsoDateString(workDate);
 }
 
-function deriveWorkerStatus(
-	logs: TimeEntryLog[],
-): "PENDING" | "APPROVED" | "DISPUTED" {
-	if (logs.some((l) => l.status === "DISPUTED")) return "DISPUTED";
-	if (logs.some((l) => l.status === "PENDING")) return "PENDING";
-	return "APPROVED";
+function deriveWorkerStatus(logs: TimeEntryLog[]): TimesheetEntryStatus {
+	if (logs.some((l) => l.status === TimesheetEntryStatus.DISPUTED))
+		return TimesheetEntryStatus.DISPUTED;
+	if (logs.some((l) => l.status === TimesheetEntryStatus.PENDING))
+		return TimesheetEntryStatus.PENDING;
+	return TimesheetEntryStatus.APPROVED;
 }
 
 function deriveWorkerSource(
@@ -61,11 +61,11 @@ function deriveWorkerSource(
 
 export function toTimeLog(entry: TimeEntryLog): TimeLog {
 	const openDisputeDescription =
-		entry.status === "DISPUTED"
+		entry.status === TimesheetEntryStatus.DISPUTED
 			? (entry.disputes?.[0]?.description ?? null)
 			: null;
 	const noteForDisplay =
-		entry.status === "DISPUTED"
+		entry.status === TimesheetEntryStatus.DISPUTED
 			? (openDisputeDescription ?? entry.notes ?? null)
 			: (entry.notes ?? null);
 
@@ -80,7 +80,7 @@ export function toTimeLog(entry: TimeEntryLog): TimeLog {
 		endTime: entry.clockOut ?? "—",
 		totalHours: entry.hours ?? entry.regularHours + entry.overtimeHours,
 		note: noteForDisplay,
-		status: entry.status as "PENDING" | "APPROVED" | "DISPUTED",
+		status: entry.status as TimeEntryStatus,
 		approvalSource: (entry.approvalSource as "Auto" | "Manual") ?? undefined,
 		source: entry.dataSource === "MOBILE_APP" ? "MOBILE_APP" : "FILE_UPLOAD",
 	};
@@ -121,7 +121,10 @@ export function toLocationTimekeeping(
 	};
 }
 
-export function toDisputeLogEntry(item: DisputeItem): DisputeLogEntry {
+export function toDisputeLogEntry(
+	item: DisputeItem,
+	tz?: OrganizationTimezone,
+): DisputeLogEntry {
 	let status: DisputeStatus = "Open";
 	if (item.resolutionCategory === "REJECTED") status = "Rejected";
 	else if (item.resolution !== null) status = "Resolved";
@@ -130,11 +133,14 @@ export function toDisputeLogEntry(item: DisputeItem): DisputeLogEntry {
 		? workDateToIso(item.timesheetEntry.workDate)
 		: "";
 
+	const fmtTs = (iso: string | null | undefined) =>
+		tz ? formatTzShortDate(iso, tz) : formatUtcLongDate(iso);
+
 	return {
 		id: item.id,
 		workerName: item.timesheet.candidate.user.name ?? "Unknown",
 		position: item.timesheetEntry?.placement?.jobTitle ?? "",
-		date: workDateIso || fmtDate(item.timesheetEntry?.workDate),
+		date: workDateIso || formatUtcLongDate(item.timesheetEntry?.workDate),
 		startTime: item.timesheetEntry?.clockIn ?? "—",
 		endTime: item.timesheetEntry?.clockOut ?? "—",
 		payCode: item.timesheetEntry?.payCode?.code ?? "",
@@ -148,9 +154,9 @@ export function toDisputeLogEntry(item: DisputeItem): DisputeLogEntry {
 		submittedBy: {
 			name: item.raisedBy?.name ?? "Unknown",
 			role: item.raisedBy?.role ?? "",
-			timestamp: fmtDate(item.raisedAt),
+			timestamp: fmtTs(item.raisedAt),
 		},
-		resolvedAt: item.resolvedAt ? fmtDate(item.resolvedAt) : undefined,
+		resolvedAt: item.resolvedAt ? fmtTs(item.resolvedAt) : undefined,
 		status,
 	};
 }

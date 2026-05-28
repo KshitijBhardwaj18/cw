@@ -1,9 +1,11 @@
+import type { SubmissionStage } from "@repo/shared";
 import type { SubmissionListRow } from "@/constants/submissions";
 
 export type OrgSubmissionComplianceItem = {
+	complianceListItemId: string;
 	title: string;
 	meta: string;
-	documentUrl: string | null;
+	hasDocument: boolean;
 	status?: string;
 };
 
@@ -18,6 +20,23 @@ export type OrgSubmissionComplianceBlock = {
 		showDocumentsBanner: boolean;
 		documentsBannerMessage: string | null;
 	};
+};
+
+/** Prisma `SubmissionStage` values plus history-only `OFFER_EXTENDED` (legacy / API event name). */
+export type SubmissionHistoryEventType =
+	| `${SubmissionStage}`
+	| "OFFER_EXTENDED";
+
+export type SubmissionHistoryActorKind = "user" | "vendor";
+
+export type SubmissionHistoryEntry = {
+	id: string;
+	type: SubmissionHistoryEventType;
+	title: string;
+	at: string;
+	actorLabel: string;
+	actorKind: SubmissionHistoryActorKind;
+	body: string | null;
 };
 
 export type OrgSubmissionDetail = SubmissionListRow & {
@@ -43,11 +62,17 @@ export type OrgSubmissionDetail = SubmissionListRow & {
 	submissionStatusBadge: string;
 	regionalNurse: string;
 	specificSpecialty: string;
+	interview: {
+		scheduledAt: string | null;
+		location: string | null;
+		notes: string | null;
+	};
 	coreQuestions: OrgSubmissionLabelValue[];
 	occupationalQuestionnaire: OrgSubmissionQaPair[];
 	specialtyQuestionnaire: OrgSubmissionQaPair[];
 	priorityFactors: string[];
 	compliance: OrgSubmissionComplianceBlock;
+	historyEntries: SubmissionHistoryEntry[];
 };
 
 export type ApplicationTimelineItem = {

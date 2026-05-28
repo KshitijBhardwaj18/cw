@@ -4,7 +4,7 @@ type PageProps = {
 	params: Promise<{ organizationId: string; invoiceId: string }>;
 };
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params }: Readonly<PageProps>) {
 	const { organizationId, invoiceId } = await params;
 	return (
 		<InvoiceDetailPageContent

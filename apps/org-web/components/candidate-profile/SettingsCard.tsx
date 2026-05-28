@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { useCloseCandidateAccount } from "@/queries/candidate-account.queries";
 
 export interface SettingsItem {
 	type: "link" | "button";
@@ -32,17 +34,35 @@ export interface SettingsItem {
 export function SettingsCard() {
 	const router = useRouter();
 	const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
-	const [isLoading, setIsLoading] = useState(false);
+	const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
+	const [isSigningOut, setIsSigningOut] = useState(false);
+	const closeAccountMutation = useCloseCandidateAccount();
 
 	const handleSignOut = async () => {
 		try {
-			setIsLoading(true);
+			setIsSigningOut(true);
 			await authClient.signOut();
 			router.push("/sign-in");
 		} finally {
-			setIsLoading(false);
+			setIsSigningOut(false);
 			setIsLogoutDialogOpen(false);
 		}
+	};
+
+	const handleCloseAccount = () => {
+		closeAccountMutation.mutate(undefined, {
+			onSuccess: async () => {
+				setIsCloseDialogOpen(false);
+				await authClient.signOut();
+				router.push("/sign-in");
+			},
+			onError: (err) => {
+				setIsCloseDialogOpen(false);
+				toast.error(
+					err instanceof Error ? err.message : "Failed to close account",
+				);
+			},
+		});
 	};
 
 	const items: SettingsItem[] = [
@@ -67,12 +87,10 @@ export function SettingsCard() {
 		},
 		{
 			type: "button",
-			label: "Delete Account",
+			label: "Close Account",
 			icon: Trash2,
 			variant: "danger",
-			onClick: () => {
-				// TODO: Implement delete account
-			},
+			onClick: () => setIsCloseDialogOpen(true),
 		},
 	];
 
@@ -110,10 +128,21 @@ export function SettingsCard() {
 				isOpen={isLogoutDialogOpen}
 				onClose={() => setIsLogoutDialogOpen(false)}
 				onConfirm={handleSignOut}
-				isLoading={isLoading}
+				isLoading={isSigningOut}
 				title="Sign Out"
 				description="Are you sure you want to sign out of your account?"
 				confirmText="Sign Out"
+				cancelText="Cancel"
+			/>
+
+			<CustomAlertDialog
+				isOpen={isCloseDialogOpen}
+				onClose={() => setIsCloseDialogOpen(false)}
+				onConfirm={handleCloseAccount}
+				isLoading={closeAccountMutation.isPending}
+				title="Close your account?"
+				description="Closing your account will sign you out, disable sign-in, hide your profile from vendors and organizations, and withdraw any pending job applications. Existing placements, timecards, and approved compliance records will be retained as required by employment regulations. Contact support if you need to permanently erase your data after closing."
+				confirmText="Close Account"
 				cancelText="Cancel"
 			/>
 		</>

@@ -1,5 +1,10 @@
-export function candidatePlacementsListPath(): string {
-	return "/placements";
+export type CandidatePlacementsListTab = "active" | "upcoming" | "past";
+
+export function candidatePlacementsListPath(
+	tab?: CandidatePlacementsListTab,
+): string {
+	if (!tab || tab === "active") return "/placements";
+	return `/placements?cpPlTab=${tab}`;
 }
 
 export function candidateProfilePath(): string {

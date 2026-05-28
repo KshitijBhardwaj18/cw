@@ -1,7 +1,7 @@
 "use client";
 
 import { Action } from "@repo/casl";
-import type { MetricKey, MetricType } from "@repo/db";
+import type { MetricKey, MetricType } from "@repo/shared";
 import { formatMetricValue, getLabel, metricGoalSuffix } from "@repo/shared";
 import {
 	Empty,
@@ -11,6 +11,7 @@ import {
 } from "@repo/ui/components/empty";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { formatDistanceToNow } from "date-fns";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { METRIC_TYPE_OPTIONS } from "@/constants/metrics";
@@ -74,9 +75,9 @@ type UiKpi = OrgMetricKpi & {
 
 export function MetricsReportingKpisTabContent({
 	organizationId,
-}: {
+}: Readonly<{
 	organizationId: string;
-}) {
+}>) {
 	const { ability } = useAuth();
 	const canUpdate = ability.can(Action.Update, "Metric");
 	const { data, isLoading } = useOrganizationMetrics(organizationId);
@@ -100,15 +101,15 @@ export function MetricsReportingKpisTabContent({
 		for (const row of data) {
 			const ui = toUiKpi({
 				metricId: row.metric.id,
-				metricKey: row.metric.key,
+				metricKey: row.metric.key as MetricKey,
 				name: row.metric.name,
-				metricType: row.metric.type,
+				metricType: row.metric.type as MetricType,
 				goal: row.organizationMetric?.goal ?? null,
 				currentValue: row.latestSnapshot?.value ?? null,
 				isActive: row.organizationMetric?.isActive ?? false,
 				hasOrganizationMetric: row.organizationMetric != null,
 			});
-			seed[row.metric.type].push(ui);
+			seed[row.metric.type as MetricType].push(ui);
 		}
 		for (const t of METRIC_TYPE_OPTIONS.map((o) => o.value)) {
 			seed[t].sort((a, b) => a.name.localeCompare(b.name));
@@ -135,6 +136,23 @@ export function MetricsReportingKpisTabContent({
 	const orderedTypes = METRIC_TYPE_OPTIONS.map((o) => o.value).filter((t) =>
 		filteredAndGrouped.has(t),
 	);
+
+	const lastRefreshedAt = useMemo(() => {
+		if (!data) return null;
+		let latest: Date | null = null;
+		for (const row of data) {
+			const computedAt = row.latestSnapshot?.computedAt
+				? new Date(row.latestSnapshot.computedAt)
+				: null;
+			if (!computedAt) continue;
+			if (!latest || computedAt > latest) latest = computedAt;
+		}
+		return latest;
+	}, [data]);
+
+	const lastRefreshedLabel = lastRefreshedAt
+		? `Refreshes every 24 hours · Last refreshed ${formatDistanceToNow(lastRefreshedAt, { addSuffix: true })}`
+		: "Refreshes every 24 hours · Awaiting first refresh";
 
 	const kpiById = useMemo(() => {
 		const map = new Map<string, UiKpi>();
@@ -278,6 +296,7 @@ export function MetricsReportingKpisTabContent({
 					placeholder: "Search metrics...",
 				}}
 			/>
+			<p className="text-muted-foreground text-xs">{lastRefreshedLabel}</p>
 
 			{orderedTypes.length === 0 ? (
 				<Empty className="border">

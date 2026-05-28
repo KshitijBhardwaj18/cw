@@ -18,7 +18,6 @@ export function SpendAnalyticsPageContent() {
 	const {
 		activeTab,
 		setActiveTab,
-		orgId,
 		filterFields,
 		filterValues,
 		onFilterChange,
@@ -27,19 +26,22 @@ export function SpendAnalyticsPageContent() {
 		isSpendFiltersPending,
 		trendChartData,
 		trendLoading,
-		detailList,
-		detailLoading,
+		detailList: _detailList,
+		detailLoading: _detailLoading,
 		breakdown,
 		breakdownLoading,
 		openCommittedTotals,
 		spendDeltaPct,
 		totalSavings,
+		savingsByDept,
+		savingsLoading,
+		periodDays,
 		breakdownPage,
 		setBreakdownPage,
 		breakdownLimit,
 		setBreakdownLimit,
-		savingsCostCenter,
-		setSavingsCostCenter,
+		savingsDepartment,
+		setSavingsDepartment,
 	} = useSpendAnalyticsPage();
 
 	return (
@@ -83,7 +85,6 @@ export function SpendAnalyticsPageContent() {
 				</TabsList>
 				<TabsContent value="open-committed" className="space-y-6">
 					<SpendBreakdownTableSection
-						orgId={orgId}
 						data={breakdown?.data ?? []}
 						total={breakdown?.total ?? 0}
 						page={breakdownPage}
@@ -99,10 +100,12 @@ export function SpendAnalyticsPageContent() {
 				</TabsContent>
 				<TabsContent value="savings" className="space-y-6">
 					<SpendSavingsTableSection
-						rows={detailList?.data ?? []}
-						isLoading={detailLoading || isSpendFiltersPending}
-						costCenterFilter={savingsCostCenter}
-						setCostCenterFilter={setSavingsCostCenter}
+						rows={savingsByDept?.data ?? []}
+						totalSavings={savingsByDept?.totalSavings ?? 0}
+						periodDays={periodDays}
+						isLoading={savingsLoading || isSpendFiltersPending}
+						departmentFilter={savingsDepartment}
+						setDepartmentFilter={setSavingsDepartment}
 					/>
 				</TabsContent>
 			</Tabs>

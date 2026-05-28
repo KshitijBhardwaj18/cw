@@ -47,13 +47,13 @@ export function MultiSelect({
 	defaultValues,
 	onValuesChange,
 	single = false,
-}: {
+}: Readonly<{
 	children: ReactNode;
 	values?: string[];
 	defaultValues?: string[];
 	onValuesChange?: (values: string[]) => void;
 	single?: boolean;
-}) {
+}>) {
 	const [open, setOpen] = useState(false);
 	const [internalValues, setInternalValues] = useState(
 		new Set<string>(values ?? defaultValues),
@@ -109,10 +109,12 @@ export function MultiSelectTrigger({
 	className,
 	children,
 	...props
-}: {
-	className?: string;
-	children?: ReactNode;
-} & ComponentPropsWithoutRef<typeof Button>) {
+}: Readonly<
+	{
+		className?: string;
+		children?: ReactNode;
+	} & ComponentPropsWithoutRef<typeof Button>
+>) {
 	const { open } = useMultiSelectContext();
 
 	return (
@@ -140,11 +142,13 @@ export function MultiSelectValue({
 	className,
 	overflowBehavior = "wrap",
 	...props
-}: {
-	placeholder?: string;
-	clickToRemove?: boolean;
-	overflowBehavior?: "wrap" | "wrap-when-open" | "cutoff";
-} & Omit<ComponentPropsWithoutRef<"div">, "children">) {
+}: Readonly<
+	{
+		placeholder?: string;
+		clickToRemove?: boolean;
+		overflowBehavior?: "wrap" | "wrap-when-open" | "cutoff";
+	} & Omit<ComponentPropsWithoutRef<"div">, "children">
+>) {
 	const { selectedValues, toggleValue, items, open, single } =
 		useMultiSelectContext();
 	const [overflowAmount, setOverflowAmount] = useState(0);
@@ -275,11 +279,13 @@ export function MultiSelectContent({
 	children,
 	onScrollToBottom,
 	...props
-}: {
-	search?: boolean | { placeholder?: string; emptyMessage?: string };
-	children: ReactNode;
-	onScrollToBottom?: () => void;
-} & Omit<ComponentPropsWithoutRef<typeof Command>, "children">) {
+}: Readonly<
+	{
+		search?: boolean | { placeholder?: string; emptyMessage?: string };
+		children: ReactNode;
+		onScrollToBottom?: () => void;
+	} & Omit<ComponentPropsWithoutRef<typeof Command>, "children">
+>) {
 	const canSearch = typeof search === "object" ? true : search;
 
 	return (
@@ -320,10 +326,12 @@ export function MultiSelectItem({
 	badgeLabel,
 	onSelect,
 	...props
-}: {
-	badgeLabel?: ReactNode;
-	value: string;
-} & Omit<ComponentPropsWithoutRef<typeof CommandItem>, "value">) {
+}: Readonly<
+	{
+		badgeLabel?: ReactNode;
+		value: string;
+	} & Omit<ComponentPropsWithoutRef<typeof CommandItem>, "value">
+>) {
 	const { toggleValue, selectedValues, onItemAdded } = useMultiSelectContext();
 	const isSelected = selectedValues.has(value);
 
@@ -348,13 +356,13 @@ export function MultiSelectItem({
 }
 
 export function MultiSelectGroup(
-	props: ComponentPropsWithoutRef<typeof CommandGroup>,
+	props: Readonly<ComponentPropsWithoutRef<typeof CommandGroup>>,
 ) {
 	return <CommandGroup {...props} />;
 }
 
 export function MultiSelectSeparator(
-	props: ComponentPropsWithoutRef<typeof CommandSeparator>,
+	props: Readonly<ComponentPropsWithoutRef<typeof CommandSeparator>>,
 ) {
 	return <CommandSeparator {...props} />;
 }

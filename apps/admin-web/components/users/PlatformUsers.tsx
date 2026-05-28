@@ -1,6 +1,7 @@
 "use client";
 
 import type { UserStatus } from "@repo/shared";
+import { splitFullNameToFirstLast as splitFullName } from "@repo/shared";
 import {
 	Empty,
 	EmptyDescription,
@@ -22,7 +23,6 @@ import {
 	useUpdateProgramUser,
 } from "@/queries/users.query";
 import type { PlatformUserTableRow, UserDto } from "@/types/users";
-import { splitFullName } from "@/utils/users";
 import { UserFormDialog } from "./UserFormDialog";
 
 export const PU_PARAMS = {
@@ -40,8 +40,8 @@ const buildPlatformRows = (users: UserDto[]): PlatformUserTableRow[] =>
 			email: user.email,
 			officePhone: user.officePhone ?? null,
 			phoneNumber: user.phoneNumber ?? null,
-			role: user.role,
-			status: user.status,
+			role: user.role as PlatformUserTableRow["role"],
+			status: user.status as PlatformUserTableRow["status"],
 		};
 	});
 
@@ -76,7 +76,7 @@ const PlatformUsers = () => {
 					title: user.title ?? "",
 					officePhone: user.officePhone ?? null,
 					phoneNumber: user.phoneNumber ?? null,
-					role: user.role,
+					role: user.role as PlatformUserTableRow["role"],
 					status: nextStatus,
 					mspId: user.mspId ?? null,
 				},

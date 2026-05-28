@@ -1,5 +1,6 @@
 "use client";
 
+import { shortId } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -35,6 +36,7 @@ export interface InvoiceHistoryTabContentProps {
 	onViewInvoice: (invoice: InvoiceHistoryItem) => void;
 	onDownloadPDF: (invoice: InvoiceHistoryItem) => void;
 	onExportData: (invoice: InvoiceHistoryItem) => void;
+	isLoading?: boolean;
 }
 
 export function InvoiceHistoryTabContent({
@@ -53,7 +55,8 @@ export function InvoiceHistoryTabContent({
 	onViewInvoice,
 	onDownloadPDF,
 	onExportData,
-}: InvoiceHistoryTabContentProps) {
+	isLoading,
+}: Readonly<InvoiceHistoryTabContentProps>) {
 	const { columns } = useInvoiceHistoryColumns({
 		onViewInvoice,
 		onDownloadPDF,
@@ -111,8 +114,11 @@ export function InvoiceHistoryTabContent({
 											className="flex items-center justify-between gap-4 rounded border border-destructive/10 bg-background px-4 py-2"
 										>
 											<div className="space-y-1">
-												<div className="text-sm font-medium text-foreground">
-													{invoice.id}
+												<div
+													className="text-sm font-medium text-foreground"
+													title={invoice.id}
+												>
+													{shortId(invoice.id)}
 												</div>
 												<div className="text-muted-foreground text-xs font-medium">
 													{invoice.period} • {invoice.amount}
@@ -150,7 +156,12 @@ export function InvoiceHistoryTabContent({
 					<CardTitle className="text-lg font-bold">Invoice History</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<CustomTable data={allInvoices} columns={columns} />
+					<CustomTable
+						data={allInvoices}
+						columns={columns}
+						isLoading={isLoading}
+						loadingLabel="Loading invoices..."
+					/>
 				</CardContent>
 			</Card>
 

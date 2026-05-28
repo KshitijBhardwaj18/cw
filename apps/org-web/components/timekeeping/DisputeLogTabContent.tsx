@@ -8,9 +8,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/ui/components/card";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import { MetricCard } from "@repo/ui/general/MetricCard";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { ApproveTimeLogDialog } from "@repo/ui/general/timekeeping/dialogs/ApproveTimeLogDialog";
 import { DisputeDetailsDialog } from "@repo/ui/general/timekeeping/dialogs/DisputeDetailsDialog";
 import { DisputeDialog } from "@repo/ui/general/timekeeping/dialogs/DisputeDialog";
@@ -50,6 +50,10 @@ export function DisputeLogTabContent() {
 		openDisputeSupportingDocument,
 		disputePage,
 		setDisputePage,
+		disputeLimit,
+		setDisputeLimit,
+		disputePageSizeOptions,
+		disputeTotalCount,
 		disputeTotalPages,
 	} = useTimekeepingContext();
 
@@ -99,10 +103,16 @@ export function DisputeLogTabContent() {
 						columns={columns}
 						className="rounded-none border-0"
 					/>
-					<ConfigPagePagination
-						page={disputePage}
-						totalPages={disputeTotalPages}
-						onPageChange={setDisputePage}
+					<PaginationControls
+						currentPage={disputePage}
+						pageCount={disputeTotalPages}
+						goToPage={setDisputePage}
+						limit={disputeLimit}
+						setLimit={setDisputeLimit}
+						pageSizeOptions={disputePageSizeOptions}
+						totalItems={disputeTotalCount}
+						itemLabel="dispute"
+						itemLabelPlural="disputes"
 					/>
 				</CardContent>
 			</Card>

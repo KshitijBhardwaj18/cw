@@ -29,7 +29,7 @@ interface OrganizationOccupationPageContentProps {
 
 export default function OrganizationOccupationPageContent({
 	organizationId,
-}: OrganizationOccupationPageContentProps) {
+}: Readonly<OrganizationOccupationPageContentProps>) {
 	const { ability } = useAuth();
 	const canUpdateOccupations = ability.can(Action.Update, "Organization");
 	const [updateOpen, setUpdateOpen] = useState(false);

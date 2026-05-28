@@ -1,6 +1,14 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
+import {
+	IsIn,
+	IsInt,
+	IsOptional,
+	IsString,
+	IsUUID,
+	Max,
+	Min,
+} from "class-validator";
 
 const STATUS_VALUES = ["all", "ACTIVE", "ONBOARDING", "INACTIVE"] as const;
 
@@ -36,4 +44,20 @@ export class QueryVendorCandidatesDto {
 	@IsOptional()
 	@IsIn(STATUS_VALUES)
 	status?: VendorCandidateStatusFilter;
+
+	@ApiPropertyOptional({
+		description:
+			"Filter to candidates whose occupation matches the given occupation id (used by job-board submission flow).",
+	})
+	@IsOptional()
+	@IsUUID()
+	occupationId?: string;
+
+	@ApiPropertyOptional({
+		description:
+			"Filter to candidates who hold the given specialty id (used by job-board submission flow).",
+	})
+	@IsOptional()
+	@IsUUID()
+	specialtyId?: string;
 }

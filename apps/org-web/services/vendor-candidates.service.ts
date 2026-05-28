@@ -1,4 +1,7 @@
-import type { PagePaginatedResponse } from "@repo/shared";
+import type {
+	PagePaginatedResponse,
+	VendorCandidatePortalStatus,
+} from "@repo/shared";
 import { ApiClient } from "@/lib/api-client";
 import type { InviteCandidateInput } from "@/services/talent-community.service";
 import type {
@@ -16,7 +19,9 @@ export type VendorCandidatesListQuery = {
 	page?: number;
 	limit?: number;
 	search?: string;
-	status?: "all" | "ACTIVE" | "ONBOARDING" | "INACTIVE";
+	status?: VendorCandidatePortalStatus;
+	occupationId?: string;
+	specialtyId?: string;
 };
 
 export class VendorCandidatesService {

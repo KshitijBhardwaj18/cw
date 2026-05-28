@@ -16,7 +16,7 @@ const DOT_COLORS = {
 
 export function RecentActivity({
 	items,
-}: {
+}: Readonly<{
 	items: Array<{
 		id: string;
 		title: string;
@@ -24,7 +24,7 @@ export function RecentActivity({
 		time: string;
 		severity: "info" | "warning" | "error";
 	}>;
-}) {
+}>) {
 	return (
 		<Card className="gap-4">
 			<CardHeader>

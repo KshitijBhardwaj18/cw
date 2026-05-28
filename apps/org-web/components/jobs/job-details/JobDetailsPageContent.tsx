@@ -1,9 +1,13 @@
 "use client";
 
 import { Action, subjectInstance, useAbility } from "@repo/casl";
-import { getLabel } from "@repo/shared";
+import {
+	formatIsoDateUtc,
+	getLabel,
+	getRequisitionStatusLabel,
+	getRequisitionStatusVariant,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
-import { Button } from "@repo/ui/components/button";
 import {
 	ConfigPageEmptyState,
 	ConfigPageErrorState,
@@ -12,7 +16,6 @@ import { CustomAlertDialog } from "@repo/ui/general/CustomAlertDialog";
 import LoadingScreen from "@repo/ui/general/LoadingScreen";
 import { MetricCard } from "@repo/ui/general/MetricCard";
 import { PageBackLink } from "@repo/ui/general/PageBackLink";
-import { format, parseISO } from "date-fns";
 import {
 	Calendar,
 	Clock,
@@ -24,11 +27,11 @@ import {
 	Users,
 	XCircle,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AccessBlockedState } from "@/components/general/AccessBlockedState";
+import { LockableActionButton } from "@/components/general/LockableActionButton";
 import { getInterviewTypeLabel } from "@/constants/interview-type-labels";
 import { JOB_POSTING_SUBMISSION_TYPE_OPTIONS } from "@/constants/job-posting-flow";
 import {
@@ -36,7 +39,7 @@ import {
 	SUBMISSION_STAGE_TABS,
 	type SubmissionStageKey,
 } from "@/constants/submissions";
-import { useOrgContext } from "@/contexts/org-context";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useCancelRequisition,
 	useRequisitionDetail,
@@ -44,56 +47,27 @@ import {
 import { useJobSubmissionStageCounts } from "@/queries/submissions.queries";
 import type { RequisitionDetailResponse } from "@/services/requisitions.service";
 import {
+	isJobActionLocked,
+	jobActionLockedReason,
+} from "@/utils/job-status-actions";
+import {
 	formatBillRateDisplay,
 	formatHoursPerWeek,
-	formatIsoDateOnly,
 	formatScheduleFromTimes,
 	formatShiftTypeHuman,
 } from "@/utils/submission-detail-format";
 import { JobCandidateSubmissionsSection } from "./JobCandidateSubmissionsSection";
 import { JobDetailsMetadataCards } from "./JobDetailsMetadataCards";
+import type { JobOfferAdjustmentDefaults } from "./JobOfferAdjustmentDialog";
 import { JobPostingDescriptionTabsCard } from "./JobPostingDescriptionTabsCard";
 import { JobRequisitionDetailsCard } from "./JobRequisitionDetailsCard";
 
-function statusBadge(status: string) {
-	switch (status) {
-		case "FILLED":
-			return (
-				<Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-					Filled
-				</Badge>
-			);
-		case "DRAFT":
-			return (
-				<Badge className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-					Draft
-				</Badge>
-			);
-		case "PENDING_APPROVAL":
-			return (
-				<Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-					Pending Approval
-				</Badge>
-			);
-		case "CANCELLED":
-			return (
-				<Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-					Cancelled
-				</Badge>
-			);
-		case "CLOSED":
-			return (
-				<Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-					Closed
-				</Badge>
-			);
-		default:
-			return (
-				<Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-					Open
-				</Badge>
-			);
-	}
+function statusBadge(status: Readonly<string>) {
+	return (
+		<Badge variant={getRequisitionStatusVariant(status)}>
+			{getRequisitionStatusLabel(status)}
+		</Badge>
+	);
 }
 
 function publishVisibilityLabel(
@@ -113,6 +87,7 @@ function publishVisibilityLabel(
 
 function postedDateLabel(
 	publish: RequisitionDetailResponse["publishSettings"],
+	fmtShortDate: (iso: string | Date | null | undefined) => string,
 ): string {
 	const dateStr =
 		publish.publishMode === "SCHEDULE_PUBLISH_DATE"
@@ -121,39 +96,46 @@ function postedDateLabel(
 				? publish.publishedAt
 				: null;
 	if (!dateStr) return "—";
-	try {
-		return format(parseISO(`${dateStr}T12:00:00`), "MMM d, yyyy");
-	} catch {
-		return "—";
-	}
+	return fmtShortDate(dateStr);
 }
 
 export interface JobDetailsPageContentProps {
 	jobId: string;
 }
 
-export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
+export function JobDetailsPageContent({
+	jobId,
+}: Readonly<JobDetailsPageContentProps>) {
+	const { fmtShortDate } = useUserTimezone();
 	const router = useRouter();
-	const { id: orgId } = useOrgContext();
 	const ability = useAbility();
 	const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
-	const { data, isLoading, isError, error } = useRequisitionDetail(
-		orgId,
-		jobId,
-	);
-	const { data: stageCounts } = useJobSubmissionStageCounts(orgId, jobId, {
-		enabled: !!orgId && !!jobId,
+	const { data, isLoading, isError, error } = useRequisitionDetail(jobId);
+	const { data: stageCounts } = useJobSubmissionStageCounts(jobId, {
+		enabled: !!jobId,
 	});
 
-	const cancelJob = useCancelRequisition(orgId);
+	const cancelJob = useCancelRequisition();
+
+	const isInterviewRequired =
+		data?.jobDetails.interviewRequired !== "NO_INTERVIEW";
 
 	const allowedSubmissionStages = useMemo<SubmissionStageKey[]>(
 		() =>
-			SUBMISSION_STAGE_TABS.filter(({ stage }) =>
-				ability.can(Action.List, subjectInstance("Submission", { stage })),
-			).map(({ stage }) => stage),
-		[ability],
+			SUBMISSION_STAGE_TABS.filter(({ stage }) => {
+				if (
+					!isInterviewRequired &&
+					(stage === "INTERVIEW_SCHEDULED" || stage === "INTERVIEW_COMPLETED")
+				) {
+					return false;
+				}
+				return ability.can(
+					Action.List,
+					subjectInstance("Submission", { stage }),
+				);
+			}).map(({ stage }) => stage),
+		[ability, isInterviewRequired],
 	);
 
 	const canReadJob = ability.can(Action.Read, "Requisition");
@@ -198,6 +180,18 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 			data.submissionSettings.submissionType,
 		);
 	}, [data]);
+
+	const jobOfferAdjustmentDefaults =
+		useMemo((): JobOfferAdjustmentDefaults | null => {
+			if (!data) return null;
+			const start = formatIsoDateUtc(data.jobDetails.startDate);
+			const end = formatIsoDateUtc(data.jobDetails.endDate);
+			return {
+				startDate: start === "—" ? "" : start,
+				endDate: end === "—" ? "" : end,
+				billRate: data.jobDetails.billRate ?? null,
+			};
+		}, [data]);
 
 	const handleCloseJob = useCallback(() => {
 		cancelJob.mutate(jobId, {
@@ -259,14 +253,7 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 	const templateName = data.templateName?.trim() || "Requisition template";
 	const title = data.jobDetails.requisitionName || "Job posting";
 
-	let startLabel = "—";
-	try {
-		if (data.jobDetails.startDate) {
-			startLabel = format(parseISO(data.jobDetails.startDate), "MMM d, yyyy");
-		}
-	} catch {
-		startLabel = "—";
-	}
+	const startLabel = fmtShortDate(data.jobDetails.startDate);
 
 	return (
 		<div className="space-y-8">
@@ -298,23 +285,29 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 				</div>
 				<div className="flex shrink-0 flex-wrap gap-2">
 					{canUpdateJob ? (
-						<Button type="button" variant="outline" asChild>
-							<Link href={`/org/jobs/${jobId}/edit`}>
+						<>
+							<LockableActionButton
+								type="button"
+								variant="outline"
+								locked={isJobActionLocked(data.status)}
+								lockReason={jobActionLockedReason(data.status)}
+								onClick={() => router.push(`/org/jobs/${jobId}/edit`)}
+							>
 								<Pencil className="size-4" />
 								Edit
-							</Link>
-						</Button>
-					) : null}
-					{canUpdateJob ? (
-						<Button
-							type="button"
-							variant="outline"
-							className="border-destructive/40 text-destructive hover:bg-destructive/5"
-							onClick={() => setCloseDialogOpen(true)}
-						>
-							<XCircle className="size-4" />
-							Close job
-						</Button>
+							</LockableActionButton>
+							<LockableActionButton
+								type="button"
+								variant="outline"
+								className="border-destructive/40 text-destructive hover:bg-destructive/5"
+								locked={isJobActionLocked(data.status)}
+								lockReason={jobActionLockedReason(data.status)}
+								onClick={() => setCloseDialogOpen(true)}
+							>
+								<XCircle className="size-4" />
+								Close job
+							</LockableActionButton>
+						</>
 					) : null}
 				</div>
 			</div>
@@ -354,9 +347,10 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 
 			{canListAnySubmission ? (
 				<JobCandidateSubmissionsSection
-					orgId={orgId}
 					jobId={jobId}
 					allowedStages={allowedSubmissionStages}
+					isInterviewRequired={isInterviewRequired}
+					offerDefaults={jobOfferAdjustmentDefaults}
 				/>
 			) : (
 				<ConfigPageEmptyState
@@ -380,8 +374,8 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 				specialty={specialtyLabel}
 				billRate={formatBillRateDisplay(data.jobDetails.billRate)}
 				vendorRate="—"
-				startDate={formatIsoDateOnly(data.jobDetails.startDate)}
-				endDate={formatIsoDateOnly(data.jobDetails.endDate)}
+				startDate={fmtShortDate(data.jobDetails.startDate)}
+				endDate={fmtShortDate(data.jobDetails.endDate)}
 				shiftType={formatShiftTypeHuman(String(data.jobDetails.shiftType))}
 				shiftHours={
 					data.jobDetails.shiftHours != null
@@ -402,15 +396,18 @@ export function JobDetailsPageContent({ jobId }: JobDetailsPageContentProps) {
 				department={deptName}
 				location={locName}
 				hiringManager={hiringManagerName}
-				startDate={formatIsoDateOnly(data.jobDetails.startDate)}
-				endDate={formatIsoDateOnly(data.jobDetails.endDate)}
+				startDate={fmtShortDate(data.jobDetails.startDate)}
+				endDate={fmtShortDate(data.jobDetails.endDate)}
 				billRate={formatBillRateDisplay(data.jobDetails.billRate)}
 				shiftType={formatShiftTypeHuman(String(data.jobDetails.shiftType))}
 				hoursPerWeek={formatHoursPerWeek(data.jobDetails.hoursPerWeek)}
 				schedule={scheduleDisplay}
 				visibility={publishVisibilityLabel(data.publishSettings.publishMode)}
 				submissionRule={submissionTypeLabel}
-				postedOrPublishLabel={postedDateLabel(data.publishSettings)}
+				postedOrPublishLabel={postedDateLabel(
+					data.publishSettings,
+					fmtShortDate,
+				)}
 			/>
 
 			<CustomAlertDialog

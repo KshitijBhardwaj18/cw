@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@repo/db";
 import { BackGroundJobStatus, CandidateInviteStatus } from "@repo/db";
-import { candidateInviteTemplate, sendMail } from "@repo/mail";
+import { candidateInviteTemplate, orgMailBranding, sendMail } from "@repo/mail";
 import type {
 	InviteCandidateJobResult,
 	InviteCandidatePayload,
@@ -17,7 +17,7 @@ export async function runInviteCandidateProcessor(
 		where: { id: candidateId, organizationId },
 		include: {
 			user: { select: { email: true, name: true } },
-			organization: { select: { name: true } },
+			organization: { select: { name: true, logo: true } },
 		},
 	});
 
@@ -39,10 +39,19 @@ export async function runInviteCandidateProcessor(
 
 	const email = candidate.user.email;
 	const orgName = candidate.organization.name;
-	const { subject, text } = candidateInviteTemplate(orgName, magicLinkUrl);
+	const branding = orgMailBranding({
+		orgName,
+		orgLogoUrl: candidate.organization.logo,
+		staffLogicLogoUrl: config.mail.staffLogicLogoUrl,
+		portal: "candidate",
+	});
+	const { subject, text, html } = candidateInviteTemplate(
+		branding,
+		magicLinkUrl,
+	);
 
 	try {
-		await sendMail(config.mail, { to: email, subject, text });
+		await sendMail(config.mail, { to: email, subject, text, html });
 		const now = new Date();
 		await Promise.all([
 			prisma.backGroundJob.update({

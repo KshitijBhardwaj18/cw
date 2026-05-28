@@ -1,12 +1,14 @@
 import { COMMAND_CENTER_TAB_CONDITIONS } from "../../../constants/command-center";
 import { SUBMISSION_TAB_CONDITIONS } from "../../../constants/submissions";
 import { TALENT_COMMUNITY_TAB_CONDITIONS } from "../../../constants/talent-community";
-import { Action } from "../../../types/actions";
 import type { AppSubjects } from "../../../types/subjects";
-import { type Can, CRU_ACTIONS, READ_UPDATE_ACTIONS } from "../../helpers";
-
-const LIST = [Action.Read, Action.List] as const;
-const RU = [Action.Read, Action.List, Action.Update] as const;
+import {
+	type Can,
+	CREATE_ACTIONS,
+	CREATE_READ_LIST_UPDATE_ACTIONS,
+	READ_LIST_ACTIONS,
+	READ_LIST_UPDATE_ACTIONS,
+} from "../../helpers";
 
 const ORG_LEADERSHIP_CRU_SUBJECTS = [
 	"Requisition",
@@ -30,55 +32,87 @@ const ORG_PORTAL_FILTER_LIST_SUBJECTS = [
 ] as const;
 
 export function defineOrganizationUserExecutiveRules(can: Can) {
-	can([...LIST], "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.metrics);
-	can([...LIST], "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.shifts);
-	can([...LIST], "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.performance);
 	can(
-		[...LIST],
+		READ_LIST_ACTIONS,
+		"CommandCenter",
+		COMMAND_CENTER_TAB_CONDITIONS.metrics,
+	);
+	can(READ_LIST_ACTIONS, "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.shifts);
+	can(
+		READ_LIST_ACTIONS,
+		"CommandCenter",
+		COMMAND_CENTER_TAB_CONDITIONS.performance,
+	);
+	can(
+		READ_LIST_ACTIONS,
 		"CommandCenter",
 		COMMAND_CENTER_TAB_CONDITIONS["hiring-funnel"],
 	);
 	can(
-		[...LIST],
+		READ_LIST_ACTIONS,
 		"CommandCenter",
 		COMMAND_CENTER_TAB_CONDITIONS["active-workforce"],
 	);
 
-	can([...LIST], "Placement");
-	can([...LIST], "PlacementComplianceItem");
+	can(READ_LIST_ACTIONS, "Placement");
+	can(READ_LIST_ACTIONS, "PlacementComplianceItem");
 
-	can([...RU], "Submission", SUBMISSION_TAB_CONDITIONS.qualified);
-	can([...RU], "Submission", SUBMISSION_TAB_CONDITIONS.interviewScheduled);
-	can([...RU], "Submission", SUBMISSION_TAB_CONDITIONS.offerExtended);
-	can([...LIST], "Submission", SUBMISSION_TAB_CONDITIONS.rejected);
-
-	can([...LIST], "TalentCommunity", TALENT_COMMUNITY_TAB_CONDITIONS.all);
-	can([...LIST], "TalentCommunity", TALENT_COMMUNITY_TAB_CONDITIONS.invited);
-
-	can([...LIST], "Credentials");
-	can(READ_UPDATE_ACTIONS, "SpendAnalytics");
-	can([...LIST], "Invoice");
-	can(CRU_ACTIONS, ["Timekeeping", "Timesheet", "TimesheetDispute"]);
 	can(
-		[...LIST],
-		[
-			"MissingTimeCase",
-			"TimekeepingSummary",
-			"OrganizationPayCode",
-			"OrganizationHoliday",
-		],
+		READ_LIST_UPDATE_ACTIONS,
+		"Submission",
+		SUBMISSION_TAB_CONDITIONS.qualified,
 	);
-	can([...LIST], "ComplianceChecklist");
-	can(CRU_ACTIONS, ["RequisitionTemplate", "ShiftTemplate"]);
-	can([...LIST], "User");
+	can(
+		READ_LIST_UPDATE_ACTIONS,
+		"Submission",
+		SUBMISSION_TAB_CONDITIONS.interviewScheduled,
+	);
+	can(
+		READ_LIST_UPDATE_ACTIONS,
+		"Submission",
+		SUBMISSION_TAB_CONDITIONS.offerExtended,
+	);
+	can(READ_LIST_ACTIONS, "Submission", SUBMISSION_TAB_CONDITIONS.rejected);
 
-	can(CRU_ACTIONS, [...ORG_LEADERSHIP_CRU_SUBJECTS]);
-	can(READ_UPDATE_ACTIONS, [...ORG_LEADERSHIP_READ_UPDATE_SUBJECTS]);
-	can([...LIST], [...ORG_LEADERSHIP_READ_SUBJECTS]);
-	can([...LIST], [...ORG_PORTAL_FILTER_LIST_SUBJECTS]);
+	can(
+		READ_LIST_ACTIONS,
+		"TalentCommunity",
+		TALENT_COMMUNITY_TAB_CONDITIONS.all,
+	);
+	can(
+		READ_LIST_ACTIONS,
+		"TalentCommunity",
+		TALENT_COMMUNITY_TAB_CONDITIONS.invited,
+	);
 
-	can([...LIST], "Specialty");
-	can(CRU_ACTIONS, "Invoice");
-	can([...LIST], ["Billing", "BillingConfig"]);
-	can(Action.Create, "User");
+	can(READ_LIST_ACTIONS, "Credentials");
+	can(READ_LIST_UPDATE_ACTIONS, "SpendAnalytics");
+	can(READ_LIST_ACTIONS, "Invoice");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, [
+		"Timekeeping",
+		"Timesheet",
+		"TimesheetDispute",
+	]);
+	can(READ_LIST_ACTIONS, [
+		"MissingTimeCase",
+		"TimekeepingSummary",
+		"OrganizationPayCode",
+		"OrganizationHoliday",
+	]);
+	can(READ_LIST_ACTIONS, "ComplianceChecklist");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, [
+		"RequisitionTemplate",
+		"ShiftTemplate",
+	]);
+	can(READ_LIST_ACTIONS, "User");
+
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, [...ORG_LEADERSHIP_CRU_SUBJECTS]);
+	can(READ_LIST_UPDATE_ACTIONS, [...ORG_LEADERSHIP_READ_UPDATE_SUBJECTS]);
+	can(READ_LIST_ACTIONS, [...ORG_LEADERSHIP_READ_SUBJECTS]);
+	can(READ_LIST_ACTIONS, [...ORG_PORTAL_FILTER_LIST_SUBJECTS]);
+
+	can(READ_LIST_ACTIONS, "Specialty");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "Invoice");
+	can(READ_LIST_ACTIONS, ["Billing", "BillingConfig"]);
+	can(CREATE_ACTIONS, "User");
 }

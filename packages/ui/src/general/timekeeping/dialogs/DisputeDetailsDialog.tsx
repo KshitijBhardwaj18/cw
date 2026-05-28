@@ -31,7 +31,7 @@ export function DisputeDetailsDialog({
 	onClose,
 	dispute,
 	onOpenSupportingDocument,
-}: DisputeDetailsDialogProps) {
+}: Readonly<DisputeDetailsDialogProps>) {
 	if (!dispute) return null;
 
 	return (

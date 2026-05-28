@@ -1,15 +1,13 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import { useEndPlacement } from "@/queries/placements.queries";
 
 export function usePlacementCardActions(
 	placementId: string,
 	placementNumber: string,
 ) {
-	const { id: orgId } = useOrgContext();
 	const [endDialogOpen, setEndDialogOpen] = useState(false);
-	const endPlacement = useEndPlacement(orgId);
+	const endPlacement = useEndPlacement();
 
 	const handleEndConfirm = (terminationReason?: string): Promise<void> => {
 		return new Promise<void>((resolve, reject) => {
@@ -23,7 +21,6 @@ export function usePlacementCardActions(
 					},
 					onError: (err) => {
 						console.error("[endPlacement] failed", {
-							orgId,
 							placementId,
 							error: err,
 						});

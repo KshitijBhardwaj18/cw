@@ -10,7 +10,9 @@ type Props = {
 	params: Promise<{ id: string }>;
 };
 
-export default async function EditRequisitionTemplatePage({ params }: Props) {
+export default async function EditRequisitionTemplatePage({
+	params,
+}: Readonly<Props>) {
 	const { id } = await params;
 	return (
 		<CreateRequisitionTemplatePageContent forcedMode="edit" templateId={id} />

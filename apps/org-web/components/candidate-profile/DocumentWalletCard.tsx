@@ -19,7 +19,7 @@ type DocumentWalletCardProps = {
 
 export function DocumentWalletCard({
 	organizationId,
-}: DocumentWalletCardProps) {
+}: Readonly<DocumentWalletCardProps>) {
 	const summaryQuery = useCandidateDocumentWalletSummary({
 		enabled: !!organizationId,
 	});

@@ -1,7 +1,10 @@
+"use client";
+
 import { Badge } from "@repo/ui/components/badge";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { cva } from "class-variance-authority";
 import { DOCUMENT_STATUS_CONFIG } from "@/constants/vendor/onboarding-tracker";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { OnboardingDocument } from "@/types/vendor-onboarding-tracker";
 
 const documentIconVariants = cva(
@@ -27,9 +30,16 @@ interface VendorOnboardingDocumentItemProps {
 
 export function VendorOnboardingDocumentItem({
 	document,
-}: VendorOnboardingDocumentItemProps) {
+}: Readonly<VendorOnboardingDocumentItemProps>) {
 	const config = DOCUMENT_STATUS_CONFIG[document.status];
 	const Icon = config.icon;
+	const { fmtShortDate } = useUserTimezone();
+
+	const dateLine = document.uploadedDate
+		? `Uploaded: ${fmtShortDate(document.uploadedDate)}`
+		: document.dueDate
+			? `Due: ${fmtShortDate(document.dueDate)}`
+			: null;
 
 	return (
 		<Card className="py-4">
@@ -43,9 +53,7 @@ export function VendorOnboardingDocumentItem({
 							{document.name}
 						</h5>
 						<p className="text-xs text-muted-foreground font-medium">
-							{document.uploadedDate
-								? `Uploaded: ${document.uploadedDate}`
-								: `Due: ${document.dueDate}`}
+							{dateLine ?? "—"}
 						</p>
 					</div>
 				</div>

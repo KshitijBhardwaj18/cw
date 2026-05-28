@@ -1,11 +1,8 @@
 import { COMMAND_CENTER_TAB_CONDITIONS } from "../../../constants/command-center";
 import { SUBMISSION_TAB_CONDITIONS } from "../../../constants/submissions";
 import { TALENT_COMMUNITY_TAB_CONDITIONS } from "../../../constants/talent-community";
-import { Action } from "../../../types/actions";
 import type { AppSubjects } from "../../../types/subjects";
-import type { Can } from "../../helpers";
-
-const LIST = [Action.Read, Action.List] as const;
+import { type Can, READ_LIST_ACTIONS } from "../../helpers";
 
 const ORG_OPERATIONS_READ_SUBJECTS = [
 	"PerDiemShift",
@@ -42,46 +39,63 @@ const TIMEKEEPING_ALL_SUBJECTS = [
 ] as const satisfies readonly AppSubjects[];
 
 export function defineOrganizationUserOperationsRules(can: Can) {
-	can([...LIST], "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.metrics);
-	can([...LIST], "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.shifts);
-	can([...LIST], "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.performance);
 	can(
-		[...LIST],
+		READ_LIST_ACTIONS,
+		"CommandCenter",
+		COMMAND_CENTER_TAB_CONDITIONS.metrics,
+	);
+	can(READ_LIST_ACTIONS, "CommandCenter", COMMAND_CENTER_TAB_CONDITIONS.shifts);
+	can(
+		READ_LIST_ACTIONS,
+		"CommandCenter",
+		COMMAND_CENTER_TAB_CONDITIONS.performance,
+	);
+	can(
+		READ_LIST_ACTIONS,
 		"CommandCenter",
 		COMMAND_CENTER_TAB_CONDITIONS["hiring-funnel"],
 	);
 	can(
-		[...LIST],
+		READ_LIST_ACTIONS,
 		"CommandCenter",
 		COMMAND_CENTER_TAB_CONDITIONS["active-workforce"],
 	);
 
-	can([...LIST], "Placement");
+	can(READ_LIST_ACTIONS, "Placement");
 
-	can([...LIST], "Submission", SUBMISSION_TAB_CONDITIONS.qualified);
-	can([...LIST], "Submission", SUBMISSION_TAB_CONDITIONS.interviewScheduled);
-	can([...LIST], "Submission", SUBMISSION_TAB_CONDITIONS.offerExtended);
-	can([...LIST], "Submission", SUBMISSION_TAB_CONDITIONS.rejected);
-
-	can([...LIST], "TalentCommunity", TALENT_COMMUNITY_TAB_CONDITIONS.all);
-	can([...LIST], "TalentCommunity", TALENT_COMMUNITY_TAB_CONDITIONS.invited);
-
-	can([...LIST], [...TIMEKEEPING_ALL_SUBJECTS]);
-	can([...LIST], ["SpendAnalytics", "Invoice"]);
+	can(READ_LIST_ACTIONS, "Submission", SUBMISSION_TAB_CONDITIONS.qualified);
 	can(
-		[...LIST],
-		[
-			"ComplianceChecklist",
-			"ComplianceListItem",
-			"RequisitionTemplate",
-			"ShiftTemplate",
-			"Billing",
-			"BillingConfig",
-			"User",
-		],
+		READ_LIST_ACTIONS,
+		"Submission",
+		SUBMISSION_TAB_CONDITIONS.interviewScheduled,
 	);
-	can([...LIST], ["Specialty"]);
+	can(READ_LIST_ACTIONS, "Submission", SUBMISSION_TAB_CONDITIONS.offerExtended);
+	can(READ_LIST_ACTIONS, "Submission", SUBMISSION_TAB_CONDITIONS.rejected);
 
-	can([...LIST], [...ORG_OPERATIONS_READ_SUBJECTS]);
-	can([...LIST], [...ORG_PORTAL_FILTER_LIST_SUBJECTS]);
+	can(
+		READ_LIST_ACTIONS,
+		"TalentCommunity",
+		TALENT_COMMUNITY_TAB_CONDITIONS.all,
+	);
+	can(
+		READ_LIST_ACTIONS,
+		"TalentCommunity",
+		TALENT_COMMUNITY_TAB_CONDITIONS.invited,
+	);
+
+	can(READ_LIST_ACTIONS, [...TIMEKEEPING_ALL_SUBJECTS]);
+	can(READ_LIST_ACTIONS, ["SpendAnalytics", "Invoice"]);
+	can(READ_LIST_ACTIONS, [
+		"ComplianceChecklist",
+		"ComplianceListItem",
+		"RequisitionTemplate",
+		"ShiftTemplate",
+		"Billing",
+		"BillingConfig",
+		"User",
+	]);
+	can(READ_LIST_ACTIONS, ["Specialty"]);
+
+	can(READ_LIST_ACTIONS, [...ORG_OPERATIONS_READ_SUBJECTS]);
+	can(READ_LIST_ACTIONS, [...ORG_PORTAL_FILTER_LIST_SUBJECTS]);
 }

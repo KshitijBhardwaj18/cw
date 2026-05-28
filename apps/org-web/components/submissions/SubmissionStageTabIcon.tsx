@@ -20,10 +20,10 @@ export type SubmissionStageTabIconKind =
 export function SubmissionStageTabIcon({
 	kind,
 	className,
-}: {
+}: Readonly<{
 	kind: SubmissionStageTabIconKind;
 	className?: string;
-}) {
+}>) {
 	const cls = cn("size-4 shrink-0", className);
 	switch (kind) {
 		case "file":

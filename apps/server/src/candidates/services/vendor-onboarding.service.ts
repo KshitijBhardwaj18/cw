@@ -120,7 +120,7 @@ export class VendorOnboardingService {
 				not: null,
 				...this.startDateFilterForWeekBucket(today, weekBucket),
 			},
-			candidate: { vendorId },
+			submission: { vendorId },
 			...(this.searchWhere(search) ?? {}),
 		};
 	}
@@ -137,8 +137,10 @@ export class VendorOnboardingService {
 		if (!cc?.documentUrl) return "missing";
 		if (cc.expiryDate && cc.expiryDate < now) return "missing";
 		if (cc.status === CandidateComplianceStatus.EXPIRED) return "missing";
+		if (cc.status === CandidateComplianceStatus.REJECTED) return "missing";
 		if (cc.status === CandidateComplianceStatus.APPROVED) return "complete";
-		if (cc.status === CandidateComplianceStatus.PENDING) return "pending";
+		if (cc.status === CandidateComplianceStatus.PENDING_REVIEW)
+			return "pending";
 		return "pending";
 	}
 

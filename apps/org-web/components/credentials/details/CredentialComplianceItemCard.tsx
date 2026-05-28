@@ -1,5 +1,10 @@
 "use client";
 
+import {
+	formatTzApiDate,
+	getCandidateComplianceStatusLabel,
+	getCandidateComplianceStatusVariant,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -9,32 +14,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/select";
-import { Check, CircleX, Clock, Upload } from "lucide-react";
+import {
+	getCandidateComplianceStatusIcon,
+	getCandidateComplianceStatusIconColor,
+} from "@repo/ui/lib/compliance-status-icon";
+import { Upload } from "lucide-react";
 import { CREDENTIAL_COMPLIANCE_STATUS_OPTIONS } from "@/hooks/use-credential-entry-details";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { CredentialComplianceItem } from "@/types/credential-entry-details";
-
-const STATUS_BADGE_CONFIG = {
-	missing: {
-		label: "Missing",
-		variant: "error",
-		icon: CircleX,
-	},
-	approved: {
-		label: "Complete",
-		variant: "success",
-		icon: Check,
-	},
-	expired: {
-		label: "Expired",
-		variant: "warning",
-		icon: CircleX,
-	},
-	pending: {
-		label: "Pending review",
-		variant: "info",
-		icon: Clock,
-	},
-} as const;
 
 interface CredentialComplianceItemCardProps {
 	item: CredentialComplianceItem;
@@ -51,12 +38,19 @@ export function CredentialComplianceItemCard({
 	canEdit,
 	onStatusChange,
 	onUploadDocument,
-}: CredentialComplianceItemCardProps) {
-	const statusConfig =
-		STATUS_BADGE_CONFIG[item.status] ?? STATUS_BADGE_CONFIG.missing;
-	const StatusIcon = statusConfig.icon;
-	const secondaryLine = item.expirationDate
-		? `${item.sourceLabel ?? "Placement-specific"} • Expires: ${item.expirationDate}`
+}: Readonly<CredentialComplianceItemCardProps>) {
+	const { tz } = useUserTimezone();
+	const StatusIcon = getCandidateComplianceStatusIcon(item.status);
+	const iconColor = getCandidateComplianceStatusIconColor(item.status);
+	const dateBits: string[] = [];
+	if (item.issueDate) {
+		dateBits.push(`Issued: ${formatTzApiDate(item.issueDate, tz)}`);
+	}
+	if (item.expirationDate) {
+		dateBits.push(`Expires: ${formatTzApiDate(item.expirationDate, tz)}`);
+	}
+	const secondaryLine = dateBits.length
+		? `${item.sourceLabel ?? "Placement-specific"} • ${dateBits.join(" • ")}`
 		: (item.sourceLabel ?? "Placement-specific");
 
 	return (
@@ -65,22 +59,15 @@ export function CredentialComplianceItemCard({
 			className="rounded-xl bg-muted/20 px-4 py-4"
 		>
 			<div className="flex items-start gap-3">
-				<StatusIcon
-					className={`mt-0.5 size-4 shrink-0 ${
-						item.status === "approved"
-							? "text-emerald-600"
-							: item.status === "expired"
-								? "text-amber-600"
-								: item.status === "pending"
-									? "text-sky-600"
-									: "text-red-600"
-					}`}
-				/>
+				<StatusIcon className={`mt-0.5 size-4 shrink-0 ${iconColor}`} />
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-3">
 						<p className="truncate text-sm font-medium">{item.name}</p>
-						<Badge variant={statusConfig.variant} className="px-3">
-							{statusConfig.label}
+						<Badge
+							variant={getCandidateComplianceStatusVariant(item.status)}
+							className="px-3"
+						>
+							{getCandidateComplianceStatusLabel(item.status)}
 						</Badge>
 					</div>
 					<p className="text-muted-foreground mt-1 text-xs">{secondaryLine}</p>

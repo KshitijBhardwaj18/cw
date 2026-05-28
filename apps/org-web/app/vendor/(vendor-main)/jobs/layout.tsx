@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	title: "Jobs",
 };
 
-const JobsBoardLayout = ({ children }: { children: React.ReactNode }) => {
+const JobsBoardLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.List, subject: "Requisition" }]}

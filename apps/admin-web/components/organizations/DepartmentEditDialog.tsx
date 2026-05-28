@@ -23,7 +23,7 @@ export function DepartmentEditDialog({
 	onOpenChange,
 	organizationId,
 	department,
-}: DepartmentEditDialogProps) {
+}: Readonly<DepartmentEditDialogProps>) {
 	const {
 		department: departmentDetail,
 		isLoadingDepartment,

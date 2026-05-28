@@ -1,3 +1,16 @@
+import type {
+	CandidateComplianceStatus,
+	VendorCandidateJobBoardMatchTier,
+	VendorCandidatePortalStatus,
+} from "@repo/shared";
+import type { SubmissionStageKey } from "@/constants/submissions";
+
+/** Status shown on job-board candidate cards (portal lifecycle, submission stage, or match tier). */
+export type VendorJobBoardCandidateStatus =
+	| VendorCandidatePortalStatus
+	| VendorCandidateJobBoardMatchTier
+	| SubmissionStageKey;
+
 export interface Requisition {
 	id: string;
 	title: string;
@@ -10,9 +23,12 @@ export interface Requisition {
 	startDate: string;
 	openings: string;
 	occupation: string;
+	occupationId: string | null;
 	specialty: string;
-	requirements: string[];
-	benefits: string[];
+	specialtyIds: string[];
+	requirements?: string[];
+	jobSummary?: string;
+	benefits?: string[];
 	contractType: string;
 	expectedWeeklyHours: string;
 	shiftPattern: string;
@@ -23,7 +39,7 @@ export interface Requisition {
 export interface Candidate {
 	id: string;
 	name: string;
-	status: string;
+	status: VendorJobBoardCandidateStatus;
 	role: string;
 	location: string;
 	experience: string;
@@ -48,8 +64,9 @@ export interface Candidate {
 	certificationPALS: string;
 	summaryNote: string;
 	skills: string[];
+	tags: string[];
 	compliance: {
 		name: string;
-		status: "Approved" | "Pending" | "Expired" | "Missing";
+		status: `${CandidateComplianceStatus}`;
 	}[];
 }

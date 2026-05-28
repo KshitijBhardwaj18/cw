@@ -1,5 +1,6 @@
 "use client";
 
+import { SKILLS_CHECKLIST_FILE_ACCEPT } from "@repo/shared";
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -12,18 +13,18 @@ import {
 import { DatePicker } from "@repo/ui/components/date-picker";
 import { Field, FieldError, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
+import { PhoneInput } from "@repo/ui/general/PhoneInput";
 import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { cn } from "@repo/ui/lib/utils";
 import { useStore } from "@tanstack/react-form";
+import { format } from "date-fns";
 import {
 	Activity,
 	AlertTriangle,
 	ArrowLeft,
 	ArrowRight,
-	Check,
 	Loader2,
-	Medal,
 	PlusCircle,
 	Trash2,
 	UploadCloud,
@@ -32,7 +33,7 @@ import {
 	X,
 } from "lucide-react";
 import type * as React from "react";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useSubmissionReadinessStepForm } from "@/hooks/candidate/use-submission-readiness-step-form";
 import {
 	emptyProfessionalReference,
@@ -41,10 +42,6 @@ import {
 	type SubmissionReadinessFormValues,
 	submissionReadinessBaseSchema,
 } from "@/schemas/candidate-sign-up.schema";
-
-/** PDF + common image uploads for certifications (frontend validation only). */
-const CERTIFICATION_ACCEPT =
-	".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg";
 
 const REFERENCE_ROW_FIELDS: Array<{
 	key: keyof ProfessionalReferenceFormValues;
@@ -62,7 +59,7 @@ interface SubmissionReadinessStepProps {
 	defaultValues: Partial<SubmissionReadinessFormValues>;
 	onValuesChange?: (values: SubmissionReadinessFormValues) => void;
 	onBack: () => void;
-	onContinue: () => void | Promise<void>;
+	onContinue: (values: SubmissionReadinessFormValues) => void | Promise<void>;
 	isSubmitting?: boolean;
 }
 
@@ -72,14 +69,16 @@ export function SubmissionReadinessStep({
 	onBack,
 	onContinue,
 	isSubmitting = false,
-}: SubmissionReadinessStepProps) {
+}: Readonly<SubmissionReadinessStepProps>) {
 	const certInputRef = useRef<HTMLInputElement>(null);
 
 	const { form } = useSubmissionReadinessStepForm({
 		defaultValues,
-		onSubmit: () => onContinue(),
+		onSubmit: (values) => onContinue(values),
 		onValuesChange,
 	});
+
+	const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
 
 	const submissionAttempts = useStore(
 		form.store,
@@ -159,6 +158,7 @@ export function SubmissionReadinessStep({
 												clearable={false}
 												placeholder="dd-mm-yyyy"
 												aria-invalid={isInvalid}
+												max={today}
 											/>
 											{isInvalid ? (
 												<FieldError errors={field.state.meta.errors} />
@@ -215,96 +215,103 @@ export function SubmissionReadinessStep({
 						</CardContent>
 					</Card>
 
-					{/* Certifications upload */}
+					{/* Skills checklist (file upload) */}
 					<Card className="border-border/70 bg-background shadow-sm">
 						<CardHeader className="flex flex-row items-start gap-4 pb-2">
 							<div className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-lg">
-								<Medal className="size-5" aria-hidden />
+								<Activity className="size-5" aria-hidden />
 							</div>
 							<div className="min-w-0 space-y-0.5">
 								<CardTitle className="text-base leading-snug">
-									Certifications Upload <RequiredStar />
+									Skills Checklist <RequiredStar />
 								</CardTitle>
+								<CardDescription>
+									Upload your completed skills checklist (PDF, DOC, JPG, PNG)
+								</CardDescription>
 							</div>
 						</CardHeader>
 						<CardContent>
-							<form.Field name="certificationFiles">
+							<form.Field name="skillsChecklistFile">
 								{(field) => {
 									const isInvalid = formFieldShowInvalid(
 										false,
 										field.state.meta.isValid,
 										submissionAttempts,
 									);
-									const files = field.state.value ?? [];
+									const file = field.state.value;
 									return (
 										<Field data-invalid={isInvalid}>
 											<input
 												ref={certInputRef}
 												type="file"
-												multiple
 												className="hidden"
-												accept={CERTIFICATION_ACCEPT}
+												accept={SKILLS_CHECKLIST_FILE_ACCEPT}
 												onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-													const incoming = [...(e.target.files ?? [])];
+													const next = e.target.files?.[0] ?? null;
 													e.target.value = "";
-													if (!incoming.length) return;
-													const merged = [
-														...(field.state.value ?? []),
-														...incoming,
-													];
-													field.handleChange(merged);
+													field.handleChange(next);
 												}}
 											/>
-											<button
-												type="button"
-												onClick={() => certInputRef.current?.click()}
-												className={cn(
-													"flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-muted-foreground/35 bg-muted/20 px-4 py-12 text-center transition-colors hover:bg-muted/35",
-													isInvalid && "border-destructive/60 bg-destructive/5",
-												)}
-												aria-invalid={isInvalid}
+											<form.Subscribe
+												selector={(s) => s.values.skillsChecklistFileKey}
 											>
-												<UploadCloud
-													className="text-primary size-10 shrink-0"
-													aria-hidden
-												/>
-												<div>
-													<p className="text-sm font-medium text-foreground">
-														Upload BLS, ACLS, or other certifications
-													</p>
-													<p className="text-muted-foreground mt-1 text-xs">
-														PDF, JPG, or PNG
-													</p>
-												</div>
-											</button>
-											{files.length > 0 ? (
-												<ul className="mt-4 space-y-2">
-													{files.map((file, idx) => (
-														<li
-															key={`${file.name}-${file.size}-${idx}`}
-															className="flex items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2 text-sm"
-														>
-															<span className="min-w-0 truncate">
-																{file.name}
-															</span>
-															<Button
+												{(existingKey) => {
+													const hasExisting = !!existingKey;
+													return (
+														<>
+															<button
 																type="button"
-																size="sm"
-																variant="ghost"
-																className="text-destructive hover:text-destructive"
-																onClick={() => {
-																	const next = [...files];
-																	next.splice(idx, 1);
-																	field.handleChange(next);
-																}}
+																onClick={() => certInputRef.current?.click()}
+																className={cn(
+																	"flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-muted-foreground/35 bg-muted/20 px-4 py-12 text-center transition-colors hover:bg-muted/35",
+																	isInvalid &&
+																		"border-destructive/60 bg-destructive/5",
+																)}
+																aria-invalid={isInvalid}
 															>
-																<X className="size-4" aria-hidden />
-																<span className="sr-only">Remove file</span>
-															</Button>
-														</li>
-													))}
-												</ul>
-											) : null}
+																<UploadCloud
+																	className="text-primary size-10 shrink-0"
+																	aria-hidden
+																/>
+																<div>
+																	<p className="text-sm font-medium text-foreground">
+																		{file
+																			? "Replace selected file"
+																			: hasExisting
+																				? "Replace uploaded checklist"
+																				: "Upload your skills checklist"}
+																	</p>
+																	<p className="text-muted-foreground mt-1 text-xs">
+																		PDF, DOC, JPG, or PNG (max 10MB)
+																	</p>
+																</div>
+															</button>
+															{file ? (
+																<div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2 text-sm">
+																	<span className="min-w-0 truncate">
+																		{file.name}
+																	</span>
+																	<Button
+																		type="button"
+																		size="sm"
+																		variant="ghost"
+																		className="text-destructive hover:text-destructive"
+																		onClick={() => field.handleChange(null)}
+																	>
+																		<X className="size-4" aria-hidden />
+																		<span className="sr-only">Remove file</span>
+																	</Button>
+																</div>
+															) : hasExisting ? (
+																<p className="text-muted-foreground mt-3 text-xs">
+																	An existing checklist is on file. Choose a new
+																	one to replace it.
+																</p>
+															) : null}
+														</>
+													);
+												}}
+											</form.Subscribe>
 											{isInvalid ? (
 												<FieldError errors={field.state.meta.errors} />
 											) : null}
@@ -315,49 +322,6 @@ export function SubmissionReadinessStep({
 						</CardContent>
 					</Card>
 
-					{/* Skills checklist */}
-					<form.Field name="skillsChecklistCompleted">
-						{(field) => (
-							<Card className="border-border/70 bg-background shadow-sm">
-								<CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4 pb-4">
-									<div className="flex min-w-0 gap-4">
-										<div className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-lg">
-											<Activity className="size-5" aria-hidden />
-										</div>
-										<div className="min-w-0 space-y-1">
-											<CardTitle className="text-base leading-snug">
-												Skills Checklist{" "}
-												<span className="text-destructive" aria-hidden>
-													*
-												</span>
-												<span className="sr-only"> (required)</span>
-											</CardTitle>
-											<CardDescription>
-												Complete occupation-specific skills verification
-											</CardDescription>
-											<FieldError errors={field.state.meta.errors} />
-										</div>
-									</div>
-									<div className="flex w-full shrink-0 justify-start sm:w-auto">
-										{field.state.value === true ? (
-											<span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/15 px-3 py-1 text-sm font-semibold text-emerald-800 dark:text-emerald-400">
-												Completed
-												<Check className="size-4 shrink-0" aria-hidden />
-											</span>
-										) : (
-											<Button
-												type="button"
-												onClick={() => field.handleChange(true)}
-											>
-												Start Checklist
-											</Button>
-										)}
-									</div>
-								</CardHeader>
-							</Card>
-						)}
-					</form.Field>
-
 					{/* Professional references */}
 					<Card className="border-border/70 bg-background shadow-sm">
 						<CardHeader className="flex flex-row items-start gap-4 pb-2">
@@ -367,9 +331,8 @@ export function SubmissionReadinessStep({
 							<div className="min-w-0 flex-1">
 								<CardTitle className="flex flex-wrap items-baseline gap-1 text-base leading-snug">
 									<span>Professional References</span>
-									<RequiredStar />
-									<span className="text-destructive text-sm font-semibold tracking-tight">
-										(Minimum 2)
+									<span className="text-muted-foreground text-sm font-normal">
+										(Optional)
 									</span>
 								</CardTitle>
 							</div>
@@ -388,20 +351,18 @@ export function SubmissionReadinessStep({
 													<CardTitle className="font-medium text-foreground text-sm">
 														Reference {index + 1}
 													</CardTitle>
-													{listField.state.value.length > 2 ? (
-														<Button
-															type="button"
-															size="sm"
-															variant="ghost"
-															className="h-8 shrink-0 gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
-															onClick={() => listField.removeValue(index)}
-														>
-															<Trash2 className="size-4 shrink-0" aria-hidden />
-															<span className="sr-only">
-																Remove reference {index + 1}
-															</span>
-														</Button>
-													) : null}
+													<Button
+														type="button"
+														size="sm"
+														variant="ghost"
+														className="h-8 shrink-0 gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+														onClick={() => listField.removeValue(index)}
+													>
+														<Trash2 className="size-4 shrink-0" aria-hidden />
+														<span className="sr-only">
+															Remove reference {index + 1}
+														</span>
+													</Button>
 												</CardHeader>
 												<CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 													{REFERENCE_ROW_FIELDS.map(({ key: prop, label }) => (
@@ -425,20 +386,39 @@ export function SubmissionReadinessStep({
 																		>
 																			{label} <RequiredStar />
 																		</FieldLabel>
-																		<Input
-																			id={`ref-${index}-${prop}`}
-																			value={subField.state.value}
-																			onBlur={subField.handleBlur}
-																			onChange={(e) =>
-																				subField.handleChange(e.target.value)
-																			}
-																			autoComplete={
-																				prop === "email" ? "email" : "off"
-																			}
-																			type={prop === "email" ? "email" : "text"}
-																			placeholder={label}
-																			aria-invalid={isInvalid}
-																		/>
+																		{prop === "phone" ? (
+																			<PhoneInput
+																				id={`ref-${index}-${prop}`}
+																				value={subField.state.value}
+																				onBlur={subField.handleBlur}
+																				onChange={(v) =>
+																					subField.handleChange(v)
+																				}
+																				placeholder={label}
+																				className={cn(
+																					isInvalid &&
+																						"border-destructive focus-visible:border-destructive",
+																				)}
+																				aria-invalid={isInvalid}
+																			/>
+																		) : (
+																			<Input
+																				id={`ref-${index}-${prop}`}
+																				value={subField.state.value}
+																				onBlur={subField.handleBlur}
+																				onChange={(e) =>
+																					subField.handleChange(e.target.value)
+																				}
+																				autoComplete={
+																					prop === "email" ? "email" : "off"
+																				}
+																				type={
+																					prop === "email" ? "email" : "text"
+																				}
+																				placeholder={label}
+																				aria-invalid={isInvalid}
+																			/>
+																		)}
 																		{isInvalid ? (
 																			<FieldError
 																				errors={subField.state.meta.errors}
@@ -465,7 +445,9 @@ export function SubmissionReadinessStep({
 												className="size-4 shrink-0"
 												data-icon="inline-start"
 											/>
-											Add Another Reference
+											{listField.state.value.length === 0
+												? "Add a Reference"
+												: "Add Another Reference"}
 										</Button>
 
 										<form.Field name="references">

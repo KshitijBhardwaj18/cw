@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate, NOTE_TYPE_OPTIONS } from "@repo/shared";
+import { NOTE_TYPE_OPTIONS } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -20,7 +20,9 @@ import {
 import { Textarea } from "@repo/ui/components/textarea";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useDialogFormEntitySnapshot } from "@/hooks/use-dialog-form-entity-snapshot";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { NoteWithUser } from "@/types/vendor";
 
 interface NoteEditDialogProps {
@@ -37,7 +39,11 @@ export function NoteEditDialog({
 	readOnly = false,
 	onSubmit,
 	onOpenChange,
-}: NoteEditDialogProps) {
+}: Readonly<NoteEditDialogProps>) {
+	const dialogOpen = !!note;
+	const snapshotNote = useDialogFormEntitySnapshot(dialogOpen, note);
+	const { fmtShortDate } = useUserTimezone();
+
 	const form = useForm({
 		defaultValues: {
 			type: "",
@@ -50,7 +56,6 @@ export function NoteEditDialog({
 				notes: value.notes,
 			});
 			onOpenChange(false);
-			form.reset();
 		},
 	});
 
@@ -59,18 +64,23 @@ export function NoteEditDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
+	const wasOpenRef = useRef(false);
 	useEffect(() => {
-		if (note) {
-			form.reset({
-				type: note.type,
-				notes: note.notes,
-			});
+		if (dialogOpen && !wasOpenRef.current) {
+			if (snapshotNote) {
+				form.reset({
+					type: snapshotNote.type,
+					notes: snapshotNote.notes,
+				});
+			} else {
+				form.reset({ type: "", notes: "" });
+			}
 		}
-	}, [note, form]);
+		wasOpenRef.current = dialogOpen;
+	}, [dialogOpen, snapshotNote, form]);
 
-	const handleOpenChange = (open: boolean) => {
-		if (!open) form.reset();
-		onOpenChange(open);
+	const handleOpenChange = (nextOpen: boolean) => {
+		onOpenChange(nextOpen);
 	};
 
 	return (
@@ -86,20 +96,18 @@ export function NoteEditDialog({
 					}}
 					className="space-y-4"
 				>
-					{readOnly && note ? (
+					{readOnly && snapshotNote ? (
 						<>
 							<Field>
 								<FieldLabel>Date</FieldLabel>
 								<p className="text-muted-foreground mt-1 text-sm">
-									{note.createdAt
-										? formatDate(note.createdAt, "M/d/yyyy")
-										: "—"}
+									{fmtShortDate(snapshotNote.createdAt)}
 								</p>
 							</Field>
 							<Field>
 								<FieldLabel>Author</FieldLabel>
 								<p className="text-muted-foreground mt-1 text-sm">
-									{note.user?.name ?? "—"}
+									{snapshotNote.user?.name ?? "—"}
 								</p>
 							</Field>
 						</>

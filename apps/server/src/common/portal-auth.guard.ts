@@ -60,7 +60,8 @@ export class PortalAuthGuard implements CanActivate {
 				return this.orgGuard.canActivate(context);
 			}
 			throw new BadRequestException({
-				message: `Both admin and org session cookies are present. Set ${AUTH_PORTAL_HEADER} to "${AUTH_PORTAL_ADMIN}" or "${AUTH_PORTAL_ORG}".`,
+				message:
+					"Multiple sessions detected for this request. Please sign out and sign in again.",
 				code: "AUTH_PORTAL_AMBIGUOUS",
 			});
 		}
@@ -72,7 +73,7 @@ export class PortalAuthGuard implements CanActivate {
 			return this.orgGuard.canActivate(context);
 		}
 		throw new BadRequestException({
-			message: `Invalid ${AUTH_PORTAL_HEADER}. Use "${AUTH_PORTAL_ADMIN}" or "${AUTH_PORTAL_ORG}".`,
+			message: "Invalid portal session.",
 			code: "AUTH_PORTAL_HEADER_INVALID",
 		});
 	}

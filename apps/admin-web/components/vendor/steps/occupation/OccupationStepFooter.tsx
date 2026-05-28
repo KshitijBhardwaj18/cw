@@ -13,7 +13,7 @@ export function OccupationStepFooter({
 	onBack,
 	onNext,
 	isNextPending,
-}: OccupationStepFooterProps) {
+}: Readonly<OccupationStepFooterProps>) {
 	const router = useRouter();
 
 	return (

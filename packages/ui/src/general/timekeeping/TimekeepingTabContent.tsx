@@ -59,7 +59,7 @@ export function TimekeepingTabContent({
 	dialogs,
 	submitDispute,
 	confirmApproval,
-}: TimekeepingTabContentProps) {
+}: Readonly<TimekeepingTabContentProps>) {
 	const statValueMap: Record<string, number | string> = {
 		total: state.stats.totalEntries,
 		file: state.stats.fileUploads,

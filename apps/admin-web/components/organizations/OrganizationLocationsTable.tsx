@@ -14,7 +14,7 @@ export function OrganizationLocationsTable({
 	data,
 	onEdit,
 	onDelete,
-}: OrganizationLocationsTableProps) {
+}: Readonly<OrganizationLocationsTableProps>) {
 	const { columns } = useOrganizationLocationColumns({ onEdit, onDelete });
 
 	return <CustomTable columns={columns} data={data} enableSorting={false} />;

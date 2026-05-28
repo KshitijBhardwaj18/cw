@@ -56,7 +56,7 @@ export function ConfigPageHeader({
 	search,
 	description,
 	className,
-}: ConfigPageHeaderProps) {
+}: Readonly<ConfigPageHeaderProps>) {
 	const countText =
 		countTextOverride ??
 		(total === 1 ? `${total} ${itemLabel}` : `${total} ${itemLabelPlural}`);
@@ -68,9 +68,13 @@ export function ConfigPageHeader({
 				<PageBackLink href={backLink.href}>{backLink.label}</PageBackLink>
 			)}
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<div>
-					<h2 className="text-2xl font-bold">{title}</h2>
-					<p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
+				<div className="min-w-0">
+					<h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+						{title}
+					</h2>
+					<p className="text-muted-foreground mt-1 text-sm wrap-break-word">
+						{subtitle}
+					</p>
 				</div>
 				{(rightContent != null || actions.length > 0) && (
 					<div className="flex items-center gap-2">

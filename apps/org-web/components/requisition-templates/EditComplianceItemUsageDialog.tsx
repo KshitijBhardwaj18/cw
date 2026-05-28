@@ -1,5 +1,6 @@
 "use client";
 
+import { ComplianceChecklistItemPhase } from "@repo/shared";
 import {
 	Dialog,
 	DialogContent,
@@ -40,7 +41,10 @@ function buildDefaultUsages(
 	return (
 		initialUsages ??
 		Object.fromEntries(
-			items.map((item) => [item.id, "SUBMISSION" as ComplianceItemUsageType]),
+			items.map((item) => [
+				item.id,
+				ComplianceChecklistItemPhase.SUBMISSION as ComplianceItemUsageType,
+			]),
 		)
 	);
 }
@@ -52,7 +56,7 @@ export function EditComplianceItemUsageDialog({
 	items,
 	initialUsages,
 	onSave,
-}: EditComplianceItemUsageDialogProps) {
+}: Readonly<EditComplianceItemUsageDialogProps>) {
 	const defaultItemUsages = useMemo(
 		() => buildDefaultUsages(items, initialUsages),
 		[items, initialUsages],
@@ -97,8 +101,8 @@ export function EditComplianceItemUsageDialog({
 		let forSubmission = 0;
 		let forPlacement = 0;
 		for (const item of items) {
-			const u = usages[item.id] ?? "SUBMISSION";
-			if (u === "SUBMISSION") forSubmission++;
+			const u = usages[item.id] ?? ComplianceChecklistItemPhase.SUBMISSION;
+			if (u === ComplianceChecklistItemPhase.SUBMISSION) forSubmission++;
 			else forPlacement++;
 		}
 		return {

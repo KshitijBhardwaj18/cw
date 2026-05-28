@@ -1,4 +1,10 @@
 import {
+	Action,
+	BILLING_TAB_CONDITIONS,
+	canAccessBillingPage,
+} from "@repo/casl";
+import type { SidebarNavItem } from "@repo/ui/lib/filter-sidebar-groups";
+import {
 	BarChart3,
 	Briefcase,
 	Building2,
@@ -16,10 +22,11 @@ import {
 	Users,
 } from "lucide-react";
 
-export type OrgSidebarItem = {
+export type OrgSidebarItem = SidebarNavItem & {
 	label: string;
 	icon: LucideIcon;
-	path: string; // relative to /organizations/[organizationId]
+	/** Path relative to `/organizations/[organizationId]`. */
+	path: string;
 };
 
 export type OrgSidebarGroup = {
@@ -27,32 +34,76 @@ export type OrgSidebarGroup = {
 	items: OrgSidebarItem[];
 };
 
-export const orgSidebarItems: OrgSidebarGroup[] = [
+export const orgSidebarGroups: OrgSidebarGroup[] = [
 	{
 		label: "Organization",
 		items: [
-			{ label: "Profile", icon: UserCircle, path: "" },
-			{ label: "Locations", icon: MapPin, path: "/locations" },
-			{ label: "Departments", icon: Building2, path: "/departments" },
-			{ label: "Vendors", icon: Store, path: "/vendors" },
-			{ label: "Users", icon: Users, path: "/users" },
+			{
+				label: "Profile",
+				icon: UserCircle,
+				path: "",
+				permissions: [{ action: Action.Read, subject: "Organization" }],
+			},
+			{
+				label: "Locations",
+				icon: MapPin,
+				path: "/locations",
+				permissions: [{ action: Action.List, subject: "OrganizationLocation" }],
+			},
+			{
+				label: "Departments",
+				icon: Building2,
+				path: "/departments",
+				permissions: [{ action: Action.List, subject: "Department" }],
+			},
+			{
+				label: "Vendors",
+				icon: Store,
+				path: "/vendors",
+				permissions: [{ action: Action.List, subject: "OrganizationVendor" }],
+			},
+			{
+				label: "Users",
+				icon: Users,
+				path: "/users",
+				permissions: [{ action: Action.List, subject: "User" }],
+			},
 		],
 	},
 	{
 		label: "Workforce Management",
 		items: [
-			{ label: "Occupations", icon: Target, path: "/workforce/occupations" },
-			{ label: "Specialties", icon: Briefcase, path: "/workforce/specialties" },
+			{
+				label: "Occupations",
+				icon: Target,
+				path: "/workforce/occupations",
+				permissions: [{ action: Action.Read, subject: "Organization" }],
+			},
+			{
+				label: "Specialties",
+				icon: Briefcase,
+				path: "/workforce/specialties",
+				permissions: [{ action: Action.Read, subject: "Organization" }],
+			},
 			{
 				label: "Document Wallet Templates",
 				icon: FileCheck,
 				path: "/workforce/document-wallet",
+				permissions: [
+					{ action: Action.Read, subject: "ComplianceWalletTemplate" },
+				],
 			},
-			{ label: "Tagging Rules", icon: Tag, path: "/workforce/tagging-rules" },
+			{
+				label: "Tagging Rules",
+				icon: Tag,
+				path: "/workforce/tagging-rules",
+				permissions: [{ action: Action.List, subject: "TaggingRule" }],
+			},
 			{
 				label: "Matching Logic",
 				icon: GitMerge,
 				path: "/workforce/matching-logic",
+				permissions: [{ action: Action.List, subject: "MatchingLogic" }],
 			},
 		],
 	},
@@ -63,13 +114,38 @@ export const orgSidebarItems: OrgSidebarGroup[] = [
 				label: "Timekeeping",
 				icon: Clock,
 				path: "/time-financials/timekeeping",
+				permissions: [{ action: Action.Read, subject: "Timekeeping" }],
 			},
 			{
 				label: "Time Approvals",
 				icon: CheckSquare,
 				path: "/time-financials/time-approvals",
+				permissions: [{ action: Action.List, subject: "Invoice" }],
 			},
-			{ label: "Billing", icon: DollarSign, path: "/time-financials/billing" },
+			{
+				label: "Billing",
+				icon: DollarSign,
+				path: "/time-financials/billing",
+				canAccess: canAccessBillingPage,
+				permissionsMatch: "any",
+				permissions: [
+					{
+						action: Action.Read,
+						subject: "Billing",
+						conditions: BILLING_TAB_CONDITIONS["billing-configuration"],
+					},
+					{
+						action: Action.Read,
+						subject: "Billing",
+						conditions: BILLING_TAB_CONDITIONS["invoice-history"],
+					},
+					{
+						action: Action.Read,
+						subject: "Billing",
+						conditions: BILLING_TAB_CONDITIONS.rates,
+					},
+				],
+			},
 		],
 	},
 	{
@@ -79,6 +155,7 @@ export const orgSidebarItems: OrgSidebarGroup[] = [
 				label: "Metrics Dashboard",
 				icon: BarChart3,
 				path: "/metrics-reporting",
+				permissions: [{ action: Action.Read, subject: "Metric" }],
 			},
 		],
 	},

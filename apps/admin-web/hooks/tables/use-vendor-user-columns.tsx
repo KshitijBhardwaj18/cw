@@ -1,5 +1,6 @@
 "use client";
 
+import { enumToTitleText } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import type { ColumnDef, Row } from "@tanstack/react-table";
@@ -10,12 +11,6 @@ import {
 	VENDOR_USERS_COLUMN_KEYS,
 } from "@/constants/tables/vendor-users";
 import type { VendorUserTableRow } from "@/types/users";
-
-const formatEnumLabel = (value: string) =>
-	value
-		.split("_")
-		.map((part) => part.charAt(0) + part.slice(1).toLowerCase())
-		.join(" ");
 
 interface VendorUserColumnsCallbacks {
 	onEdit?: (user: VendorUserTableRow) => void;
@@ -73,7 +68,7 @@ export const useVendorUserColumns = (
 				header: VENDOR_USERS_COLUMN_HEADERS.role,
 				cell: ({ row }) => (
 					<Badge variant="secondary">
-						{formatEnumLabel(row.original.role)}
+						{enumToTitleText(row.original.role)}
 					</Badge>
 				),
 			},
@@ -84,7 +79,7 @@ export const useVendorUserColumns = (
 					<Badge
 						variant={row.original.status === "ACTIVE" ? "success" : "inactive"}
 					>
-						{formatEnumLabel(row.original.status)}
+						{enumToTitleText(row.original.status)}
 					</Badge>
 				),
 			},
@@ -93,7 +88,7 @@ export const useVendorUserColumns = (
 						{
 							id: VENDOR_USERS_COLUMN_KEYS.actions,
 							header: VENDOR_USERS_COLUMN_HEADERS.actions,
-							cell: ({ row }: { row: Row<VendorUserTableRow> }) => (
+							cell: ({ row }: Readonly<{ row: Row<VendorUserTableRow> }>) => (
 								<div className="flex items-center gap-2">
 									<Button
 										variant="ghost"

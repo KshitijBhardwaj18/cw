@@ -5,7 +5,12 @@ import {
 	S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { Injectable, Logger } from "@nestjs/common";
+import {
+	HttpException,
+	Injectable,
+	InternalServerErrorException,
+	Logger,
+} from "@nestjs/common";
 import { createS3Client } from "@repo/shared";
 import { config } from "src/common/config";
 import {
@@ -93,7 +98,9 @@ export class FilesService {
 			return isPublic ? { url: this.getFileUrl(key) } : { key };
 		} catch (error) {
 			this.logger.error(`Error uploading to S3: ${error}`);
-			throw new Error("Failed to upload file to S3");
+			throw new InternalServerErrorException(
+				"File upload failed. Please try again.",
+			);
 		}
 	}
 
@@ -115,7 +122,9 @@ export class FilesService {
 				: url;
 
 			if (!key) {
-				throw new Error("Could not extract S3 key from URL");
+				throw new InternalServerErrorException(
+					"Invalid stored file reference.",
+				);
 			}
 
 			this.logger.debug(`Generating signed URL for: ${key}`);
@@ -133,8 +142,11 @@ export class FilesService {
 			this.logger.debug(`Generated signed URL (expires in ${expiresIn}s)`);
 			return signedUrl;
 		} catch (error) {
+			if (error instanceof HttpException) throw error;
 			this.logger.error(`Error generating signed URL: ${error}`);
-			throw new Error("Failed to generate signed URL");
+			throw new InternalServerErrorException(
+				"Could not prepare file download. Please try again.",
+			);
 		}
 	}
 
@@ -179,8 +191,11 @@ export class FilesService {
 			this.logger.debug(`Generated signed PUT URL (expires in ${expiresIn}s)`);
 			return { signedUrl, fileUrl };
 		} catch (error) {
+			if (error instanceof HttpException) throw error;
 			this.logger.error(`Error generating signed PUT URL: ${error}`);
-			throw new Error("Failed to generate signed PUT URL");
+			throw new InternalServerErrorException(
+				"Could not prepare file upload. Please try again.",
+			);
 		}
 	}
 
@@ -214,8 +229,11 @@ export class FilesService {
 			);
 			return results;
 		} catch (error) {
+			if (error instanceof HttpException) throw error;
 			this.logger.error(`Error generating signed PUT URLs: ${error}`);
-			throw new Error("Failed to generate signed PUT URLs");
+			throw new InternalServerErrorException(
+				"Could not prepare file uploads. Please try again.",
+			);
 		}
 	}
 
@@ -230,7 +248,9 @@ export class FilesService {
 			this.logger.debug(`Deleted from S3: ${key}`);
 		} catch (error) {
 			this.logger.error(`Error deleting from S3: ${error}`);
-			throw new Error("Failed to delete file from S3");
+			throw new InternalServerErrorException(
+				"Could not delete file. Please try again.",
+			);
 		}
 	}
 

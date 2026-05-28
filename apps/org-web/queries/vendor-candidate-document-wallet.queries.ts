@@ -3,6 +3,7 @@ import {
 	type VendorCandidateDocumentWalletItemsQuery,
 	VendorCandidateDocumentWalletService,
 } from "@/services/vendor-candidate-document-wallet.service";
+import { vendorRequisitionsKeys } from "./vendor-requisitions.queries";
 
 export const vendorCandidateDocumentWalletKeys = {
 	all: ["vendor-candidate-document-wallet"] as const,
@@ -58,6 +59,49 @@ export function useVendorCandidateDocumentSignedUrl(candidateId: string) {
 				candidateId,
 				complianceListItemId,
 			),
+	});
+}
+
+export function useVendorUploadCandidateDocumentForRequisition(
+	candidateId: string,
+	requisitionId: string,
+) {
+	const queryClient = useQueryClient();
+	return useMutation<
+		{ success: true },
+		Error,
+		{
+			complianceListItemId: string;
+			file: File;
+			expiryDate?: string;
+			issueDate?: string;
+		}
+	>({
+		mutationFn: async (vars) => {
+			await VendorCandidateDocumentWalletService.uploadDocumentForRequisition(
+				candidateId,
+				requisitionId,
+				vars.complianceListItemId,
+				vars.file,
+				{ expiryDate: vars.expiryDate, issueDate: vars.issueDate },
+			);
+			return { success: true } as const;
+		},
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: vendorCandidateDocumentWalletKeys.summary(candidateId),
+			});
+			void queryClient.invalidateQueries({
+				queryKey: [
+					...vendorCandidateDocumentWalletKeys.all,
+					"items",
+					candidateId,
+				],
+			});
+			void queryClient.invalidateQueries({
+				queryKey: vendorRequisitionsKeys.all,
+			});
+		},
 	});
 }
 

@@ -9,6 +9,7 @@ import {
 } from "@repo/ui/components/empty";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { AlertCircle } from "lucide-react";
 import { useQueryState } from "nuqs";
@@ -16,7 +17,11 @@ import { useMemo } from "react";
 import { useVendorOrgSession } from "@/components/vendor-layout/VendorOrgBridge";
 import { PLACEMENT_STATUS_FILTER_OPTIONS } from "@/constants/placements";
 import { useVendorPlacementListColumns } from "@/hooks/tables/use-vendor-placement-list-columns";
-import { usePlacementsPage } from "@/hooks/use-placements-page";
+import {
+	TABLE_DEFAULT_LIMIT,
+	TABLE_PAGE_SIZE_OPTIONS,
+	usePlacementsPage,
+} from "@/hooks/use-placements-page";
 import type { PlacementTab } from "@/types/placement";
 import type {
 	PlacementMetricStats,
@@ -24,7 +29,6 @@ import type {
 	PlacementTabValue,
 } from "@/types/placements";
 import { mapPlacementCardToVendorTableRow } from "@/utils/map-placement-card-to-vendor-table-row";
-import { PlacementBottomSummaryCard } from "./PlacementBottomSummaryCard";
 import { PlacementsMetricCards } from "./PlacementsMetricCards";
 import { PlacementsTabsSection } from "./PlacementsTabsSection";
 
@@ -34,7 +38,7 @@ interface VendorPlacementsDashboardContentProps {
 
 export function VendorPlacementsDashboardContent({
 	detailBasePath,
-}: VendorPlacementsDashboardContentProps) {
+}: Readonly<VendorPlacementsDashboardContentProps>) {
 	const { vendorId } = useVendorOrgSession();
 	const {
 		activeTab,
@@ -42,6 +46,8 @@ export function VendorPlacementsDashboardContent({
 		placementCounts,
 		tabCounts,
 		placements,
+		totalCount,
+		pageCount,
 		isPlacementsLoading,
 		isCountsLoading,
 		isError,
@@ -49,7 +55,16 @@ export function VendorPlacementsDashboardContent({
 		setSearch,
 		filtersExpanded,
 		setFiltersExpanded,
-	} = usePlacementsPage({ fixedVendorId: vendorId });
+		page,
+		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions,
+	} = usePlacementsPage({
+		fixedVendorId: vendorId,
+		defaultLimit: TABLE_DEFAULT_LIMIT,
+		pageSizeOptions: TABLE_PAGE_SIZE_OPTIONS,
+	});
 
 	const [statusFilter, setStatusFilter] = useQueryState("plStatus", {
 		defaultValue: "all",
@@ -60,7 +75,7 @@ export function VendorPlacementsDashboardContent({
 	const metricStats: PlacementMetricStats = useMemo(
 		() => ({
 			totalPlacements: placementCounts.total,
-			active: placementCounts.activeOnly,
+			active: placementCounts.active,
 			endingSoon: placementCounts.endingSoon,
 			completed: placementCounts.completed,
 		}),
@@ -145,20 +160,31 @@ export function VendorPlacementsDashboardContent({
 					<Skeleton className="h-72 w-full rounded-lg" />
 				</div>
 			) : (
-				<PlacementsTabsSection
-					activeTab={activeTab as PlacementTabValue}
-					onTabChange={handleTabChangeWrapped}
-					tabCounts={countsForTab}
-					table={{
-						rows: filteredRows,
-						columns,
-						totalFiltered: filteredRows.length,
-						isLoading: isPlacementsLoading,
-					}}
-				/>
+				<>
+					<PlacementsTabsSection
+						activeTab={activeTab as PlacementTabValue}
+						onTabChange={handleTabChangeWrapped}
+						tabCounts={countsForTab}
+						table={{
+							rows: filteredRows,
+							columns,
+							totalFiltered: filteredRows.length,
+							isLoading: isPlacementsLoading,
+						}}
+					/>
+					<PaginationControls
+						currentPage={page}
+						pageCount={pageCount}
+						goToPage={setPage}
+						limit={limit}
+						setLimit={setLimit}
+						pageSizeOptions={pageSizeOptions}
+						totalItems={totalCount}
+						itemLabel="placement"
+						itemLabelPlural="placements"
+					/>
+				</>
 			)}
-
-			{!isCountsLoading && <PlacementBottomSummaryCard stats={metricStats} />}
 		</div>
 	);
 }

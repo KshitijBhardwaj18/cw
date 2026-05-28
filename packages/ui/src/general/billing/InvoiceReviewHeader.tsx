@@ -31,7 +31,7 @@ export function InvoiceReviewHeader({
 	disputeActionDisabled = false,
 	backLink,
 	extraActions = [],
-}: InvoiceReviewHeaderProps) {
+}: Readonly<InvoiceReviewHeaderProps>) {
 	const disputeAction = showDisputeAction
 		? [
 				{

@@ -1,5 +1,9 @@
 "use client";
 
+import {
+	ComplianceListItemExpirationType,
+	formatExpiryFromRule,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { DatePicker } from "@repo/ui/components/date-picker";
 import {
@@ -11,6 +15,7 @@ import {
 	DialogTitle,
 } from "@repo/ui/components/dialog";
 import { Field, FieldError, FieldLabel } from "@repo/ui/components/field";
+import RequiredStar from "@repo/ui/general/RequiredStar";
 import { useForm } from "@tanstack/react-form";
 import { FileText, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -34,7 +39,7 @@ export function CredentialComplianceActionDialog({
 	isUploading = false,
 	onOpenChange,
 	onSubmitUpload,
-}: CredentialComplianceActionDialogProps) {
+}: Readonly<CredentialComplianceActionDialogProps>) {
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -43,6 +48,7 @@ export function CredentialComplianceActionDialog({
 			itemId: item?.id ?? "",
 			file: null as File | null,
 			expirationDate: item?.expirationDate ?? "",
+			issueDate: "",
 		},
 		onSubmit: async ({ value }) => {
 			const parsed = credentialUploadDocumentFormSchema.safeParse(value);
@@ -50,10 +56,34 @@ export function CredentialComplianceActionDialog({
 				uploadForm.validate("submit");
 				return;
 			}
+			if (!item) return;
+			if (
+				item.expirationType ===
+					ComplianceListItemExpirationType.EXPIRATION_RULE &&
+				!value.issueDate.trim()
+			) {
+				return;
+			}
+			if (
+				item.expirationType ===
+					ComplianceListItemExpirationType.EXPIRATION_DATE &&
+				!value.expirationDate.trim()
+			) {
+				return;
+			}
 			onSubmitUpload({
 				itemId: parsed.data.itemId,
 				file: parsed.data.file,
-				expirationDate: parsed.data.expirationDate || undefined,
+				expirationDate:
+					item.expirationType ===
+					ComplianceListItemExpirationType.EXPIRATION_DATE
+						? parsed.data.expirationDate || undefined
+						: undefined,
+				issueDate:
+					item.expirationType ===
+					ComplianceListItemExpirationType.EXPIRATION_RULE
+						? parsed.data.issueDate || undefined
+						: undefined,
 			});
 			onOpenChange(false);
 		},
@@ -84,6 +114,7 @@ export function CredentialComplianceActionDialog({
 			itemId: item.id,
 			file: null,
 			expirationDate: item.expirationDate ?? "",
+			issueDate: "",
 		});
 		setSelectedFile(null);
 	}, [item, open, uploadForm]);
@@ -113,7 +144,9 @@ export function CredentialComplianceActionDialog({
 					className="space-y-4"
 				>
 					<Field>
-						<FieldLabel>File Upload</FieldLabel>
+						<FieldLabel>
+							File Upload <RequiredStar />
+						</FieldLabel>
 						{selectedFile ? (
 							<div className="rounded-md border px-3 py-2">
 								<div className="flex items-center justify-between gap-2">
@@ -151,22 +184,69 @@ export function CredentialComplianceActionDialog({
 						)}
 					</Field>
 
-					<uploadForm.Field name="expirationDate">
-						{(field) => (
-							<Field>
-								<FieldLabel htmlFor={field.name}>
-									Expiration Date (Optional)
-								</FieldLabel>
-								<DatePicker
-									id={field.name}
-									value={field.state.value}
-									onChange={(value) => field.handleChange(value)}
-									onBlur={field.handleBlur}
-									placeholder="Pick an expiration date"
-								/>
-							</Field>
-						)}
-					</uploadForm.Field>
+					{item.expirationType ===
+						ComplianceListItemExpirationType.EXPIRATION_RULE && (
+						<uploadForm.Field name="issueDate">
+							{(field) => {
+								const computedExpiry = formatExpiryFromRule(
+									field.state.value,
+									item.expirationRuleValue,
+									item.expirationRuleUnit,
+								);
+								return (
+									<Field>
+										<FieldLabel htmlFor={field.name}>
+											Issue Date <RequiredStar />
+										</FieldLabel>
+										<DatePicker
+											id={field.name}
+											value={field.state.value}
+											onChange={(value) => field.handleChange(value)}
+											onBlur={field.handleBlur}
+											placeholder="Pick the issue date"
+										/>
+										{uploadForm.state.submissionAttempts > 0 &&
+											!field.state.value.trim() && (
+												<FieldError>Issue date is required</FieldError>
+											)}
+										{computedExpiry && (
+											<p className="text-muted-foreground mt-1 text-xs">
+												Expires automatically on{" "}
+												<span className="font-medium">{computedExpiry}</span> (
+												{item.expirationRuleValue}{" "}
+												{item.expirationRuleUnit?.toLowerCase()} from issue
+												date)
+											</p>
+										)}
+									</Field>
+								);
+							}}
+						</uploadForm.Field>
+					)}
+
+					{item.expirationType ===
+						ComplianceListItemExpirationType.EXPIRATION_DATE && (
+						<uploadForm.Field name="expirationDate">
+							{(field) => (
+								<Field>
+									<FieldLabel htmlFor={field.name}>
+										Expiration Date <RequiredStar />
+									</FieldLabel>
+									<DatePicker
+										id={field.name}
+										value={field.state.value}
+										onChange={(value) => field.handleChange(value)}
+										onBlur={field.handleBlur}
+										placeholder="Pick an expiration date"
+									/>
+									{uploadForm.state.submissionAttempts > 0 &&
+										!field.state.value.trim() && (
+											<FieldError>Expiration date is required</FieldError>
+										)}
+								</Field>
+							)}
+						</uploadForm.Field>
+					)}
 
 					<DialogFooter className="flex-row justify-end gap-2 sm:justify-end">
 						<Button

@@ -1,2 +1,0 @@
--- AlterEnum
-ALTER TYPE "BackGroundJobType" ADD VALUE 'INVITE_CANDIDATE';

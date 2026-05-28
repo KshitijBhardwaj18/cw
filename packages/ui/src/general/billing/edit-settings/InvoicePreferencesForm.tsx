@@ -21,7 +21,7 @@ interface InvoicePreferencesFormProps {
 export function InvoicePreferencesForm({
 	state,
 	onChange,
-}: InvoicePreferencesFormProps) {
+}: Readonly<InvoicePreferencesFormProps>) {
 	return (
 		<div className="space-y-4">
 			<h3 className="text-sm font-bold text-foreground px-1">

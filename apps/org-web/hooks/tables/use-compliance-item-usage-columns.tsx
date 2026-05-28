@@ -1,5 +1,9 @@
 "use client";
 
+import {
+	ComplianceChecklistItemPhase,
+	getComplianceListItemCategoryLabel,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { RadioGroup, RadioGroupItem } from "@repo/ui/components/radio-group";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -9,6 +13,10 @@ import {
 	COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS,
 	COMPLIANCE_ITEM_USAGE_COLUMN_KEYS,
 } from "@/constants/tables/compliance-item-usage";
+import {
+	ComplianceChecklistTableHeaderWords,
+	ComplianceChecklistUsageTypeColumnHeaders,
+} from "@/hooks/tables/ComplianceChecklistTableHeaderWords";
 import type {
 	ComplianceItemUsageRow,
 	ComplianceItemUsageType,
@@ -41,22 +49,17 @@ export function useComplianceItemUsageColumns({
 						variant="secondary"
 						className="text-muted-foreground font-normal"
 					>
-						{row.original.category}
+						{getComplianceListItemCategoryLabel(row.original.category)}
 					</Badge>
 				),
 			},
 			{
 				id: COMPLIANCE_ITEM_USAGE_COLUMN_KEYS.usageType,
-				header: () => (
-					<div className="grid grid-cols-2 gap-4 text-center text-xs font-medium">
-						<div>{COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.forSubmission}</div>
-						<div>{COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.forPlacement}</div>
-					</div>
-				),
+				header: () => <ComplianceChecklistUsageTypeColumnHeaders />,
 				cell: ({ row }) => {
 					const value =
 						itemUsages[row.original.id] ??
-						("SUBMISSION" as ComplianceItemUsageType);
+						ComplianceChecklistItemPhase.SUBMISSION;
 					return (
 						<RadioGroup
 							value={value}
@@ -65,8 +68,8 @@ export function useComplianceItemUsageColumns({
 							}
 							className="grid grid-cols-2 place-items-center gap-4"
 						>
-							<RadioGroupItem value="SUBMISSION" />
-							<RadioGroupItem value="PLACEMENT" />
+							<RadioGroupItem value={ComplianceChecklistItemPhase.SUBMISSION} />
+							<RadioGroupItem value={ComplianceChecklistItemPhase.PLACEMENT} />
 						</RadioGroup>
 					);
 				},
@@ -75,9 +78,10 @@ export function useComplianceItemUsageColumns({
 				accessorKey: "expirationRequired",
 				id: COMPLIANCE_ITEM_USAGE_COLUMN_KEYS.expirationRequired,
 				header: () => (
-					<div className="text-center">
-						{COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.expirationRequired}
-					</div>
+					<ComplianceChecklistTableHeaderWords
+						text={COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.expirationRequired}
+						className="min-w-22"
+					/>
 				),
 				cell: ({ row }) => (
 					<div className="flex justify-center">
@@ -97,9 +101,10 @@ export function useComplianceItemUsageColumns({
 				accessorKey: "displayToCandidate",
 				id: COMPLIANCE_ITEM_USAGE_COLUMN_KEYS.displayToCandidate,
 				header: () => (
-					<div className="text-center">
-						{COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.displayToCandidate}
-					</div>
+					<ComplianceChecklistTableHeaderWords
+						text={COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.displayToCandidate}
+						className="min-w-22"
+					/>
 				),
 				cell: ({ row }) => (
 					<div className="flex justify-center">

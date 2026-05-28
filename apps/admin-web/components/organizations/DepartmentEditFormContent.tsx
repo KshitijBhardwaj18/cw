@@ -30,7 +30,7 @@ export function DepartmentEditFormContent({
 	organizationId,
 	departmentId,
 	dialogProps,
-}: DepartmentEditFormContentProps) {
+}: Readonly<DepartmentEditFormContentProps>) {
 	const { form, isPendingDetails } = useDepartmentEditForm({
 		department: departmentDetail,
 		organizationId,

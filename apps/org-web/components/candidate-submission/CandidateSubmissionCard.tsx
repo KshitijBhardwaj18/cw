@@ -19,7 +19,7 @@ export function CandidateSubmissionCard({
 	submission,
 	onWithdraw,
 	onAccept,
-}: CandidateSubmissionCardProps) {
+}: Readonly<CandidateSubmissionCardProps>) {
 	return (
 		<Card>
 			<CardContent>

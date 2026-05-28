@@ -1,5 +1,10 @@
 "use client";
-import { enumToTitleText, UserRole, UserStatus } from "@repo/shared";
+import {
+	enumToTitleText,
+	splitFullNameToFirstLast as splitFullName,
+	UserRole,
+	UserStatus,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -28,16 +33,16 @@ import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts";
+import { useDialogFormEntitySnapshot } from "@/hooks/use-dialog-form-entity-snapshot";
 import {
 	useCreateProgramUser,
 	useUpdateProgramUser,
 } from "@/queries/users.query";
 import { type UserFormValues, userFormSchema } from "@/schemas/user.schema";
 import type { MspOptionDto, UserDto } from "@/types";
-import { splitFullName } from "@/utils";
 
 export interface UserFormDialogProps {
 	open: boolean;
@@ -52,35 +57,46 @@ const ROLE_OPTIONS = Object.values(UserRole).filter(
 );
 const STATUS_OPTIONS = Object.values(UserStatus);
 
-export function UserFormDialog({
-	open,
-	onOpenChange,
-	user,
-	mspOptions = [],
-}: UserFormDialogProps) {
-	const { session } = useAuth();
-	const currentUser = session.user;
-	const isEditMode = !!user;
-	const createMutation = useCreateProgramUser();
-	const updateMutation = useUpdateProgramUser();
-	const isPending = createMutation.isPending || updateMutation.isPending;
-
-	const { firstName, lastName } = splitFullName(user?.name);
-
-	const defaultValues: UserFormValues = {
-		firstName: isEditMode ? firstName : "",
-		lastName: isEditMode ? lastName : "",
+function getUserFormDefaultValues(
+	user: UserDto | undefined,
+	fallbackRole: UserRole,
+): UserFormValues {
+	const isEdit = !!user;
+	const { firstName, lastName } = splitFullName(user?.name ?? "");
+	return {
+		firstName: isEdit ? firstName : "",
+		lastName: isEdit ? lastName : "",
 		title: user?.title ?? "",
 		email: user?.email ?? "",
 		officePhone: user?.officePhone ?? "",
 		phoneNumber: user?.phoneNumber ?? "",
 		mspId: user?.mspId ?? null,
-		role: (user?.role ?? currentUser.role) as UserFormValues["role"],
+		role: (user?.role ?? fallbackRole) as UserFormValues["role"],
 		status: (user?.status ?? UserStatus.ACTIVE) as UserFormValues["status"],
 	};
+}
+
+export function UserFormDialog({
+	open,
+	onOpenChange,
+	user,
+	mspOptions = [],
+}: Readonly<UserFormDialogProps>) {
+	const { session } = useAuth();
+	const currentUser = session.user;
+	const createMutation = useCreateProgramUser();
+	const updateMutation = useUpdateProgramUser();
+	const isPending = createMutation.isPending || updateMutation.isPending;
+
+	const actorRole =
+		(currentUser.role as UserRole | undefined) ?? UserRole.PROGRAM_MANAGER;
+
+	const snapshotUser =
+		useDialogFormEntitySnapshot(open, user ?? null) ?? undefined;
+	const isEditMode = !!snapshotUser;
 
 	const form = useForm({
-		defaultValues,
+		defaultValues: getUserFormDefaultValues(snapshotUser, actorRole),
 		validators: {
 			onSubmit: userFormSchema,
 		},
@@ -93,17 +109,16 @@ export function UserFormDialog({
 							: "User created successfully",
 					);
 					onOpenChange(false);
-					form.reset();
 				},
 				onError: (err: unknown) =>
 					toast.error(
 						err instanceof Error ? err.message : "Something went wrong",
 					),
 			};
-			if (isEditMode && user) {
+			if (isEditMode && snapshotUser) {
 				updateMutation.mutate(
 					{
-						id: user.id,
+						id: snapshotUser.id,
 						data: {
 							firstName: value.firstName.trim(),
 							lastName: value.lastName.trim(),
@@ -148,9 +163,16 @@ export function UserFormDialog({
 		return ROLE_OPTIONS;
 	}, [currentUser?.role]);
 
+	const wasOpenRef = useRef(false);
+	useEffect(() => {
+		if (open && !wasOpenRef.current) {
+			form.reset(getUserFormDefaultValues(snapshotUser, actorRole));
+		}
+		wasOpenRef.current = open;
+	}, [open, snapshotUser, actorRole, form]);
+
 	const handleOpenChange = (nextOpen: boolean) => {
 		if (isPending) return;
-		if (!nextOpen) form.reset();
 		onOpenChange(nextOpen);
 	};
 

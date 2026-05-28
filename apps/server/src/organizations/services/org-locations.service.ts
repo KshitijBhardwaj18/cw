@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
 	BadRequestException,
+	ConflictException,
 	Injectable,
 	NotFoundException,
 	UnauthorizedException,
@@ -45,7 +46,7 @@ export class OrgLocationsService {
 		search?: string,
 	) {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id: organizationId },
@@ -53,7 +54,7 @@ export class OrgLocationsService {
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const searchFilter = search?.trim()
@@ -161,14 +162,14 @@ export class OrgLocationsService {
 		files?: { photo?: Express.Multer.File },
 	) {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id: organizationId },
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const photoUrl = await this.uploadLocationPhoto(files?.photo);
@@ -198,14 +199,14 @@ export class OrgLocationsService {
 		files?: { photo?: Express.Multer.File },
 	) {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id: organizationId },
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const location = await this.prisma.organizationLocation.findFirst({
@@ -213,7 +214,7 @@ export class OrgLocationsService {
 		});
 
 		if (!location) {
-			throw new NotFoundException("Location not found");
+			throw new NotFoundException("Location not found.");
 		}
 
 		const updateData: Record<string, unknown> = {};
@@ -235,7 +236,7 @@ export class OrgLocationsService {
 
 		if (Object.keys(updateData).length === 0) {
 			throw new BadRequestException(
-				"At least one field is required for update",
+				"At least one field is required to update.",
 			);
 		}
 
@@ -253,14 +254,14 @@ export class OrgLocationsService {
 		session: UserSession,
 	): Promise<void> {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id: organizationId },
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const location = await this.prisma.organizationLocation.findFirst({
@@ -268,16 +269,39 @@ export class OrgLocationsService {
 		});
 
 		if (!location) {
-			throw new NotFoundException("Location not found");
+			throw new NotFoundException("Location not found.");
 		}
 		const locations = await this.prisma.organizationLocation.findMany({
 			where: { organizationId },
 		});
 		if (locations.length === 1) {
 			throw new BadRequestException(
-				"At least one location should be present for the organization",
+				"At least one location must remain for the organization.",
 			);
 		}
+
+		const [departments, requisitionTemplates, shiftTemplates, perDiemShifts] =
+			await Promise.all([
+				this.prisma.department.count({ where: { locationId } }),
+				this.prisma.requisitionTemplate.count({ where: { locationId } }),
+				this.prisma.shiftTemplate.count({ where: { locationId } }),
+				this.prisma.perDiemShift.count({ where: { locationId } }),
+			]);
+
+		const blockers: string[] = [];
+		if (departments > 0) blockers.push(`${departments} department(s)`);
+		if (requisitionTemplates > 0)
+			blockers.push(`${requisitionTemplates} requisition template(s)`);
+		if (shiftTemplates > 0)
+			blockers.push(`${shiftTemplates} shift template(s)`);
+		if (perDiemShifts > 0) blockers.push(`${perDiemShifts} per-diem shift(s)`);
+
+		if (blockers.length > 0) {
+			throw new ConflictException(
+				`Cannot delete location because it is referenced by ${blockers.join(", ")}. Remove or reassign these first.`,
+			);
+		}
+
 		await this.prisma.organizationLocation.delete({
 			where: { id: locationId },
 		});

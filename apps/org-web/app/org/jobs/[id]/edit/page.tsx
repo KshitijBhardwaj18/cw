@@ -14,7 +14,7 @@ type EditJobPostingPageProps = {
 
 export default async function EditJobPostingPage({
 	params,
-}: EditJobPostingPageProps) {
+}: Readonly<EditJobPostingPageProps>) {
 	const { id } = await params;
 	return <JobsCreateEditPageContent key={id} mode="edit" jobId={id} />;
 }

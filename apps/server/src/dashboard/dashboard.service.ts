@@ -37,12 +37,12 @@ export class DashboardService {
 					) AS "lengthWeeks",
 					r."numberOfPositions" AS "numberOfPositions"
 				FROM "requisition" r
-				WHERE r."status" IN ('ACTIVE','PUBLISHED','APPROVED')
+				WHERE r."status" IN ('PUBLISHED','SCHEDULED')
 			),
 			placement_stats AS (
 				SELECT
 					p."requisitionId" AS "reqId",
-					COUNT(*) FILTER (WHERE p."status" IN ('UPCOMING','ACTIVE','PENDING'))::int AS "filledCount",
+					COUNT(*) FILTER (WHERE p."status" IN ('UPCOMING','ACTIVE'))::int AS "filledCount",
 					COALESCE(SUM(
 						CASE
 							WHEN p."status" = 'UPCOMING'
@@ -81,11 +81,37 @@ export class DashboardService {
 			FROM derived d
 		`;
 
+		const programUsersCountPromise = this.prisma.user.count({
+			where: {
+				role: {
+					notIn: [
+						$Enums.UserRole.VENDOR_USER,
+						$Enums.UserRole.ORGANIZATION_USER,
+						$Enums.UserRole.CANDIDATE_USER,
+					],
+				},
+			},
+		});
+		const vendorUsersCountPromise = this.prisma.user.count({
+			where: {
+				role: $Enums.UserRole.VENDOR_USER,
+				vendorUser: { isNot: null },
+			},
+		});
+		const organizationUsersCountPromise = this.prisma.user.count({
+			where: {
+				role: $Enums.UserRole.ORGANIZATION_USER,
+				members: { some: {} },
+			},
+		});
+
 		const [
 			totalOrganizations,
 			totalLocations,
 			totalVendors,
-			totalUsers,
+			programUsersCount,
+			vendorUsersCount,
+			organizationUsersCount,
 			totalChannelPartners,
 			totalSpendAgg,
 			totalAvailableSpendRows,
@@ -97,18 +123,16 @@ export class DashboardService {
 					isActive: true,
 				},
 			}),
-			this.prisma.user.count({
-				where: {
-					status: $Enums.UserStatus.ACTIVE,
-					role: {
-						not: $Enums.UserRole.CANDIDATE_USER,
-					},
-				},
-			}),
+			programUsersCountPromise,
+			vendorUsersCountPromise,
+			organizationUsersCountPromise,
 			this.prisma.mSP.count(),
 			totalSpendPromise,
 			totalAvailableSpendPromise,
 		]);
+
+		const totalUsers =
+			programUsersCount + vendorUsersCount + organizationUsersCount;
 
 		const totalSpend = totalSpendAgg._sum.totalAmount ?? 0;
 		const totalAvailableSpend =

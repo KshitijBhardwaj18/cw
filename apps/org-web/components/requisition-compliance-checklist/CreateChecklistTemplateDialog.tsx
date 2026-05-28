@@ -63,7 +63,7 @@ export function CreateChecklistTemplateDialog({
 	initialValues,
 	viewMode = false,
 	isSubmitting = false,
-}: CreateChecklistTemplateDialogProps) {
+}: Readonly<CreateChecklistTemplateDialogProps>) {
 	const {
 		form,
 		step,

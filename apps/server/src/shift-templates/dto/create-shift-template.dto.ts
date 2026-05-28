@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { ShiftType } from "@repo/db";
+import { DelayUnit, ShiftType } from "@repo/db";
 import { Type } from "class-transformer";
 import {
 	IsBoolean,
@@ -12,6 +12,7 @@ import {
 	Max,
 	Min,
 	MinLength,
+	ValidateIf,
 } from "class-validator";
 
 export class CreateShiftTemplateDto {
@@ -58,11 +59,25 @@ export class CreateShiftTemplateDto {
 	limitShiftVisibility: boolean;
 
 	@ApiPropertyOptional()
-	@IsOptional()
+	@ValidateIf((o) => o.limitShiftVisibility === true)
 	@Type(() => Number)
 	@IsNumber()
-	@Min(0)
-	visibilityUnlockHours?: number;
+	@Min(1, {
+		message:
+			"visibilityUnlockDuration must be at least 1 when visibility is limited",
+	})
+	@IsNotEmpty({
+		message: "visibilityUnlockDuration is required when visibility is limited",
+	})
+	visibilityUnlockDuration?: number;
+
+	@ApiPropertyOptional({ enum: DelayUnit })
+	@ValidateIf((o) => o.limitShiftVisibility === true)
+	@IsEnum(DelayUnit)
+	@IsNotEmpty({
+		message: "visibilityUnlockUnit is required when visibility is limited",
+	})
+	visibilityUnlockUnit?: DelayUnit;
 
 	@ApiPropertyOptional()
 	@IsOptional()

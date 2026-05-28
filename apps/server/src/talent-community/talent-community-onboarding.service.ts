@@ -3,11 +3,7 @@ import {
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
-import {
-	CandidateInviteStatus,
-	CandidateWorkforceType,
-	UserRole,
-} from "@repo/db";
+import { CandidateInviteStatus, UserRole } from "@repo/db";
 import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
 import { PrismaService } from "src/prisma/prisma.service";
 import { INVITE_TOKEN_EXPIRY_HOURS } from "./constants";
@@ -34,7 +30,7 @@ export class TalentCommunityOnboardingService {
 		});
 
 		if (!candidate) {
-			throw new BadRequestException("Invalid or expired invite token");
+			throw new BadRequestException("Invalid or expired invite token.");
 		}
 
 		await this.assertInviteNotExpired(
@@ -82,7 +78,7 @@ export class TalentCommunityOnboardingService {
 					inviteTokenExpiresAt: null,
 				},
 			});
-			throw new BadRequestException("Invite token has expired");
+			throw new BadRequestException("Invite token has expired.");
 		}
 	}
 
@@ -92,7 +88,7 @@ export class TalentCommunityOnboardingService {
 			select: { id: true },
 		});
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const existing = await this.prisma.user.findUnique({
@@ -146,10 +142,17 @@ export class TalentCommunityOnboardingService {
 					userId: user.id,
 					occupationId: firstOrgOccupation.occupationId,
 					organizationId: orgId,
-					workforceType: CandidateWorkforceType.SELF,
+					workforceType: null,
 					inviteStatus: null,
 				},
 				select: { id: true },
+			});
+			await tx.candidateSummary.create({
+				data: {
+					candidateId: created.id,
+					organizationId: orgId,
+					occupationId: firstOrgOccupation.occupationId,
+				},
 			});
 			return created.id;
 		});

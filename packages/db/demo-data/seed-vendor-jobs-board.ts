@@ -4,7 +4,7 @@
  * Idempotent. Requires `seedOrgSubmissionsDemo` to have run (same org/requisition/vendor).
  */
 import type { PrismaClient } from "@repo/db";
-import { RequisitionStatus, UserRole, UserStatus } from "@repo/db";
+import { RequisitionStatus, ShiftType, UserRole, UserStatus } from "@repo/db";
 
 /** Same as `seed-org-submissions-demo.ts` — your DB must contain this org + requisition. */
 const SEED_TARGET_ORGANIZATION_ID = "a7769fe4-fd0a-4cba-83e3-061f3203ba84";
@@ -119,9 +119,9 @@ export async function seedVendorJobsBoard(prisma: PrismaClient): Promise<void> {
 				occupationId,
 				city: "Boston",
 				state: "MA",
-				yearsOfExperience: 4,
+				totalProfessionalExperienceBand: "Y3_5",
 				isAvailable: true,
-				preferredShiftTypes: ["Night Shift"],
+				preferredShiftTypes: [ShiftType.NIGHT],
 			},
 			update: {
 				organizationId: SEED_TARGET_ORGANIZATION_ID,

@@ -4,7 +4,7 @@ type OrganizationTimeFinancialsPageProps = {
 
 export default async function OrganizationTimeFinancialsPage({
 	params,
-}: OrganizationTimeFinancialsPageProps) {
+}: Readonly<OrganizationTimeFinancialsPageProps>) {
 	await params;
 	return (
 		<div className="space-y-6">

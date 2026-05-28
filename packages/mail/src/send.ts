@@ -30,6 +30,7 @@ export async function sendMail(
 		subject: payload.subject,
 		text: payload.text,
 		html: payload.html,
+		replyTo: payload.replyTo,
 		attachments: payload.attachments,
 	});
 }

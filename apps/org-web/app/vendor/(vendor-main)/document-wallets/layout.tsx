@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	title: "Document Wallets",
 };
 
-const DocumentWalletsLayout = ({ children }: { children: React.ReactNode }) => {
+const DocumentWalletsLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[

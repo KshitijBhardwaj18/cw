@@ -24,6 +24,7 @@ function toOption(item: {
 			.toLowerCase()
 			.replace(/\b\w/g, (c) => c.toUpperCase()),
 		tracksExpiration: item.expirationType !== "NON_EXPIRABLE",
+		displayToCandidate: item.displayToCandidate,
 	};
 }
 

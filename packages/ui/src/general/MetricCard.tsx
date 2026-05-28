@@ -44,7 +44,7 @@ export function MetricCard({
 	subLabel,
 	variant,
 	className,
-}: MetricCardProps) {
+}: Readonly<MetricCardProps>) {
 	return (
 		<Card className={cn("py-1", className)}>
 			<CardContent className="p-4">

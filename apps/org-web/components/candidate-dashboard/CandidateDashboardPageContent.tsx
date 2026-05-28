@@ -23,7 +23,7 @@ import { QuickActions } from "./QuickActions";
 import { RecommendedJobs } from "./RecommendedJobs";
 import { SubmissionReadyStatus } from "./SubmissionReadyStatus";
 
-const DASHBOARD_MATCHES_LIMIT = 5;
+const DASHBOARD_MATCHES_LIMIT = 4;
 
 function StatCardSkeleton() {
 	return <Skeleton className="h-[118px] w-full rounded-lg" />;
@@ -45,7 +45,7 @@ function DashboardStat({
 	variant,
 	href,
 	isLoading,
-}: DashboardStatProps) {
+}: Readonly<DashboardStatProps>) {
 	if (isLoading) {
 		return <StatCardSkeleton />;
 	}
@@ -64,8 +64,6 @@ function CandidateDashboardPageContent() {
 	const {
 		profileQuery,
 		organizationId,
-		matchesPage,
-		setMatchesPage,
 		matchesQuery,
 		statsQuery,
 		placementCountsQuery,
@@ -185,10 +183,6 @@ function CandidateDashboardPageContent() {
 				isLoading={orgEnabled && matchesQuery.isPending}
 				isError={orgEnabled && matchesQuery.isError}
 				onRetry={() => matchesQuery.refetch()}
-				page={matchesPage}
-				totalPages={matchesQuery.data?.totalPages ?? 1}
-				totalJobs={matchesQuery.data?.total ?? 0}
-				onPageChange={setMatchesPage}
 			/>
 		</div>
 	);

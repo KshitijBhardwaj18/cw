@@ -33,6 +33,8 @@ interface TemplateSelectionStepProps {
 	onCancel: () => void;
 	onSubmit: (values: JobPostingTemplateSelectionValues) => void | Promise<void>;
 	isPending?: boolean;
+	/** Edit mode pins the requisition's template — only the already-selected card is shown and inputs are disabled. */
+	locked?: boolean;
 }
 
 export function TemplateSelectionStep({
@@ -44,7 +46,8 @@ export function TemplateSelectionStep({
 	onCancel,
 	onSubmit,
 	isPending = false,
-}: TemplateSelectionStepProps) {
+	locked = false,
+}: Readonly<TemplateSelectionStepProps>) {
 	const {
 		form,
 		lockFields,
@@ -60,6 +63,8 @@ export function TemplateSelectionStep({
 		isPending,
 	});
 
+	const fieldsDisabled = lockFields || locked;
+
 	return (
 		<Card>
 			<CardHeader>
@@ -74,7 +79,7 @@ export function TemplateSelectionStep({
 							placeholder="Search templates by occupation, location, department..."
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
-							disabled={lockFields}
+							disabled={fieldsDisabled}
 						/>
 					</div>
 
@@ -102,12 +107,13 @@ export function TemplateSelectionStep({
 											key={template.id}
 											type="button"
 											onClick={() => field.handleChange(template.id)}
-											disabled={lockFields}
+											disabled={fieldsDisabled}
 											className={cn(
 												"w-full border p-4 text-left transition-all",
 												selected
 													? "border-primary bg-primary/5 ring-1 ring-primary/20"
 													: "hover:bg-muted/30",
+												fieldsDisabled && !selected && "opacity-50",
 											)}
 										>
 											<div className="flex flex-col gap-4">

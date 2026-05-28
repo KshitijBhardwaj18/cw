@@ -9,7 +9,9 @@ export interface InvoicesMetricCardsProps {
 	stats?: VendorInvoiceMetricStats;
 }
 
-export function InvoicesMetricCards({ stats }: InvoicesMetricCardsProps) {
+export function InvoicesMetricCards({
+	stats,
+}: Readonly<InvoicesMetricCardsProps>) {
 	const safeStats: VendorInvoiceMetricStats = stats ?? {
 		totalCount: 0,
 		paidAmount: 0,

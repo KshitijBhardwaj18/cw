@@ -1,10 +1,12 @@
 export type CredentialEntryDetailType = "credential" | "upcoming-placement";
 
-export type CredentialComplianceItemStatus =
-	| "missing"
-	| "approved"
-	| "expired"
-	| "pending";
+import type {
+	CandidateComplianceStatus,
+	ComplianceListItemExpirationType,
+	ExpirationRuleUnit,
+} from "@repo/shared";
+
+export type CredentialComplianceItemStatus = `${CandidateComplianceStatus}`;
 
 export interface CredentialComplianceItem {
 	id: string;
@@ -15,7 +17,11 @@ export interface CredentialComplianceItem {
 	status: CredentialComplianceItemStatus;
 	documentName?: string;
 	completionDate?: string;
+	issueDate?: string;
 	expirationDate?: string;
+	expirationType: `${ComplianceListItemExpirationType}`;
+	expirationRuleValue: number | null;
+	expirationRuleUnit: `${ExpirationRuleUnit}` | null;
 }
 
 export interface CredentialComplianceCategory {
@@ -62,10 +68,12 @@ export interface CredentialEntryStatusUpdatePayload {
 	status: CredentialComplianceItemStatus;
 	completionDate?: string;
 	expirationDate?: string;
+	notes?: string;
 }
 
 export interface CredentialEntryUploadDocumentPayload {
 	itemId: string;
 	file: File;
 	expirationDate?: string;
+	issueDate?: string;
 }

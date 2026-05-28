@@ -11,7 +11,10 @@ import {
 	PlacementTaskStatus,
 	Prisma,
 } from "@repo/db";
-import type { PagePaginatedResponse } from "@repo/shared";
+import {
+	ENDING_SOON_WINDOW_MS,
+	type PagePaginatedResponse,
+} from "@repo/shared";
 import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
 import { PrismaService } from "src/prisma/prisma.service";
 import type { CreatePlacementNoteDto } from "../dto/create-placement-note.dto";
@@ -27,6 +30,7 @@ import {
 	employmentTypeLabel,
 	formatLongDate,
 	formatShortDate,
+	formatShortDateInOrgTz,
 	formatTimeEt,
 	formatUsdPerHour,
 	sourceTypeFromSubmission,
@@ -35,7 +39,17 @@ import {
 	PLACEMENT_LIST_INCLUDE,
 	type PlacementListRow,
 } from "../placements-list.include";
+import { vendorPlacementOwnershipWhere } from "../vendor-placement-where";
 import { PlacementComplianceService } from "./placement-compliance.service";
+
+function workforceListLabel(
+	memberships: { list: { name: string } }[],
+): string | null {
+	if (memberships.length === 0) return null;
+	const first = memberships[0]?.list.name?.trim() || "—";
+	if (memberships.length === 1) return first;
+	return `${first} (+${memberships.length - 1})`;
+}
 
 @Injectable()
 export class PlacementsService {
@@ -90,7 +104,6 @@ export class PlacementsService {
 		orgId: string,
 		tab: PlacementTabQuery,
 		search?: string,
-		workforceType?: string,
 		vendorId?: string,
 	): Prisma.PlacementWhereInput {
 		const where: Prisma.PlacementWhereInput = {
@@ -98,12 +111,8 @@ export class PlacementsService {
 			status: { in: PLACEMENT_TAB_STATUS[tab] },
 		};
 
-		if (workforceType?.trim()) {
-			where.workforceGroup = workforceType.trim();
-		}
-
 		if (vendorId?.trim()) {
-			where.submission = { is: { vendorId: vendorId.trim() } };
+			where.AND = [vendorPlacementOwnershipWhere(vendorId.trim())];
 		}
 
 		const q = search?.trim();
@@ -143,7 +152,7 @@ export class PlacementsService {
 		locationName: string | null;
 		departmentName: string | null;
 		hiringManagerName: string | null;
-		workforceGroup: string | null;
+		workforceListLabel: string | null;
 		vendorName: string | null;
 		billRate: number | null;
 	} {
@@ -164,7 +173,9 @@ export class PlacementsService {
 			locationName: p.location?.name ?? null,
 			departmentName: p.department?.name ?? null,
 			hiringManagerName: p.hiringManager?.name ?? null,
-			workforceGroup: p.workforceGroup ?? null,
+			workforceListLabel: workforceListLabel(
+				p.submission.candidate.workforceListMembers,
+			),
 			vendorName: p.submission.vendor?.name ?? null,
 			billRate: p.billRate ?? null,
 		};
@@ -181,31 +192,43 @@ export class PlacementsService {
 		activeOnly: number;
 		endingSoon: number;
 	}> {
-		const where: { organizationId: string; submission?: { vendorId: string } } =
-			{ organizationId: orgId };
+		const baseWhere: Prisma.PlacementWhereInput = { organizationId: orgId };
 		if (vendorId) {
-			where.submission = { vendorId };
+			baseWhere.AND = [vendorPlacementOwnershipWhere(vendorId)];
 		}
-		const statusCounts = await this.prisma.placement.groupBy({
-			by: ["status"],
-			where,
-			_count: { _all: true },
+
+		const withTab = (
+			tab: "upcoming" | "active" | "completed",
+		): Prisma.PlacementWhereInput => ({
+			...baseWhere,
+			status: { in: PLACEMENT_TAB_STATUS[tab] },
 		});
 
-		const countByStatus = new Map(
-			statusCounts.map((s) => [s.status, s._count._all]),
-		);
-		const sumTab = (statuses: PlacementStatus[]) =>
-			statuses.reduce((n, s) => n + (countByStatus.get(s) ?? 0), 0);
+		const now = new Date();
+		const endingSoonCutoff = new Date(now.getTime() + ENDING_SOON_WINDOW_MS);
 
-		const total = statusCounts.reduce((n, s) => n + s._count._all, 0);
-		const activeOnly = countByStatus.get(PlacementStatus.ACTIVE) ?? 0;
-		const endingSoon = countByStatus.get(PlacementStatus.ENDING_SOON) ?? 0;
+		const [upcoming, active, completed, total, activeOnly, endingSoon] =
+			await Promise.all([
+				this.prisma.placement.count({ where: withTab("upcoming") }),
+				this.prisma.placement.count({ where: withTab("active") }),
+				this.prisma.placement.count({ where: withTab("completed") }),
+				this.prisma.placement.count({ where: baseWhere }),
+				this.prisma.placement.count({
+					where: { ...baseWhere, status: PlacementStatus.ACTIVE },
+				}),
+				this.prisma.placement.count({
+					where: {
+						...baseWhere,
+						status: PlacementStatus.ACTIVE,
+						endDate: { not: null, gte: now, lte: endingSoonCutoff },
+					},
+				}),
+			]);
 
 		return {
-			upcoming: sumTab(PLACEMENT_TAB_STATUS.upcoming),
-			active: sumTab(PLACEMENT_TAB_STATUS.active),
-			completed: sumTab(PLACEMENT_TAB_STATUS.completed),
+			upcoming,
+			active,
+			completed,
 			total,
 			activeOnly,
 			endingSoon,
@@ -217,7 +240,6 @@ export class PlacementsService {
 		query: {
 			tab?: PlacementTabQuery;
 			search?: string;
-			workforceType?: string;
 			compliance?: string;
 			vendorId?: string;
 			page?: number;
@@ -229,13 +251,7 @@ export class PlacementsService {
 		const limit = query.limit ?? 10;
 		const skip = (page - 1) * limit;
 
-		const where = this.buildListWhere(
-			orgId,
-			tab,
-			query.search,
-			query.workforceType,
-			query.vendorId,
-		);
+		const where = this.buildListWhere(orgId, tab, query.search, query.vendorId);
 
 		const [total, rows] = await Promise.all([
 			this.prisma.placement.count({ where }),
@@ -289,6 +305,10 @@ export class PlacementsService {
 									select: { specialty: { select: { name: true } } },
 									take: 1,
 								},
+								workforceListMembers: {
+									orderBy: { addedAt: "asc" },
+									select: { list: { select: { id: true, name: true } } },
+								},
 							},
 						},
 						vendor: { select: { name: true } },
@@ -299,8 +319,12 @@ export class PlacementsService {
 								location: { select: { name: true } },
 								department: { select: { name: true } },
 								hiringManager: { select: { name: true } },
-								organizationSpecialty: {
-									select: { specialty: { select: { name: true } } },
+								requisitionSpecialties: {
+									select: {
+										organizationSpecialty: {
+											select: { specialty: { select: { name: true } } },
+										},
+									},
 								},
 							},
 						},
@@ -316,14 +340,14 @@ export class PlacementsService {
 			},
 		});
 
-		if (!p) throw new NotFoundException("Placement not found");
+		if (!p) throw new NotFoundException("Placement not found.");
 
 		const cand = p.submission.candidate;
 		const user = cand.user;
 		const req = p.submission.requisition;
 		const specialtyName =
 			cand.candidateSpecialties[0]?.specialty?.name ??
-			req?.organizationSpecialty?.specialty?.name ??
+			req?.requisitionSpecialties[0]?.organizationSpecialty?.specialty?.name ??
 			"—";
 
 		const shiftSchedule =
@@ -354,7 +378,7 @@ export class PlacementsService {
 			endDate: formatLongDate(p.endDate),
 			currentStatus: p.status,
 			departmentUnit: p.unitName ?? p.department?.name ?? "—",
-			workforceGroup: p.workforceGroup ?? "—",
+			workforceListLabel: workforceListLabel(cand.workforceListMembers) ?? "—",
 			shiftType: p.shiftType != null ? String(p.shiftType) : "—",
 			shiftSchedule,
 			hoursPerWeek: p.hoursPerWeek != null ? `${p.hoursPerWeek} hours` : "—",
@@ -375,6 +399,7 @@ export class PlacementsService {
 			where: { id: placementId, organizationId: orgId },
 			include: {
 				acceptedBy: { select: { name: true } },
+				organization: { select: { timeZone: true } },
 				offerHistory: {
 					select: {
 						id: true,
@@ -392,7 +417,9 @@ export class PlacementsService {
 			},
 		});
 
-		if (!p) throw new NotFoundException("Placement not found");
+		if (!p) throw new NotFoundException("Placement not found.");
+
+		const orgTz = p.organization.timeZone;
 
 		const summary =
 			p.acceptedAt && p.acceptedBy
@@ -418,7 +445,9 @@ export class PlacementsService {
 					`Pay Rate: ${formatUsdPerHour(e.payRateSnapshot) ?? ""}`,
 				);
 			if (e.startDateSnapshot)
-				detailParts.push(`Start Date: ${formatShortDate(e.startDateSnapshot)}`);
+				detailParts.push(
+					`Start Date: ${formatShortDateInOrgTz(e.startDateSnapshot, orgTz)}`,
+				);
 
 			return {
 				id: e.id,
@@ -458,7 +487,7 @@ export class PlacementsService {
 				},
 			},
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 		return placement.notes.map((n) => this.mapNote(n));
 	}
 
@@ -482,7 +511,7 @@ export class PlacementsService {
 				},
 			},
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 		return placement.tasks.map((t) => this.mapTask(t));
 	}
 
@@ -534,7 +563,7 @@ export class PlacementsService {
 		if (dto.dueDate?.trim()) {
 			const d = new Date(dto.dueDate.trim());
 			if (Number.isNaN(d.getTime())) {
-				throw new BadRequestException("Invalid due date");
+				throw new BadRequestException("Enter a valid due date.");
 			}
 			dueDate = d;
 		}
@@ -575,7 +604,7 @@ export class PlacementsService {
 				createdBy: { select: { name: true } },
 			},
 		});
-		if (!existing) throw new NotFoundException("Task not found");
+		if (!existing) throw new NotFoundException("Task not found.");
 
 		if (existing.status === PlacementTaskStatus.COMPLETED) {
 			return this.mapTask(existing);
@@ -613,14 +642,14 @@ export class PlacementsService {
 			this.logger.warn(
 				`endPlacement: placement not found orgId=${orgId} placementId=${placementId}`,
 			);
-			throw new NotFoundException("Placement not found");
+			throw new NotFoundException("Placement not found.");
 		}
 
 		if (!ENDABLE_PLACEMENT_STATUSES.includes(placement.status)) {
 			this.logger.warn(
 				`endPlacement: not endable placementId=${placementId} status=${placement.status}`,
 			);
-			throw new BadRequestException("Placement is already ended");
+			throw new BadRequestException("Placement is already ended.");
 		}
 
 		const now = new Date();
@@ -661,9 +690,6 @@ export class PlacementsService {
 
 		await this.backgroundJobs.enqueueCredentialExpirySummaryForPlacement(
 			placementId,
-		);
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			orgId,
 		);
 
 		return { success: true };

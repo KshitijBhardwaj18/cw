@@ -10,6 +10,7 @@ import {
 } from "@/queries/billing.queries";
 
 export const FINAL_INVOICES_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 const FINAL_INVOICE_PARAMS = {
 	SEARCH: "finvSearch",
@@ -18,11 +19,12 @@ const FINAL_INVOICE_PARAMS = {
 	STATUS: "finalInvStatus",
 } as const;
 
-export function useFinalInvoicesPage(orgId: string) {
+export function useFinalInvoicesPage() {
 	const { page, limit, setPage, setLimit } = usePaginationControls({
 		pageParamKey: FINAL_INVOICE_PARAMS.PAGE,
 		limitParamKey: FINAL_INVOICE_PARAMS.LIMIT,
 		defaultLimit: FINAL_INVOICES_PAGE_SIZE,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -46,7 +48,7 @@ export function useFinalInvoicesPage(orgId: string) {
 		],
 	});
 
-	const [filtersExpanded, setFiltersExpanded] = useState(true);
+	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
 	const statusFilter = values[FINAL_INVOICE_PARAMS.STATUS] || "all";
 	const query = useMemo(
@@ -59,8 +61,8 @@ export function useFinalInvoicesPage(orgId: string) {
 		[page, limit, searchFromUrl, statusFilter],
 	);
 
-	const listQuery = useFinalInvoices(orgId, query);
-	const summaryQuery = useFinalInvoiceSummary(orgId, {
+	const listQuery = useFinalInvoices(query);
+	const summaryQuery = useFinalInvoiceSummary({
 		...(searchFromUrl.trim() ? { search: searchFromUrl.trim() } : {}),
 	});
 
@@ -73,6 +75,7 @@ export function useFinalInvoicesPage(orgId: string) {
 		setPage,
 		limit,
 		setLimit,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 		query,
 		listQuery,
 		summaryQuery,

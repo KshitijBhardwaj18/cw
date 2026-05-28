@@ -16,12 +16,12 @@ import {
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { CustomTable } from "@repo/ui/general/CustomTable";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { Filter } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useMemo } from "react";
 import type { InvoiceDraftProjectOption } from "@/constants/invoice-drafts";
-import { useOrgContext } from "@/contexts/org-context";
 import { useInvoiceDraftListColumns } from "@/hooks/tables/use-invoice-draft-list-columns";
 import {
 	useInvoiceDraftMetrics,
@@ -36,12 +36,12 @@ const DRAFT_PARAMS = {
 } as const;
 
 export function InvoiceDraftsPageContent() {
-	const { id: orgId } = useOrgContext();
-
+	const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 	const { page, setPage, limit, setLimit } = usePaginationControls({
 		pageParamKey: DRAFT_PARAMS.PAGE,
 		limitParamKey: DRAFT_PARAMS.LIMIT,
 		defaultLimit: 10,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const [projectFilter, setProjectFilter] = useQueryState(
@@ -54,23 +54,25 @@ export function InvoiceDraftsPageContent() {
 		setPage(1);
 	};
 
-	const { data, isLoading } = useInvoiceDraftMetrics(orgId, {
+	const { data, isLoading } = useInvoiceDraftMetrics({
 		status: "DRAFT",
 		page,
 		limit,
 		...(projectFilter !== "all" ? { projectId: projectFilter } : {}),
 	});
-	const { data: summary } = useInvoiceDraftSummary(orgId, {
+	const { data: summary } = useInvoiceDraftSummary({
 		status: "DRAFT",
 		...(projectFilter !== "all" ? { projectId: projectFilter } : {}),
 	});
-	const { data: allDrafts } = useInvoiceDraftMetrics(orgId, {
+	const { data: allDrafts } = useInvoiceDraftMetrics({
 		status: "DRAFT",
 		page: 1,
 		limit: 500,
 		all: true,
 	});
 	const rows = data?.data ?? [];
+	const total = data?.total ?? 0;
+	const pageCount = Math.ceil(total / limit) || 1;
 
 	const projectOptions = useMemo<InvoiceDraftProjectOption[]>(
 		() => [
@@ -137,21 +139,26 @@ export function InvoiceDraftsPageContent() {
 					{isLoading ? (
 						<Skeleton className="h-[320px] w-full rounded-md" />
 					) : (
-						<CustomTable
-							data={rows}
-							columns={columns}
-							enableSorting
-							enablePagination
-							paginationMode="server"
-							totalCount={data?.total ?? 0}
-							pageSize={limit}
-							currentPage={page}
-							onPaginationChange={(nextPage: number, nextLimit: number) => {
-								setPage(nextPage);
-								setLimit(nextLimit);
-							}}
-							className="rounded-none border-0 border-b-0"
-						/>
+						<>
+							<CustomTable
+								data={rows}
+								columns={columns}
+								enableSorting
+								enablePagination={false}
+								className="rounded-none border-0 border-b-0"
+							/>
+							<PaginationControls
+								currentPage={page}
+								pageCount={pageCount}
+								goToPage={setPage}
+								limit={limit}
+								setLimit={setLimit}
+								pageSizeOptions={PAGE_SIZE_OPTIONS}
+								totalItems={total}
+								itemLabel="draft"
+								itemLabelPlural="drafts"
+							/>
+						</>
 					)}
 				</CardContent>
 			</Card>

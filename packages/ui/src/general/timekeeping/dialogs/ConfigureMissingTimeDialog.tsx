@@ -49,7 +49,7 @@ export function ConfigureMissingTimeDialog({
 	autoCreateMissingCases,
 	onSave,
 	isSaving = false,
-}: ConfigureMissingTimeDialogProps) {
+}: Readonly<ConfigureMissingTimeDialogProps>) {
 	const [deadlineDays, setDeadlineDays] = useState(
 		String(submissionDeadlineDays),
 	);

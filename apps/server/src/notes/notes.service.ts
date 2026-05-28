@@ -187,7 +187,7 @@ export class NotesService {
 			select: { id: true, vendorId: true, mspId: true },
 		});
 		if (!note) {
-			throw new NotFoundException("Note not found");
+			throw new NotFoundException("Note not found.");
 		}
 		await this.prisma.note.delete({ where: { id } });
 		this.logger.log(`Deleted note ${id}`);
@@ -199,7 +199,7 @@ export class NotesService {
 			include: { user: true },
 		});
 		if (!note) {
-			throw new NotFoundException("Note not found");
+			throw new NotFoundException("Note not found.");
 		}
 		const updated = await this.prisma.note.update({
 			where: { id },

@@ -1,11 +1,10 @@
 "use client";
 
-import { Action } from "@repo/casl";
 import type { MspResponseType } from "@repo/shared";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts";
+import { useMspAbilities } from "@/hooks/use-msp-abilities";
 import { useDeleteMsp } from "@/queries/msps.query";
 import { MspDeleteDialog } from "./MspDeleteDialog";
 import { MspFormDialog } from "./MspFormDialog";
@@ -15,10 +14,9 @@ interface MspsTableWrapperProps {
 	data: MspResponseType[];
 }
 
-export function MspsTableWrapper({ data }: MspsTableWrapperProps) {
+export function MspsTableWrapper({ data }: Readonly<MspsTableWrapperProps>) {
 	const router = useRouter();
-	const { ability } = useAuth();
-	const canDeleteMsp = ability.can(Action.Delete, "MSP");
+	const { canDeleteMsp, canUpdateMsp } = useMspAbilities();
 	const [editMsp, setEditMsp] = useState<MspResponseType | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<MspResponseType | null>(
 		null,
@@ -61,7 +59,7 @@ export function MspsTableWrapper({ data }: MspsTableWrapperProps) {
 		<>
 			<MspsTable
 				data={data}
-				onEdit={handleEdit}
+				onEdit={canUpdateMsp ? handleEdit : undefined}
 				onDelete={canDeleteMsp ? handleDeleteRequest : undefined}
 				onRowClick={handleRowClick}
 			/>

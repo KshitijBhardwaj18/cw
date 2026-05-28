@@ -6,7 +6,9 @@ export const metadata: Metadata = {
 	title: "Dashboard",
 };
 
-const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
+const DashboardLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<CandidateMainShell title="Dashboard">
 			<PageContainer>{children}</PageContainer>

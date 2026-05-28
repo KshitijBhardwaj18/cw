@@ -17,7 +17,7 @@ export function PlacementDetailSection({
 	gridCols = 1,
 	titleClassName,
 	className,
-}: PlacementDetailSectionProps) {
+}: Readonly<PlacementDetailSectionProps>) {
 	return (
 		<div className={cn("space-y-4", className)}>
 			<div className="flex items-center gap-2">

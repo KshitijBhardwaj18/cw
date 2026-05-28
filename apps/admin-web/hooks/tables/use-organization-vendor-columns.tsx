@@ -11,6 +11,7 @@ import {
 	ORGANIZATION_VENDOR_COLUMN_HEADERS,
 	ORGANIZATION_VENDOR_COLUMN_KEYS,
 } from "@/constants/tables/organization-vendors";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 type OrganizationVendorColumnsCallbacks = {
 	onEdit?: (row: OrganizationVendorWithVendorType) => void;
@@ -23,6 +24,7 @@ export function useOrganizationVendorColumns({
 	onView,
 	onDelete,
 }: OrganizationVendorColumnsCallbacks) {
+	const { fmtShortDate } = useUserTimezone();
 	const columns = useMemo<ColumnDef<OrganizationVendorWithVendorType>[]>(
 		() => [
 			{
@@ -49,11 +51,7 @@ export function useOrganizationVendorColumns({
 				cell: ({ row }) => (
 					<div className="text-sm">
 						{row.original.startDate
-							? new Date(row.original.startDate).toLocaleDateString("en-US", {
-									year: "numeric",
-									month: "short",
-									day: "numeric",
-								})
+							? fmtShortDate(row.original.startDate)
 							: "—"}
 					</div>
 				),
@@ -65,9 +63,9 @@ export function useOrganizationVendorColumns({
 							header: ORGANIZATION_VENDOR_COLUMN_HEADERS.actions,
 							cell: ({
 								row,
-							}: {
+							}: Readonly<{
 								row: Row<OrganizationVendorWithVendorType>;
-							}) => (
+							}>) => (
 								<div className="flex items-center gap-2">
 									{onView && (
 										<Button
@@ -117,7 +115,7 @@ export function useOrganizationVendorColumns({
 					]
 				: []),
 		],
-		[onEdit, onView, onDelete],
+		[onEdit, onView, onDelete, fmtShortDate],
 	);
 
 	return { columns };

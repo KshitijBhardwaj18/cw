@@ -1,6 +1,5 @@
 "use client";
 
-import { formatDate } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
@@ -9,6 +8,7 @@ import { MapPin, User } from "lucide-react";
 import Link from "next/link";
 import { PLACEMENT_STATUS_VARIANTS } from "@/constants/placement-status";
 import { usePlacementCardActions } from "@/hooks/use-placement-card-actions";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { PlacementCardItem } from "@/types/placement";
 import { EndPlacementDialog } from "./EndPlacementDialog";
 
@@ -28,12 +28,7 @@ function getComplianceClass(percent: number): string {
 	return "[&_[data-slot=progress-indicator]]:bg-red-500";
 }
 
-const ENDABLE_STATUSES = new Set([
-	"ACTIVE",
-	"ENDING_SOON",
-	"UPCOMING",
-	"PENDING",
-]);
+const ENDABLE_STATUSES = new Set(["ACTIVE", "UPCOMING", "ON_HOLD"]);
 
 export interface PlacementCardProps {
 	placement: PlacementCardItem;
@@ -45,13 +40,14 @@ export function PlacementCard({
 	placement,
 	detailBasePath,
 	showEndAction,
-}: PlacementCardProps) {
+}: Readonly<PlacementCardProps>) {
 	const { endDialogOpen, setEndDialogOpen, handleEndConfirm, isEndPending } =
 		usePlacementCardActions(placement.id, placement.placementNumber);
+	const { fmtShortDate } = useUserTimezone();
 
 	const statusConfig =
 		PLACEMENT_STATUS_VARIANTS[placement.status] ??
-		PLACEMENT_STATUS_VARIANTS.PENDING;
+		PLACEMENT_STATUS_VARIANTS.UPCOMING;
 
 	return (
 		<Card className="overflow-hidden transition-shadow hover:shadow-md">
@@ -96,13 +92,13 @@ export function PlacementCard({
 					<div>
 						<p className="text-muted-foreground text-xs">Start Date</p>
 						<p className="font-medium text-sm">
-							{placement.startDate ? formatDate(placement.startDate) : "—"}
+							{fmtShortDate(placement.startDate)}
 						</p>
 					</div>
 					<div>
 						<p className="text-muted-foreground text-xs">End Date</p>
 						<p className="font-medium text-sm">
-							{placement.endDate ? formatDate(placement.endDate) : "—"}
+							{fmtShortDate(placement.endDate)}
 						</p>
 					</div>
 				</div>

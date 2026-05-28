@@ -44,7 +44,7 @@ export function SubmissionReadyStatus({
 	pendingVerification,
 	expired,
 	totalRequirements,
-}: SubmissionReadyStatusProps) {
+}: Readonly<SubmissionReadyStatusProps>) {
 	const pct = approvedPercent ?? (totalRequirements === 0 ? 100 : 0);
 
 	const tier2Description = walletError

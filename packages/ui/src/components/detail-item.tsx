@@ -43,7 +43,7 @@ export function DetailItem({
 	icon: Icon,
 	readOnly,
 	...props
-}: DetailItemProps) {
+}: Readonly<DetailItemProps>) {
 	return (
 		<div
 			className={cn(detailItemVariants({ variant, flow }), className)}

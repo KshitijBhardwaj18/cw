@@ -18,7 +18,7 @@ interface OrganizationVendorsTableWrapperProps {
 export function OrganizationVendorsTableWrapper({
 	organizationId,
 	data,
-}: OrganizationVendorsTableWrapperProps) {
+}: Readonly<OrganizationVendorsTableWrapperProps>) {
 	const { ability } = useAuth();
 	const canUpdate = ability.can(Action.Update, "Organization");
 	const canDelete = ability.can(Action.Delete, "Organization");

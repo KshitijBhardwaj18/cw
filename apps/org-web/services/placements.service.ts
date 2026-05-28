@@ -107,7 +107,6 @@ export type PlacementCredentialDetail = {
 export type PlacementsQuery = {
 	tab?: PlacementTab;
 	search?: string;
-	workforceType?: string;
 	compliance?: string;
 	vendorId?: string;
 	page?: number;
@@ -308,13 +307,25 @@ export class PlacementsService {
 		complianceListItemId: string,
 		file: File,
 		expiryDate?: string,
+		issueDate?: string,
 	): Promise<PlacementComplianceResponse> {
 		const form = new FormData();
 		form.append("file", file);
 		if (expiryDate) form.append("expiryDate", expiryDate);
+		if (issueDate) form.append("issueDate", issueDate);
 		return ApiClient.post<PlacementComplianceResponse>(
 			`${BASE}/${placementId}/compliance-items/${complianceListItemId}/document`,
 			form,
+		);
+	}
+
+	static async markComplianceLinkSubmitted(
+		placementId: string,
+		complianceListItemId: string,
+	): Promise<PlacementComplianceResponse> {
+		return ApiClient.post<PlacementComplianceResponse>(
+			`${BASE}/${placementId}/compliance-items/${complianceListItemId}/mark-link-submitted`,
+			{},
 		);
 	}
 }

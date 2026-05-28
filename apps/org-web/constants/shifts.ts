@@ -1,5 +1,21 @@
-export type ShiftStatus = "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-export type ShiftType = "DAYS" | "NIGHTS" | "EVENINGS" | "SWING";
+import {
+	PerDiemShiftStatus,
+	SHIFT_TYPE_OPTIONS,
+	SHIFT_TYPE_SCHEMA_VALUES,
+	ShiftType as ShiftTypeEnum,
+} from "@repo/shared";
+
+export type ShiftStatus = `${PerDiemShiftStatus}`;
+
+/** String union matching Prisma `ShiftType` — use for rows, Zod, JSON. */
+export type ShiftTypeKey = `${ShiftTypeEnum}`;
+export type ShiftType = ShiftTypeKey;
+
+export { PerDiemShiftStatus, SHIFT_TYPE_OPTIONS, ShiftTypeEnum };
+
+/** Zod-compatible tuple matching Prisma `ShiftType`. */
+export const SHIFT_TYPE_VALUES = SHIFT_TYPE_SCHEMA_VALUES;
+
 export type ShiftStatCardItem = {
 	key: ShiftStatus | "ALL";
 	label: string;
@@ -10,7 +26,7 @@ export type ShiftStatCardItem = {
 export interface ShiftTemplateItem {
 	id: string;
 	templateName: string;
-	shiftType: ShiftType;
+	shiftType: ShiftTypeKey;
 	occupationId: string;
 	departmentId: string;
 	locationId: string;
@@ -27,7 +43,6 @@ export interface Shift {
 	id: string;
 	title: string;
 	status: ShiftStatus;
-	isPublic: boolean;
 	date: string;
 	timeRange: string;
 	ratePerHour: number;
@@ -38,7 +53,7 @@ export interface Shift {
 	claimedBy: string | null;
 	claimedAt: string | null;
 	vendorRatePerHour: number;
-	shiftType: ShiftType;
+	shiftType: ShiftTypeKey;
 	totalHours: number;
 	totalCost: number;
 	notifications: number;
@@ -48,48 +63,38 @@ export interface Shift {
 	conflictReason: string | null;
 }
 
-export const SHIFT_TYPE_OPTIONS = [
-	{ value: "DAYS", label: "Day" },
-	{ value: "NIGHTS", label: "Night" },
-	{ value: "EVENINGS", label: "Evening" },
-	{ value: "SWING", label: "Swing" },
-] as const;
-
-export const SHIFT_TYPE_VALUES = [
-	"DAYS",
-	"NIGHTS",
-	"EVENINGS",
-	"SWING",
-] as const;
-
 export const STATUS_BADGE_CLASS: Record<ShiftStatus, string> = {
-	OPEN: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-	IN_PROGRESS:
+	[PerDiemShiftStatus.OPEN]:
+		"bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+	[PerDiemShiftStatus.IN_PROGRESS]:
 		"bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-	COMPLETED:
+	[PerDiemShiftStatus.COMPLETED]:
 		"bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-	CANCELLED: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+	[PerDiemShiftStatus.CANCELLED]:
+		"bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+	[PerDiemShiftStatus.EXPIRED]:
+		"bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
 };
 
 export const STATUS_LABEL: Record<ShiftStatus, string> = {
-	OPEN: "Open",
-	IN_PROGRESS: "In Progress",
-	COMPLETED: "Completed",
-	CANCELLED: "Cancelled",
+	[PerDiemShiftStatus.OPEN]: "Open",
+	[PerDiemShiftStatus.IN_PROGRESS]: "In Progress",
+	[PerDiemShiftStatus.COMPLETED]: "Completed",
+	[PerDiemShiftStatus.CANCELLED]: "Cancelled",
+	[PerDiemShiftStatus.EXPIRED]: "Expired",
 };
 
-export const SHIFT_TYPE_CLASS: Record<ShiftType, string> = {
-	DAYS: "text-amber-600 dark:text-amber-400",
-	NIGHTS: "text-violet-600 dark:text-violet-400",
-	EVENINGS: "text-orange-600 dark:text-orange-400",
-	SWING: "text-sky-600 dark:text-sky-400",
-};
+export const SHIFT_TYPE_LABEL: Record<ShiftTypeKey, string> =
+	Object.fromEntries(
+		SHIFT_TYPE_OPTIONS.map((o) => [o.value, o.label]),
+	) as Record<ShiftTypeKey, string>;
 
-export const SHIFT_TYPE_LABEL: Record<ShiftType, string> = {
-	DAYS: "Day",
-	NIGHTS: "Night",
-	EVENINGS: "Evening",
-	SWING: "Swing",
+export const SHIFT_TYPE_CLASS: Record<ShiftTypeKey, string> = {
+	[ShiftTypeEnum.DAY]: "text-amber-600 dark:text-amber-400",
+	[ShiftTypeEnum.EVENING]: "text-orange-600 dark:text-orange-400",
+	[ShiftTypeEnum.NIGHT]: "text-violet-600 dark:text-violet-400",
+	[ShiftTypeEnum.ROTATING]: "text-sky-600 dark:text-sky-400",
+	[ShiftTypeEnum.FLEXIBLE]: "text-emerald-600 dark:text-emerald-400",
 };
 
 export const SHIFT_LIST_PAGE_SIZE = 5;
@@ -103,22 +108,34 @@ export const SHIFT_STAT_CARDS: ShiftStatCardItem[] = [
 		activeClass: "ring-2 ring-primary border-primary",
 	},
 	{
-		key: "OPEN",
+		key: PerDiemShiftStatus.OPEN,
 		label: "Open",
 		countClass: "text-blue-600 dark:text-blue-400",
 		activeClass: "ring-2 ring-blue-500 border-blue-500",
 	},
 	{
-		key: "IN_PROGRESS",
+		key: PerDiemShiftStatus.IN_PROGRESS,
 		label: "In Progress",
 		countClass: "text-amber-600 dark:text-amber-400",
 		activeClass: "ring-2 ring-amber-500 border-amber-500",
 	},
 	{
-		key: "COMPLETED",
+		key: PerDiemShiftStatus.COMPLETED,
 		label: "Completed",
 		countClass: "text-green-600 dark:text-green-400",
 		activeClass: "ring-2 ring-green-500 border-green-500",
+	},
+	{
+		key: PerDiemShiftStatus.CANCELLED,
+		label: "Cancelled",
+		countClass: "text-gray-600 dark:text-gray-400",
+		activeClass: "ring-2 ring-gray-500 border-gray-500",
+	},
+	{
+		key: PerDiemShiftStatus.EXPIRED,
+		label: "Expired",
+		countClass: "text-slate-600 dark:text-slate-400",
+		activeClass: "ring-2 ring-slate-500 border-slate-500",
 	},
 ];
 

@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@repo/db";
 import { BackGroundJobStatus, MemberInviteStatus } from "@repo/db";
-import { inviteTemplate, sendMail } from "@repo/mail";
+import { inviteTemplate, orgMailBranding, sendMail } from "@repo/mail";
 import type {
 	InviteBulkJobResult,
 	InviteBulkPayload,
@@ -24,7 +24,7 @@ export async function runInviteSingleProcessor(
 		where: { id: memberId, organizationId },
 		include: {
 			user: { select: { email: true, name: true } },
-			organization: { select: { name: true, slug: true } },
+			organization: { select: { name: true, slug: true, logo: true } },
 		},
 	});
 	if (!member) {
@@ -48,12 +48,19 @@ export async function runInviteSingleProcessor(
 		config.orgPortalBaseUrl,
 		member.organization.slug,
 	);
-	const { subject, text } = inviteTemplate(orgName, signInUrl);
+	const branding = orgMailBranding({
+		orgName: orgName,
+		orgLogoUrl: member.organization.logo,
+		staffLogicLogoUrl: config.mail.staffLogicLogoUrl,
+		portal: "organization",
+	});
+	const { subject, text, html } = inviteTemplate(branding, signInUrl);
 	try {
 		await sendMail(config.mail, {
 			to: email,
 			subject,
 			text,
+			html,
 		});
 		const now = new Date();
 		await Promise.all([
@@ -108,7 +115,7 @@ export async function runInviteBulkProcessor(
 		where: { id: { in: memberIds }, organizationId },
 		include: {
 			user: { select: { email: true, name: true } },
-			organization: { select: { name: true, slug: true } },
+			organization: { select: { name: true, slug: true, logo: true } },
 		},
 	});
 	const result: InviteBulkJobResult = {
@@ -123,9 +130,15 @@ export async function runInviteBulkProcessor(
 			config.orgPortalBaseUrl,
 			member.organization.slug,
 		);
-		const { subject, text } = inviteTemplate(orgName, signInUrl);
+		const branding = orgMailBranding({
+			orgName,
+			orgLogoUrl: member.organization.logo,
+			staffLogicLogoUrl: config.mail.staffLogicLogoUrl,
+			portal: "organization",
+		});
+		const { subject, text, html } = inviteTemplate(branding, signInUrl);
 		try {
-			await sendMail(config.mail, { to: email, subject, text });
+			await sendMail(config.mail, { to: email, subject, text, html });
 			const now = new Date();
 			result.sent += 1;
 			await prisma.member.update({

@@ -14,7 +14,7 @@ function Tabs({
 	className,
 	orientation = "horizontal",
 	...props
-}: React.ComponentProps<typeof TabsPrimitive.Root>) {
+}: Readonly<React.ComponentProps<typeof TabsPrimitive.Root>>) {
 	return (
 		<TabsPrimitive.Root
 			data-slot="tabs"
@@ -48,8 +48,10 @@ function TabsList({
 	className,
 	variant = "default",
 	...props
-}: React.ComponentProps<typeof TabsPrimitive.List> &
-	VariantProps<typeof tabsListVariants>) {
+}: Readonly<
+	React.ComponentProps<typeof TabsPrimitive.List> &
+		VariantProps<typeof tabsListVariants>
+>) {
 	const resolvedVariant = variant === "list" ? "line" : variant;
 	return (
 		<TabsListVariantContext.Provider value={resolvedVariant}>
@@ -75,7 +77,7 @@ const tabsTriggerLine =
 function TabsTrigger({
 	className,
 	...props
-}: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+}: Readonly<React.ComponentProps<typeof TabsPrimitive.Trigger>>) {
 	const variant = useContext(TabsListVariantContext) ?? "default";
 	const isLineVariant = variant === "line" || variant === "list";
 	return (
@@ -94,7 +96,7 @@ function TabsTrigger({
 function TabsContent({
 	className,
 	...props
-}: React.ComponentProps<typeof TabsPrimitive.Content>) {
+}: Readonly<React.ComponentProps<typeof TabsPrimitive.Content>>) {
 	return (
 		<TabsPrimitive.Content
 			data-slot="tabs-content"

@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	title: "Compliance",
 };
 
-const ComplianceLayout = ({ children }: { children: React.ReactNode }) => {
+const ComplianceLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.Read, subject: "ComplianceListItem" }]}

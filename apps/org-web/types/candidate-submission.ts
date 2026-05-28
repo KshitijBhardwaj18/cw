@@ -26,11 +26,9 @@ export interface CandidateSubmission {
 	updatedDate: string;
 }
 
-export type CandidateComplianceItemStatus =
-	| "Approved"
-	| "Pending Verification"
-	| "Requested"
-	| "Expired";
+import type { CandidateComplianceStatus } from "@repo/shared";
+
+export type CandidateComplianceItemStatus = `${CandidateComplianceStatus}`;
 
 export interface CandidateSubmissionDetail extends CandidateSubmission {
 	summary: {

@@ -23,8 +23,10 @@ export const BackGroundJobName = {
 	RECOMPUTE_SUMMARY: "recompute-summary",
 	BILLING_GENERATE_INVOICES: "billing-generate-invoices",
 	BILLING_CYCLE_RUN: "billing-cycle-run",
-	BILLING_REFRESH_SPEND_ANALYTICS: "billing-refresh-spend-analytics",
 	METRIC_SNAPSHOT_RECOMPUTE: "metric-snapshot-recompute",
+	RECONCILE_SUMMARIES: "reconcile-summaries",
+	EXPIRE_PAST_PER_DIEM_SHIFTS: "expire-past-per-diem-shifts",
+	ROLL_PLACEMENT_STATUSES: "roll-placement-statuses",
 } as const;
 
 export type BackGroundJobType =

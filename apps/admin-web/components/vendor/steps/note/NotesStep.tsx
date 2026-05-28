@@ -15,7 +15,7 @@ interface NotesStepProps {
 	vendorId: string;
 }
 
-export function NotesStep({ vendorId }: NotesStepProps) {
+export function NotesStep({ vendorId }: Readonly<NotesStepProps>) {
 	const router = useRouter();
 	const filters = useListFilters();
 

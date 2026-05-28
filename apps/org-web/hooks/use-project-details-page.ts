@@ -4,7 +4,6 @@ import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useAddProjectRequisitions,
 	useProjectMeta,
@@ -16,22 +15,28 @@ import type { ProjectRequisitionsListParams } from "@/services/projects.service"
 import type { OrgJobCardItem } from "@/types/org-job";
 import type { ProjectDetailRequisitionStatusFilter } from "@/types/project";
 
-const REQUISITIONS_PAGE_SIZE = 20;
+const DEFAULT_LIMIT = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 const PROJECT_DETAILS_PARAMS = {
 	SEARCH: "reqSearch",
 	PAGE: "reqPage",
+	LIMIT: "reqLimit",
 	STATUS: "reqStatus",
 } as const;
 
 export function useProjectDetailsPage(projectId: string) {
-	const { id: orgId } = useOrgContext();
-
-	const { page: requisitionsPage, setPage: setRequisitionsPage } =
-		usePaginationControls({
-			pageParamKey: PROJECT_DETAILS_PARAMS.PAGE,
-			defaultLimit: REQUISITIONS_PAGE_SIZE,
-		});
+	const {
+		page: requisitionsPage,
+		limit: requisitionsLimit,
+		setPage: setRequisitionsPage,
+		setLimit: setRequisitionsLimit,
+	} = usePaginationControls({
+		pageParamKey: PROJECT_DETAILS_PARAMS.PAGE,
+		limitParamKey: PROJECT_DETAILS_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
+	});
 
 	const {
 		searchValue: localSearch,
@@ -50,9 +55,16 @@ export function useProjectDetailsPage(projectId: string) {
 				defaultValue: "all",
 				options: [
 					{ label: "All Statuses", value: "all" },
-					{ label: "Open", value: "Open" },
-					{ label: "Closed", value: "Closed" },
-					{ label: "On Hold", value: "On Hold" },
+					{ label: "Draft", value: "DRAFT" },
+					{ label: "Active", value: "ACTIVE" },
+					{ label: "Inactive", value: "INACTIVE" },
+					{ label: "Pending Approval", value: "PENDING_APPROVAL" },
+					{ label: "Approved", value: "APPROVED" },
+					{ label: "Published", value: "PUBLISHED" },
+					{ label: "On Hold", value: "ON_HOLD" },
+					{ label: "Filled", value: "FILLED" },
+					{ label: "Cancelled", value: "CANCELLED" },
+					{ label: "Closed", value: "CLOSED" },
 				],
 			},
 		],
@@ -68,21 +80,17 @@ export function useProjectDetailsPage(projectId: string) {
 			search: searchFromUrl.trim() || undefined,
 			requisitionStatus: status === "all" ? undefined : status,
 			page: requisitionsPage,
-			limit: REQUISITIONS_PAGE_SIZE,
+			limit: requisitionsLimit,
 		}),
-		[searchFromUrl, status, requisitionsPage],
+		[searchFromUrl, status, requisitionsPage, requisitionsLimit],
 	);
 
-	const metaQuery = useProjectMeta(orgId, projectId);
-	const statsQuery = useProjectStats(orgId, projectId);
-	const requisitionsQuery = useProjectRequisitions(
-		orgId,
-		projectId,
-		listParams,
-	);
+	const metaQuery = useProjectMeta(projectId);
+	const statsQuery = useProjectStats(projectId);
+	const requisitionsQuery = useProjectRequisitions(projectId, listParams);
 
-	const addMutation = useAddProjectRequisitions(orgId, projectId);
-	const removeMutation = useRemoveProjectRequisition(orgId, projectId);
+	const addMutation = useAddProjectRequisitions(projectId);
+	const removeMutation = useRemoveProjectRequisition(projectId);
 
 	const requisitions = requisitionsQuery.data?.data ?? [];
 	const requisitionsTotal = requisitionsQuery.data?.total ?? 0;
@@ -148,6 +156,9 @@ export function useProjectDetailsPage(projectId: string) {
 		requisitionsTotal,
 		requisitionsPage,
 		setRequisitionsPage,
+		requisitionsLimit,
+		setRequisitionsLimit,
+		requisitionsPageSizeOptions: PAGE_SIZE_OPTIONS,
 		requisitionsTotalPages,
 		addRequisitionsOpen,
 		setAddRequisitionsOpen,

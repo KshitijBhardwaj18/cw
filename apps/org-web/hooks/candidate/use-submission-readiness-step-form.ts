@@ -15,36 +15,35 @@ function normalizeDefaults(
 		...emptyProfessionalReference(),
 		...row,
 	}));
-	while (mergedRefs.length < 2) {
+	if (mergedRefs.length === 0) {
 		mergedRefs.push(emptyProfessionalReference());
 	}
 
 	return {
-		skillsChecklistCompleted: partial?.skillsChecklistCompleted ?? false,
 		dateOfBirth: partial?.dateOfBirth ?? "",
 		lastFourSsn: partial?.lastFourSsn ?? "",
-		certificationFiles: partial?.certificationFiles ?? [],
+		skillsChecklistFile: partial?.skillsChecklistFile ?? null,
+		skillsChecklistFileKey: partial?.skillsChecklistFileKey ?? null,
 		references: mergedRefs,
 	};
 }
 
 function serializeForSync(values: SubmissionReadinessFormValues): string {
-	const certKeys =
-		values.certificationFiles?.map(
-			(f) => `${f.name}:${f.size}:${f.lastModified}`,
-		) ?? [];
+	const fileKey = values.skillsChecklistFile
+		? `${values.skillsChecklistFile.name}:${values.skillsChecklistFile.size}:${values.skillsChecklistFile.lastModified}`
+		: "";
 	return JSON.stringify({
-		skillsChecklistCompleted: values.skillsChecklistCompleted,
 		dateOfBirth: values.dateOfBirth,
 		lastFourSsn: values.lastFourSsn,
-		certKeys,
+		skillsChecklistFileKey: values.skillsChecklistFileKey,
+		fileKey,
 		references: values.references,
 	});
 }
 
 interface UseSubmissionReadinessStepFormProps {
 	defaultValues?: Partial<SubmissionReadinessFormValues>;
-	onSubmit: () => void | Promise<void>;
+	onSubmit: (values: SubmissionReadinessFormValues) => void | Promise<void>;
 	onValuesChange?: (values: SubmissionReadinessFormValues) => void;
 }
 
@@ -60,8 +59,8 @@ export function useSubmissionReadinessStepForm({
 		validators: {
 			onSubmit: submissionReadinessSchema,
 		},
-		onSubmit: async () => {
-			await Promise.resolve(onSubmit());
+		onSubmit: async ({ value }) => {
+			await Promise.resolve(onSubmit(value));
 		},
 	});
 

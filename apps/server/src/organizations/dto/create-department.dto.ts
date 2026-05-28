@@ -41,17 +41,22 @@ export class CreateDepartmentDto {
 	costCenter?: string;
 
 	@ApiPropertyOptional({
-		description: "Organization occupation ID",
-		example: "uuid",
+		description: "Organization occupation IDs (multi-select)",
+		type: [String],
 	})
 	@IsOptional()
-	@IsUUID()
-	organizationOccupationId?: string;
+	@IsArray()
+	@IsUUID("4", { each: true })
+	organizationOccupationIds?: string[];
 
-	@ApiPropertyOptional({ description: "Organization specialty ID" })
+	@ApiPropertyOptional({
+		description: "Organization specialty IDs (multi-select)",
+		type: [String],
+	})
 	@IsOptional()
-	@IsUUID()
-	organizationSpecialtyId?: string;
+	@IsArray()
+	@IsUUID("4", { each: true })
+	organizationSpecialtyIds?: string[];
 
 	@ApiPropertyOptional({
 		description: "Related user IDs (organization members)",

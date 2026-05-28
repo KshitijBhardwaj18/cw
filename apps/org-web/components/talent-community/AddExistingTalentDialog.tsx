@@ -28,14 +28,12 @@ import type { ExistingTalentQuery } from "@/services/talent-community.service";
 interface AddExistingTalentDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	orgId: string;
 }
 
 export function AddExistingTalentDialog({
 	open,
 	onOpenChange,
-	orgId,
-}: AddExistingTalentDialogProps) {
+}: Readonly<AddExistingTalentDialogProps>) {
 	const {
 		form,
 		search,
@@ -54,7 +52,7 @@ export function AddExistingTalentDialog({
 		handleClose,
 		addExistingMutation,
 		workforceTypeSelectOptions,
-	} = useAddExistingTalentDialog({ orgId, onOpenChange });
+	} = useAddExistingTalentDialog({ onOpenChange });
 
 	return (
 		<Dialog open={open} onOpenChange={(val) => !val && handleClose()}>

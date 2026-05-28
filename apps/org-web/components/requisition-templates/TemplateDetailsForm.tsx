@@ -16,6 +16,13 @@ import {
 } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import {
+	MultiSelect,
+	MultiSelectContent,
+	MultiSelectItem,
+	MultiSelectTrigger,
+	MultiSelectValue,
+} from "@repo/ui/components/multi-select";
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -27,15 +34,14 @@ import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { REQUISITION_TEMPLATE_STATUS_OPTIONS } from "@/constants/requisition-templates";
-import { useOrgContext } from "@/contexts/org-context";
 import {
+	useOrgOccupationSpecialties,
 	useShiftTemplateDepartments,
 	useShiftTemplateOccupations,
 } from "@/queries/shift-templates.queries";
-import { useSpecialtiesForOccupation } from "@/queries/talent-community.queries";
 import {
 	type RequisitionTemplateDetailsFormValues,
 	requisitionTemplateDetailsSchema,
@@ -45,7 +51,8 @@ import { STEP_VALIDATION_TOAST } from "./CreateRequisitionTemplatePageContent";
 const defaultValues: RequisitionTemplateDetailsFormValues = {
 	templateName: "",
 	occupationId: "",
-	specialtyId: "",
+	specialtyIds: [],
+	locationId: "",
 	departmentId: "",
 	unitName: "",
 	jobDescription: "",
@@ -67,8 +74,7 @@ export function TemplateDetailsForm({
 	isPending = false,
 	initialValues,
 	readOnly = false,
-}: TemplateDetailsFormProps) {
-	const { id: orgId } = useOrgContext();
+}: Readonly<TemplateDetailsFormProps>) {
 	const form = useForm({
 		defaultValues: initialValues ?? defaultValues,
 		validators: {
@@ -92,12 +98,77 @@ export function TemplateDetailsForm({
 		form.store,
 		(s) => s.values.occupationId,
 	);
+	const selectedLocationId = useStore(form.store, (s) => s.values.locationId);
 	const occupationsQuery = useShiftTemplateOccupations();
-	const departmentsQuery = useShiftTemplateDepartments();
-	const specialtiesQuery = useSpecialtiesForOccupation(
-		orgId,
-		selectedOccupationId || null,
+
+	const occupationRow = useMemo(
+		() =>
+			(occupationsQuery.data ?? []).find((o) => o.id === selectedOccupationId),
+		[occupationsQuery.data, selectedOccupationId],
 	);
+	const organizationOccupationId = occupationRow?.organizationOccupationId;
+
+	const allOrganizationDepartmentsQuery = useShiftTemplateDepartments({
+		limit: 100,
+	});
+	const departmentsQuery = useShiftTemplateDepartments({
+		limit: 100,
+		organizationOccupationId,
+		enabled: Boolean(organizationOccupationId),
+	});
+
+	const eligibleCatalogOccupationIds = useMemo(() => {
+		if (!allOrganizationDepartmentsQuery.isSuccess) return null;
+		const rows = allOrganizationDepartmentsQuery.data ?? [];
+		const ids = new Set<string>();
+		for (const dept of rows) {
+			for (const link of dept.departmentOccupations ?? []) {
+				const catalogId = link.organizationOccupation?.occupation?.id;
+				if (catalogId) ids.add(catalogId);
+			}
+		}
+		return ids;
+	}, [
+		allOrganizationDepartmentsQuery.isSuccess,
+		allOrganizationDepartmentsQuery.data,
+	]);
+
+	const occupationOptions = useMemo(() => {
+		const rows = occupationsQuery.data ?? [];
+		if (!allOrganizationDepartmentsQuery.isSuccess) return rows;
+		if (eligibleCatalogOccupationIds == null) return rows;
+		return rows.filter((opt) => eligibleCatalogOccupationIds.has(opt.id));
+	}, [
+		occupationsQuery.data,
+		eligibleCatalogOccupationIds,
+		allOrganizationDepartmentsQuery.isSuccess,
+	]);
+
+	const catalogsReady =
+		occupationsQuery.isSuccess && allOrganizationDepartmentsQuery.isSuccess;
+
+	const locationOptions = useMemo(() => {
+		const rows = departmentsQuery.data ?? [];
+		const byId = new Map<string, { id: string; name: string }>();
+		for (const d of rows) {
+			byId.set(d.location.id, { id: d.location.id, name: d.location.name });
+		}
+		return [...byId.values()].sort((a, b) =>
+			a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+		);
+	}, [departmentsQuery.data]);
+	const { data: specialtyRows, isLoading: specialtiesLoading } =
+		useOrgOccupationSpecialties(organizationOccupationId);
+	const specialtyOptions = useMemo(
+		() => (specialtyRows ?? []).map((s) => ({ id: s.id, name: s.name })),
+		[specialtyRows],
+	);
+
+	const departmentsForLocation = useMemo(() => {
+		const rows = departmentsQuery.data ?? [];
+		if (!selectedLocationId) return [];
+		return rows.filter((d) => d.location.id === selectedLocationId);
+	}, [departmentsQuery.data, selectedLocationId]);
 
 	const handleAddBenefit = () => {
 		const value = benefitInput.trim();
@@ -194,19 +265,31 @@ export function TemplateDetailsForm({
 											value={field.state.value}
 											onValueChange={(v) => {
 												field.handleChange(v);
-												form.setFieldValue("specialtyId", "");
+												form.setFieldValue("specialtyIds", []);
+												form.setFieldValue("locationId", "");
+												form.setFieldValue("departmentId", "");
 											}}
-											disabled={isPending || readOnly}
+											disabled={isPending || readOnly || !catalogsReady}
 										>
 											<SelectTrigger id={field.name} aria-invalid={isInvalid}>
 												<SelectValue placeholder="Select occupation" />
 											</SelectTrigger>
 											<SelectContent>
-												{(occupationsQuery.data ?? []).map((opt) => (
-													<SelectItem key={opt.id} value={opt.id}>
-														{opt.name}
+												{!catalogsReady ? (
+													<SelectItem value="__loading__" disabled>
+														Loading occupations…
 													</SelectItem>
-												))}
+												) : occupationOptions.length === 0 ? (
+													<SelectItem value="__empty__" disabled>
+														No occupations with configured departments
+													</SelectItem>
+												) : (
+													occupationOptions.map((opt) => (
+														<SelectItem key={opt.id} value={opt.id}>
+															{opt.name}
+														</SelectItem>
+													))
+												)}
 											</SelectContent>
 										</Select>
 										{isInvalid && (
@@ -217,10 +300,66 @@ export function TemplateDetailsForm({
 							}}
 						</form.Field>
 
+						<form.Field name="specialtyIds">
+							{(field) => {
+								const options = specialtyOptions;
+								const disabled =
+									isPending ||
+									readOnly ||
+									!selectedOccupationId ||
+									specialtiesLoading;
+								return (
+									<Field>
+										<FieldLabel htmlFor={field.name}>Specialties</FieldLabel>
+										<MultiSelect
+											values={field.state.value}
+											onValuesChange={(vals) => field.handleChange(vals)}
+										>
+											<MultiSelectTrigger
+												id={field.name}
+												className="w-full"
+												disabled={disabled}
+											>
+												<MultiSelectValue
+													placeholder={
+														!selectedOccupationId
+															? "Select an occupation first"
+															: "Any specialty (optional)"
+													}
+												/>
+											</MultiSelectTrigger>
+											<MultiSelectContent
+												search={{
+													placeholder: "Search specialties…",
+													emptyMessage: "No specialties match your search.",
+												}}
+											>
+												{specialtiesLoading ? (
+													<p className="text-muted-foreground px-2 py-6 text-center text-sm">
+														Loading specialties…
+													</p>
+												) : options.length === 0 ? (
+													<p className="text-muted-foreground px-2 py-6 text-center text-sm">
+														No specialties found for this occupation.
+													</p>
+												) : (
+													options.map((opt) => (
+														<MultiSelectItem key={opt.id} value={opt.id}>
+															{opt.name}
+														</MultiSelectItem>
+													))
+												)}
+											</MultiSelectContent>
+										</MultiSelect>
+									</Field>
+								);
+							}}
+						</form.Field>
+
 						<form.Field
-							name="specialtyId"
+							name="locationId"
 							validators={{
-								onChange: requisitionTemplateDetailsSchema.shape.specialtyId,
+								onChange: requisitionTemplateDetailsSchema.shape.locationId,
 							}}
 						>
 							{(field) => {
@@ -232,34 +371,41 @@ export function TemplateDetailsForm({
 								return (
 									<Field data-invalid={isInvalid}>
 										<FieldLabel htmlFor={field.name}>
-											Specialty <RequiredStar />
+											Location <RequiredStar />
 										</FieldLabel>
 										<Select
 											value={field.state.value}
-											onValueChange={(v) => field.handleChange(v)}
+											onValueChange={(v) => {
+												field.handleChange(v);
+												form.setFieldValue("departmentId", "");
+											}}
 											disabled={
 												isPending ||
 												readOnly ||
-												!selectedOccupationId ||
-												specialtiesQuery.isLoading
+												!organizationOccupationId ||
+												departmentsQuery.isPending
 											}
 										>
 											<SelectTrigger id={field.name} aria-invalid={isInvalid}>
-												<SelectValue placeholder="Select specialty" />
+												<SelectValue placeholder="Select location" />
 											</SelectTrigger>
 											<SelectContent>
-												{specialtiesQuery.isLoading ? (
-													<SelectItem value="__loading__" disabled>
-														Loading specialties…
+												{!organizationOccupationId ? (
+													<SelectItem value="__needocc__" disabled>
+														Select occupation first
 													</SelectItem>
-												) : (specialtiesQuery.data ?? []).length === 0 ? (
+												) : departmentsQuery.isPending ? (
+													<SelectItem value="__loading__" disabled>
+														Loading locations…
+													</SelectItem>
+												) : locationOptions.length === 0 ? (
 													<SelectItem value="__empty__" disabled>
-														No specialties found
+														No locations for this occupation
 													</SelectItem>
 												) : (
-													(specialtiesQuery.data ?? []).map((opt) => (
-														<SelectItem key={opt.id} value={opt.id}>
-															{opt.name}
+													locationOptions.map((loc) => (
+														<SelectItem key={loc.id} value={loc.id}>
+															{loc.name}
 														</SelectItem>
 													))
 												)}
@@ -293,17 +439,43 @@ export function TemplateDetailsForm({
 										<Select
 											value={field.state.value}
 											onValueChange={(v) => field.handleChange(v)}
-											disabled={isPending || readOnly}
+											disabled={
+												isPending ||
+												readOnly ||
+												!selectedLocationId ||
+												!organizationOccupationId ||
+												departmentsQuery.isPending
+											}
 										>
 											<SelectTrigger id={field.name} aria-invalid={isInvalid}>
-												<SelectValue placeholder="Select department" />
+												<SelectValue
+													placeholder={
+														selectedLocationId
+															? "Select department"
+															: "Select location first"
+													}
+												/>
 											</SelectTrigger>
 											<SelectContent>
-												{(departmentsQuery.data ?? []).map((opt) => (
-													<SelectItem key={opt.id} value={opt.id}>
-														{opt.name}
+												{!selectedLocationId ? (
+													<SelectItem value="__needloc__" disabled>
+														Select location first
 													</SelectItem>
-												))}
+												) : departmentsQuery.isPending ? (
+													<SelectItem value="__loading__" disabled>
+														Loading departments…
+													</SelectItem>
+												) : departmentsForLocation.length === 0 ? (
+													<SelectItem value="__empty__" disabled>
+														No departments at this location
+													</SelectItem>
+												) : (
+													departmentsForLocation.map((opt) => (
+														<SelectItem key={opt.id} value={opt.id}>
+															{opt.name}
+														</SelectItem>
+													))
+												)}
 											</SelectContent>
 										</Select>
 										{isInvalid && (

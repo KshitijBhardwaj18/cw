@@ -1,5 +1,6 @@
 "use client";
 
+import { formatUsdLedgerNullable } from "@repo/shared";
 import { BillingInvoiceView } from "@repo/ui/general/billing/BillingInvoiceView";
 import type {
 	InvoiceDetail,
@@ -11,8 +12,8 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useOrganizationBillingInvoice } from "@/hooks/use-organization-billing-invoice";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { OrganizationBillingService } from "@/services/organization-billing.service";
-import { fmtCurrency, fmtPeriod } from "@/utils/format";
 
 export default function InvoiceReviewPageContent() {
 	const params = useParams();
@@ -36,6 +37,7 @@ export default function InvoiceReviewPageContent() {
 		submitLineItemDispute,
 		submitInvoiceDispute,
 	} = useOrganizationBillingInvoice();
+	const { fmtPeriod } = useUserTimezone();
 	const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 	const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
 
@@ -130,7 +132,7 @@ export default function InvoiceReviewPageContent() {
 			onSubmitDisputeLineItem={submitLineItemDispute}
 			onSubmitDisputeInvoice={submitInvoiceDispute}
 			isSubmittingDispute={isSubmittingDispute}
-			formatCurrency={fmtCurrency}
+			formatCurrency={formatUsdLedgerNullable}
 			formatPeriod={fmtPeriod}
 		/>
 	);

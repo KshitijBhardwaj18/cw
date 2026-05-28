@@ -15,7 +15,7 @@ export function OccupationDeleteDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: OccupationDeleteDialogProps) {
+}: Readonly<OccupationDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={!!occupation}

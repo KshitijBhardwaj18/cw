@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useAddPlacementComplianceItems,
 	usePlacementCompliance,
@@ -8,11 +7,9 @@ import {
 } from "@/queries/placements.queries";
 
 export function usePlacementComplianceTab(placementId: string) {
-	const { id: orgId } = useOrgContext();
-
-	const complianceQuery = usePlacementCompliance(orgId, placementId);
-	const addItems = useAddPlacementComplianceItems(orgId, placementId);
-	const removeItem = useRemovePlacementComplianceItem(orgId, placementId);
+	const complianceQuery = usePlacementCompliance(placementId);
+	const addItems = useAddPlacementComplianceItems(placementId);
+	const removeItem = useRemovePlacementComplianceItem(placementId);
 
 	const [addDialogOpen, setAddDialogOpen] = useState(false);
 	const [expandedAuditItemId, setExpandedAuditItemId] = useState<string | null>(
@@ -57,7 +54,6 @@ export function usePlacementComplianceTab(placementId: string) {
 	};
 
 	return {
-		orgId,
 		isLoading: complianceQuery.isPending,
 		error: complianceQuery.error,
 		total: summary?.total ?? 0,

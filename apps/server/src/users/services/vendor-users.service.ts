@@ -3,10 +3,10 @@ import {
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
-import type { Prisma } from "@repo/db";
-import { splitFullNameToFirstLast, VendorUserRole } from "@repo/shared";
+import { MemberRole, type Prisma, VendorUserRole } from "@repo/db";
+import { splitFullNameToFirstLast } from "@repo/shared";
 import type { UserSession } from "@thallesp/nestjs-better-auth";
-import { format } from "date-fns";
+import { requireActiveOrganizationId } from "src/common/utils/require-active-organization-id";
 import type { VendorActorContext } from "src/common/utils/resolve-vendor-actor";
 import { resolveVendorActor } from "src/common/utils/resolve-vendor-actor";
 import { PrismaService } from "src/prisma/prisma.service";
@@ -21,15 +21,27 @@ import type {
 	VendorPortalUsersQueryDto,
 } from "../dto/vendor-user.dto";
 
+const VENDOR_USER_TO_MEMBER_ROLE: Record<VendorUserRole, MemberRole> = {
+	[VendorUserRole.VENDOR_MANAGER]: MemberRole.VENDOR_MANAGER,
+	[VendorUserRole.VENDOR_USER]: MemberRole.VENDOR_USER,
+	[VendorUserRole.VENDOR_VIEW_ONLY]: MemberRole.VENDOR_VIEW_ONLY,
+};
+
+function vendorUserRoleToMemberRole(role: VendorUserRole): MemberRole {
+	return VENDOR_USER_TO_MEMBER_ROLE[role];
+}
+
 export type VendorPortalUserListRow = {
 	id: string;
-	fullName: string;
+	firstName: string;
+	lastName: string;
 	email: string;
 	phone: string;
 	department: string;
 	role: string;
 	status: "active" | "inactive";
-	lastActiveLabel: string;
+	/** UTC instant of last profile update (formatted in user's TZ on the client). */
+	lastActiveAt: string;
 };
 
 export type VendorPortalUsersMetrics = {
@@ -96,11 +108,16 @@ export class VendorUsersService {
 	): Promise<VendorPortalUsersListResponse> {
 		const actor = resolveVendorActor(session);
 		this.assertVendorPortalActor(actor);
+		const organizationId = requireActiveOrganizationId(session);
 		const page = query.page ?? 1;
 		const limit = Math.min(query.limit ?? 20, 100);
 		const skip = (page - 1) * limit;
 
-		const where = this.buildVendorUserWhere(actor.vendorId, query);
+		const where = this.buildVendorUserWhere(
+			actor.vendorId,
+			organizationId,
+			query,
+		);
 
 		const [rows, total] = await Promise.all([
 			this.prisma.vendorUser.findMany({
@@ -129,15 +146,17 @@ export class VendorUsersService {
 
 		const data: VendorPortalUserListRow[] = rows.map((vu) => {
 			const u = vu.user;
+			const { firstName, lastName } = splitFullNameToFirstLast(u.name);
 			return {
 				id: vu.id,
-				fullName: u.name,
+				firstName,
+				lastName,
 				email: u.email,
 				phone: u.phoneNumber?.trim() ? u.phoneNumber : "—",
 				department: u.title?.trim() ? u.title : "—",
 				role: vu.role,
 				status: u.status === "ACTIVE" ? "active" : "inactive",
-				lastActiveLabel: this.formatRelativeUpdated(u.updatedAt),
+				lastActiveAt: u.updatedAt.toISOString(),
 			};
 		});
 
@@ -161,16 +180,29 @@ export class VendorUsersService {
 	): Promise<VendorPortalUsersMetrics> {
 		const actor = resolveVendorActor(session);
 		this.assertVendorPortalActor(actor);
+		const organizationId = requireActiveOrganizationId(session);
 		const vendorId = actor.vendorId;
+		const orgMemberFilter: Prisma.VendorUserWhereInput = {
+			vendorId,
+			user: { members: { some: { organizationId } } },
+		};
 
 		const [totalUsers, activeUsers, roleGroups] = await Promise.all([
-			this.prisma.vendorUser.count({ where: { vendorId } }),
+			this.prisma.vendorUser.count({ where: orgMemberFilter }),
 			this.prisma.vendorUser.count({
-				where: { vendorId, user: { status: "ACTIVE" } },
+				where: {
+					...orgMemberFilter,
+					user: {
+						AND: [
+							{ status: "ACTIVE" },
+							{ members: { some: { organizationId } } },
+						],
+					},
+				},
 			}),
 			this.prisma.vendorUser.groupBy({
 				by: ["role"],
-				where: { vendorId },
+				where: orgMemberFilter,
 				_count: { _all: true },
 			}),
 		]);
@@ -194,15 +226,14 @@ export class VendorUsersService {
 		const actor = resolveVendorActor(session);
 		this.assertVendorPortalActor(actor);
 		this.assertVendorManager(actor);
+		const organizationId = requireActiveOrganizationId(session);
 		const { name: title } = await this.assertDepartmentForVendor(
 			actor.vendorId,
 			dto.departmentId,
 		);
-		const { firstName, lastName } = splitFullNameToFirstLast(dto.fullName);
-		const last = lastName.trim() || firstName;
 		const createDto = {
-			firstName,
-			lastName: last,
+			firstName: dto.firstName,
+			lastName: dto.lastName,
 			title,
 			email: dto.email,
 			mobilePhone: dto.phone?.trim() || undefined,
@@ -211,7 +242,25 @@ export class VendorUsersService {
 			CreateVendorUserDto,
 			"firstName" | "lastName" | "title" | "email" | "role"
 		> & { mobilePhone?: string };
-		return this.vendorsService.addVendorUser(actor.vendorId, createDto);
+		const result = await this.vendorsService.addVendorUser(
+			actor.vendorId,
+			createDto,
+		);
+		const existing = await this.prisma.member.findFirst({
+			where: { userId: result.userId, organizationId },
+			select: { id: true },
+		});
+		if (!existing) {
+			await this.prisma.member.create({
+				data: {
+					userId: result.userId,
+					organizationId,
+					role: vendorUserRoleToMemberRole(dto.role),
+				},
+				select: { id: true },
+			});
+		}
+		return result;
 	}
 
 	async updateUser(
@@ -224,25 +273,24 @@ export class VendorUsersService {
 		this.assertVendorManager(actor);
 		if (targetVendorUserId === actor.vendorUserId) {
 			throw new ForbiddenException(
-				"You cannot update your own user from this screen",
+				"You cannot update your own account from this screen.",
 			);
 		}
+		const organizationId = requireActiveOrganizationId(session);
 		const { name: title } = await this.assertDepartmentForVendor(
 			actor.vendorId,
 			dto.departmentId,
 		);
-		const { firstName, lastName } = splitFullNameToFirstLast(dto.fullName);
-		const last = lastName.trim() || firstName;
 		const vendorUser = await this.prisma.vendorUser.findFirst({
 			where: { id: targetVendorUserId, vendorId: actor.vendorId },
 			include: { user: true },
 		});
 		if (!vendorUser) {
-			throw new NotFoundException("User not found");
+			throw new NotFoundException("User not found.");
 		}
 		const updateDto = {
-			firstName,
-			lastName: last,
+			firstName: dto.firstName,
+			lastName: dto.lastName,
 			title,
 			officePhone: null,
 			phoneNumber: dto.phone?.trim() || null,
@@ -258,11 +306,16 @@ export class VendorUsersService {
 			| "status"
 			| "role"
 		>;
-		return this.vendorsService.updateVendorUser(
+		const result = await this.vendorsService.updateVendorUser(
 			actor.vendorId,
 			targetVendorUserId,
 			updateDto,
 		);
+		await this.prisma.member.updateMany({
+			where: { userId: vendorUser.userId, organizationId },
+			data: { role: vendorUserRoleToMemberRole(dto.role) },
+		});
+		return result;
 	}
 
 	async removeUser(
@@ -277,10 +330,18 @@ export class VendorUsersService {
 				"You cannot remove your own account from the team",
 			);
 		}
-		return this.vendorsService.removeVendorUser(
-			actor.vendorId,
-			targetVendorUserId,
-		);
+		const organizationId = requireActiveOrganizationId(session);
+		const vendorUser = await this.prisma.vendorUser.findFirst({
+			where: { id: targetVendorUserId, vendorId: actor.vendorId },
+			select: { id: true, userId: true },
+		});
+		if (!vendorUser) {
+			throw new NotFoundException("User not found.");
+		}
+		await this.prisma.member.deleteMany({
+			where: { userId: vendorUser.userId, organizationId },
+		});
+		return { vendorId: actor.vendorId, vendorUserId: vendorUser.id };
 	}
 
 	private assertVendorPortalActor(
@@ -289,7 +350,7 @@ export class VendorUsersService {
 		vendorUserRole: NonNullable<VendorActorContext["vendorUserRole"]>;
 	} {
 		if (actor.vendorUserRole === null) {
-			throw new ForbiddenException("Vendor access required");
+			throw new ForbiddenException("Vendor access required.");
 		}
 	}
 
@@ -310,7 +371,7 @@ export class VendorUsersService {
 			select: { name: true, organizationId: true },
 		});
 		if (!dept) {
-			throw new NotFoundException("Department not found");
+			throw new NotFoundException("Department not found.");
 		}
 		const link = await this.prisma.organizationVendor.findFirst({
 			where: { vendorId, organizationId: dept.organizationId },
@@ -326,11 +387,14 @@ export class VendorUsersService {
 
 	private buildVendorUserWhere(
 		vendorId: string,
+		organizationId: string,
 		query: VendorPortalUsersQueryDto,
 	): Prisma.VendorUserWhereInput {
 		const search = query.search?.trim();
 
-		const userAnd: Prisma.UserWhereInput[] = [];
+		const userAnd: Prisma.UserWhereInput[] = [
+			{ members: { some: { organizationId } } },
+		];
 		if (query.status) {
 			userAnd.push({ status: query.status });
 		}
@@ -344,25 +408,10 @@ export class VendorUsersService {
 			});
 		}
 
-		const userWhere: Prisma.UserWhereInput | undefined =
-			userAnd.length > 0 ? { AND: userAnd } : undefined;
-
 		return {
 			vendorId,
 			...(query.role ? { role: query.role } : {}),
-			...(userWhere ? { user: userWhere } : {}),
+			user: { AND: userAnd },
 		};
-	}
-
-	private formatRelativeUpdated(updatedAt: Date): string {
-		const diffMs = Date.now() - updatedAt.getTime();
-		const mins = Math.floor(diffMs / 60000);
-		if (mins < 1) return "Just now";
-		if (mins < 60) return `${mins} min ago`;
-		const hours = Math.floor(mins / 60);
-		if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-		const days = Math.floor(hours / 24);
-		if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
-		return format(updatedAt, "MMM d, yyyy");
 	}
 }

@@ -51,7 +51,7 @@ function buildUsageRows(
 			name: item?.name ?? id,
 			category: item?.category ?? "Other",
 			expirationRequired: item?.tracksExpiration ?? false,
-			displayToCandidate: true,
+			displayToCandidate: item?.displayToCandidate ?? false,
 		};
 	});
 }
@@ -82,7 +82,7 @@ export function ComplianceChecklistForm({
 	itemOptions = [],
 	initialValues,
 	readOnly = false,
-}: ComplianceChecklistFormProps) {
+}: Readonly<ComplianceChecklistFormProps>) {
 	const [search, setSearch] = useState("");
 	const [editUsageChecklistId, setEditUsageChecklistId] = useState<
 		string | null

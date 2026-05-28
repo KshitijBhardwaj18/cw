@@ -36,7 +36,7 @@ export default function ComplianceWalletDetailPageContent({
 	organizationId,
 	walletId,
 	readOnly = false,
-}: ComplianceWalletDetailPageContentProps) {
+}: Readonly<ComplianceWalletDetailPageContentProps>) {
 	const { ability } = useAuth();
 	const canUpdate = ability.can(Action.Update, "ComplianceWalletTemplate");
 	const effectiveReadOnly = readOnly || !canUpdate;

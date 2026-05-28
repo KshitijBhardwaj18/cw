@@ -10,6 +10,7 @@ import {
 import { TINTED_METRIC_TONE_STYLES } from "@repo/ui/general/TintedMetricCard";
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowRight } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 export interface TimecardCurrentAssignmentCardProps {
 	assignmentTitle: string;
@@ -21,8 +22,10 @@ export function TimecardCurrentAssignmentCard({
 	assignmentTitle,
 	currentWeekEnding,
 	onEnterTime,
-}: TimecardCurrentAssignmentCardProps) {
+}: Readonly<TimecardCurrentAssignmentCardProps>) {
 	const sky = TINTED_METRIC_TONE_STYLES.sky;
+	const { fmtCalendarDate } = useUserTimezone();
+	const weekEndingLabel = fmtCalendarDate(currentWeekEnding);
 
 	return (
 		<Card className={cn("rounded-xl border py-6 shadow-sm", sky.card)}>
@@ -35,7 +38,7 @@ export function TimecardCurrentAssignmentCard({
 						{assignmentTitle}
 					</CardDescription>
 					<p className={cn("text-sm", sky.title)}>
-						Week Ending: {currentWeekEnding}
+						Week Ending: {weekEndingLabel}
 					</p>
 				</div>
 				<Button type="button" size="sm" onClick={onEnterTime}>

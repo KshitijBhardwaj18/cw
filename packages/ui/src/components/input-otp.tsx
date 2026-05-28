@@ -9,9 +9,11 @@ function InputOTP({
 	className,
 	containerClassName,
 	...props
-}: React.ComponentProps<typeof OTPInput> & {
-	containerClassName?: string;
-}) {
+}: Readonly<
+	React.ComponentProps<typeof OTPInput> & {
+		containerClassName?: string;
+	}
+>) {
 	return (
 		<OTPInput
 			data-slot="input-otp"
@@ -25,7 +27,10 @@ function InputOTP({
 	);
 }
 
-function InputOTPGroup({ className, ...props }: React.ComponentProps<"div">) {
+function InputOTPGroup({
+	className,
+	...props
+}: Readonly<React.ComponentProps<"div">>) {
 	return (
 		<div
 			data-slot="input-otp-group"
@@ -39,9 +44,11 @@ function InputOTPSlot({
 	index,
 	className,
 	...props
-}: React.ComponentProps<"div"> & {
-	index: number;
-}) {
+}: Readonly<
+	React.ComponentProps<"div"> & {
+		index: number;
+	}
+>) {
 	const inputOTPContext = React.useContext(OTPInputContext);
 	const { char, hasFakeCaret, isActive } = inputOTPContext?.slots[index] ?? {};
 
@@ -65,7 +72,9 @@ function InputOTPSlot({
 	);
 }
 
-function InputOTPSeparator({ ...props }: React.ComponentProps<"div">) {
+function InputOTPSeparator({
+	...props
+}: Readonly<React.ComponentProps<"div">>) {
 	return (
 		<div data-slot="input-otp-separator" {...props}>
 			<MinusIcon />

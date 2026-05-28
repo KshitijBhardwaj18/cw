@@ -9,6 +9,22 @@ import type { ReplaceOrgSpecialtiesInput } from "../dto/replace-org-specialties.
 import type { UnlinkOrgSpecialtiesInput } from "../dto/unlink-org-specialties.dto";
 import type { UpdateSpecialtyDto } from "../dto/update-specialty.dto";
 
+function diffOrgSpecialties(
+	existing: { id: string; specialtyId: string }[],
+	desired: string[],
+): { toAdd: string[]; toRemoveIds: string[] } {
+	const existingBySpecialty = new Map(
+		existing.map((e) => [e.specialtyId, e.id]),
+	);
+	const desiredSet = new Set(desired);
+	return {
+		toAdd: desired.filter((sid) => !existingBySpecialty.has(sid)),
+		toRemoveIds: existing
+			.filter((e) => !desiredSet.has(e.specialtyId))
+			.map((e) => e.id),
+	};
+}
+
 @Injectable()
 export class SpecialtiesService {
 	constructor(
@@ -105,7 +121,7 @@ export class SpecialtiesService {
 		});
 
 		if (!specialty) {
-			throw new NotFoundException(`Specialty with id ${id} not found`);
+			throw new NotFoundException("Specialty not found.");
 		}
 
 		const currentOccIds =
@@ -192,7 +208,7 @@ export class SpecialtiesService {
 		});
 
 		if (!specialty) {
-			throw new NotFoundException(`Specialty with id ${id} not found`);
+			throw new NotFoundException("Specialty not found.");
 		}
 
 		await this.prismaService.specialty.delete({ where: { id } });
@@ -319,143 +335,147 @@ export class SpecialtiesService {
 	async replaceSpecialtiesForOrgOccupation(
 		dto: ReplaceOrgSpecialtiesInput,
 	): Promise<void> {
-		const orgOccupation =
-			await this.prismaService.organizationOccupation.findUnique({
-				where: {
-					id: dto.orgOccupationId,
-					organizationId: dto.organizationId,
-				},
-				select: { occupationId: true },
-			});
-		if (!orgOccupation) {
-			throw new NotFoundException(`Organization occupation not found`);
-		}
-
-		const uniqueSpecialtyIds = [...new Set(dto.specialtyIds)];
-		if (uniqueSpecialtyIds.length > 0) {
-			const existingLinks =
-				await this.prismaService.organizationSpecialty.findMany({
-					where: { organizationOccupationId: dto.orgOccupationId },
-					select: { specialtyId: true },
-				});
-			const existingIds = new Set(existingLinks.map((l) => l.specialtyId));
-			const validSpecialties = await this.prismaService.specialty.findMany({
-				where: {
-					id: { in: uniqueSpecialtyIds },
-					occupationSpecialties: {
-						some: { occupationId: orgOccupation.occupationId },
-					},
-					OR: [
-						{ status: $Enums.SpecialtyStatus.ACTIVE },
-						{ id: { in: Array.from(existingIds) } },
-					],
-				},
-				select: { id: true },
-			});
-			const validIds = new Set(validSpecialties.map((s) => s.id));
-			const invalidIds = uniqueSpecialtyIds.filter((id) => !validIds.has(id));
-			if (invalidIds.length > 0) {
-				throw new NotFoundException(
-					`Some specialties are invalid (not active or not belonging to occupation): ${invalidIds.join(", ")}`,
-				);
-			}
-		}
+		const orgOccupation = await this.requireOrgOccupation(
+			dto.organizationId,
+			dto.orgOccupationId,
+		);
+		const desired = [...new Set(dto.specialtyIds)];
 
 		await this.prismaService.$transaction(async (tx) => {
-			await tx.organizationSpecialty.deleteMany({
+			const existing = await tx.organizationSpecialty.findMany({
 				where: { organizationOccupationId: dto.orgOccupationId },
+				select: { id: true, specialtyId: true },
 			});
-			if (uniqueSpecialtyIds.length > 0) {
-				await tx.organizationSpecialty.createMany({
-					data: uniqueSpecialtyIds.map((specialtyId) => ({
-						specialtyId,
-						organizationOccupationId: dto.orgOccupationId,
-						organizationId: dto.organizationId,
-						createdBy: dto.userId,
-						updatedBy: dto.userId,
-					})),
+
+			const { toAdd, toRemoveIds } = diffOrgSpecialties(existing, desired);
+
+			await this.assertSpecialtiesAllowed(
+				tx,
+				toAdd,
+				orgOccupation.occupationId,
+			);
+
+			if (toRemoveIds.length > 0) {
+				await tx.organizationSpecialty.deleteMany({
+					where: { id: { in: toRemoveIds } },
 				});
-				const created = await tx.organizationSpecialty.findMany({
-					where: {
-						organizationOccupationId: dto.orgOccupationId,
-						specialtyId: { in: uniqueSpecialtyIds },
-					},
-					select: { id: true, organizationOccupationId: true },
-				});
-				await this.complianceWalletTemplateService.createTemplatesForOrgSpecialties(
-					dto.organizationId,
-					created,
-					dto.userId,
-					tx,
-				);
 			}
+			await this.linkSpecialtiesInTx(tx, {
+				organizationId: dto.organizationId,
+				orgOccupationId: dto.orgOccupationId,
+				specialtyIds: toAdd,
+				userId: dto.userId,
+			});
 		});
 	}
 
 	async linkOrgSpecialtyToOrgOccupation(dto: LinkOrgSpecialtyInput) {
-		const orgOccupation =
-			await this.prismaService.organizationOccupation.findUnique({
-				where: {
-					organizationId: dto.organizationId,
-					id: dto.orgOccupationId,
-				},
-			});
-		if (!orgOccupation) {
-			throw new NotFoundException(`Organization occupation not found`);
-		}
-		const validSpecialties = await this.prismaService.specialty.findMany({
-			where: {
-				id: { in: dto.specialtyIds },
-				status: $Enums.SpecialtyStatus.ACTIVE,
-				occupationSpecialties: {
-					some: { occupationId: orgOccupation.occupationId },
-				},
-			},
-			select: { id: true },
-		});
-		if (validSpecialties.length !== [...new Set(dto.specialtyIds)].length) {
-			throw new NotFoundException(
-				`Some specialties are invalid, inactive, or do not belong to this occupation`,
-			);
-		}
+		const orgOccupation = await this.requireOrgOccupation(
+			dto.organizationId,
+			dto.orgOccupationId,
+		);
+		const desired = [...new Set(dto.specialtyIds)];
+
 		return this.prismaService.$transaction(async (tx) => {
-			const result = await tx.organizationSpecialty.createMany({
-				data: dto.specialtyIds.map((id) => ({
-					specialtyId: id,
-					organizationOccupationId: orgOccupation.id,
-					organizationId: dto.organizationId,
-					createdBy: dto.userId,
-					updatedBy: dto.userId,
-				})),
-				skipDuplicates: true,
+			const alreadyLinked = await tx.organizationSpecialty.findMany({
+				where: {
+					organizationOccupationId: dto.orgOccupationId,
+					specialtyId: { in: desired },
+				},
+				select: { specialtyId: true },
 			});
-			if (result.count > 0) {
-				const created = await tx.organizationSpecialty.findMany({
-					where: {
-						organizationOccupationId: orgOccupation.id,
-						specialtyId: { in: dto.specialtyIds },
-					},
-					select: { id: true, organizationOccupationId: true },
-				});
-				await this.complianceWalletTemplateService.createTemplatesForOrgSpecialties(
-					dto.organizationId,
-					created,
-					dto.userId,
-					tx,
-				);
-			}
-			return result;
+			const alreadyLinkedSet = new Set(alreadyLinked.map((r) => r.specialtyId));
+			const toAdd = desired.filter((sid) => !alreadyLinkedSet.has(sid));
+
+			await this.assertSpecialtiesAllowed(
+				tx,
+				toAdd,
+				orgOccupation.occupationId,
+			);
+			return this.linkSpecialtiesInTx(tx, {
+				organizationId: dto.organizationId,
+				orgOccupationId: dto.orgOccupationId,
+				specialtyIds: toAdd,
+				userId: dto.userId,
+			});
 		});
 	}
 
 	async unlinkOrgSpecialties(dto: UnlinkOrgSpecialtiesInput): Promise<void> {
-		const uniqueSpecialtyIds = [...new Set(dto.specialtyIds)];
 		await this.prismaService.organizationSpecialty.deleteMany({
 			where: {
 				organizationOccupationId: dto.orgOccupationId,
-				specialtyId: { in: uniqueSpecialtyIds },
+				specialtyId: { in: [...new Set(dto.specialtyIds)] },
 			},
 		});
+	}
+
+	private async requireOrgOccupation(
+		organizationId: string,
+		orgOccupationId: string,
+	) {
+		const row = await this.prismaService.organizationOccupation.findUnique({
+			where: { id: orgOccupationId, organizationId },
+			select: { id: true, occupationId: true },
+		});
+		if (!row) throw new NotFoundException("Organization occupation not found.");
+		return row;
+	}
+
+	private async assertSpecialtiesAllowed(
+		tx: Prisma.TransactionClient,
+		specialtyIds: string[],
+		occupationId: string,
+	): Promise<void> {
+		if (specialtyIds.length === 0) return;
+		const valid = await tx.specialty.findMany({
+			where: {
+				id: { in: specialtyIds },
+				status: $Enums.SpecialtyStatus.ACTIVE,
+				occupationSpecialties: { some: { occupationId } },
+			},
+			select: { id: true },
+		});
+		if (valid.length === specialtyIds.length) return;
+		throw new NotFoundException(
+			"Some specialties are inactive or do not belong to this occupation.",
+		);
+	}
+
+	private async linkSpecialtiesInTx(
+		tx: Prisma.TransactionClient,
+		input: {
+			organizationId: string;
+			orgOccupationId: string;
+			specialtyIds: string[];
+			userId: string;
+		},
+	): Promise<{ count: number }> {
+		if (input.specialtyIds.length === 0) return { count: 0 };
+		const result = await tx.organizationSpecialty.createMany({
+			data: input.specialtyIds.map((specialtyId) => ({
+				specialtyId,
+				organizationOccupationId: input.orgOccupationId,
+				organizationId: input.organizationId,
+				createdBy: input.userId,
+				updatedBy: input.userId,
+			})),
+			skipDuplicates: true,
+		});
+		const created = await tx.organizationSpecialty.findMany({
+			where: {
+				organizationOccupationId: input.orgOccupationId,
+				specialtyId: { in: input.specialtyIds },
+			},
+			select: { id: true, organizationOccupationId: true },
+		});
+		await this.complianceWalletTemplateService.createTemplatesForOrgSpecialties(
+			input.organizationId,
+			created,
+			input.userId,
+			tx,
+		);
+		return result;
 	}
 
 	async getOrganizationSpecialtiesPaginated(

@@ -4,7 +4,6 @@ import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useCreateProject,
 	useDeleteProject,
@@ -18,20 +17,22 @@ import {
 	projectFormStatusToApi,
 } from "@/utils/project-api";
 
-const PAGE_SIZE = 6;
+const DEFAULT_LIMIT = 6;
+const PAGE_SIZE_OPTIONS = [6, 12, 18, 24];
 
 export const PROJ_PARAMS = {
 	PAGE: "projPage",
+	LIMIT: "projLimit",
 	SEARCH: "projSearch",
 	STATUS: "projStatus",
 } as const;
 
 export function useProjectsPage() {
-	const { id: orgId } = useOrgContext();
-
-	const { page, setPage, resetPage } = usePaginationControls({
+	const { page, limit, setPage, setLimit, resetPage } = usePaginationControls({
 		pageParamKey: PROJ_PARAMS.PAGE,
-		defaultLimit: PAGE_SIZE,
+		limitParamKey: PROJ_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -77,7 +78,7 @@ export function useProjectsPage() {
 		[onFilterChange],
 	);
 
-	const listQuery = useProjectsList(orgId, {
+	const listQuery = useProjectsList({
 		search: searchFromUrl.trim() || undefined,
 		projectStatus:
 			status === "all"
@@ -86,7 +87,7 @@ export function useProjectsPage() {
 					? "ACTIVE"
 					: "INACTIVE",
 		page,
-		limit: PAGE_SIZE,
+		limit,
 	});
 
 	const projects = useMemo(() => {
@@ -96,9 +97,9 @@ export function useProjectsPage() {
 	const filteredCount = listQuery.data?.total ?? 0;
 	const totalPages = listQuery.data?.totalPages ?? 1;
 
-	const createMutation = useCreateProject(orgId);
-	const updateMutation = useUpdateProject(orgId, editTarget?.id ?? undefined);
-	const deleteMutation = useDeleteProject(orgId);
+	const createMutation = useCreateProject();
+	const updateMutation = useUpdateProject(editTarget?.id ?? undefined);
+	const deleteMutation = useDeleteProject();
 
 	const handleCreateProject = (values: ProjectFormValues) => {
 		createMutation.mutate(
@@ -199,6 +200,9 @@ export function useProjectsPage() {
 		paginatedProjects: projects,
 		currentPage: page,
 		setCurrentPage: setPage,
+		limit,
+		setLimit,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 		totalPages,
 		filterConfigs,
 		handleCreateProject,

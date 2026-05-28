@@ -12,6 +12,7 @@ import {
 import { Field, FieldLabel } from "@repo/ui/components/field";
 import { Textarea } from "@repo/ui/components/textarea";
 import { useForm } from "@tanstack/react-form";
+import { useEffect, useRef } from "react";
 
 interface EndPlacementDialogProps {
 	open: boolean;
@@ -27,21 +28,27 @@ export function EndPlacementDialog({
 	placementNumber,
 	onConfirm,
 	isPending = false,
-}: EndPlacementDialogProps) {
+}: Readonly<EndPlacementDialogProps>) {
 	const form = useForm({
 		defaultValues: { reason: "" },
 		onSubmit: async ({ value }) => {
 			try {
 				await onConfirm(value.reason.trim() || undefined);
-				form.reset();
 			} catch {
 				// Parent shows error toast; keep dialog open.
 			}
 		},
 	});
 
+	const wasOpenRef = useRef(false);
+	useEffect(() => {
+		if (open && !wasOpenRef.current) {
+			form.reset({ reason: "" });
+		}
+		wasOpenRef.current = open;
+	}, [open, form]);
+
 	const handleOpenChange = (next: boolean) => {
-		if (!next) form.reset();
 		onOpenChange(next);
 	};
 

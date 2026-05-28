@@ -1,4 +1,5 @@
 import { ApiClient } from "@/lib/api-client";
+import { normalizeJobPostingSubmissionVendorFields } from "@/schemas/job-posting-submission.schema";
 import type { JobPostingFlowValues } from "@/types/job-posting-flow";
 import type { OrgJobCardItem } from "@/types/org-job";
 import type { RequisitionTemplateType } from "@/types/requisition-template";
@@ -15,7 +16,7 @@ export type PendingRequisitionApprovalItem = {
 	id: string;
 	title: string;
 	location: string;
-	submittedLabel: string;
+	submittedAt: string;
 	hiringManager: string;
 	expectedStartDate: string;
 	duration: string;
@@ -61,7 +62,7 @@ export type CreateRequisitionApiPayload = {
 	templateId?: string;
 	jobTitle: string;
 	organizationOccupationId: string;
-	organizationSpecialtyId?: string;
+	organizationSpecialtyIds?: string[];
 	locationId: string;
 	departmentId: string;
 	unitName?: string | null;
@@ -104,8 +105,10 @@ function combineScheduledPublishIso(
 export function jobPostingFlowToCreatePayload(
 	values: JobPostingFlowValues,
 ): CreateRequisitionApiPayload {
-	const { jobDetails, submissionSettings, publishSettings, typeSelection } =
-		values;
+	const { jobDetails, publishSettings, typeSelection } = values;
+	const submissionSettings = normalizeJobPostingSubmissionVendorFields(
+		values.submissionSettings,
+	);
 	const scheduledPublishAt =
 		publishSettings.publishMode === "SCHEDULE_PUBLISH_DATE"
 			? combineScheduledPublishIso(
@@ -119,8 +122,7 @@ export function jobPostingFlowToCreatePayload(
 		templateId: values.templateSelection.templateId || undefined,
 		jobTitle: jobDetails.requisitionName,
 		organizationOccupationId: jobDetails.occupation,
-		organizationSpecialtyId:
-			jobDetails.specialty.trim().length > 0 ? jobDetails.specialty : undefined,
+		organizationSpecialtyIds: jobDetails.specialty,
 		locationId: jobDetails.location,
 		departmentId: jobDetails.department,
 		unitName: jobDetails.unitName ?? null,

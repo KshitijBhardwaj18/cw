@@ -6,7 +6,9 @@ export const metadata: Metadata = {
 	title: "Submissions",
 };
 
-const SubmissionLayout = ({ children }: { children: React.ReactNode }) => {
+const SubmissionLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<CandidateMainShell title="Submission">
 			<PageContainer>{children}</PageContainer>

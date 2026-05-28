@@ -6,6 +6,7 @@ export type TimesheetEntryForShiftList = {
 	regularHours: number;
 	overtimeHours: number;
 	hours: number | null;
+	notes: string | null;
 };
 
 export type SavedTimecardSegment = {
@@ -41,7 +42,6 @@ export function buildTimecardSnapshotFromAssignment(
 	assignment:
 		| {
 				status: string;
-				candidateFeedback: string | null;
 				timesheet: {
 					entries: TimesheetEntryForShiftList[];
 				} | null;
@@ -77,12 +77,15 @@ export function buildTimecardSnapshotFromAssignment(
 			? (assignment.status as "draft" | "submitted")
 			: null;
 
+	const timecardNotes =
+		assignment.timesheet?.entries.find((e) => e.notes?.trim())?.notes ?? null;
+
 	return {
 		savedActualStartTime: regularSeg?.start ? regularSeg.start : null,
 		savedActualEndTime: regularSeg?.end ? regularSeg.end : null,
 		savedBreakMinutes: regularSeg != null ? regularSeg.breakMin : null,
 		savedTimecardSegments,
-		timecardNotes: assignment.candidateFeedback ?? null,
+		timecardNotes,
 		timecardStatus,
 	};
 }

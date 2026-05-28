@@ -48,7 +48,7 @@ export function EnrollVendorUserDialog({
 	open,
 	onOpenChange,
 	organizationId,
-}: EnrollVendorUserDialogProps) {
+}: Readonly<EnrollVendorUserDialogProps>) {
 	const { search, debouncedSearch, setSearch } = useLocalDebouncedSearch("");
 	const listRef = useRef<HTMLDivElement>(null);
 	const fetchNextPageRef = useRef<() => void>(() => {});
@@ -97,8 +97,6 @@ export function EnrollVendorUserDialog({
 					onSuccess: () => {
 						toast.success("Vendor user enrolled successfully");
 						onOpenChange(false);
-						form.reset();
-						setSearch("");
 					},
 					onError: (err) => {
 						toast.error(
@@ -115,11 +113,16 @@ export function EnrollVendorUserDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
-	const handleOpenChange = (next: boolean) => {
-		if (!next) {
-			form.reset();
+	const wasOpenRef = useRef(false);
+	useEffect(() => {
+		if (open && !wasOpenRef.current) {
+			form.reset({ userId: "" });
 			setSearch("");
 		}
+		wasOpenRef.current = open;
+	}, [open, form, setSearch]);
+
+	const handleOpenChange = (next: boolean) => {
 		onOpenChange(next);
 	};
 

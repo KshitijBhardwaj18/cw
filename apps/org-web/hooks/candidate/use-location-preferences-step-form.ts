@@ -16,14 +16,12 @@ interface UseLocationPreferencesStepFormProps {
 	defaultValues?: Partial<LocationPreferencesFormValues>;
 	onSubmit: (values: LocationPreferencesFormValues) => void;
 	onValuesChange?: (values: LocationPreferencesFormValues) => void;
-	orgId: string;
 }
 
 export function useLocationPreferencesStepForm({
 	defaultValues: initialValues,
 	onSubmit,
 	onValuesChange,
-	orgId,
 }: UseLocationPreferencesStepFormProps) {
 	const defaultValues: LocationPreferencesFormValues = {
 		locationIds: [],
@@ -43,8 +41,7 @@ export function useLocationPreferencesStepForm({
 		isLoading: locationsLoading,
 		isFetching: locationsFetching,
 	} = useQuery({
-		queryKey: ["candidate-onboarding", "locations", orgId, page, limit],
-		enabled: !!orgId,
+		queryKey: ["candidate-onboarding", "locations", page, limit],
 		staleTime: 60_000,
 		queryFn: () =>
 			OnboardingService.getLocationsForOrg({

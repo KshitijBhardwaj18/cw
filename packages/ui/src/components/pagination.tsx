@@ -7,7 +7,10 @@ import {
 } from "lucide-react";
 import type * as React from "react";
 
-function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
+function Pagination({
+	className,
+	...props
+}: Readonly<React.ComponentProps<"nav">>) {
 	return (
 		<nav
 			aria-label="pagination"
@@ -21,7 +24,7 @@ function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
 function PaginationContent({
 	className,
 	...props
-}: React.ComponentProps<"ul">) {
+}: Readonly<React.ComponentProps<"ul">>) {
 	return (
 		<ul
 			data-slot="pagination-content"
@@ -31,7 +34,7 @@ function PaginationContent({
 	);
 }
 
-function PaginationItem({ ...props }: React.ComponentProps<"li">) {
+function PaginationItem({ ...props }: Readonly<React.ComponentProps<"li">>) {
 	return <li data-slot="pagination-item" {...props} />;
 }
 
@@ -45,7 +48,7 @@ function PaginationLink({
 	isActive,
 	size = "icon",
 	...props
-}: PaginationLinkProps) {
+}: Readonly<PaginationLinkProps>) {
 	return (
 		<a
 			aria-current={isActive ? "page" : undefined}
@@ -66,7 +69,7 @@ function PaginationLink({
 function PaginationPrevious({
 	className,
 	...props
-}: React.ComponentProps<typeof PaginationLink>) {
+}: Readonly<React.ComponentProps<typeof PaginationLink>>) {
 	return (
 		<PaginationLink
 			aria-label="Go to previous page"
@@ -83,7 +86,7 @@ function PaginationPrevious({
 function PaginationNext({
 	className,
 	...props
-}: React.ComponentProps<typeof PaginationLink>) {
+}: Readonly<React.ComponentProps<typeof PaginationLink>>) {
 	return (
 		<PaginationLink
 			aria-label="Go to next page"
@@ -100,7 +103,7 @@ function PaginationNext({
 function PaginationEllipsis({
 	className,
 	...props
-}: React.ComponentProps<"span">) {
+}: Readonly<React.ComponentProps<"span">>) {
 	return (
 		<span
 			aria-hidden

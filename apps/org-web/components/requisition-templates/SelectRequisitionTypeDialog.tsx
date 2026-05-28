@@ -23,7 +23,7 @@ export function SelectRequisitionTypeDialog({
 	open,
 	onOpenChange,
 	onSelectType,
-}: SelectRequisitionTypeDialogProps) {
+}: Readonly<SelectRequisitionTypeDialogProps>) {
 	const { form, handleOpenChange } = useSelectRequisitionTypeDialog({
 		open,
 		onOpenChange,

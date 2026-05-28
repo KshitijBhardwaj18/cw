@@ -56,7 +56,7 @@ export function NotesList({
 	vendorId,
 	mspId,
 	organizationId,
-}: NotesListProps) {
+}: Readonly<NotesListProps>) {
 	const [localTypeFilter, setLocalTypeFilter] = useState("");
 	const [localDateFrom, setLocalDateFrom] = useState("");
 	const [localDateTo, setLocalDateTo] = useState("");

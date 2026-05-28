@@ -6,6 +6,7 @@ import type {
 	ShiftTemplateListItem,
 } from "@repo/shared";
 import { ApiClient } from "@/lib/api-client";
+import type { OrgEnabledSpecialtyOption } from "./onboarding.service";
 
 type OccupationsResponse = {
 	data: {
@@ -13,7 +14,7 @@ type OccupationsResponse = {
 		occupation: { id: string; name: string; acronym: string | null };
 		specialties?: {
 			id: string;
-			specialty: { id: string; name: string; acronym: string };
+			specialty: { id: string; name: string; acronym: string | null };
 		}[];
 	}[];
 };
@@ -56,7 +57,8 @@ export class ShiftTemplatesService {
 			durationHours: values.durationHours,
 			baseRate: values.baseRate,
 			limitShiftVisibility: values.limitShiftVisibility,
-			visibilityUnlockHours: values.visibilityUnlockHours,
+			visibilityUnlockDuration: values.visibilityUnlockDuration,
+			visibilityUnlockUnit: values.visibilityUnlockUnit,
 			baseBillRate: values.baseBillRate,
 			vendorRateMarkupPercent: values.vendorRateMarkupPercent,
 			offerIncentive: values.offerIncentive,
@@ -77,7 +79,8 @@ export class ShiftTemplatesService {
 				durationHours: values.durationHours,
 				baseRate: values.baseRate,
 				limitShiftVisibility: values.limitShiftVisibility,
-				visibilityUnlockHours: values.visibilityUnlockHours,
+				visibilityUnlockDuration: values.visibilityUnlockDuration,
+				visibilityUnlockUnit: values.visibilityUnlockUnit,
 				baseBillRate: values.baseBillRate,
 				vendorRateMarkupPercent: values.vendorRateMarkupPercent,
 				offerIncentive: values.offerIncentive,
@@ -107,6 +110,14 @@ export class ShiftTemplatesService {
 		return ApiClient.delete<void>(`${SHIFT_TEMPLATES_API_URL}/${id}`);
 	}
 
+	static async getSpecialtiesForOrgOccupation(
+		organizationOccupationId: string,
+	): Promise<OrgEnabledSpecialtyOption[]> {
+		return ApiClient.get<OrgEnabledSpecialtyOption[]>(
+			`/api/org/occupations/${organizationOccupationId}/specialties`,
+		);
+	}
+
 	static async getOccupations(): Promise<OrgOccupationOption[]> {
 		const res = await ApiClient.get<OccupationsResponse>(
 			`/api/org/occupations`,
@@ -119,15 +130,30 @@ export class ShiftTemplatesService {
 			acronym: row.occupation.acronym ?? "",
 			organizationSpecialties: (row.specialties ?? []).map((s) => ({
 				id: s.id,
+				specialtyId: s.specialty.id,
 				name: s.specialty.name,
+				acronym: s.specialty.acronym ?? null,
 			})),
 		}));
 	}
 
-	static async getDepartments(): Promise<OrgDepartmentOption[]> {
+	static async getDepartments(options?: {
+		limit?: number;
+		organizationOccupationId?: string;
+		organizationSpecialtyId?: string;
+	}): Promise<OrgDepartmentOption[]> {
+		const limit = options?.limit ?? 100;
 		const res = await ApiClient.get<PaginatedResponse<OrgDepartmentOption>>(
 			`/api/org/departments`,
-			{ limit: 100 },
+			{
+				limit,
+				...(options?.organizationOccupationId
+					? { organizationOccupationId: options.organizationOccupationId }
+					: {}),
+				...(options?.organizationSpecialtyId
+					? { organizationSpecialtyId: options.organizationSpecialtyId }
+					: {}),
+			},
 		);
 		return res.data;
 	}

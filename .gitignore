@@ -25,6 +25,8 @@ coverage
 .next/
 out/
 build
+.claude/
+
 dist
 
 
@@ -38,6 +40,3 @@ yarn-error.log*
 *.pem
 docs/dbdiagram-schema.dbdiagram
 .docs/
-
-# sst
-.sst

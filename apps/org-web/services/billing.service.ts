@@ -116,6 +116,21 @@ export type SpendAnalyticsSummary = {
 	permanentHeadcount: number;
 	contingentHeadcount: number;
 	contractorHeadcount: number;
+	totalSavings: number;
+};
+
+export type SavingsByDepartmentRow = {
+	id: string;
+	departmentId: string | null;
+	departmentName: string;
+	departmentCostCenter: string | null;
+	savingsAmount: number;
+	pctOfTotal: number;
+};
+
+export type SavingsByDepartmentResponse = {
+	data: SavingsByDepartmentRow[];
+	totalSavings: number;
 };
 
 export type SpendAnalyticsRow = {
@@ -271,10 +286,9 @@ export class BillingService {
 	}
 
 	static async triggerBillingCycleRun(delayMinutes: number) {
-		return ApiClient.post<TriggerBillingCycleRunResponse>(
-			`${BASE}/config/test/run-cycle-now`,
-			{ delayMinutes },
-		);
+		return ApiClient.post<TriggerBillingCycleRunResponse>(`${BASE}/run-now`, {
+			delayMinutes,
+		});
 	}
 
 	static async getPendingInvoiceCount() {
@@ -419,6 +433,13 @@ export class BillingService {
 	static async listSpendOpenCommittedBreakdown(query?: SpendAnalyticsQuery) {
 		return ApiClient.get<SpendOpenCommittedBreakdownResponse>(
 			`${BASE}/spend-analytics/open-committed-breakdown`,
+			query as Record<string, unknown>,
+		);
+	}
+
+	static async getSavingsByDepartment(query?: SpendAnalyticsQuery) {
+		return ApiClient.get<SavingsByDepartmentResponse>(
+			`${BASE}/spend-analytics/savings-by-department`,
 			query as Record<string, unknown>,
 		);
 	}

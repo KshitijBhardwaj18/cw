@@ -53,7 +53,6 @@ export class VendorCandidateDocumentWalletService {
 		);
 	}
 
-	/** Approve (`APPROVED`) or return to pending review (`PENDING`). */
 	static async updateComplianceStatus(
 		candidateId: string,
 		complianceListItemId: string,
@@ -62,6 +61,23 @@ export class VendorCandidateDocumentWalletService {
 		await ApiClient.patch(
 			`${base(candidateId)}/items/${complianceListItemId}/status`,
 			body,
+		);
+	}
+
+	static async uploadDocumentForRequisition(
+		candidateId: string,
+		requisitionId: string,
+		complianceListItemId: string,
+		file: File,
+		opts: { expiryDate?: string; issueDate?: string } = {},
+	): Promise<void> {
+		const fd = new FormData();
+		fd.append("file", file);
+		if (opts.expiryDate) fd.append("expiryDate", opts.expiryDate);
+		if (opts.issueDate) fd.append("issueDate", opts.issueDate);
+		await ApiClient.post(
+			`/api/vendor/candidates/${candidateId}/requisitions/${requisitionId}/compliance-items/${complianceListItemId}/document`,
+			fd,
 		);
 	}
 }

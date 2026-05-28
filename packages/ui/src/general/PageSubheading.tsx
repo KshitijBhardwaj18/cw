@@ -13,7 +13,7 @@ export function PageSubheading({
 	subtitle,
 	rightContent,
 	className,
-}: PageSubheadingProps) {
+}: Readonly<PageSubheadingProps>) {
 	return (
 		<div
 			className={cn(

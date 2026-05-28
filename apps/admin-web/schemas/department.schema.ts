@@ -8,8 +8,8 @@ export const departmentFormSchema = z.object({
 		errorMap: () => ({ message: "Department type is required" }),
 	}),
 	costCenter: z.string().trim().optional(),
-	organizationOccupationId: z.string().uuid().optional().or(z.literal("")),
-	organizationSpecialtyId: z.string().uuid().optional().or(z.literal("")),
+	organizationOccupationIds: z.array(z.string().uuid()).optional(),
+	organizationSpecialtyIds: z.array(z.string().uuid()).optional(),
 	relatedUserIds: z.array(z.string().uuid()).optional(),
 });
 
@@ -20,8 +20,8 @@ export interface CreateDepartmentPayload {
 	name: string;
 	departmentType: (typeof DepartmentType)[keyof typeof DepartmentType];
 	costCenter?: string;
-	organizationOccupationId?: string | null;
-	organizationSpecialtyId?: string | null;
+	organizationOccupationIds?: string[];
+	organizationSpecialtyIds?: string[];
 	relatedUserIds?: string[];
 }
 

@@ -15,7 +15,7 @@ export function WalletDeleteDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: WalletDeleteDialogProps) {
+}: Readonly<WalletDeleteDialogProps>) {
 	const label =
 		row != null
 			? `${row.occupation.name}${row.specialty ? ` - ${row.specialty.name}` : ""}`

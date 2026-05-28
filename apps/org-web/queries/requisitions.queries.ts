@@ -1,24 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateRequisitionApiPayload } from "@/services/requisitions.service";
 import { RequisitionsService } from "@/services/requisitions.service";
+import { billingKeys } from "./billing.queries";
 
 export const requisitionsKeys = {
 	all: ["requisitions"] as const,
-	lists: (orgId: string) => [...requisitionsKeys.all, "list", orgId] as const,
-	list: (orgId: string, params: Record<string, string | number | undefined>) =>
-		[...requisitionsKeys.lists(orgId), params] as const,
-	approvals: (orgId: string) =>
-		[...requisitionsKeys.all, "approvals", orgId] as const,
-	pendingApprovals: (
-		orgId: string,
-		params: Record<string, string | number | undefined>,
-	) => [...requisitionsKeys.approvals(orgId), "pending", params] as const,
-	detail: (orgId: string, id: string) =>
-		[...requisitionsKeys.all, "detail", orgId, id] as const,
+	lists: () => [...requisitionsKeys.all, "list"] as const,
+	list: (params: Record<string, string | number | undefined>) =>
+		[...requisitionsKeys.lists(), params] as const,
+	approvals: () => [...requisitionsKeys.all, "approvals"] as const,
+	pendingApprovals: (params: Record<string, string | number | undefined>) =>
+		[...requisitionsKeys.approvals(), "pending", params] as const,
+	detail: (id: string) => [...requisitionsKeys.all, "detail", id] as const,
 };
 
 export function useRequisitionsList(
-	orgId: string,
 	params: {
 		search?: string;
 		cardStatus?: string;
@@ -36,27 +32,26 @@ export function useRequisitionsList(
 	options?: { enabled?: boolean },
 ) {
 	return useQuery({
-		queryKey: requisitionsKeys.list(orgId, params),
+		queryKey: requisitionsKeys.list(params),
 		queryFn: () => RequisitionsService.list(params),
-		enabled: (options?.enabled ?? true) && !!orgId,
+		enabled: options?.enabled ?? true,
 		refetchOnMount: "always",
 	});
 }
 
 export function useRequisitionDetail(
-	orgId: string,
 	id: string | null,
 	options?: { enabled?: boolean },
 ) {
 	return useQuery({
-		queryKey: requisitionsKeys.detail(orgId, id ?? ""),
+		queryKey: requisitionsKeys.detail(id ?? ""),
 		queryFn: () => RequisitionsService.findOne(id as string),
-		enabled: (options?.enabled ?? true) && !!orgId && !!id,
+		enabled: (options?.enabled ?? true) && !!id,
+		refetchOnMount: "always",
 	});
 }
 
 export function usePendingRequisitionApprovals(
-	orgId: string,
 	params: {
 		search?: string;
 		page?: number;
@@ -65,30 +60,27 @@ export function usePendingRequisitionApprovals(
 	options?: { enabled?: boolean },
 ) {
 	return useQuery({
-		queryKey: requisitionsKeys.pendingApprovals(orgId, params),
+		queryKey: requisitionsKeys.pendingApprovals(params),
 		queryFn: () => RequisitionsService.listPendingApprovals(params),
-		enabled: (options?.enabled ?? true) && !!orgId,
+		enabled: options?.enabled ?? true,
 		refetchOnMount: "always",
 	});
 }
 
-export function useCreateRequisition(orgId: string) {
+export function useCreateRequisition() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (payload: CreateRequisitionApiPayload) =>
 			RequisitionsService.create(payload),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.lists(orgId),
+				queryKey: requisitionsKeys.lists(),
 			});
 		},
 	});
 }
 
-export function useUpdateRequisition(
-	orgId: string,
-	requisitionId: string | undefined,
-) {
+export function useUpdateRequisition(requisitionId: string | undefined) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (payload: Partial<CreateRequisitionApiPayload>) => {
@@ -99,40 +91,46 @@ export function useUpdateRequisition(
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.lists(orgId),
+				queryKey: requisitionsKeys.lists(),
 			});
 			if (requisitionId) {
 				void queryClient.invalidateQueries({
-					queryKey: requisitionsKeys.detail(orgId, requisitionId),
+					queryKey: requisitionsKeys.detail(requisitionId),
 				});
 			}
 		},
 	});
 }
 
-export function useCancelRequisition(orgId: string) {
+export function useCancelRequisition() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (requisitionId: string) =>
 			RequisitionsService.cancel(requisitionId),
 		onSuccess: (_, requisitionId) => {
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.lists(orgId),
+				queryKey: requisitionsKeys.lists(),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.detail(orgId, requisitionId),
+				queryKey: requisitionsKeys.detail(requisitionId),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: ["billing", "spend-open-committed-breakdown", orgId],
+				queryKey: [...billingKeys.all, "spend-summary"],
 			});
 			void queryClient.invalidateQueries({
-				queryKey: ["billing", "spend-summary", orgId],
+				queryKey: [...billingKeys.all, "spend-analytics"],
+			});
+			void queryClient.invalidateQueries({
+				queryKey: [...billingKeys.all, "spend-open-committed-breakdown"],
+			});
+			void queryClient.invalidateQueries({
+				queryKey: [...billingKeys.all, "spend-savings-by-department"],
 			});
 		},
 	});
 }
 
-export function useApproveRequisition(orgId: string) {
+export function useApproveRequisition() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -144,19 +142,19 @@ export function useApproveRequisition(orgId: string) {
 		}) => RequisitionsService.approve(requisitionId, notes),
 		onSuccess: (_, vars) => {
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.lists(orgId),
+				queryKey: requisitionsKeys.lists(),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.approvals(orgId),
+				queryKey: requisitionsKeys.approvals(),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.detail(orgId, vars.requisitionId),
+				queryKey: requisitionsKeys.detail(vars.requisitionId),
 			});
 		},
 	});
 }
 
-export function useRejectRequisition(orgId: string) {
+export function useRejectRequisition() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -168,13 +166,13 @@ export function useRejectRequisition(orgId: string) {
 		}) => RequisitionsService.reject(requisitionId, notes),
 		onSuccess: (_, vars) => {
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.lists(orgId),
+				queryKey: requisitionsKeys.lists(),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.approvals(orgId),
+				queryKey: requisitionsKeys.approvals(),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.detail(orgId, vars.requisitionId),
+				queryKey: requisitionsKeys.detail(vars.requisitionId),
 			});
 		},
 	});

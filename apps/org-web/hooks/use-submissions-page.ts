@@ -30,7 +30,8 @@ export interface SubmissionFilterOptions {
 	locations: { value: string; label: string }[];
 }
 
-const PAGE_SIZE = 10;
+const DEFAULT_LIMIT = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 export interface UseSubmissionsPageOptions {
 	/** Ordered list of stage tabs the current user can Read, per CASL. */
@@ -39,6 +40,7 @@ export interface UseSubmissionsPageOptions {
 
 export const SUBMISSIONS_PARAMS = {
 	PAGE: "subPage",
+	LIMIT: "subLimit",
 	SEARCH: "subSearch",
 	STAGE: "subStage",
 	VENDOR: "subVendor",
@@ -48,16 +50,16 @@ export const SUBMISSIONS_PARAMS = {
 	AGING: "subAging",
 } as const;
 
-export function useSubmissionsPage(
-	orgId: string | undefined,
-	{ allowedStages }: UseSubmissionsPageOptions,
-) {
+export function useSubmissionsPage({
+	allowedStages,
+}: UseSubmissionsPageOptions) {
 	const [activeStage, handleStageChange] = useTabSwitch<SubmissionStageKey>(
 		allowedStages.length > 0 ? [...allowedStages] : ["SUBMITTED"],
 		{
 			paramKey: SUBMISSIONS_PARAMS.STAGE,
 			alsoClearParamKeys: [
 				SUBMISSIONS_PARAMS.PAGE,
+				SUBMISSIONS_PARAMS.LIMIT,
 				SUBMISSIONS_PARAMS.SEARCH,
 				SUBMISSIONS_PARAMS.VENDOR,
 				SUBMISSIONS_PARAMS.HIRING_MANAGER,
@@ -68,9 +70,11 @@ export function useSubmissionsPage(
 		},
 	);
 
-	const { page, setPage, resetPage } = usePaginationControls({
+	const { page, limit, setPage, setLimit, resetPage } = usePaginationControls({
 		pageParamKey: SUBMISSIONS_PARAMS.PAGE,
-		defaultLimit: PAGE_SIZE,
+		limitParamKey: SUBMISSIONS_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -170,10 +174,9 @@ export function useSubmissionsPage(
 		[setAgingFilterState, resetPage],
 	);
 
-	const oid = orgId ?? "";
 	const hasActiveStage = activeStage !== null;
-	const vendorsQuery = useOrgVendors(oid);
-	const hiringManagersQuery = useOrgMembersForPicker(oid, {
+	const vendorsQuery = useOrgVendors();
+	const hiringManagersQuery = useOrgMembersForPicker({
 		role: MemberRole.HIRING_MANAGER,
 	});
 	const departmentsQuery = useShiftTemplateDepartments();
@@ -190,7 +193,7 @@ export function useSubmissionsPage(
 			departmentId: departmentFilter === "all" ? undefined : departmentFilter,
 			locationId: locationFilter === "all" ? undefined : locationFilter,
 			page,
-			limit: PAGE_SIZE,
+			limit,
 		}),
 		[
 			activeStage,
@@ -201,10 +204,11 @@ export function useSubmissionsPage(
 			departmentFilter,
 			locationFilter,
 			page,
+			limit,
 		],
 	);
 
-	const listQuery = useOrgSubmissionsList(orgId, listParams, {
+	const listQuery = useOrgSubmissionsList(listParams, {
 		enabled: hasActiveStage,
 	});
 
@@ -228,14 +232,12 @@ export function useSubmissionsPage(
 		],
 	);
 
-	const stageCountsQuery = useOrgSubmissionStageCounts(orgId, {
+	const stageCountsQuery = useOrgSubmissionStageCounts({
 		enabled: hasActiveStage,
 	});
-	const agingCountsQuery = useOrgSubmissionAgingCounts(
-		orgId,
-		agingStatsParams,
-		{ enabled: hasActiveStage },
-	);
+	const agingCountsQuery = useOrgSubmissionAgingCounts(agingStatsParams, {
+		enabled: hasActiveStage,
+	});
 
 	const filterOptions = useMemo((): SubmissionFilterOptions => {
 		const vendors = vendorsQuery.data ?? [];
@@ -344,8 +346,10 @@ export function useSubmissionsPage(
 		totalCount,
 		currentPage: page,
 		totalPages,
-		pageSize: PAGE_SIZE,
+		pageSize: limit,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 		setPage: (p: number) => setPage(p),
+		setLimit,
 		isLoading,
 		isError,
 		listErrorMessage,

@@ -1,9 +1,12 @@
 "use client";
 
+import {
+	ComplianceChecklistItemPhase,
+	getComplianceListItemCategoryLabel,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Checkbox } from "@repo/ui/components/checkbox";
 import { RadioGroup, RadioGroupItem } from "@repo/ui/components/radio-group";
-import { cn } from "@repo/ui/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Eye, EyeOff, X } from "lucide-react";
 import { useMemo } from "react";
@@ -11,38 +14,17 @@ import {
 	COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS,
 	COMPLIANCE_ITEM_USAGE_COLUMN_KEYS,
 } from "@/constants/tables/compliance-item-usage";
+import {
+	COMPLIANCE_CHECKLIST_TABLE_HEADER_CLASS,
+	ComplianceChecklistTableHeaderWords,
+	ComplianceChecklistUsageTypeColumnHeaders,
+} from "@/hooks/tables/ComplianceChecklistTableHeaderWords";
 import type {
 	ComplianceItemUsageRow,
 	ComplianceItemUsageType,
 } from "@/types/requisition-compliance-checklist";
 
 const INCLUDE_COLUMN_ID = "include";
-
-const headerText =
-	"text-xs font-medium uppercase leading-snug tracking-wide text-muted-foreground";
-
-function HeaderWords({
-	text,
-	className,
-}: {
-	text: string;
-	className?: string;
-}) {
-	const parts = text.trim().split(/\s+/);
-	return (
-		<div
-			className={cn(
-				"flex flex-wrap justify-center gap-x-1 gap-y-0.5 text-center whitespace-normal",
-				headerText,
-				className,
-			)}
-		>
-			{parts.map((word, i) => (
-				<span key={`${i}-${word}`}>{word}</span>
-			))}
-		</div>
-	);
-}
 
 export interface UseSubmissionAcceptanceCriteriaColumnsProps {
 	itemUsages: Record<string, ComplianceItemUsageType>;
@@ -66,14 +48,14 @@ export function useSubmissionAcceptanceCriteriaColumns({
 				id: INCLUDE_COLUMN_ID,
 				header: () => (
 					<div
-						className={`whitespace-normal text-center ${headerText} max-w-18`}
+						className={`whitespace-normal text-center ${COMPLIANCE_CHECKLIST_TABLE_HEADER_CLASS} max-w-18`}
 					>
 						INCLUDE
 					</div>
 				),
 				cell: ({ row }) => {
 					const fixed = row.original.checklistPhase;
-					const isPlacement = fixed === "PLACEMENT";
+					const isPlacement = fixed === ComplianceChecklistItemPhase.PLACEMENT;
 					const checked = isPlacement || selectedSet.has(row.original.id);
 					return (
 						<div className="flex justify-center">
@@ -94,7 +76,9 @@ export function useSubmissionAcceptanceCriteriaColumns({
 				accessorKey: "name",
 				id: COMPLIANCE_ITEM_USAGE_COLUMN_KEYS.itemName,
 				header: () => (
-					<div className={`whitespace-normal text-left ${headerText} min-w-20`}>
+					<div
+						className={`whitespace-normal text-left ${COMPLIANCE_CHECKLIST_TABLE_HEADER_CLASS} min-w-20`}
+					>
 						{COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.itemName}
 					</div>
 				),
@@ -105,7 +89,9 @@ export function useSubmissionAcceptanceCriteriaColumns({
 			{
 				accessorKey: COMPLIANCE_ITEM_USAGE_COLUMN_KEYS.category,
 				header: () => (
-					<div className={`whitespace-normal text-left ${headerText} min-w-16`}>
+					<div
+						className={`whitespace-normal text-left ${COMPLIANCE_CHECKLIST_TABLE_HEADER_CLASS} min-w-16`}
+					>
 						{COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.category}
 					</div>
 				),
@@ -114,29 +100,20 @@ export function useSubmissionAcceptanceCriteriaColumns({
 						variant="secondary"
 						className="text-muted-foreground font-normal"
 					>
-						{row.original.category}
+						{getComplianceListItemCategoryLabel(row.original.category)}
 					</Badge>
 				),
 			},
 			{
 				id: COMPLIANCE_ITEM_USAGE_COLUMN_KEYS.usageType,
-				header: () => (
-					<div className="grid min-w-42 grid-cols-2 gap-4 px-0.5">
-						<HeaderWords
-							text={COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.forSubmission}
-						/>
-						<HeaderWords
-							text={COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.forPlacement}
-						/>
-					</div>
-				),
+				header: () => <ComplianceChecklistUsageTypeColumnHeaders />,
 				cell: ({ row }) => {
 					const fixed = row.original.checklistPhase;
-					const isPlacement = fixed === "PLACEMENT";
+					const isPlacement = fixed === ComplianceChecklistItemPhase.PLACEMENT;
 					const included = isPlacement || selectedSet.has(row.original.id);
 					const value = (fixed ??
 						itemUsages[row.original.id] ??
-						("SUBMISSION" as ComplianceItemUsageType)) as ComplianceItemUsageType;
+						ComplianceChecklistItemPhase.SUBMISSION) as ComplianceItemUsageType;
 					const usageLocked = fixed !== undefined;
 					return (
 						<RadioGroup
@@ -147,8 +124,8 @@ export function useSubmissionAcceptanceCriteriaColumns({
 							}
 							className="grid grid-cols-2 place-items-center gap-4"
 						>
-							<RadioGroupItem value="SUBMISSION" />
-							<RadioGroupItem value="PLACEMENT" />
+							<RadioGroupItem value={ComplianceChecklistItemPhase.SUBMISSION} />
+							<RadioGroupItem value={ComplianceChecklistItemPhase.PLACEMENT} />
 						</RadioGroup>
 					);
 				},
@@ -157,7 +134,7 @@ export function useSubmissionAcceptanceCriteriaColumns({
 				accessorKey: "expirationRequired",
 				id: COMPLIANCE_ITEM_USAGE_COLUMN_KEYS.expirationRequired,
 				header: () => (
-					<HeaderWords
+					<ComplianceChecklistTableHeaderWords
 						text={COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.expirationRequired}
 						className="min-w-22"
 					/>
@@ -180,7 +157,7 @@ export function useSubmissionAcceptanceCriteriaColumns({
 				accessorKey: "displayToCandidate",
 				id: COMPLIANCE_ITEM_USAGE_COLUMN_KEYS.displayToCandidate,
 				header: () => (
-					<HeaderWords
+					<ComplianceChecklistTableHeaderWords
 						text={COMPLIANCE_ITEM_USAGE_COLUMN_HEADERS.displayToCandidate}
 						className="min-w-22"
 					/>

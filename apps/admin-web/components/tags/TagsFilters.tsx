@@ -24,7 +24,7 @@ export function TagsFilters({
 	typeFilter,
 	statusFilter,
 	onFilterChange,
-}: TagsFiltersProps) {
+}: Readonly<TagsFiltersProps>) {
 	const handleTypeChange = useCallback(
 		(value: string | undefined) => {
 			onFilterChange({ type: value });

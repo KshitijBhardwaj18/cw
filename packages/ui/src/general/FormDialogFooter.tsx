@@ -34,7 +34,7 @@ export function FormDialogFooter({
 	cancelLabel,
 	isPending = false,
 	disabled = false,
-}: FormDialogFooterProps) {
+}: Readonly<FormDialogFooterProps>) {
 	return (
 		<form.Subscribe
 			selector={(state) => ({

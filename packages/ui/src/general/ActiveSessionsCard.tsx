@@ -27,17 +27,20 @@ export type ActiveSessionsCardProps = {
 	sessions: SessionItem[];
 	loadingSessions: boolean;
 	onRevokeSession: (token: string) => void | Promise<void>;
+	formatDateTime?: (iso: string) => string;
 };
 
 function SessionRow({
 	session,
 	currentToken,
 	onRevoke,
-}: {
+	formatDateTime,
+}: Readonly<{
 	session: SessionItem;
 	currentToken: string | undefined;
 	onRevoke: (token: string) => void;
-}) {
+	formatDateTime: (iso: string) => string;
+}>) {
 	const isCurrent = session.token === currentToken;
 
 	return (
@@ -56,10 +59,10 @@ function SessionRow({
 					IP: {session.ipAddress || "Unknown"}
 				</p>
 				<p className="text-muted-foreground text-xs">
-					Created: {new Date(session.createdAt).toLocaleString()}
+					Created: {formatDateTime(session.createdAt.toISOString())}
 				</p>
 				<p className="text-muted-foreground text-xs">
-					Expires: {new Date(session.expiresAt).toLocaleString()}
+					Expires: {formatDateTime(session.expiresAt.toISOString())}
 				</p>
 			</div>
 			{!isCurrent && (
@@ -98,7 +101,8 @@ export function ActiveSessionsCard({
 	sessions,
 	loadingSessions,
 	onRevokeSession,
-}: ActiveSessionsCardProps) {
+	formatDateTime = (iso) => new Date(iso).toLocaleString(),
+}: Readonly<ActiveSessionsCardProps>) {
 	return (
 		<Card className="w-full">
 			<CardHeader>
@@ -120,6 +124,7 @@ export function ActiveSessionsCard({
 								session={s}
 								currentToken={currentSessionToken}
 								onRevoke={onRevokeSession}
+								formatDateTime={formatDateTime}
 							/>
 						))}
 					</div>

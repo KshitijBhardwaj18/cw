@@ -1,13 +1,16 @@
 import type { PrismaClient } from "@repo/db";
 import { PlacementStatus, Prisma } from "@repo/db";
-import { candidateOnboardingReminderTemplate, sendMail } from "@repo/mail";
+import {
+	candidateOnboardingReminderTemplate,
+	orgMailBranding,
+	sendMail,
+} from "@repo/mail";
 import type { VendorOnboardingReminderPayload } from "@repo/shared";
 import { addDays, startOfDay } from "date-fns";
 import { config } from "../config.js";
 
 const UPCOMING_STATUSES: PlacementStatus[] = [
 	PlacementStatus.UPCOMING,
-	PlacementStatus.PENDING,
 	PlacementStatus.ON_HOLD,
 ];
 
@@ -55,7 +58,7 @@ export async function runVendorOnboardingReminderEmailProcessor(
 	const [org, vendor] = await Promise.all([
 		prisma.organization.findUnique({
 			where: { id: organizationId },
-			select: { name: true, slug: true },
+			select: { name: true, slug: true, logo: true },
 		}),
 		prisma.vendor.findUnique({
 			where: { id: vendorId },
@@ -150,15 +153,24 @@ export async function runVendorOnboardingReminderEmailProcessor(
 	const candidateName = p.candidateName?.trim() || "there";
 	const pct = Number(p.pct ?? 0);
 
-	const { subject, text } = candidateOnboardingReminderTemplate({
+	const branding = orgMailBranding({
 		orgName,
-		vendorName,
-		candidateName,
-		jobTitle: role,
-		startDateLabel: formatStartDate(start),
-		compliancePercent: pct,
-		candidatePortalUrl: buildCandidatePlacementUrl(slug, p.id),
+		orgLogoUrl: org?.logo,
+		staffLogicLogoUrl: config.mail.staffLogicLogoUrl,
+		portal: "candidate",
 	});
 
-	await sendMail(config.mail, { to: email, subject, text });
+	const { subject, text, html } = candidateOnboardingReminderTemplate(
+		branding,
+		{
+			vendorName,
+			candidateName,
+			jobTitle: role,
+			startDateLabel: formatStartDate(start),
+			compliancePercent: pct,
+			candidatePortalUrl: buildCandidatePlacementUrl(slug, p.id),
+		},
+	);
+
+	await sendMail(config.mail, { to: email, subject, text, html });
 }

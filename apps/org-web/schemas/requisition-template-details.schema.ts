@@ -13,7 +13,8 @@ export const requisitionTemplateDetailsSchema = z.object({
 		.min(1, "Template name is required")
 		.max(200, "Template name must be less than 200 characters"),
 	occupationId: z.string().uuid("Occupation is required"),
-	specialtyId: z.string().uuid("Specialty is required"),
+	specialtyIds: z.array(z.string().uuid()).max(50),
+	locationId: z.string().uuid("Location is required"),
 	departmentId: z.string().uuid("Department is required"),
 	unitName: z.string().trim().max(200).optional().nullable(),
 	jobDescription: z

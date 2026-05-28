@@ -1,7 +1,7 @@
-import type { VendorUserRole } from "@repo/shared";
+import type { UserStatus, VendorUserRole } from "@repo/shared";
+import { splitFullNameToFirstLast as splitFullName } from "@repo/shared";
 import type { VendorUserTableRow } from "@/types/users";
 import type { VendorDetail } from "@/types/vendor";
-import { splitFullName } from "./users";
 
 export function vendorUsersToTableRows(
 	vendorUsers: VendorDetail["vendorUsers"],
@@ -20,7 +20,7 @@ export function vendorUsersToTableRows(
 			officePhone: vu.user.officePhone ?? null,
 			phoneNumber: vu.user.phoneNumber ?? null,
 			role: vu.role as VendorUserRole,
-			status: vu.user.status,
+			status: vu.user.status as UserStatus,
 		};
 	});
 }

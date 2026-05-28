@@ -16,7 +16,7 @@ interface AccessDeniedProps {
 	}[];
 }
 
-export const AccessDenied = ({ permissions }: AccessDeniedProps) => {
+export const AccessDenied = ({ permissions }: Readonly<AccessDeniedProps>) => {
 	const formatPermission = (
 		permission: NonNullable<AccessDeniedProps["permissions"]>[number],
 	) => `${permission.action} ${permission.subject.toLowerCase()}`;

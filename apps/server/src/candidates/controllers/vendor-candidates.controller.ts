@@ -1,4 +1,5 @@
 import {
+	BadRequestException,
 	Body,
 	Controller,
 	Get,
@@ -9,16 +10,26 @@ import {
 	Patch,
 	Post,
 	Query,
+	UploadedFile,
 	UseGuards,
+	UseInterceptors,
 } from "@nestjs/common";
-import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
+import {
+	ApiConsumes,
+	ApiOperation,
+	ApiResponse,
+	ApiTags,
+} from "@nestjs/swagger";
 import { Action } from "@repo/casl";
+import { FILE_MAX_SIZE } from "@repo/shared";
 import { Session, type UserSession } from "@thallesp/nestjs-better-auth";
 import { Permissions } from "src/common/decorators/permissions.decorator";
 import { PermissionsGuard } from "src/common/guards/permissions.guard";
 import { requireActiveOrganizationId } from "src/common/utils/require-active-organization-id";
 import { requireVendorPortalActor } from "src/common/utils/resolve-vendor-actor";
 import { UpdateCandidateComplianceStatusDto } from "src/placements/dto/update-candidate-compliance-status.dto";
+import { UploadCandidateComplianceDocumentDto } from "src/placements/dto/upload-candidate-compliance-document.dto";
 import { InviteCandidateDto } from "src/talent-community/dto/invite-candidate.dto";
 import { PatchVendorCandidateJobBoardProfileDto } from "../dto/patch-vendor-candidate-job-board-profile.dto";
 import { QueryCandidateDocumentWalletItemsDto } from "../dto/query-candidate-document-wallet.dto";
@@ -370,6 +381,46 @@ export class VendorCandidatesController {
 			complianceListItemId,
 			dto,
 			session.user.id,
+		);
+	}
+
+	@Post(
+		":candidateId/requisitions/:requisitionId/compliance-items/:complianceListItemId/document",
+	)
+	@ApiOperation({
+		summary:
+			"Vendor portal: upload a compliance document on behalf of a candidate for a specific job",
+	})
+	@ApiResponse({ status: 200 })
+	@ApiConsumes("multipart/form-data")
+	@Permissions({ action: Action.Update, subject: "CandidateCompliance" })
+	@UseInterceptors(
+		FileInterceptor("file", { limits: { fileSize: FILE_MAX_SIZE } }),
+	)
+	uploadDocumentForRequisitionAsVendor(
+		@Session() session: UserSession,
+		@Param("candidateId", ParseUUIDPipe) candidateId: string,
+		@Param("requisitionId", ParseUUIDPipe) requisitionId: string,
+		@Param("complianceListItemId", ParseUUIDPipe)
+		complianceListItemId: string,
+		@UploadedFile() file: Express.Multer.File | undefined,
+		@Body() dto: UploadCandidateComplianceDocumentDto,
+	) {
+		if (!file?.buffer?.length) {
+			throw new BadRequestException("File is required.");
+		}
+		const orgId = requireActiveOrganizationId(session);
+		const actor = requireVendorPortalActor(session);
+		return this.documentWalletService.uploadCandidateComplianceDocumentAsVendor(
+			session.user.id,
+			orgId,
+			actor.vendorId,
+			candidateId,
+			requisitionId,
+			complianceListItemId,
+			file,
+			dto.expiryDate,
+			dto.issueDate,
 		);
 	}
 }

@@ -4,7 +4,8 @@ import { Button } from "@repo/ui/components/button";
 import { Separator } from "@repo/ui/components/separator";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { CustomTable } from "@repo/ui/general/CustomTable";
-import { FileText, UsersRound } from "lucide-react";
+import PaginationControls from "@repo/ui/general/PaginationControls";
+import { FileText, SlidersHorizontal, UsersRound } from "lucide-react";
 import { useState } from "react";
 import {
 	CANDIDATE_PROCESSING_ISSUE_STAT_CARDS,
@@ -32,11 +33,35 @@ export const OperationsManagementTab = () => {
 		candidateRows,
 		rowsTotal,
 		page,
+		setPage,
 		limit,
+		setLimit,
+		pageSizeOptions,
+		requisitionCardDescriptions,
+		candidateCardDescriptions,
+		requisitionCardActive,
+		candidateCardActive,
+		isLoading,
 		handleFilterChange,
-		handlePaginationChange,
 		clearFilter,
 	} = useOperationsManagementFilters();
+
+	const visibleRequisitionCards = REQUISITION_PERFORMANCE_STAT_CARDS.filter(
+		(card) => requisitionCardActive?.[card.key] === true,
+	);
+	const visibleCandidateCards = CANDIDATE_PROCESSING_ISSUE_STAT_CARDS.filter(
+		(card) => candidateCardActive?.[card.key] === true,
+	);
+	const noCardsConfigured =
+		visibleRequisitionCards.length === 0 && visibleCandidateCards.length === 0;
+
+	const pageCount = Math.ceil(rowsTotal / limit) || 1;
+	const itemLabel =
+		activeCategory === "requisition-performance" ? "requisition" : "candidate";
+	const itemLabelPlural =
+		activeCategory === "requisition-performance"
+			? "requisitions"
+			: "candidates";
 
 	const { columns: requisitionColumns } = useRequisitionPerformanceColumns({
 		onViewDetails: (row) => {
@@ -61,17 +86,39 @@ export const OperationsManagementTab = () => {
 					<FileText className="text-primary size-4" />
 					Requisition Performance
 				</p>
-				<div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-					{REQUISITION_PERFORMANCE_STAT_CARDS.map((card) => (
-						<OperationsFilterStatCard
-							key={card.key}
-							card={card}
-							count={requisitionCountsByFilter[card.key]}
-							isActive={activeFilterKey === card.key}
-							onClick={() => handleFilterChange(card.key)}
+				{visibleRequisitionCards.length > 0 ? (
+					<div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+						{visibleRequisitionCards.map((card) => (
+							<OperationsFilterStatCard
+								key={card.key}
+								card={{
+									...card,
+									description:
+										requisitionCardDescriptions?.[card.key] ?? card.description,
+								}}
+								count={requisitionCountsByFilter[card.key]}
+								isActive={activeFilterKey === card.key}
+								onClick={() => handleFilterChange(card.key)}
+							/>
+						))}
+					</div>
+				) : isLoading ? null : (
+					<div className="flex items-start gap-3 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-3 text-sm">
+						<SlidersHorizontal
+							className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+							aria-hidden
 						/>
-					))}
-				</div>
+						<div className="flex flex-col gap-0.5">
+							<p className="font-medium text-foreground">
+								Requisition attention rules are not enabled
+							</p>
+							<p className="text-muted-foreground">
+								Ask your admin to configure and enable these rules to see slow
+								time-to-fill, no-submissions, and low-submissions metrics here.
+							</p>
+						</div>
+					</div>
+				)}
 			</div>
 
 			<div className="space-y-3">
@@ -79,23 +126,45 @@ export const OperationsManagementTab = () => {
 					<UsersRound className="text-primary size-4" />
 					Candidate Processing Issues
 				</p>
-				<div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-					{CANDIDATE_PROCESSING_ISSUE_STAT_CARDS.map((card) => (
-						<OperationsFilterStatCard
-							key={card.key}
-							card={card}
-							count={candidateCountsByFilter[card.key]}
-							isActive={activeFilterKey === card.key}
-							onClick={() => handleFilterChange(card.key)}
+				{visibleCandidateCards.length > 0 ? (
+					<div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+						{visibleCandidateCards.map((card) => (
+							<OperationsFilterStatCard
+								key={card.key}
+								card={{
+									...card,
+									description:
+										candidateCardDescriptions?.[card.key] ?? card.description,
+								}}
+								count={candidateCountsByFilter[card.key]}
+								isActive={activeFilterKey === card.key}
+								onClick={() => handleFilterChange(card.key)}
+							/>
+						))}
+					</div>
+				) : isLoading ? null : (
+					<div className="flex items-start gap-3 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-3 text-sm">
+						<SlidersHorizontal
+							className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+							aria-hidden
 						/>
-					))}
-				</div>
+						<div className="flex flex-col gap-0.5">
+							<p className="font-medium text-foreground">
+								Candidate aging rules are not enabled
+							</p>
+							<p className="text-muted-foreground">
+								Ask your admin to configure and enable the aging rules to see
+								overdue submissions, aging stages, and onboarding delays here.
+							</p>
+						</div>
+					</div>
+				)}
 			</div>
 
-			<Separator />
+			{!noCardsConfigured && <Separator />}
 
 			<div className="space-y-4">
-				{hasActiveFilter && activeFilterMeta ? (
+				{noCardsConfigured ? null : hasActiveFilter && activeFilterMeta ? (
 					<>
 						<div className="flex flex-wrap items-start justify-between gap-3">
 							<div>
@@ -117,12 +186,7 @@ export const OperationsManagementTab = () => {
 								data={requisitionRows}
 								columns={requisitionColumns}
 								enableSorting={false}
-								enablePagination
-								paginationMode="server"
-								totalCount={rowsTotal}
-								currentPage={page}
-								pageSize={limit}
-								onPaginationChange={handlePaginationChange}
+								enablePagination={false}
 							/>
 						) : (
 							<CustomTable
@@ -130,14 +194,20 @@ export const OperationsManagementTab = () => {
 								data={candidateRows}
 								columns={candidateColumns}
 								enableSorting={false}
-								enablePagination
-								paginationMode="server"
-								totalCount={rowsTotal}
-								currentPage={page}
-								pageSize={limit}
-								onPaginationChange={handlePaginationChange}
+								enablePagination={false}
 							/>
 						)}
+						<PaginationControls
+							currentPage={page}
+							pageCount={pageCount}
+							goToPage={setPage}
+							limit={limit}
+							setLimit={setLimit}
+							pageSizeOptions={pageSizeOptions}
+							totalItems={rowsTotal}
+							itemLabel={itemLabel}
+							itemLabelPlural={itemLabelPlural}
+						/>
 					</>
 				) : (
 					<ConfigPageEmptyState

@@ -7,4 +7,5 @@ export const credentialUploadDocumentFormSchema = z.object({
 		"File upload is required",
 	),
 	expirationDate: z.string().trim().optional().default(""),
+	issueDate: z.string().trim().optional().default(""),
 });

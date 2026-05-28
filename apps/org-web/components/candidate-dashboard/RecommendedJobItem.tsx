@@ -22,7 +22,7 @@ export function RecommendedJobItem({
 	payRate,
 	href,
 	missingDocsCount,
-}: RecommendedJobItemProps) {
+}: Readonly<RecommendedJobItemProps>) {
 	return (
 		<Card>
 			<CardContent className="space-y-3">

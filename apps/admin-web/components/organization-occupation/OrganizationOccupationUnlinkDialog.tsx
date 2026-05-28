@@ -15,7 +15,7 @@ export function OrganizationOccupationUnlinkDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: OrganizationOccupationUnlinkDialogProps) {
+}: Readonly<OrganizationOccupationUnlinkDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={!!occupation}

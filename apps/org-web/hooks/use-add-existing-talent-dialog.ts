@@ -13,10 +13,8 @@ import {
 import type { ExistingTalentQuery } from "@/services/talent-community.service";
 
 export function useAddExistingTalentDialog({
-	orgId,
 	onOpenChange,
 }: {
-	orgId: string;
 	onOpenChange: (open: boolean) => void;
 }) {
 	const [search, setSearch] = useState("");
@@ -26,7 +24,7 @@ export function useAddExistingTalentDialog({
 	const [source, setSource] = useState<ExistingTalentQuery["source"]>("all");
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const columns = useAddExistingTalentColumns();
-	const { data } = useExistingTalent(orgId, {
+	const { data } = useExistingTalent({
 		search: search || undefined,
 		workforceType,
 		status,
@@ -34,7 +32,7 @@ export function useAddExistingTalentDialog({
 		page: 1,
 		limit: 100,
 	});
-	const addExistingMutation = useAddExistingTalent(orgId);
+	const addExistingMutation = useAddExistingTalent();
 	const selectedIds = useMemo(
 		() => Object.keys(rowSelection).filter((key) => rowSelection[key]),
 		[rowSelection],

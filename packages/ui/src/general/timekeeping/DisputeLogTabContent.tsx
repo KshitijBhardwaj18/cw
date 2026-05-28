@@ -60,7 +60,7 @@ export function DisputeLogTabContent({
 	dialogs,
 	submitDispute,
 	confirmApproval,
-}: DisputeLogTabContentProps) {
+}: Readonly<DisputeLogTabContentProps>) {
 	const { columns } = useDisputeLogColumns({
 		onResolve: handlers.handleResolve,
 		onReject: handlers.handleReject,

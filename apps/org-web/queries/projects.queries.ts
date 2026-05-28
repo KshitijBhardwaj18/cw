@@ -16,30 +16,29 @@ import {
 
 export const projectsKeys = {
 	all: ["projects"] as const,
-	lists: (orgId: string) => [...projectsKeys.all, "list", orgId] as const,
-	list: (orgId: string, params: Record<string, string | number | undefined>) =>
-		[...projectsKeys.lists(orgId), params] as const,
-	detailPrefix: (orgId: string, projectId: string) =>
-		[...projectsKeys.all, "detail", orgId, projectId] as const,
-	detailMeta: (orgId: string, projectId: string) =>
-		[...projectsKeys.detailPrefix(orgId, projectId), "meta"] as const,
-	detailStats: (orgId: string, projectId: string) =>
-		[...projectsKeys.detailPrefix(orgId, projectId), "stats"] as const,
+	lists: () => [...projectsKeys.all, "list"] as const,
+	list: (params: Record<string, string | number | undefined>) =>
+		[...projectsKeys.lists(), params] as const,
+	detailPrefix: (projectId: string) =>
+		[...projectsKeys.all, "detail", projectId] as const,
+	detailMeta: (projectId: string) =>
+		[...projectsKeys.detailPrefix(projectId), "meta"] as const,
+	detailStats: (projectId: string) =>
+		[...projectsKeys.detailPrefix(projectId), "stats"] as const,
 	detailRequisitions: (
-		orgId: string,
 		projectId: string,
 		params: ProjectRequisitionsListParams,
 	) =>
 		[
-			...projectsKeys.detailPrefix(orgId, projectId),
+			...projectsKeys.detailPrefix(projectId),
 			"requisitions",
 			buildProjectRequisitionsRequestParams(params),
 		] as const,
 };
 
-export function useProjectsList(orgId: string, params: ProjectsListParams) {
+export function useProjectsList(params: ProjectsListParams) {
 	return useSuspenseQuery({
-		queryKey: projectsKeys.list(orgId, {
+		queryKey: projectsKeys.list({
 			search: params.search,
 			projectStatus: params.projectStatus,
 			page: params.page,
@@ -50,52 +49,51 @@ export function useProjectsList(orgId: string, params: ProjectsListParams) {
 	});
 }
 
-export function useProjectMeta(orgId: string, projectId: string | null) {
+export function useProjectMeta(projectId: string | null) {
 	return useQuery({
-		queryKey: projectsKeys.detailMeta(orgId, projectId ?? ""),
+		queryKey: projectsKeys.detailMeta(projectId ?? ""),
 		queryFn: () => ProjectsService.getMeta(projectId as string),
-		enabled: !!orgId && !!projectId,
+		enabled: !!projectId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useProjectStats(orgId: string, projectId: string | null) {
+export function useProjectStats(projectId: string | null) {
 	return useQuery({
-		queryKey: projectsKeys.detailStats(orgId, projectId ?? ""),
+		queryKey: projectsKeys.detailStats(projectId ?? ""),
 		queryFn: () => ProjectsService.getStats(projectId as string),
-		enabled: !!orgId && !!projectId,
+		enabled: !!projectId,
 		refetchOnMount: "always",
 	});
 }
 
 export function useProjectRequisitions(
-	orgId: string,
 	projectId: string | null,
 	params: ProjectRequisitionsListParams,
 ) {
 	return useQuery({
-		queryKey: projectsKeys.detailRequisitions(orgId, projectId ?? "", params),
+		queryKey: projectsKeys.detailRequisitions(projectId ?? "", params),
 		queryFn: () =>
 			ProjectsService.listRequisitions(projectId as string, params),
-		enabled: !!orgId && !!projectId,
+		enabled: !!projectId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useCreateProject(orgId: string) {
+export function useCreateProject() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (payload: CreateProjectPayload) =>
 			ProjectsService.create(payload),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: projectsKeys.lists(orgId),
+				queryKey: projectsKeys.lists(),
 			});
 		},
 	});
 }
 
-export function useUpdateProject(orgId: string, projectId: string | undefined) {
+export function useUpdateProject(projectId: string | undefined) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (payload: UpdateProjectPayload) => {
@@ -104,33 +102,30 @@ export function useUpdateProject(orgId: string, projectId: string | undefined) {
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: projectsKeys.lists(orgId),
+				queryKey: projectsKeys.lists(),
 			});
 			if (projectId) {
 				void queryClient.invalidateQueries({
-					queryKey: projectsKeys.detailPrefix(orgId, projectId),
+					queryKey: projectsKeys.detailPrefix(projectId),
 				});
 			}
 		},
 	});
 }
 
-export function useDeleteProject(orgId: string) {
+export function useDeleteProject() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (projectId: string) => ProjectsService.delete(projectId),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: projectsKeys.lists(orgId),
+				queryKey: projectsKeys.lists(),
 			});
 		},
 	});
 }
 
-export function useAddProjectRequisitions(
-	orgId: string,
-	projectId: string | undefined,
-) {
+export function useAddProjectRequisitions(projectId: string | undefined) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (requisitionIds: string[]) => {
@@ -139,24 +134,21 @@ export function useAddProjectRequisitions(
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: projectsKeys.lists(orgId),
+				queryKey: projectsKeys.lists(),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.lists(orgId),
+				queryKey: requisitionsKeys.lists(),
 			});
 			if (projectId) {
 				void queryClient.invalidateQueries({
-					queryKey: projectsKeys.detailPrefix(orgId, projectId),
+					queryKey: projectsKeys.detailPrefix(projectId),
 				});
 			}
 		},
 	});
 }
 
-export function useRemoveProjectRequisition(
-	orgId: string,
-	projectId: string | undefined,
-) {
+export function useRemoveProjectRequisition(projectId: string | undefined) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (requisitionId: string) => {
@@ -165,14 +157,14 @@ export function useRemoveProjectRequisition(
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: projectsKeys.lists(orgId),
+				queryKey: projectsKeys.lists(),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: requisitionsKeys.lists(orgId),
+				queryKey: requisitionsKeys.lists(),
 			});
 			if (projectId) {
 				void queryClient.invalidateQueries({
-					queryKey: projectsKeys.detailPrefix(orgId, projectId),
+					queryKey: projectsKeys.detailPrefix(projectId),
 				});
 			}
 		},

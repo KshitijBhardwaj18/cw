@@ -1,25 +1,25 @@
 "use client";
 
-import { formatUsdPerHour } from "@repo/shared";
+import { formatUsdPerHour, ShiftType } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { Pencil, Settings, Trash2 } from "lucide-react";
+import type { ShiftTypeKey } from "@/constants/shifts";
+import { SHIFT_TYPE_LABEL } from "@/constants/shifts";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { ShiftTemplateListItem } from "@/types/shift-template";
 
-type ShiftTypeKey = "DAYS" | "NIGHTS" | "EVENINGS";
-
-const SHIFT_TYPE_LABELS: Record<ShiftTypeKey, string> = {
-	DAYS: "Day Shift",
-	NIGHTS: "Night Shift",
-	EVENINGS: "Evening Shift",
-};
-
 const SHIFT_TYPE_TAG_CLASS: Record<ShiftTypeKey, string> = {
-	DAYS: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-	NIGHTS:
-		"bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400",
-	EVENINGS:
+	[ShiftType.DAY]:
+		"bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+	[ShiftType.EVENING]:
 		"bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+	[ShiftType.NIGHT]:
+		"bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400",
+	[ShiftType.ROTATING]:
+		"bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400",
+	[ShiftType.FLEXIBLE]:
+		"bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
 };
 
 interface ShiftTemplateCardProps {
@@ -34,13 +34,14 @@ export function ShiftTemplateCard({
 	onEdit,
 	onDelete,
 	onOpenBilling,
-}: ShiftTemplateCardProps) {
+}: Readonly<ShiftTemplateCardProps>) {
+	const { fmtShortDate } = useUserTimezone();
 	const shiftKey = template.shiftType as ShiftTypeKey;
-	const shiftLabel = SHIFT_TYPE_LABELS[shiftKey] ?? template.shiftType;
+	const shiftLabel = SHIFT_TYPE_LABEL[shiftKey] ?? template.shiftType;
 	const tagClass =
 		SHIFT_TYPE_TAG_CLASS[shiftKey] ?? "bg-muted text-muted-foreground";
 
-	const createdAt = new Date(template.createdAt).toLocaleDateString();
+	const createdAt = fmtShortDate(template.createdAt);
 	const createdByName = template.createdBy?.name ?? "Unknown";
 
 	return (

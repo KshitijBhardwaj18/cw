@@ -11,7 +11,7 @@ import { CheckCircle2, Clock, FileText, XCircle } from "lucide-react";
 import type { FinalInvoiceSummary } from "@/services/billing.service";
 
 const iconWrap = (
-	tone: keyof typeof TINTED_METRIC_TONE_STYLES,
+	tone: Readonly<keyof typeof TINTED_METRIC_TONE_STYLES>,
 	Icon: typeof FileText,
 ) => {
 	const styles = TINTED_METRIC_TONE_STYLES[tone];
@@ -40,9 +40,9 @@ const EMPTY_SUMMARY: FinalInvoiceSummary = {
 
 export function FinalInvoicesMetricCards({
 	summary,
-}: {
+}: Readonly<{
 	summary?: FinalInvoiceSummary;
-}) {
+}>) {
 	const s = summary ?? EMPTY_SUMMARY;
 
 	return (

@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	title: "Shift Templates",
 };
 
-const ShiftTemplatesLayout = ({ children }: { children: React.ReactNode }) => {
+const ShiftTemplatesLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.List, subject: "ShiftTemplate" }]}

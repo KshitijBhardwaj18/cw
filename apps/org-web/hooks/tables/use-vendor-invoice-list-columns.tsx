@@ -1,17 +1,17 @@
 "use client";
 
-import { formatCurrency } from "@repo/shared";
+import { formatCurrency, shortId } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "@repo/ui/components/tooltip";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Calculator, Download } from "lucide-react";
 import { useMemo } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type {
 	VendorInvoiceRow,
 	VendorInvoiceStatus,
@@ -42,6 +42,8 @@ export function useVendorInvoiceListColumns({
 	onDownload,
 	downloadingInvoiceId,
 }: UseVendorInvoiceListColumnsOptions) {
+	const { fmtPeriod, fmtShortDate } = useUserTimezone();
+
 	return useMemo<ColumnDef<VendorInvoiceRow>[]>(
 		() => [
 			{
@@ -50,9 +52,11 @@ export function useVendorInvoiceListColumns({
 				accessorFn: (r) => r.invoiceId,
 				cell: ({ row }) => (
 					<div className="min-w-0 max-w-52 sm:max-w-60 lg:max-w-xs w-32">
-						<p className="font-semibold text-sm">{row.original.invoiceId}</p>
+						<p className="font-semibold text-sm" title={row.original.invoiceId}>
+							{shortId(row.original.invoiceId)}
+						</p>
 						<p className="text-muted-foreground text-xs">
-							Due: {row.original.dueDateLabel}
+							Due: {fmtShortDate(row.original.dueDate)}
 						</p>
 					</div>
 				),
@@ -73,7 +77,10 @@ export function useVendorInvoiceListColumns({
 				accessorFn: (r) => r.periodLabel,
 				cell: ({ row }) => (
 					<div className="whitespace-nowrap text-sm">
-						{row.original.periodLabel}
+						{fmtPeriod(
+							row.original.periodStartDate,
+							row.original.periodEndDate,
+						)}
 					</div>
 				),
 			},
@@ -173,6 +180,6 @@ export function useVendorInvoiceListColumns({
 				),
 			},
 		],
-		[downloadingInvoiceId, onBreakdown, onDownload],
+		[fmtPeriod, fmtShortDate, downloadingInvoiceId, onBreakdown, onDownload],
 	);
 }

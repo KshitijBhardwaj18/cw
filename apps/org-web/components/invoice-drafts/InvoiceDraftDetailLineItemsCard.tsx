@@ -39,7 +39,7 @@ export function InvoiceDraftDetailLineItemsCard({
 	canDispute = true,
 	onDisputeLineItem,
 	onViewDisputeLineItem,
-}: InvoiceDraftDetailLineItemsCardProps) {
+}: Readonly<InvoiceDraftDetailLineItemsCardProps>) {
 	const columns = useInvoiceDraftDetailLineColumns({
 		canDispute,
 		onDispute: onDisputeLineItem,

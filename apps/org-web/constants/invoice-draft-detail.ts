@@ -1,6 +1,14 @@
+import { formatUtcPeriod, formatUtcShortDate } from "@repo/shared";
 import type { InvoiceDetail } from "@repo/ui/general/billing/types";
-import { fmtPeriod, fmtShortDate } from "@/utils/format";
 import type { InvoiceDraftStatus } from "./invoice-drafts";
+
+export type InvoiceDraftDetailFormatters = {
+	fmtShortDate: (iso: string | null | undefined) => string;
+	fmtPeriod: (
+		start: string | null | undefined,
+		end: string | null | undefined,
+	) => string;
+};
 
 export type InvoiceDraftDetailTab = "all" | "approved" | "disputed";
 
@@ -64,7 +72,11 @@ function toDraftStatus(detail: InvoiceDetail): InvoiceDraftStatus {
 
 export function toInvoiceDraftDetail(
 	detail: InvoiceDetail,
+	formatters?: InvoiceDraftDetailFormatters,
 ): InvoiceDraftDetailMock {
+	const fmtS = formatters?.fmtShortDate ?? formatUtcShortDate;
+	const fmtP = formatters?.fmtPeriod ?? formatUtcPeriod;
+
 	const lineItems: InvoiceDraftDetailLineItem[] = (detail.lineItems ?? []).map(
 		(li) => {
 			const disputedAmount = Number(li.disputedAmount ?? 0);
@@ -75,9 +87,8 @@ export function toInvoiceDraftDetail(
 				disputeReason: li.disputeReason,
 				locationName: li.locationName || "Main location",
 				dateLabel: li.workDate
-					? fmtShortDate(li.workDate)
-					: fmtPeriod(li.periodStart ?? undefined, li.periodEnd ?? undefined) ||
-						"—",
+					? fmtS(li.workDate)
+					: fmtP(li.periodStart ?? undefined, li.periodEnd ?? undefined) || "—",
 				workerName: li.candidateName || li.description || "Unknown worker",
 				workerSubtitle: li.lineType || "—",
 				payCode: li.payCode || "Regular",
@@ -105,7 +116,7 @@ export function toInvoiceDraftDetail(
 		invoiceNumber: detail.invoiceNumber,
 		status: toDraftStatus(detail),
 		vendor: detail.vendor?.name ?? "—",
-		periodLabel: fmtPeriod(
+		periodLabel: fmtP(
 			detail.periodStartDate ?? undefined,
 			detail.periodEndDate ?? undefined,
 		),

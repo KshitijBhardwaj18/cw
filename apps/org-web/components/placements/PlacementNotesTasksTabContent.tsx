@@ -23,7 +23,7 @@ interface PlacementNotesTasksTabContentProps {
 
 export function PlacementNotesTasksTabContent({
 	placementId,
-}: PlacementNotesTasksTabContentProps) {
+}: Readonly<PlacementNotesTasksTabContentProps>) {
 	const ability = useAbility();
 	const canEditPlacement = ability.can(Action.Update, "Placement");
 

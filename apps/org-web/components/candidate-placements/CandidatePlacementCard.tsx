@@ -1,8 +1,12 @@
+"use client";
+
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { cn } from "@repo/ui/lib/utils";
 import { Calendar, Clock, Info, MapPin } from "lucide-react";
 import Link from "next/link";
+import { useMemo } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { CandidatePlacementListItem } from "@/types/candidate-placement";
 import { candidatePlacementTimecardPath } from "@/utils/candidate-portal-routes";
 
@@ -27,17 +31,46 @@ const STATUS_BADGE: Record<
 export interface CandidatePlacementCardProps {
 	placement: CandidatePlacementListItem;
 	viewDetailsHref?: string;
+	isInternalWorkforce?: boolean;
 }
 
 export function CandidatePlacementCard({
 	placement,
 	viewDetailsHref = "#",
-}: CandidatePlacementCardProps) {
+	isInternalWorkforce = false,
+}: Readonly<CandidatePlacementCardProps>) {
 	const badge = STATUS_BADGE[placement.kind];
-	const showTimecard = placement.kind === "active";
+	const showTimecard = placement.kind === "active" && !isInternalWorkforce;
 	const showOnboardingBanner =
 		placement.kind === "upcoming" &&
 		typeof placement.onboardingPercent === "number";
+
+	const { fmtShortDate, fmtDateRange } = useUserTimezone();
+
+	const assignmentDatesLabel = useMemo(() => {
+		const start = placement.startDate ?? null;
+		const end = placement.endDate ?? null;
+
+		if (start) {
+			if (placement.kind === "upcoming") {
+				return `Starts ${fmtShortDate(start)}`;
+			}
+			if (end) {
+				const range = fmtDateRange(start, end);
+				if (range) return range;
+			}
+			return fmtShortDate(start);
+		}
+
+		return placement.dateLabel;
+	}, [
+		placement.kind,
+		placement.startDate,
+		placement.endDate,
+		placement.dateLabel,
+		fmtShortDate,
+		fmtDateRange,
+	]);
 
 	return (
 		<div className="bg-card flex flex-col gap-4 rounded-lg border p-4 shadow-none">
@@ -63,7 +96,7 @@ export function CandidatePlacementCard({
 				</span>
 				<span className="inline-flex items-center gap-1.5">
 					<Calendar className="size-4 shrink-0 opacity-80" aria-hidden />
-					{placement.dateLabel}
+					{assignmentDatesLabel}
 				</span>
 				{placement.shiftLabel ? (
 					<span className="inline-flex items-center gap-1.5">

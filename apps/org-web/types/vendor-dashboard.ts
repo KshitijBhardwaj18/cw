@@ -44,6 +44,7 @@ export interface VendorDashboardResponse {
 		id: string;
 		title: string;
 		description: string;
+		placementStartDate?: string | null;
 		severity: "info" | "warning" | "error";
 	}>;
 	recentActivity: Array<{
@@ -54,6 +55,7 @@ export interface VendorDashboardResponse {
 		severity: "info" | "warning" | "error";
 	}>;
 	offers: {
+		overdueThresholdLabel: string;
 		overdue: VendorDashboardOfferItem[];
 		pending: VendorDashboardOfferItem[];
 	};

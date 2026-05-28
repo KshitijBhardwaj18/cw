@@ -41,7 +41,7 @@ export class MspsService {
 
 	async create(data: Record<string, unknown>, files: MspFiles) {
 		if (!files.msaDocument?.buffer) {
-			throw new BadRequestException("MSA document is required");
+			throw new BadRequestException("MSA document is required.");
 		}
 
 		// Validate DTO before S3 uploads to avoid orphaned files on validation failure
@@ -270,7 +270,7 @@ export class MspsService {
 	async delete(id: string): Promise<void> {
 		const existing = await this.prisma.mSP.findUnique({ where: { id } });
 		if (!existing) {
-			throw new NotFoundException(`MSP with id ${id} not found`);
+			throw new NotFoundException("MSP not found.");
 		}
 
 		await this.prisma.$transaction(async (tx) => {
@@ -282,9 +282,7 @@ export class MspsService {
 						where: { id: existing.headquartersId },
 					});
 				} catch {
-					throw new NotFoundException(
-						`Headquarters address with id ${existing.headquartersId} not found`,
-					);
+					throw new NotFoundException("Headquarters address not found.");
 				}
 			}
 			if (
@@ -296,9 +294,7 @@ export class MspsService {
 						where: { id: existing.billingId },
 					});
 				} catch {
-					throw new NotFoundException(
-						`Billing address with id ${existing.billingId} not found`,
-					);
+					throw new NotFoundException("Billing address not found.");
 				}
 			}
 		});
@@ -355,10 +351,10 @@ export class MspsService {
 			select: { msaDocument: true },
 		});
 		if (!msp) {
-			throw new NotFoundException(`MSP with id ${mspId} not found`);
+			throw new NotFoundException("MSP not found.");
 		}
 		if (!msp.msaDocument) {
-			throw new NotFoundException("MSA document not found for this MSP");
+			throw new NotFoundException("MSA document not found for this MSP.");
 		}
 		return this.filesService.getSignedUrl(
 			msp.msaDocument,

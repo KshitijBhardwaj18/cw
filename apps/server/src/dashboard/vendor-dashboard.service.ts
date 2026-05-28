@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import {
+	CandidateInviteStatus,
 	InvoiceStatus,
 	PerDiemShiftStatus,
 	PlacementStatus,
@@ -7,15 +8,28 @@ import {
 	SubmissionStage,
 } from "@repo/db";
 import {
+	AgingRuleStageTransition,
+	agingRuleThresholdToHours,
+} from "@repo/shared";
+import {
 	addDays,
 	differenceInCalendarDays,
-	formatDistanceToNowStrict,
 	startOfDay,
 	startOfMonth,
 	startOfWeek,
 } from "date-fns";
+import { AgingRulesService } from "src/aging-rules/services/aging-rules.service";
+import { PLACEMENT_TAB_STATUS } from "src/placements/placements.constants";
 import { PrismaService } from "src/prisma/prisma.service";
 import type { FinancialPeriod } from "./dto/vendor-dashboard-financial-query.dto";
+
+const ACTIVE_VENDOR_CANDIDATE_WHERE: Prisma.CandidateWhereInput = {
+	isActive: true,
+	OR: [
+		{ inviteStatus: CandidateInviteStatus.ACCEPTED },
+		{ inviteStatus: null },
+	],
+};
 
 type VendorDashboardInvoiceBucket = "paid" | "pending" | "disputed";
 type VendorDashboardAlertSeverity = "info" | "warning" | "error";
@@ -56,6 +70,8 @@ export type VendorDashboardResponse = {
 		id: string;
 		title: string;
 		description: string;
+		/** ISO placement start date (DATE at UTC midnight) for TZ-aware labeling on the client. */
+		placementStartDate: string | null;
 		severity: VendorDashboardAlertSeverity;
 	}>;
 	recentActivity: Array<{
@@ -66,6 +82,7 @@ export type VendorDashboardResponse = {
 		severity: VendorDashboardAlertSeverity;
 	}>;
 	offers: {
+		overdueThresholdLabel: string;
 		overdue: Array<{
 			submissionId: string;
 			name: string;
@@ -107,7 +124,10 @@ export type VendorDashboardResponse = {
 
 @Injectable()
 export class VendorDashboardService {
-	constructor(private readonly prisma: PrismaService) {}
+	constructor(
+		private readonly prisma: PrismaService,
+		private readonly agingRulesService: AgingRulesService,
+	) {}
 
 	private formatMoney(amount: number | null | undefined): string {
 		const safe = Number(amount ?? 0);
@@ -120,11 +140,7 @@ export class VendorDashboardService {
 
 	private formatShortDate(date: Date | null | undefined): string {
 		if (!date) return "TBD";
-		return new Intl.DateTimeFormat("en-US", {
-			month: "2-digit",
-			day: "2-digit",
-			year: "numeric",
-		}).format(date);
+		return date.toISOString();
 	}
 
 	private formatTime(value: Date | string | null | undefined): string {
@@ -133,16 +149,12 @@ export class VendorDashboardService {
 			value instanceof Date
 				? value
 				: new Date(`1970-01-01T${value.toString()}`);
-		return new Intl.DateTimeFormat("en-US", {
-			hour: "2-digit",
-			minute: "2-digit",
-			hour12: false,
-		}).format(date);
+		return date.toISOString();
 	}
 
 	private timeAgo(date: Date | null | undefined): string {
 		if (!date) return "Recently";
-		return formatDistanceToNowStrict(date, { addSuffix: true });
+		return date.toISOString();
 	}
 
 	private shiftUrgency(isUrgent: boolean): "High" | "Medium" | "Low" {
@@ -186,6 +198,8 @@ export class VendorDashboardService {
 		const today = startOfDay(new Date());
 		const weekAgo = addDays(today, -7);
 		const monthAgo = addDays(today, -30);
+		const todayStartUtc = new Date();
+		todayStartUtc.setUTCHours(0, 0, 0, 0);
 		const [
 			activeCandidates,
 			newCandidatesThisWeek,
@@ -196,28 +210,32 @@ export class VendorDashboardService {
 			urgentOpenShifts,
 		] = await Promise.all([
 			this.prisma.candidate.count({
-				where: { organizationId, vendorId, isActive: true },
+				where: {
+					organizationId,
+					vendorId,
+					...ACTIVE_VENDOR_CANDIDATE_WHERE,
+				},
 			}),
 			this.prisma.candidate.count({
 				where: {
 					organizationId,
 					vendorId,
-					isActive: true,
+					...ACTIVE_VENDOR_CANDIDATE_WHERE,
 					createdAt: { gte: weekAgo },
 				},
 			}),
 			this.prisma.placement.count({
 				where: {
 					organizationId,
-					candidate: { is: { vendorId } },
-					status: { in: [PlacementStatus.ACTIVE, PlacementStatus.ENDING_SOON] },
+					submission: { is: { vendorId } },
+					status: { in: PLACEMENT_TAB_STATUS.active },
 				},
 			}),
 			this.prisma.placement.count({
 				where: {
 					organizationId,
-					candidate: { is: { vendorId } },
-					status: { in: [PlacementStatus.ACTIVE, PlacementStatus.ENDING_SOON] },
+					submission: { is: { vendorId } },
+					status: { in: PLACEMENT_TAB_STATUS.active },
 					createdAt: { gte: monthAgo },
 				},
 			}),
@@ -231,16 +249,16 @@ export class VendorDashboardService {
 			this.prisma.perDiemShift.count({
 				where: {
 					organizationId,
-					isPublic: true,
 					status: PerDiemShiftStatus.OPEN,
+					shiftDate: { gte: todayStartUtc },
 				},
 			}),
 			this.prisma.perDiemShift.count({
 				where: {
 					organizationId,
-					isPublic: true,
 					status: PerDiemShiftStatus.OPEN,
 					isUrgent: true,
+					shiftDate: { gte: todayStartUtc },
 				},
 			}),
 		]);
@@ -270,7 +288,7 @@ export class VendorDashboardService {
 				by: ["status"],
 				where: {
 					organizationId,
-					candidate: { is: { vendorId } },
+					submission: { is: { vendorId } },
 				},
 				_count: { _all: true },
 			}),
@@ -295,15 +313,9 @@ export class VendorDashboardService {
 				: 0;
 		const successfulPlacements =
 			(placementCountByStatus.get(PlacementStatus.ACTIVE) ?? 0) +
-			(placementCountByStatus.get(PlacementStatus.ENDING_SOON) ?? 0) +
 			(placementCountByStatus.get(PlacementStatus.COMPLETED) ?? 0);
-		// Exclude UPCOMING and PENDING from denominator — placements that haven't started
 		const startedPlacements = [...placementCountByStatus.entries()]
-			.filter(
-				([status]) =>
-					status !== PlacementStatus.UPCOMING &&
-					status !== PlacementStatus.PENDING,
-			)
+			.filter(([status]) => status !== PlacementStatus.UPCOMING)
 			.reduce((sum, [, count]) => sum + count, 0);
 		const totalPlacements = [...placementCountByStatus.values()].reduce(
 			(sum, count) => sum + count,
@@ -456,14 +468,10 @@ export class VendorDashboardService {
 			where: {
 				organizationId,
 				status: {
-					in: [
-						PlacementStatus.UPCOMING,
-						PlacementStatus.PENDING,
-						PlacementStatus.ON_HOLD,
-					],
+					in: [PlacementStatus.UPCOMING, PlacementStatus.ON_HOLD],
 				},
 				startDate: { gte: today, lte: addDays(today, 21) },
-				candidate: { is: { vendorId } },
+				submission: { is: { vendorId } },
 			},
 			select: {
 				id: true,
@@ -501,7 +509,8 @@ export class VendorDashboardService {
 				title: row.candidate.user.name?.trim() || "Upcoming placement",
 				description: `${completedDocs}/${totalDocs} onboarding items complete${
 					row.jobTitle ? ` for ${row.jobTitle}` : ""
-				}${row.startDate ? ` starting ${this.formatShortDate(row.startDate)}` : ""}`,
+				}`,
+				placementStartDate: row.startDate?.toISOString() ?? null,
 				severity: this.complianceSeverity(daysRemaining, progress),
 			};
 		});
@@ -527,7 +536,7 @@ export class VendorDashboardService {
 				this.prisma.placement.findMany({
 					where: {
 						organizationId,
-						candidate: { is: { vendorId } },
+						submission: { is: { vendorId } },
 					},
 					select: {
 						id: true,
@@ -607,6 +616,21 @@ export class VendorDashboardService {
 		vendorId: string,
 	): Promise<VendorDashboardResponse["offers"]> {
 		const now = new Date();
+		const agingRules =
+			await this.agingRulesService.resolveByTransition(organizationId);
+		const offerRule =
+			agingRules[AgingRuleStageTransition.OFFER_SENT_TO_OFFER_ACCEPTED];
+		const offerSlaHours =
+			offerRule.isConfigured && offerRule.isEnabled
+				? agingRuleThresholdToHours(
+						offerRule.thresholdValue,
+						offerRule.thresholdUnit,
+					)
+				: null;
+		const overdueThresholdLabel =
+			offerRule.isConfigured && offerRule.isEnabled
+				? `>${offerRule.thresholdValue} ${offerRule.thresholdUnit.toLowerCase()}`
+				: "Not configured";
 		const offerRows = await this.prisma.submission.findMany({
 			where: {
 				organizationId,
@@ -638,10 +662,10 @@ export class VendorDashboardService {
 		const offerItems = offerRows.map((row) => {
 			const occurredAt =
 				row.offerExtendedAt ?? row.stageEnteredAt ?? row.createdAt;
-			const isOverdue = occurredAt.getTime() <= addDays(now, -1).getTime();
 			const overdueHours = Math.round(
 				(now.getTime() - occurredAt.getTime()) / (1000 * 60 * 60),
 			);
+			const isOverdue = offerSlaHours != null && overdueHours >= offerSlaHours;
 			return {
 				submissionId: row.id,
 				name: row.candidate.user.name?.trim() || "Candidate",
@@ -658,12 +682,16 @@ export class VendorDashboardService {
 					row.requisition.endDate,
 				),
 				isOverdue,
-				overdueText: `${Math.max(24, overdueHours)}h overdue`,
+				overdueText: `${Math.max(
+					offerSlaHours ?? overdueHours,
+					overdueHours,
+				)}h overdue`,
 				postedTime: this.timeAgo(occurredAt),
 			};
 		});
 
 		return {
+			overdueThresholdLabel,
 			overdue: offerItems
 				.filter((item) => item.isOverdue)
 				.map((item) => ({
@@ -699,7 +727,6 @@ export class VendorDashboardService {
 		const rows = await this.prisma.perDiemShift.findMany({
 			where: {
 				organizationId,
-				isPublic: true,
 				status: PerDiemShiftStatus.OPEN,
 				shiftDate: { gte: today },
 			},
@@ -712,7 +739,9 @@ export class VendorDashboardService {
 				totalShiftHours: true,
 				vendorRate: true,
 				occupation: { select: { name: true } },
-				specialty: { select: { name: true } },
+				specialties: {
+					select: { specialty: { select: { name: true } } },
+				},
 				department: { select: { name: true } },
 				location: { select: { name: true, city: true, state: true } },
 			},
@@ -720,32 +749,32 @@ export class VendorDashboardService {
 			take: 20,
 		});
 
-		return rows.map((row) => ({
-			id: row.id,
-			role:
-				row.occupation?.name?.trim() ||
-				row.specialty?.name?.trim() ||
-				"Open shift",
-			urgency: this.shiftUrgency(row.isUrgent),
-			facilityName: [row.location?.name, row.department?.name]
-				.filter(Boolean)
-				.join(" - "),
-			location: {
-				city: row.location?.city ?? "",
-				state: row.location?.state ?? "",
-			},
-			requirements: [row.specialty?.name].filter((value): value is string =>
-				Boolean(value?.trim()),
-			),
-			date: this.formatShortDate(row.shiftDate),
-			startTime: this.formatTime(row.startTime),
-			endTime: this.formatTime(row.endTime),
-			duration: row.totalShiftHours
-				? `${Number(row.totalShiftHours)} hours`
-				: "TBD",
-			billRate: this.offerPayLabel(row.vendorRate),
-			openings: 1,
-		}));
+		return rows.map((row) => {
+			const specialtyNames = row.specialties
+				.map((ss) => ss.specialty.name)
+				.filter((name): name is string => Boolean(name?.trim()));
+			return {
+				id: row.id,
+				role: row.occupation?.name?.trim() || specialtyNames[0] || "Open shift",
+				urgency: this.shiftUrgency(row.isUrgent),
+				facilityName: [row.location?.name, row.department?.name]
+					.filter(Boolean)
+					.join(" - "),
+				location: {
+					city: row.location?.city ?? "",
+					state: row.location?.state ?? "",
+				},
+				requirements: specialtyNames,
+				date: this.formatShortDate(row.shiftDate),
+				startTime: this.formatTime(row.startTime),
+				endTime: this.formatTime(row.endTime),
+				duration: row.totalShiftHours
+					? `${Number(row.totalShiftHours)} hours`
+					: "TBD",
+				billRate: this.offerPayLabel(row.vendorRate),
+				openings: 1,
+			};
+		});
 	}
 
 	async getVendorDashboard(

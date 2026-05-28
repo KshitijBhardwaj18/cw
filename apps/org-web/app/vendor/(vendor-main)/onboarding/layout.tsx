@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	title: "Onboarding",
 };
 
-const OnboardingLayout = ({ children }: { children: React.ReactNode }) => {
+const OnboardingLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.List, subject: "Placement" }]}

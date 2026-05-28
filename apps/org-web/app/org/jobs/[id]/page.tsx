@@ -14,7 +14,7 @@ type JobPostingViewPageProps = {
 
 export default async function JobPostingViewPage({
 	params,
-}: JobPostingViewPageProps) {
+}: Readonly<JobPostingViewPageProps>) {
 	const { id } = await params;
 	return <JobDetailsPageContent jobId={id} />;
 }

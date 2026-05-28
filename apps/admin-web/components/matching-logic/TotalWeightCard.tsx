@@ -12,7 +12,7 @@ type TotalWeightCardProps = {
 	totalWeight: number;
 };
 
-const TotalWeightCard = ({ totalWeight }: TotalWeightCardProps) => {
+const TotalWeightCard = ({ totalWeight }: Readonly<TotalWeightCardProps>) => {
 	const isOverLimit = totalWeight > 100;
 	const unassigned = 100 - totalWeight;
 

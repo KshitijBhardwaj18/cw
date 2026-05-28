@@ -36,7 +36,7 @@ export function LocationAccordionRow({
 	onDisputeLog,
 	defaultOpen = true,
 	approvalActionsEnabled = true,
-}: LocationAccordionRowProps) {
+}: Readonly<LocationAccordionRowProps>) {
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 
 	return (

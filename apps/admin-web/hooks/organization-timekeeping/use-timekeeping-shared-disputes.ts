@@ -1,5 +1,6 @@
 "use client";
 
+import { TimesheetEntryStatus } from "@repo/shared";
 import type {
 	DisputeLogEntry,
 	TimeLog,
@@ -90,7 +91,7 @@ export function useTimekeepingSharedDisputes(organizationId: string) {
 			endTime: entry.endTime,
 			totalHours: entry.hours,
 			note: null,
-			status: "DISPUTED",
+			status: TimesheetEntryStatus.DISPUTED,
 			source: entry.source,
 		};
 		const worker: WorkerTimekeeping = {
@@ -98,7 +99,7 @@ export function useTimekeepingSharedDisputes(organizationId: string) {
 			name: entry.workerName,
 			position: entry.position,
 			source: entry.source,
-			status: "DISPUTED",
+			status: TimesheetEntryStatus.DISPUTED,
 			regularHours: entry.hours,
 			overtimeHours: 0,
 			totalHours: entry.hours,
@@ -165,7 +166,10 @@ export function useTimekeepingSharedDisputes(organizationId: string) {
 		mutateUpdateStatus(
 			{
 				entryId: selectedEntryId,
-				payload: { status: "APPROVED", approvalSource: "Manual" },
+				payload: {
+					status: TimesheetEntryStatus.APPROVED,
+					approvalSource: "Manual",
+				},
 			},
 			{
 				onSuccess: () => {

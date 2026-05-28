@@ -7,7 +7,7 @@ import type * as React from "react";
 function Label({
 	className,
 	...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+}: Readonly<React.ComponentProps<typeof LabelPrimitive.Root>>) {
 	return (
 		<LabelPrimitive.Root
 			data-slot="label"

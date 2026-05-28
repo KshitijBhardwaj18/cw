@@ -23,7 +23,7 @@ export function SpecialtiesTableWrapper({
 	rawData,
 	canEdit = true,
 	canDelete = true,
-}: SpecialtiesTableWrapperProps) {
+}: Readonly<SpecialtiesTableWrapperProps>) {
 	const [editSpecialty, setEditSpecialty] =
 		useState<SpecialtyResponseType | null>(null);
 	const [deleteTarget, setDeleteTarget] =

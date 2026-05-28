@@ -1,5 +1,6 @@
 "use client";
 
+import { CANDIDATE_EXPERIENCE_BAND_OPTIONS, getLabel } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import {
 	Card,
@@ -10,7 +11,17 @@ import {
 } from "@repo/ui/components/card";
 import { DetailItem } from "@repo/ui/components/detail-item";
 import { Briefcase, Clock, Luggage, MapPin, Stethoscope } from "lucide-react";
-import type { CandidateMeOnboarding } from "@/services/onboarding.service";
+import type {
+	CandidateExperienceBandValue,
+	CandidateMeOnboarding,
+} from "@/services/onboarding.service";
+
+function experienceBandLabel(
+	band: CandidateExperienceBandValue | null,
+): string {
+	if (band == null) return "—";
+	return getLabel(CANDIDATE_EXPERIENCE_BAND_OPTIONS, band);
+}
 
 export type ProfessionalInformationCardProps = {
 	profile: CandidateMeOnboarding | null;
@@ -20,7 +31,7 @@ export type ProfessionalInformationCardProps = {
 export function ProfessionalInformationCard({
 	profile,
 	editProfessionalSlot,
-}: ProfessionalInformationCardProps) {
+}: Readonly<ProfessionalInformationCardProps>) {
 	const specialties = profile?.specialties ?? [];
 	const locations = profile?.locations ?? [];
 	const preferredShiftTypes = profile?.preferredShiftTypes ?? [];
@@ -73,11 +84,9 @@ export function ProfessionalInformationCard({
 					<DetailItem
 						icon={Briefcase}
 						label="Experience"
-						value={
-							profile?.yearsOfExperience != null
-								? `${profile.yearsOfExperience} year${profile.yearsOfExperience === 1 ? "" : "s"}`
-								: "—"
-						}
+						value={experienceBandLabel(
+							profile?.totalProfessionalExperienceBand ?? null,
+						)}
 					/>
 
 					{preferredShiftTypes.length > 0 && (
@@ -104,8 +113,9 @@ export function ProfessionalInformationCard({
 								<div className="flex flex-wrap gap-2">
 									{locations.map((loc) => (
 										<Badge key={loc.id} variant="info">
-											{[loc.city, loc.state].filter(Boolean).join(", ") ||
-												loc.name}
+											{[loc.name, loc.city, loc.state]
+												.filter(Boolean)
+												.join(", ") || loc.name}
 										</Badge>
 									))}
 								</div>

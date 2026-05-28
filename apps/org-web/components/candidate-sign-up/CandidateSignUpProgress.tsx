@@ -64,7 +64,7 @@ interface CandidateSignUpProgressProps {
 export function CandidateSignUpProgress({
 	currentStep,
 	isInviteMode,
-}: CandidateSignUpProgressProps) {
+}: Readonly<CandidateSignUpProgressProps>) {
 	const router = useRouter();
 	const steps = SIGN_UP_STEPS;
 	const icons = STEP_ICONS;

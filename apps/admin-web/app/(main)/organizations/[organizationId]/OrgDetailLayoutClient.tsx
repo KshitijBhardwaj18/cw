@@ -13,7 +13,7 @@ type OrganizationDetailPageLayoutProps = {
 
 function OrgDetailLayoutClient({
 	children,
-}: OrganizationDetailPageLayoutProps) {
+}: Readonly<OrganizationDetailPageLayoutProps>) {
 	const params = useParams();
 	const organizationId = params.organizationId as string;
 	const { data: org } = useOrganization(organizationId);

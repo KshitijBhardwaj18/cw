@@ -122,6 +122,27 @@ const generateHistory = (organizationId: string): TimesheetData[] => {
 			locId: LOCATION_ID.REHAB,
 			baseShift: { in: "08:30 AM", out: "05:00 PM", break: 30 },
 		},
+		{
+			id: CANDIDATE_ID.MARCUS_V,
+			placementId: PLACEMENT_ID.QUINN_MARCUS_V,
+			deptId: DEPT_ID.ICU,
+			locId: LOCATION_ID.MAIN,
+			baseShift: { in: "07:00 PM", out: "07:30 AM", break: 30 },
+		},
+		{
+			id: CANDIDATE_ID.SARAH_P,
+			placementId: PLACEMENT_ID.QUINN_SARAH_P,
+			deptId: DEPT_ID.ED,
+			locId: LOCATION_ID.URGENT,
+			baseShift: { in: "07:00 AM", out: "07:30 PM", break: 30 },
+		},
+		{
+			id: CANDIDATE_ID.DAVID_L,
+			placementId: PLACEMENT_ID.QUINN_DAVID_L,
+			deptId: DEPT_ID.REHAB,
+			locId: LOCATION_ID.MAIN,
+			baseShift: { in: "08:00 AM", out: "04:30 PM", break: 30 },
+		},
 	];
 
 	const now = new Date();

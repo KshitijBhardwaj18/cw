@@ -31,7 +31,6 @@ import { FileText, Shield, StickyNote, User } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PLACEMENT_STATUS_VARIANTS } from "@/constants/placement-status";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	usePlacementDetailSuspense,
 	usePlacementNotes,
@@ -58,11 +57,10 @@ export function PlacementDetailsPageContent({
 	placementId,
 	backLinkHref,
 	complianceMode = "org",
-}: PlacementDetailsPageContentProps) {
-	const { id: orgId } = useOrgContext();
-	const { data: placement } = usePlacementDetailSuspense(orgId, placementId);
-	const { data: notesForTabBadge = [] } = usePlacementNotes(orgId, placementId);
-	const { data: tasksForTabBadge = [] } = usePlacementTasks(orgId, placementId);
+}: Readonly<PlacementDetailsPageContentProps>) {
+	const { data: placement } = usePlacementDetailSuspense(placementId);
+	const { data: notesForTabBadge = [] } = usePlacementNotes(placementId);
+	const { data: tasksForTabBadge = [] } = usePlacementTasks(placementId);
 
 	const [tab, setTab] = useTabSwitch([
 		"placement-details",
@@ -227,10 +225,7 @@ export function PlacementDetailsPageContent({
 							</div>
 						}
 					>
-						<PlacementOfferHistoryTabContent
-							placementId={placementId}
-							orgId={orgId}
-						/>
+						<PlacementOfferHistoryTabContent placementId={placementId} />
 					</Suspense>
 				</TabsContent>
 				<TabsContent value="notes-tasks" className="mt-6">

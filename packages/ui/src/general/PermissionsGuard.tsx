@@ -20,7 +20,7 @@ export function PermissionsGuard({
 	match = "all",
 	children,
 	fallback,
-}: PermissionsGuardProps) {
+}: Readonly<PermissionsGuardProps>) {
 	const ability = useAbility();
 	const canAccess =
 		match === "any"

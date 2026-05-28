@@ -29,6 +29,7 @@ import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useEnrollOrgUser } from "@/queries/organizations.query";
 import {
@@ -43,6 +44,16 @@ const ROLE_OPTIONS = [
 	MemberRole.OPERATIONS,
 ];
 
+const ENROLL_ORG_USER_EMPTY: EnrollOrgUserFormValues = {
+	firstName: "",
+	lastName: "",
+	title: "",
+	email: "",
+	officePhone: "",
+	phoneNumber: "",
+	role: "" as MemberRole,
+};
+
 type EnrollOrganizationUserDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -53,21 +64,11 @@ export function EnrollOrganizationUserDialog({
 	open,
 	onOpenChange,
 	organizationId,
-}: EnrollOrganizationUserDialogProps) {
+}: Readonly<EnrollOrganizationUserDialogProps>) {
 	const enrollMutation = useEnrollOrgUser(organizationId);
 
-	const defaultValues: EnrollOrgUserFormValues = {
-		firstName: "",
-		lastName: "",
-		title: "",
-		email: "",
-		officePhone: "",
-		phoneNumber: "",
-		role: "" as MemberRole,
-	};
-
 	const form = useForm({
-		defaultValues,
+		defaultValues: ENROLL_ORG_USER_EMPTY,
 		validators: { onSubmit: enrollOrgUserSchema },
 		onSubmitInvalid: () => {
 			toast.error("Please fill in all required fields");
@@ -87,7 +88,6 @@ export function EnrollOrganizationUserDialog({
 					onSuccess: () => {
 						toast.success("User enrolled successfully");
 						onOpenChange(false);
-						form.reset();
 					},
 					onError: (error) => {
 						toast.error(
@@ -104,8 +104,15 @@ export function EnrollOrganizationUserDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
+	const wasOpenRef = useRef(false);
+	useEffect(() => {
+		if (open && !wasOpenRef.current) {
+			form.reset(ENROLL_ORG_USER_EMPTY);
+		}
+		wasOpenRef.current = open;
+	}, [open, form]);
+
 	const handleOpenChange = (next: boolean) => {
-		if (!next) form.reset();
 		onOpenChange(next);
 	};
 

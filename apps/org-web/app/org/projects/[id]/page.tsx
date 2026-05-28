@@ -6,7 +6,7 @@ type ProjectDetailPageProps = {
 
 export default async function ProjectDetailPage({
 	params,
-}: ProjectDetailPageProps) {
+}: Readonly<ProjectDetailPageProps>) {
 	const { id } = await params;
 	return <ProjectDetailsPageContent projectId={id} />;
 }

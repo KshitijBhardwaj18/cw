@@ -23,7 +23,7 @@ export async function generateMetadata({
 
 export default async function ComplianceCategoryListPage({
 	params,
-}: ComplianceCategoryListPageProps) {
+}: Readonly<ComplianceCategoryListPageProps>) {
 	const { listType } = await params;
 	const category = complianceSlugToCategory(listType);
 

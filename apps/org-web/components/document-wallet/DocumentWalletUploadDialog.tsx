@@ -1,6 +1,9 @@
 "use client";
 
-import { getComplianceListItemCategoryLabel } from "@repo/shared";
+import {
+	ComplianceListItemExpirationType,
+	formatExpiryFromRule,
+} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { DatePicker } from "@repo/ui/components/date-picker";
 import {
@@ -12,94 +15,83 @@ import {
 	DialogTitle,
 } from "@repo/ui/components/dialog";
 import { Field, FieldContent, FieldLabel } from "@repo/ui/components/field";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@repo/ui/components/select";
 import { DNDDocumentUpload } from "@repo/ui/general/DNDDocumentUpload";
 import RequiredStar from "@repo/ui/general/RequiredStar";
 import type { UseMutationResult } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-	DOCUMENT_WALLET_CATEGORIES_CANDIDATE,
-	type DocumentCategoryId,
-	type DocumentWalletCategory,
-} from "@/components/document-wallet/mock-document-wallet";
 import type {
-	CandidateDocumentWalletPickerItem,
+	CandidateDocumentWalletItem,
 	CandidateDocumentWalletUploadVars,
 } from "@/types/candidate-document-wallet";
 
-export type DocumentWalletUploadDialogProps =
-	| DocumentWalletUploadDialogApiProps
-	| DocumentWalletUploadDialogMockProps;
-
-type DocumentWalletUploadDialogApiProps = {
+export interface DocumentWalletUploadDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	pickerItems: CandidateDocumentWalletPickerItem[];
-	defaultComplianceListItemId?: string;
+	item: CandidateDocumentWalletItem | null;
 	uploadMutation: Pick<
-		UseMutationResult<
-			{ success: true },
-			Error,
-			CandidateDocumentWalletUploadVars
-		>,
+		UseMutationResult<unknown, Error, CandidateDocumentWalletUploadVars>,
 		"mutate" | "isPending"
 	>;
-};
-
-type DocumentWalletUploadDialogMockProps = {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	defaultCategoryId?: DocumentCategoryId;
-	/** Mock category list for the select (defaults to candidate mock categories). */
-	mockCategories?: DocumentWalletCategory[];
-};
-
-export function DocumentWalletUploadDialog(
-	props: DocumentWalletUploadDialogProps,
-) {
-	if ("uploadMutation" in props) {
-		return <DocumentWalletUploadDialogApi {...props} />;
-	}
-	return <DocumentWalletUploadDialogMock {...props} />;
 }
 
-function DocumentWalletUploadDialogApi({
+export function DocumentWalletUploadDialog({
 	open,
 	onOpenChange,
-	pickerItems,
-	defaultComplianceListItemId,
+	item,
 	uploadMutation,
-}: DocumentWalletUploadDialogApiProps) {
-	const [complianceListItemId, setComplianceListItemId] = useState("");
+}: Readonly<DocumentWalletUploadDialogProps>) {
 	const [files, setFiles] = useState<File[]>([]);
 	const [expiryDate, setExpiryDate] = useState("");
+	const [issueDate, setIssueDate] = useState("");
 
 	useEffect(() => {
 		if (!open) return;
-		setComplianceListItemId(defaultComplianceListItemId ?? "");
 		setFiles([]);
 		setExpiryDate("");
-	}, [open, defaultComplianceListItemId]);
+		setIssueDate("");
+	}, [open]);
+
+	const computedExpiry = useMemo(() => {
+		if (
+			!item ||
+			item.expirationType !== ComplianceListItemExpirationType.EXPIRATION_RULE
+		)
+			return null;
+		return formatExpiryFromRule(
+			issueDate,
+			item.expirationRuleValue,
+			item.expirationRuleUnit,
+		);
+	}, [issueDate, item]);
+
+	const hasRequiredDate =
+		!item ||
+		item.expirationType === ComplianceListItemExpirationType.NON_EXPIRABLE ||
+		(item.expirationType === ComplianceListItemExpirationType.EXPIRATION_RULE &&
+			!!issueDate.trim()) ||
+		(item.expirationType === ComplianceListItemExpirationType.EXPIRATION_DATE &&
+			!!expiryDate.trim());
 
 	const canSubmit =
-		complianceListItemId !== "" &&
-		files.length > 0 &&
-		!uploadMutation.isPending;
+		!!item && files.length > 0 && hasRequiredDate && !uploadMutation.isPending;
 
 	const handleSubmit = () => {
-		if (!canSubmit || !files[0]) return;
+		if (!canSubmit || !files[0] || !item) return;
 		uploadMutation.mutate(
 			{
-				complianceListItemId,
+				complianceListItemId: item.complianceListItemId,
 				file: files[0],
-				expiryDate: expiryDate.trim() || undefined,
+				expiryDate:
+					item.expirationType ===
+					ComplianceListItemExpirationType.EXPIRATION_DATE
+						? expiryDate.trim() || undefined
+						: undefined,
+				issueDate:
+					item.expirationType ===
+					ComplianceListItemExpirationType.EXPIRATION_RULE
+						? issueDate.trim() || undefined
+						: undefined,
 			},
 			{
 				onSuccess: () => {
@@ -119,44 +111,11 @@ function DocumentWalletUploadDialogApi({
 				<DialogHeader>
 					<DialogTitle>Upload Document</DialogTitle>
 					<DialogDescription>
-						Upload your compliance document for review.
+						{item?.title ?? "Upload your compliance document for review."}
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-5 pt-2">
-					<Field>
-						<FieldLabel>
-							Requirement <RequiredStar />
-						</FieldLabel>
-						<FieldContent>
-							{pickerItems.length === 0 ? (
-								<p className="text-muted-foreground text-sm">
-									No items need a new upload right now.
-								</p>
-							) : (
-								<Select
-									value={complianceListItemId || undefined}
-									onValueChange={setComplianceListItemId}
-								>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Select requirement…" />
-									</SelectTrigger>
-									<SelectContent>
-										{pickerItems.map((p) => (
-											<SelectItem
-												key={p.complianceListItemId}
-												value={p.complianceListItemId}
-											>
-												{getComplianceListItemCategoryLabel(p.categoryKey)} —{" "}
-												{p.title}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							)}
-						</FieldContent>
-					</Field>
-
 					<Field>
 						<FieldLabel>
 							Upload File <RequiredStar />
@@ -173,17 +132,47 @@ function DocumentWalletUploadDialogApi({
 						</FieldContent>
 					</Field>
 
-					<Field>
-						<FieldLabel>Expiry Date (Optional)</FieldLabel>
-						<FieldContent>
-							<DatePicker
-								value={expiryDate}
-								onChange={setExpiryDate}
-								placeholder="Select expiry date"
-								clearable
-							/>
-						</FieldContent>
-					</Field>
+					{item?.expirationType ===
+						ComplianceListItemExpirationType.EXPIRATION_RULE && (
+						<Field>
+							<FieldLabel>
+								Issue Date <RequiredStar />
+							</FieldLabel>
+							<FieldContent>
+								<DatePicker
+									value={issueDate}
+									onChange={setIssueDate}
+									placeholder="Select issue date"
+									clearable
+								/>
+								{computedExpiry && (
+									<p className="text-muted-foreground mt-1 text-xs">
+										Expires automatically on{" "}
+										<span className="font-medium">{computedExpiry}</span> (
+										{item.expirationRuleValue}{" "}
+										{item.expirationRuleUnit?.toLowerCase()} from issue date)
+									</p>
+								)}
+							</FieldContent>
+						</Field>
+					)}
+
+					{item?.expirationType ===
+						ComplianceListItemExpirationType.EXPIRATION_DATE && (
+						<Field>
+							<FieldLabel>
+								Expiration Date <RequiredStar />
+							</FieldLabel>
+							<FieldContent>
+								<DatePicker
+									value={expiryDate}
+									onChange={setExpiryDate}
+									placeholder="Select expiration date"
+									clearable
+								/>
+							</FieldContent>
+						</Field>
+					)}
 				</div>
 
 				<DialogFooter className="gap-2 sm:justify-between">
@@ -196,111 +185,6 @@ function DocumentWalletUploadDialogApi({
 					</Button>
 					<Button type="button" disabled={!canSubmit} onClick={handleSubmit}>
 						{uploadMutation.isPending ? "Uploading…" : "Upload Document"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-	);
-}
-
-function DocumentWalletUploadDialogMock({
-	open,
-	onOpenChange,
-	defaultCategoryId,
-	mockCategories = DOCUMENT_WALLET_CATEGORIES_CANDIDATE,
-}: DocumentWalletUploadDialogMockProps) {
-	const [categoryId, setCategoryId] = useState<DocumentCategoryId | "">("");
-	const [files, setFiles] = useState<File[]>([]);
-	const [expiryDate, setExpiryDate] = useState("");
-
-	useEffect(() => {
-		if (!open) return;
-		setCategoryId(defaultCategoryId ?? "");
-		setFiles([]);
-		setExpiryDate("");
-	}, [open, defaultCategoryId]);
-
-	const canSubmit = categoryId !== "" && files.length > 0;
-
-	const handleSubmit = () => {
-		if (!canSubmit) return;
-		toast.success("Document upload is mocked — no file was sent.");
-		onOpenChange(false);
-	};
-
-	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
-				<DialogHeader>
-					<DialogTitle>Upload Document</DialogTitle>
-					<DialogDescription>
-						Upload your compliance document for review.
-					</DialogDescription>
-				</DialogHeader>
-
-				<div className="space-y-5 pt-2">
-					<Field>
-						<FieldLabel>
-							Document Category <RequiredStar />
-						</FieldLabel>
-						<FieldContent>
-							<Select
-								value={categoryId || undefined}
-								onValueChange={(v) => setCategoryId(v as DocumentCategoryId)}
-							>
-								<SelectTrigger className="w-full">
-									<SelectValue placeholder="Select category..." />
-								</SelectTrigger>
-								<SelectContent>
-									{mockCategories.map((cat) => (
-										<SelectItem key={cat.id} value={cat.id}>
-											{cat.label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</FieldContent>
-					</Field>
-
-					<Field>
-						<FieldLabel>
-							Upload File <RequiredStar />
-						</FieldLabel>
-						<FieldContent>
-							<DNDDocumentUpload
-								files={files}
-								onFilesChange={setFiles}
-								maxFiles={1}
-								maxSize={10}
-								allowedTypes={["pdf", "jpg", "png"]}
-								hint="PDF, JPG, PNG (Max 10MB)"
-							/>
-						</FieldContent>
-					</Field>
-
-					<Field>
-						<FieldLabel>Expiry Date (Optional)</FieldLabel>
-						<FieldContent>
-							<DatePicker
-								value={expiryDate}
-								onChange={setExpiryDate}
-								placeholder="Select expiry date"
-								clearable
-							/>
-						</FieldContent>
-					</Field>
-				</div>
-
-				<DialogFooter className="gap-2 sm:justify-between">
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => onOpenChange(false)}
-					>
-						Cancel
-					</Button>
-					<Button type="button" disabled={!canSubmit} onClick={handleSubmit}>
-						Upload Document
 					</Button>
 				</DialogFooter>
 			</DialogContent>

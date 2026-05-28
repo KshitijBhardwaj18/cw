@@ -1,5 +1,6 @@
 import {
 	keepPreviousData,
+	type QueryClient,
 	useInfiniteQuery,
 	useMutation,
 	useQuery,
@@ -18,10 +19,32 @@ import type {
 } from "@/types/vendor";
 import { mspsKeys } from "./msps.query";
 import { organizationsKeys } from "./organizations.query";
+import { usersKeys } from "./users.query";
 
 export const OCCUPATION_QUERY_KEY = ["occupations"] as const;
 export const VENDOR_QUERY_KEY = ["vendors"] as const;
 export const vendorDetailKey = (id: string) => ["vendors", id] as const;
+
+export const vendorUsersKeys = {
+	byVendor: (vendorId: string, search?: string) =>
+		[...vendorDetailKey(vendorId), "users", search] as const,
+	listPrefix: (vendorId: string) =>
+		[...vendorDetailKey(vendorId), "users"] as const,
+};
+
+function invalidateVendorUserListingQueries(
+	queryClient: QueryClient,
+	vendorId: string,
+) {
+	queryClient.invalidateQueries({ queryKey: vendorDetailKey(vendorId) });
+	queryClient.invalidateQueries({
+		queryKey: vendorUsersKeys.listPrefix(vendorId),
+	});
+	queryClient.invalidateQueries({ queryKey: usersKeys.vendor });
+	queryClient.invalidateQueries({
+		queryKey: [...organizationsKeys.all, "vendorUsers"],
+	});
+}
 
 const VENDORS_PAGE_SIZE = 20;
 
@@ -72,7 +95,7 @@ export function useVendorDetailQuery(id: string | null) {
 
 export function useVendorUsersQuery(vendorId: string | null, search?: string) {
 	return useQuery({
-		queryKey: [...vendorDetailKey(vendorId ?? ""), "users", search] as const,
+		queryKey: vendorUsersKeys.byVendor(vendorId ?? "", search),
 		queryFn: () =>
 			VendorService.getVendorUsers(vendorId as string, search?.trim()),
 		enabled: !!vendorId,
@@ -190,10 +213,7 @@ export function useAddVendorUserMutation() {
 			payload: AddVendorUserPayload;
 		}) => VendorService.addUser(vendorId, payload),
 		onSuccess: (_, { vendorId }) => {
-			queryClient.invalidateQueries({ queryKey: vendorDetailKey(vendorId) });
-			queryClient.invalidateQueries({
-				queryKey: [...vendorDetailKey(vendorId), "users"],
-			});
+			invalidateVendorUserListingQueries(queryClient, vendorId);
 		},
 	});
 }
@@ -211,10 +231,7 @@ export function useUpdateVendorUserMutation() {
 			payload: UpdateVendorUserPayload;
 		}) => VendorService.updateUser(vendorId, vendorUserId, payload),
 		onSuccess: (_, { vendorId }) => {
-			queryClient.invalidateQueries({ queryKey: vendorDetailKey(vendorId) });
-			queryClient.invalidateQueries({
-				queryKey: [...vendorDetailKey(vendorId), "users"],
-			});
+			invalidateVendorUserListingQueries(queryClient, vendorId);
 		},
 	});
 }

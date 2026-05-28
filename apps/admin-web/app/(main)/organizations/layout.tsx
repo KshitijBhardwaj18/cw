@@ -10,7 +10,9 @@ type OrganizationPageLayoutProps = {
 	children: React.ReactNode;
 };
 
-function OrganizationPageLayout({ children }: OrganizationPageLayoutProps) {
+function OrganizationPageLayout({
+	children,
+}: Readonly<OrganizationPageLayoutProps>) {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.Read, subject: "Organization" }]}

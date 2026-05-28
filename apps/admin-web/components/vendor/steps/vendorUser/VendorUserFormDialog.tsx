@@ -29,8 +29,9 @@ import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { useDialogFormEntitySnapshot } from "@/hooks/use-dialog-form-entity-snapshot";
 import { useUpdateVendorUserMutation } from "@/queries/vendor.queries";
 import {
 	type VendorUserEditFormValues,
@@ -51,19 +52,21 @@ export function VendorUserFormDialog({
 	open,
 	onOpenChange,
 	vendorUser,
-}: VendorUserFormDialogProps) {
+}: Readonly<VendorUserFormDialogProps>) {
 	const updateMutation = useUpdateVendorUserMutation();
 	const isPending = updateMutation.isPending;
 
+	const snapshotVendorUser = useDialogFormEntitySnapshot(open, vendorUser);
+
 	const defaultValues: VendorUserEditFormValues = {
-		firstName: vendorUser?.firstName ?? "",
-		lastName: vendorUser?.lastName ?? "",
-		title: vendorUser?.title ?? "",
-		officePhone: vendorUser?.officePhone ?? "",
-		phoneNumber: vendorUser?.phoneNumber ?? "",
-		role: (vendorUser?.role ??
+		firstName: snapshotVendorUser?.firstName ?? "",
+		lastName: snapshotVendorUser?.lastName ?? "",
+		title: snapshotVendorUser?.title ?? "",
+		officePhone: snapshotVendorUser?.officePhone ?? "",
+		phoneNumber: snapshotVendorUser?.phoneNumber ?? "",
+		role: (snapshotVendorUser?.role ??
 			VendorUserRole.VENDOR_USER) as VendorUserEditFormValues["role"],
-		status: (vendorUser?.status ??
+		status: (snapshotVendorUser?.status ??
 			UserStatus.ACTIVE) as VendorUserEditFormValues["status"],
 	};
 
@@ -73,11 +76,11 @@ export function VendorUserFormDialog({
 			onSubmit: vendorUserEditFormSchema,
 		},
 		onSubmit: ({ value }) => {
-			if (!vendorUser?.vendorId) return;
+			if (!snapshotVendorUser?.vendorId) return;
 			updateMutation.mutate(
 				{
-					vendorId: vendorUser.vendorId,
-					vendorUserId: vendorUser.id,
+					vendorId: snapshotVendorUser.vendorId,
+					vendorUserId: snapshotVendorUser.id,
 					payload: {
 						firstName: value.firstName.trim(),
 						lastName: value.lastName.trim(),
@@ -92,7 +95,6 @@ export function VendorUserFormDialog({
 					onSuccess: () => {
 						toast.success("Vendor user updated successfully");
 						onOpenChange(false);
-						form.reset();
 					},
 					onError: (err) =>
 						toast.error(
@@ -110,23 +112,24 @@ export function VendorUserFormDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
+	const wasOpenRef = useRef(false);
 	useEffect(() => {
-		if (open && vendorUser) {
+		if (open && !wasOpenRef.current && snapshotVendorUser) {
 			form.reset({
-				firstName: vendorUser.firstName,
-				lastName: vendorUser.lastName,
-				title: vendorUser.title ?? "",
-				officePhone: vendorUser.officePhone ?? "",
-				phoneNumber: vendorUser.phoneNumber ?? "",
-				role: vendorUser.role as VendorUserEditFormValues["role"],
-				status: vendorUser.status as VendorUserEditFormValues["status"],
+				firstName: snapshotVendorUser.firstName,
+				lastName: snapshotVendorUser.lastName,
+				title: snapshotVendorUser.title ?? "",
+				officePhone: snapshotVendorUser.officePhone ?? "",
+				phoneNumber: snapshotVendorUser.phoneNumber ?? "",
+				role: snapshotVendorUser.role as VendorUserEditFormValues["role"],
+				status: snapshotVendorUser.status as VendorUserEditFormValues["status"],
 			});
 		}
-	}, [open, vendorUser, form]);
+		wasOpenRef.current = open;
+	}, [open, snapshotVendorUser, form]);
 
 	const handleOpenChange = (nextOpen: boolean) => {
 		if (isPending) return;
-		if (!nextOpen) form.reset();
 		onOpenChange(nextOpen);
 	};
 

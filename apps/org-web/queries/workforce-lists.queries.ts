@@ -8,71 +8,58 @@ import { WorkforceListsService } from "@/services/workforce-lists.service";
 
 export const workforceListsKeys = {
 	all: ["workforce-lists"] as const,
-	lists: (orgId: string, query: WorkforceListsQuery) =>
-		[...workforceListsKeys.all, "lists", orgId, query] as const,
-	detail: (orgId: string, listId: string) =>
-		[...workforceListsKeys.all, "detail", orgId, listId] as const,
-	members: (orgId: string, listId: string, query: WorkforceListMembersQuery) =>
-		[...workforceListsKeys.all, "members", orgId, listId, query] as const,
-	availableCandidates: (
-		orgId: string,
-		listId: string,
-		query: WorkforceListMembersQuery,
-	) =>
-		[
-			...workforceListsKeys.all,
-			"available-candidates",
-			orgId,
-			listId,
-			query,
-		] as const,
+	lists: (query: WorkforceListsQuery) =>
+		[...workforceListsKeys.all, "lists", query] as const,
+	detail: (listId: string) =>
+		[...workforceListsKeys.all, "detail", listId] as const,
+	members: (listId: string, query: WorkforceListMembersQuery) =>
+		[...workforceListsKeys.all, "members", listId, query] as const,
+	availableCandidates: (listId: string, query: WorkforceListMembersQuery) =>
+		[...workforceListsKeys.all, "available-candidates", listId, query] as const,
 };
 
-export function useWorkforceLists(orgId: string, query: WorkforceListsQuery) {
+export function useWorkforceLists(query: WorkforceListsQuery) {
 	return useQuery({
-		queryKey: workforceListsKeys.lists(orgId, query),
+		queryKey: workforceListsKeys.lists(query),
 		queryFn: () => WorkforceListsService.list(query),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useWorkforceList(orgId: string, listId: string) {
+export function useWorkforceList(listId: string) {
 	return useQuery({
-		queryKey: workforceListsKeys.detail(orgId, listId),
+		queryKey: workforceListsKeys.detail(listId),
 		queryFn: () => WorkforceListsService.get(listId),
-		enabled: !!orgId && !!listId,
+		enabled: !!listId,
 		refetchOnMount: "always",
 	});
 }
 
 export function useWorkforceListMembers(
-	orgId: string,
 	listId: string,
 	query: WorkforceListMembersQuery,
 ) {
 	return useQuery({
-		queryKey: workforceListsKeys.members(orgId, listId, query),
+		queryKey: workforceListsKeys.members(listId, query),
 		queryFn: () => WorkforceListsService.listMembers(listId, query),
-		enabled: !!orgId && !!listId,
+		enabled: !!listId,
 		refetchOnMount: "always",
 	});
 }
 
 export function useAvailableCandidates(
-	orgId: string,
 	listId: string,
 	query: WorkforceListMembersQuery,
 ) {
 	return useQuery({
-		queryKey: workforceListsKeys.availableCandidates(orgId, listId, query),
+		queryKey: workforceListsKeys.availableCandidates(listId, query),
 		queryFn: () => WorkforceListsService.listAvailableCandidates(listId, query),
-		enabled: !!orgId && !!listId,
+		enabled: !!listId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useCreateWorkforceList(_orgId: string) {
+export function useCreateWorkforceList() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (input: { name: string; description?: string }) =>
@@ -83,7 +70,7 @@ export function useCreateWorkforceList(_orgId: string) {
 	});
 }
 
-export function useDeleteWorkforceList(_orgId: string) {
+export function useDeleteWorkforceList() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (listId: string) => WorkforceListsService.remove(listId),
@@ -93,7 +80,7 @@ export function useDeleteWorkforceList(_orgId: string) {
 	});
 }
 
-export function useAddWorkforceListMembers(_orgId: string, listId: string) {
+export function useAddWorkforceListMembers(listId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (candidateIds: string[]) =>
@@ -104,7 +91,7 @@ export function useAddWorkforceListMembers(_orgId: string, listId: string) {
 	});
 }
 
-export function useRemoveWorkforceListMember(_orgId: string, listId: string) {
+export function useRemoveWorkforceListMember(listId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (memberId: string) =>
@@ -115,7 +102,7 @@ export function useRemoveWorkforceListMember(_orgId: string, listId: string) {
 	});
 }
 
-export function useBulkTagWorkforceList(_orgId: string, listId: string) {
+export function useBulkTagWorkforceList(listId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (input: { tagName: string; memberIds?: string[] }) =>

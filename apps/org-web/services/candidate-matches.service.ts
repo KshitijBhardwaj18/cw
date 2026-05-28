@@ -35,6 +35,15 @@ export class CandidateMatchesService {
 		});
 	}
 
+	static async submitForVendorReview(
+		requisitionId: string,
+	): Promise<{ submitted: true }> {
+		return ApiClient.request<{ submitted: true }>({
+			method: "POST",
+			url: `/api/candidates/me/matches/${requisitionId}/submit-for-vendor-review`,
+		});
+	}
+
 	static async applyToJob(body: {
 		requisitionId: string;
 		summaryNote?: string;

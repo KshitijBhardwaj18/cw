@@ -18,6 +18,7 @@ import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useStore } from "@tanstack/react-form";
 import { JOB_POSTING_PUBLISH_MODE_OPTIONS } from "@/constants/job-posting-flow";
 import { useJobPostingPublishSettingsStepForm } from "@/hooks/job-posting/use-job-posting-publish-settings-step-form";
+import { todayIsoDate } from "@/schemas/job-posting-details.schema";
 import type { JobPostingPublishValues } from "@/schemas/job-posting-publish.schema";
 
 interface PublishSettingsStepProps {
@@ -34,7 +35,7 @@ export function PublishSettingsStep({
 	onCancel,
 	onSubmit,
 	isPending = false,
-}: PublishSettingsStepProps) {
+}: Readonly<PublishSettingsStepProps>) {
 	const { form, lockFields, handleFormSubmit } =
 		useJobPostingPublishSettingsStepForm({
 			initialValues,
@@ -46,6 +47,10 @@ export function PublishSettingsStep({
 		form.store,
 		(s) => s.submissionAttempts ?? 0,
 	);
+
+	const values = useStore(form.store, (s) => s.values);
+	const now = new Date();
+	const currentTime = now.toTimeString().slice(0, 5);
 
 	return (
 		<Card>
@@ -123,6 +128,7 @@ export function PublishSettingsStep({
 														placeholder="Select publish date"
 														aria-invalid={isInvalid}
 														disabled={lockFields}
+														min={todayIsoDate()}
 													/>
 													{isInvalid && (
 														<FieldError errors={field.state.meta.errors} />
@@ -145,14 +151,17 @@ export function PublishSettingsStep({
 														Publish Time <RequiredStar />
 													</FieldLabel>
 													<TimePicker
-														value={field.state.value ?? ""}
-														onChange={(value) =>
-															field.handleChange(value || "")
-														}
+														value={field.state.value}
+														onChange={field.handleChange}
 														onBlur={field.handleBlur}
 														placeholder="Select publish time"
 														aria-invalid={isInvalid}
 														disabled={lockFields}
+														min={
+															values.scheduledPublishDate === todayIsoDate()
+																? currentTime
+																: undefined
+														}
 													/>
 													{isInvalid && (
 														<FieldError errors={field.state.meta.errors} />
@@ -183,13 +192,8 @@ export function PublishSettingsStep({
 						>
 							Cancel
 						</Button>
-						<Button
-							type="submit"
-							disabled={form.state.isSubmitting || isPending}
-						>
-							{form.state.isSubmitting || isPending
-								? "Saving..."
-								: "Next \u2192"}
+						<Button type="submit" disabled={isPending}>
+							{isPending ? "Saving..." : "Next \u2192"}
 						</Button>
 					</div>
 				</form>

@@ -9,8 +9,8 @@ import {
 	EmptyTitle,
 } from "@repo/ui/components/empty";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
 import LoadingScreen from "@repo/ui/general/LoadingScreen";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { Briefcase, Plus } from "lucide-react";
 import Link from "next/link";
@@ -25,7 +25,7 @@ interface ProjectDetailsPageContentProps {
 
 export function ProjectDetailsPageContent({
 	projectId,
-}: ProjectDetailsPageContentProps) {
+}: Readonly<ProjectDetailsPageContentProps>) {
 	const {
 		metaQuery,
 		statsQuery,
@@ -36,6 +36,9 @@ export function ProjectDetailsPageContent({
 		requisitionsTotal,
 		requisitionsPage,
 		setRequisitionsPage,
+		requisitionsLimit,
+		setRequisitionsLimit,
+		requisitionsPageSizeOptions,
 		requisitionsTotalPages,
 		addRequisitionsOpen,
 		setAddRequisitionsOpen,
@@ -231,10 +234,16 @@ export function ProjectDetailsPageContent({
 								/>
 							))}
 							<div className="px-6 pb-6">
-								<ConfigPagePagination
-									page={requisitionsPage}
-									totalPages={requisitionsTotalPages}
-									onPageChange={setRequisitionsPage}
+								<PaginationControls
+									currentPage={requisitionsPage}
+									pageCount={requisitionsTotalPages}
+									goToPage={setRequisitionsPage}
+									limit={requisitionsLimit}
+									setLimit={setRequisitionsLimit}
+									pageSizeOptions={requisitionsPageSizeOptions}
+									totalItems={requisitionsTotal}
+									itemLabel="requisition"
+									itemLabelPlural="requisitions"
 								/>
 							</div>
 						</>

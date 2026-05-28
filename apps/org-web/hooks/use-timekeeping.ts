@@ -1,6 +1,13 @@
 "use client";
 
-import { exportAsCSV, formatDateRange } from "@repo/shared";
+import {
+	exportAsCSV,
+	formatTzShortDate,
+	formatUtcLongDate,
+	type OrganizationTimezone,
+	TimesheetEntryStatus,
+	utcInstantToIsoDateString,
+} from "@repo/shared";
 import type {
 	ApprovalStatusFilter,
 	DataSourceFilter,
@@ -9,6 +16,7 @@ import type {
 	LocationTimekeeping,
 	MissingTimeEntry,
 	TimeApprovalEntry,
+	TimeEntryStatus,
 	TimeLog,
 	TimeReportGroupByOption,
 	WorkerTimekeeping,
@@ -26,7 +34,7 @@ import {
 	DATA_SOURCE_OPTIONS,
 	TIMEKEEPING_POLICY_DEFAULTS,
 } from "@/constants/timekeeping";
-import { useOrgContext } from "@/contexts/org-context";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useBulkSendReminders,
 	useCreateDispute,
@@ -51,18 +59,6 @@ import type {
 	TimeEntryLog,
 } from "@/services/timekeeping.service";
 import { TimekeepingService } from "@/services/timekeeping.service";
-import { fmtDate } from "@/utils/format";
-
-function workDateToIso(workDate: string | null | undefined): string {
-	if (!workDate) return "";
-	try {
-		const d = new Date(workDate);
-		if (Number.isNaN(d.getTime())) return "";
-		return d.toISOString().slice(0, 10);
-	} catch {
-		return "";
-	}
-}
 
 function getDaysSince(iso: string | null | undefined): number {
 	if (!iso) return 0;
@@ -70,12 +66,12 @@ function getDaysSince(iso: string | null | undefined): number {
 	return Math.floor(diff / 86_400_000);
 }
 
-function deriveWorkerStatus(
-	logs: TimeEntryLog[],
-): "PENDING" | "APPROVED" | "DISPUTED" {
-	if (logs.some((l) => l.status === "DISPUTED")) return "DISPUTED";
-	if (logs.some((l) => l.status === "PENDING")) return "PENDING";
-	return "APPROVED";
+function deriveWorkerStatus(logs: TimeEntryLog[]): TimesheetEntryStatus {
+	if (logs.some((l) => l.status === TimesheetEntryStatus.DISPUTED))
+		return TimesheetEntryStatus.DISPUTED;
+	if (logs.some((l) => l.status === TimesheetEntryStatus.PENDING))
+		return TimesheetEntryStatus.PENDING;
+	return TimesheetEntryStatus.APPROVED;
 }
 
 function deriveWorkerSource(
@@ -88,15 +84,15 @@ function deriveWorkerSource(
 
 function toTimeLog(entry: TimeEntryLog): TimeLog {
 	const openDisputeDescription =
-		entry.status === "DISPUTED"
+		entry.status === TimesheetEntryStatus.DISPUTED
 			? (entry.disputes?.[0]?.description ?? null)
 			: null;
 	const noteForDisplay =
-		entry.status === "DISPUTED"
+		entry.status === TimesheetEntryStatus.DISPUTED
 			? (openDisputeDescription ?? entry.notes ?? null)
 			: (entry.notes ?? null);
 
-	const day = workDateToIso(entry.workDate);
+	const day = utcInstantToIsoDateString(entry.workDate);
 
 	return {
 		id: entry.id,
@@ -107,7 +103,7 @@ function toTimeLog(entry: TimeEntryLog): TimeLog {
 		endTime: entry.clockOut ?? "—",
 		totalHours: entry.hours ?? entry.regularHours + entry.overtimeHours,
 		note: noteForDisplay,
-		status: entry.status as "PENDING" | "APPROVED" | "DISPUTED",
+		status: entry.status as TimeEntryStatus,
 		approvalSource: (entry.approvalSource as "Auto" | "Manual") ?? undefined,
 		source: entry.dataSource === "MOBILE_APP" ? "MOBILE_APP" : "FILE_UPLOAD",
 	};
@@ -149,15 +145,15 @@ function toLocationTimekeeping(loc: LocationGrouped): LocationTimekeeping {
 function toTimeApprovalEntry(entry: TimeEntryLog): TimeApprovalEntry {
 	const pendingDays = getDaysSince(entry.workDate);
 	const openDisputeDescription =
-		entry.status === "DISPUTED"
+		entry.status === TimesheetEntryStatus.DISPUTED
 			? (entry.disputes?.[0]?.description ?? null)
 			: null;
 	const noteForDisplay =
-		entry.status === "DISPUTED"
+		entry.status === TimesheetEntryStatus.DISPUTED
 			? (openDisputeDescription ?? entry.notes ?? null)
 			: (entry.notes ?? null);
 
-	const day = workDateToIso(entry.workDate);
+	const day = utcInstantToIsoDateString(entry.workDate);
 
 	return {
 		id: entry.id,
@@ -168,7 +164,7 @@ function toTimeApprovalEntry(entry: TimeEntryLog): TimeApprovalEntry {
 		regularHours: entry.regularHours,
 		overtimeHours: entry.overtimeHours,
 		totalHours: entry.hours ?? entry.regularHours + entry.overtimeHours,
-		status: entry.status as "PENDING" | "APPROVED" | "DISPUTED",
+		status: entry.status as TimeEntryStatus,
 		startTime: entry.clockIn ?? "—",
 		endTime: entry.clockOut ?? "—",
 		payCode: (entry.payCode?.code ?? "REG") as TimeApprovalEntry["payCode"],
@@ -181,20 +177,26 @@ function toTimeApprovalEntry(entry: TimeEntryLog): TimeApprovalEntry {
 	};
 }
 
-function toDisputeLogEntry(item: DisputeItem): DisputeLogEntry {
+function toDisputeLogEntry(
+	item: DisputeItem,
+	tz?: OrganizationTimezone,
+): DisputeLogEntry {
 	let status: DisputeStatus = "Open";
 	if (item.resolutionCategory === "REJECTED") status = "Rejected";
 	else if (item.resolution !== null) status = "Resolved";
 
 	const workDateIso = item.timesheetEntry?.workDate
-		? workDateToIso(item.timesheetEntry.workDate)
+		? utcInstantToIsoDateString(item.timesheetEntry.workDate)
 		: "";
+
+	const fmtTs = (iso: string | null | undefined) =>
+		tz ? formatTzShortDate(iso, tz) : formatUtcLongDate(iso);
 
 	return {
 		id: item.id,
 		workerName: item.timesheet.candidate.user.name ?? "Unknown",
 		position: item.timesheetEntry?.placement?.jobTitle ?? "",
-		date: workDateIso || fmtDate(item.timesheetEntry?.workDate),
+		date: workDateIso || formatUtcLongDate(item.timesheetEntry?.workDate),
 		startTime: item.timesheetEntry?.clockIn ?? "—",
 		endTime: item.timesheetEntry?.clockOut ?? "—",
 		payCode: item.timesheetEntry?.payCode?.code ?? "",
@@ -209,9 +211,9 @@ function toDisputeLogEntry(item: DisputeItem): DisputeLogEntry {
 		submittedBy: {
 			name: item.raisedBy?.name ?? "Unknown",
 			role: item.raisedBy?.role ?? "",
-			timestamp: fmtDate(item.raisedAt),
+			timestamp: fmtTs(item.raisedAt),
 		},
-		resolvedAt: item.resolvedAt ? fmtDate(item.resolvedAt) : undefined,
+		resolvedAt: item.resolvedAt ? fmtTs(item.resolvedAt) : undefined,
 		status,
 	};
 }
@@ -232,9 +234,11 @@ const WORKER_TYPE_LABEL: Record<string, "Contract" | "Per Diem" | "Travel"> = {
 	INTERNAL_VOLUNTEER: "Contract",
 };
 
-const APPROVAL_PAGE_SIZE = 6;
-const GROUPED_PAGE_SIZE = 20;
-const DISPUTE_LIST_PAGE_SIZE = 10;
+const APPROVAL_DEFAULT_LIMIT = 6;
+const APPROVAL_PAGE_SIZE_OPTIONS = [6, 12, 18, 24];
+const GROUPED_DEFAULT_LIMIT = 10;
+const DISPUTE_DEFAULT_LIMIT = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 const LIST_PAGE_SIZE = 20;
 const REPORT_PAGE_SIZE = 20;
 
@@ -245,14 +249,17 @@ export const TK_PARAMS = {
 	APPROVAL_STATUS: "apst",
 	GROUP_BY: "groupBy",
 	GROUPED_PAGE: "gp",
+	GROUPED_LIMIT: "gpL",
 	REPORT_PAGE: "rp",
 	DISPUTE_PAGE: "dp",
+	DISPUTE_LIMIT: "dpL",
 	MISSING_PAGE: "mp",
 	APPROVAL_PAGE: "ap",
+	APPROVAL_LIMIT: "apL",
 } as const;
 
 export function useTimekeeping() {
-	const { id: orgId } = useOrgContext();
+	const { tz, fmtShortDate: fmtTsDate, fmtDateRange } = useUserTimezone();
 	const {
 		searchValue: localSearch,
 		searchFromUrl,
@@ -273,26 +280,54 @@ export function useTimekeeping() {
 	});
 
 	const [params, setParams] = useQueryStates({
-		[TK_PARAMS.GROUPED_STATUS]: parseAsString.withDefault("PENDING"),
-		[TK_PARAMS.APPROVAL_STATUS]: parseAsString.withDefault("PENDING"),
+		[TK_PARAMS.GROUPED_STATUS]: parseAsString.withDefault(
+			TimesheetEntryStatus.PENDING,
+		),
+		[TK_PARAMS.APPROVAL_STATUS]: parseAsString.withDefault(
+			TimesheetEntryStatus.PENDING,
+		),
 		[TK_PARAMS.GROUP_BY]: parseAsString.withDefault("department"),
 	});
 
-	const { page: groupedPage, setPage: setGroupedPage } = usePaginationControls({
+	const {
+		page: groupedPage,
+		limit: groupedLimit,
+		setPage: setGroupedPage,
+		setLimit: setGroupedLimit,
+	} = usePaginationControls({
 		pageParamKey: TK_PARAMS.GROUPED_PAGE,
+		limitParamKey: TK_PARAMS.GROUPED_LIMIT,
+		defaultLimit: GROUPED_DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 	const { page: reportPage, setPage: setReportPage } = usePaginationControls({
 		pageParamKey: TK_PARAMS.REPORT_PAGE,
 	});
-	const { page: disputePage, setPage: setDisputePage } = usePaginationControls({
+	const {
+		page: disputePage,
+		limit: disputeLimit,
+		setPage: setDisputePage,
+		setLimit: setDisputeLimit,
+	} = usePaginationControls({
 		pageParamKey: TK_PARAMS.DISPUTE_PAGE,
+		limitParamKey: TK_PARAMS.DISPUTE_LIMIT,
+		defaultLimit: DISPUTE_DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 	const { page: missingTimePage, setPage: setMissingTimePage } =
 		usePaginationControls({
 			pageParamKey: TK_PARAMS.MISSING_PAGE,
 		});
-	const { page: currentPage, setPage: setCurrentPage } = usePaginationControls({
+	const {
+		page: currentPage,
+		limit: approvalLimit,
+		setPage: setCurrentPage,
+		setLimit: setApprovalLimit,
+	} = usePaginationControls({
 		pageParamKey: TK_PARAMS.APPROVAL_PAGE,
+		limitParamKey: TK_PARAMS.APPROVAL_LIMIT,
+		defaultLimit: APPROVAL_DEFAULT_LIMIT,
+		pageSizeOptions: APPROVAL_PAGE_SIZE_OPTIONS,
 	});
 
 	const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
@@ -325,7 +360,8 @@ export function useTimekeeping() {
 	const setGroupedStatusFilter = useCallback(
 		(v: ApprovalStatusFilter) => {
 			setParams({
-				[TK_PARAMS.GROUPED_STATUS]: v === "PENDING" ? null : v,
+				[TK_PARAMS.GROUPED_STATUS]:
+					v === TimesheetEntryStatus.PENDING ? null : v,
 			});
 			setGroupedPage(null);
 		},
@@ -335,7 +371,8 @@ export function useTimekeeping() {
 	const setApprovalStatusFilter = useCallback(
 		(v: ApprovalStatusFilter) => {
 			setParams({
-				[TK_PARAMS.APPROVAL_STATUS]: v === "PENDING" ? null : v,
+				[TK_PARAMS.APPROVAL_STATUS]:
+					v === TimesheetEntryStatus.PENDING ? null : v,
 			});
 			setCurrentPage(null);
 		},
@@ -394,40 +431,40 @@ export function useTimekeeping() {
 		[searchFromUrl, dataSourceFilter],
 	);
 
-	const groupedQuery = useEntriesGrouped(orgId, {
+	const groupedQuery = useEntriesGrouped({
 		dataSource: dataSourceFilter === "ALL" ? undefined : dataSourceFilter,
 		status: groupedStatusFilter === "ALL" ? undefined : groupedStatusFilter,
 		search: searchFromUrl || undefined,
 		page: groupedPage,
-		limit: GROUPED_PAGE_SIZE,
+		limit: groupedLimit,
 	});
 
-	const reportsQuery = useEntriesGrouped(orgId, {
+	const reportsQuery = useEntriesGrouped({
 		dataSource: dataSourceFilter === "ALL" ? undefined : dataSourceFilter,
 		search: searchFromUrl || undefined,
 		page: reportPage,
 		limit: REPORT_PAGE_SIZE,
 	});
 
-	const approvalEntriesQuery = useEntries(orgId, {
+	const approvalEntriesQuery = useEntries({
 		status: approvalStatusFilter === "ALL" ? undefined : approvalStatusFilter,
 		search: searchFromUrl || undefined,
 		page: currentPage,
-		limit: APPROVAL_PAGE_SIZE,
+		limit: approvalLimit,
 	});
 
-	const disputesQuery = useDisputes(orgId, {
+	const disputesQuery = useDisputes({
 		search: searchFromUrl || undefined,
 		page: disputePage,
-		limit: DISPUTE_LIST_PAGE_SIZE,
+		limit: disputeLimit,
 	});
-	const missingTimeQuery = useMissingTime(orgId, {
+	const missingTimeQuery = useMissingTime({
 		search: searchFromUrl || undefined,
 		page: missingTimePage,
 		limit: LIST_PAGE_SIZE,
 	});
 
-	const { data: policy } = useTimekeepingPolicy(orgId);
+	const { data: policy } = useTimekeepingPolicy();
 	const deadline = policy?.submissionDeadlineDays ?? 3;
 
 	const toMissingTimeEntry = useCallback(
@@ -441,14 +478,14 @@ export function useTimekeeping() {
 				location: item.location?.name ?? "—",
 				department: item.department?.name ?? "—",
 				position: item.placement?.jobTitle ?? "",
-				missingDates: [fmtDate(item.workDate)],
+				missingDates: [formatUtcLongDate(item.workDate)],
 				lastSubmitted: item.lastRemindedAt
-					? fmtDate(item.lastRemindedAt)
+					? fmtTsDate(item.lastRemindedAt)
 					: "Never",
 				daysOverdue: item.daysOverdue,
 			};
 		},
-		[deadline],
+		[deadline, fmtTsDate],
 	);
 
 	const groupMissingTimeEntries = useCallback(
@@ -482,7 +519,7 @@ export function useTimekeeping() {
 					continue;
 				}
 
-				existing.entry.missingDates.push(fmtDate(item.workDate));
+				existing.entry.missingDates.push(formatUtcLongDate(item.workDate));
 
 				if (
 					remindedAt !== null &&
@@ -490,7 +527,7 @@ export function useTimekeeping() {
 						remindedAt > existing.lastRemindedAt)
 				) {
 					existing.lastRemindedAt = remindedAt;
-					existing.entry.lastSubmitted = fmtDate(item.lastRemindedAt);
+					existing.entry.lastSubmitted = fmtTsDate(item.lastRemindedAt);
 				}
 
 				if (item.daysOverdue > existing.entry.daysOverdue) {
@@ -502,20 +539,20 @@ export function useTimekeeping() {
 
 			return Array.from(grouped.values()).map(({ entry }) => entry);
 		},
-		[toMissingTimeEntry, deadline],
+		[toMissingTimeEntry, deadline, fmtTsDate],
 	);
 
-	const statsQuery = useTimekeepingStats(orgId);
-	const entryCountsQuery = useEntryStatusCounts(orgId, entryCountFilters);
-	const disputeCountsQuery = useDisputeStatusCounts(orgId);
-	const missingTimeStatsQuery = useMissingTimeStats(orgId);
+	const statsQuery = useTimekeepingStats();
+	const entryCountsQuery = useEntryStatusCounts(entryCountFilters);
+	const disputeCountsQuery = useDisputeStatusCounts();
+	const missingTimeStatsQuery = useMissingTimeStats();
 
-	const { mutate: mutateUpdateStatus } = useUpdateEntryStatus(orgId);
-	const { mutate: mutateCreateDispute } = useCreateDispute(orgId);
-	const { mutate: mutateResolveDispute } = useResolveDispute(orgId);
-	const { mutate: mutateRejectDispute } = useRejectDispute(orgId);
-	const { mutate: mutateSendReminder } = useSendReminder(orgId);
-	const { mutate: mutateBulkSendReminders } = useBulkSendReminders(orgId);
+	const { mutate: mutateUpdateStatus } = useUpdateEntryStatus();
+	const { mutate: mutateCreateDispute } = useCreateDispute();
+	const { mutate: mutateResolveDispute } = useResolveDispute();
+	const { mutate: mutateRejectDispute } = useRejectDispute();
+	const { mutate: mutateSendReminder } = useSendReminder();
+	const { mutate: mutateBulkSendReminders } = useBulkSendReminders();
 
 	const filteredLocations = useMemo<LocationTimekeeping[]>(
 		() => (groupedQuery.data?.data ?? []).map(toLocationTimekeeping),
@@ -523,22 +560,25 @@ export function useTimekeeping() {
 	);
 
 	const groupedTotalPages = groupedQuery.data?.totalPages ?? 1;
+	const groupedTotalCount = groupedQuery.data?.total ?? 0;
 	const disputeTotalPages = disputesQuery.data?.totalPages ?? 1;
+	const disputeTotalCount = disputesQuery.data?.total ?? 0;
 	const missingTimeTotalPages = missingTimeQuery.data?.totalPages ?? 1;
 
 	const locationStatusCounts = useMemo<
 		Record<ApprovalStatusFilter, number>
 	>(() => {
 		const c = entryCountsQuery.data ?? {};
-		const p = c.PENDING ?? 0;
-		const a = c.APPROVED ?? 0;
-		const d = c.DISPUTED ?? 0;
+		const p = c[TimesheetEntryStatus.PENDING] ?? 0;
+		const a = c[TimesheetEntryStatus.APPROVED] ?? 0;
+		const d = c[TimesheetEntryStatus.DISPUTED] ?? 0;
 		return {
 			ALL: p + a + d,
-			PENDING: p,
-			APPROVED: a,
-			DISPUTED: d,
-			REJECTED: c.REJECTED ?? 0,
+			[TimesheetEntryStatus.PENDING]: p,
+			[TimesheetEntryStatus.APPROVED]: a,
+			[TimesheetEntryStatus.DISPUTED]: d,
+			[TimesheetEntryStatus.REJECTED]: c[TimesheetEntryStatus.REJECTED] ?? 0,
+			[TimesheetEntryStatus.DRAFT]: c[TimesheetEntryStatus.DRAFT] ?? 0,
 		};
 	}, [entryCountsQuery.data]);
 
@@ -557,6 +597,7 @@ export function useTimekeeping() {
 			mobileApps: s?.mobileApps ?? 0,
 			totalHours: s?.totalHours ?? 0,
 			openDisputes: s?.openDisputes ?? 0,
+			lastRefreshedAt: s?.lastRefreshedAt ?? null,
 		};
 	}, [statsQuery.data]);
 
@@ -567,10 +608,14 @@ export function useTimekeeping() {
 
 	const paginatedApprovalEntries = filteredApprovalEntries;
 	const totalPages = approvalEntriesQuery.data?.totalPages ?? 1;
+	const approvalTotalCount = approvalEntriesQuery.data?.total ?? 0;
 
 	const filteredDisputeLogs = useMemo<DisputeLogEntry[]>(
-		() => (disputesQuery.data?.data ?? []).map(toDisputeLogEntry),
-		[disputesQuery.data],
+		() =>
+			(disputesQuery.data?.data ?? []).map((item) =>
+				toDisputeLogEntry(item, tz),
+			),
+		[disputesQuery.data, tz],
 	);
 
 	const missingTimeEntries = useMemo<MissingTimeEntry[]>(
@@ -698,7 +743,7 @@ export function useTimekeeping() {
 	);
 
 	const handleDisputeLogResolve = useCallback((entry: DisputeLogEntry) => {
-		const day = workDateToIso(entry.date) || entry.date;
+		const day = utcInstantToIsoDateString(entry.date) || entry.date;
 		const log: TimeLog = {
 			id: entry.id,
 			startDate: day,
@@ -708,7 +753,7 @@ export function useTimekeeping() {
 			endTime: entry.endTime,
 			totalHours: entry.hours,
 			note: null,
-			status: "DISPUTED",
+			status: TimesheetEntryStatus.DISPUTED,
 			source: entry.source,
 		};
 		const worker: WorkerTimekeeping = {
@@ -716,7 +761,7 @@ export function useTimekeeping() {
 			name: entry.workerName,
 			position: entry.position,
 			source: entry.source,
-			status: "DISPUTED",
+			status: TimesheetEntryStatus.DISPUTED,
 			regularHours: entry.hours,
 			overtimeHours: 0,
 			totalHours: entry.hours,
@@ -779,7 +824,10 @@ export function useTimekeeping() {
 		mutateUpdateStatus(
 			{
 				entryId: selectedEntryId,
-				payload: { status: "APPROVED", approvalSource: "Manual" },
+				payload: {
+					status: TimesheetEntryStatus.APPROVED,
+					approvalSource: "Manual",
+				},
 			},
 			{
 				onSuccess: () => {
@@ -890,14 +938,14 @@ export function useTimekeeping() {
 			Worker: e.workerName,
 			Location: e.location,
 			Department: e.department,
-			Date: formatDateRange(e.startDate, e.endDate),
+			Date: fmtDateRange(e.startDate, e.endDate),
 			"Pay Code": e.payCode,
 			Hours: e.hours,
 			Source: e.source === "MOBILE_APP" ? "Mobile App" : "File Upload",
 			Notes: e.notes || "",
 		}));
 		exportAsCSV(data, `time_reports_${new Date().toISOString().split("T")[0]}`);
-	}, [reportEntries]);
+	}, [reportEntries, fmtDateRange]);
 
 	const filterConfigs = useMemo(
 		() => [
@@ -941,6 +989,10 @@ export function useTimekeeping() {
 		selectedDetailLog,
 		currentPage,
 		setCurrentPage,
+		approvalLimit,
+		setApprovalLimit,
+		approvalPageSizeOptions: APPROVAL_PAGE_SIZE_OPTIONS,
+		approvalTotalCount,
 		totalPages,
 		paginatedApprovalEntries,
 		filteredLocations,
@@ -990,12 +1042,20 @@ export function useTimekeeping() {
 		isLoading: groupedQuery.isLoading || statsQuery.isLoading,
 		groupedPage,
 		setGroupedPage,
+		groupedLimit,
+		setGroupedLimit,
+		groupedPageSizeOptions: PAGE_SIZE_OPTIONS,
+		groupedTotalCount,
 		groupedTotalPages,
 		reportPage,
 		setReportPage,
 		reportTotalPages,
 		disputePage,
 		setDisputePage,
+		disputeLimit,
+		setDisputeLimit,
+		disputePageSizeOptions: PAGE_SIZE_OPTIONS,
+		disputeTotalCount,
 		disputeTotalPages,
 		missingTimePage,
 		setMissingTimePage,

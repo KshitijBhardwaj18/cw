@@ -1,5 +1,6 @@
 "use client";
 
+import { formatUsdLedgerNullable, shortId } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Card,
@@ -26,18 +27,6 @@ import { AlertCircle, Info } from "lucide-react";
 import { useState } from "react";
 import type { InvoiceLineItem, PayCode } from "../types";
 
-// Local currency formatter
-const CURRENCY_FMT = new Intl.NumberFormat("en-US", {
-	style: "currency",
-	currency: "USD",
-	minimumFractionDigits: 2,
-});
-
-function fmtCurrency(amount: number | null | undefined): string {
-	if (amount == null) return "$0.00";
-	return CURRENCY_FMT.format(amount);
-}
-
 export interface DisputeLineItemSheetProps {
 	isOpen: boolean;
 	onClose: () => void;
@@ -58,7 +47,7 @@ export function DisputeLineItemSheet({
 	payCodes = [],
 	onSubmit,
 	isSubmitting = false,
-}: DisputeLineItemSheetProps) {
+}: Readonly<DisputeLineItemSheetProps>) {
 	const [files, setFiles] = useState<File[]>([]);
 	const [reason, setReason] = useState("");
 
@@ -93,10 +82,15 @@ export function DisputeLineItemSheet({
 								value={lineItem.description}
 								flow="row"
 							/>
-							<DetailItem label="Reference ID" value={lineItem.id} flow="row" />
+							<DetailItem
+								label="Reference ID"
+								value={shortId(lineItem.id)}
+								flow="row"
+								title={lineItem.id}
+							/>
 							<DetailItem
 								label="Total Amount"
-								value={fmtCurrency(lineItem.amount)}
+								value={formatUsdLedgerNullable(lineItem.amount)}
 								flow="row"
 							/>
 						</CardContent>

@@ -1,6 +1,10 @@
 import type { PrismaClient } from "@repo/db";
 import { BackGroundJobStatus, MissingTimeCaseStatus } from "@repo/db";
-import { missingTimeReminderTemplate, sendMail } from "@repo/mail";
+import {
+	missingTimeReminderTemplate,
+	orgMailBranding,
+	sendMail,
+} from "@repo/mail";
 import type {
 	TimekeepingBulkReminderJobResult,
 	TimekeepingBulkReminderPayload,
@@ -18,20 +22,27 @@ export async function runTimekeepingReminderProcessor(
 
 	const org = await prisma.organization.findUnique({
 		where: { id: organizationId },
-		select: { name: true, slug: true },
+		select: { name: true, slug: true, logo: true },
 	});
 
 	const orgName = org?.name ?? "Your Organization";
 	const portalUrl = buildOrgPortalUrl(org?.slug ?? "");
 
+	const branding = orgMailBranding({
+		orgName,
+		orgLogoUrl: org?.logo,
+		staffLogicLogoUrl: config.mail.staffLogicLogoUrl,
+		portal: "candidate",
+	});
+
 	try {
-		const { subject, text } = missingTimeReminderTemplate(
+		const { subject, text, html } = missingTimeReminderTemplate(
+			branding,
 			candidateName,
 			workDate,
-			orgName,
 			portalUrl,
 		);
-		await sendMail(config.mail, { to: candidateEmail, subject, text });
+		await sendMail(config.mail, { to: candidateEmail, subject, text, html });
 
 		const jobResult: TimekeepingReminderJobResult = { sent: true };
 		await prisma.backGroundJob.update({
@@ -73,7 +84,7 @@ export async function runTimekeepingBulkReminderProcessor(
 
 	const org = await prisma.organization.findUnique({
 		where: { id: organizationId },
-		select: { name: true, slug: true },
+		select: { name: true, slug: true, logo: true },
 	});
 
 	const orgName = org?.name ?? "Your Organization";
@@ -97,6 +108,13 @@ export async function runTimekeepingBulkReminderProcessor(
 		errors: [],
 	};
 
+	const branding = orgMailBranding({
+		orgName,
+		orgLogoUrl: org?.logo,
+		staffLogicLogoUrl: config.mail.staffLogicLogoUrl,
+		portal: "candidate",
+	});
+
 	for (const mc of cases) {
 		const email = mc.candidate.user.email;
 		const name = mc.candidate.user.name ?? email;
@@ -104,13 +122,13 @@ export async function runTimekeepingBulkReminderProcessor(
 			mc.workDate.toISOString().split("T")[0] ?? mc.workDate.toISOString();
 
 		try {
-			const { subject, text } = missingTimeReminderTemplate(
+			const { subject, text, html } = missingTimeReminderTemplate(
+				branding,
 				name,
 				workDate,
-				orgName,
 				portalUrl,
 			);
-			await sendMail(config.mail, { to: email, subject, text });
+			await sendMail(config.mail, { to: email, subject, text, html });
 			result.sent += 1;
 
 			await prisma.missingTimeCase.update({

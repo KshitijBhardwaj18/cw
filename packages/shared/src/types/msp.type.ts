@@ -1,6 +1,5 @@
 import type { Prisma } from "@repo/db";
 
-/** Raw Prisma MSP with relations (internal — not sent to clients) */
 type MspWithRelations = Prisma.MSPGetPayload<{
 	include: {
 		headquarters: true;
@@ -9,7 +8,6 @@ type MspWithRelations = Prisma.MSPGetPayload<{
 	};
 }>;
 
-/** MSP response type — raw msaDocument URL is stripped and replaced with hasMsaDocument */
 export type MspResponseType = Omit<MspWithRelations, "msaDocument"> & {
 	hasMsaDocument: boolean;
 };
@@ -22,8 +20,29 @@ export interface PaginatedMspsResponse {
 	totalPages: number;
 }
 
-export type MspLinkedOrgWithOrganization = Prisma.MSPLinkedOrgGetPayload<{
+type MspLinkedOrgRow = Prisma.MSPLinkedOrgGetPayload<{
 	include: {
-		organization: true;
+		organization: {
+			select: { id: true; name: true };
+		};
 	};
 }>;
+
+export type MspLinkedOrgWithOrganization = Omit<
+	MspLinkedOrgRow,
+	"addendumAgreement"
+> & {
+	hasAddendumAgreement: boolean;
+	portfolioValue: number;
+	expectedMspRevenue: number;
+	expectedSasRevenue: number;
+	ytdInvoicedAmount: number;
+};
+
+export interface MspFinancialSummary {
+	totalPortfolioValue: number;
+	totalExpectedMspRevenue: number;
+	totalExpectedSasRevenue: number;
+	totalYtdInvoicedAmount: number;
+	linkedOrgCount: number;
+}

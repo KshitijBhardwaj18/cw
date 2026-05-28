@@ -19,9 +19,10 @@ import {
 import { PageBackLink } from "@repo/ui/general/PageBackLink";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
 import { cn } from "@repo/ui/lib/utils";
-import { Calendar, Clock, MapPin } from "lucide-react";
+import { Calendar, Clock, FileClock, MapPin } from "lucide-react";
 import Link from "next/link";
 import { CANDIDATE_PORTAL_COPY } from "@/constants/candidate-portal";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { CandidatePlacementDetail } from "@/types/candidate-placement-detail";
 import {
 	candidatePlacementsListPath,
@@ -47,9 +48,14 @@ const STATUS_BADGE_CLASS: Record<CandidatePlacementDetail["kind"], string> = {
 export function PlacementDetailView({
 	detail,
 	placementId,
-}: PlacementDetailViewProps) {
+}: Readonly<PlacementDetailViewProps>) {
 	const badgeClass = STATUS_BADGE_CLASS[detail.kind];
 	const timecardHref = candidatePlacementTimecardPath(placementId);
+	const { fmtShortDate, fmtDateRange } = useUserTimezone();
+
+	const assignmentDateRange =
+		fmtDateRange(detail.summary.startDate, detail.summary.endDate) ||
+		detail.dateRangeLabel;
 
 	return (
 		<div className="space-y-6">
@@ -60,23 +66,27 @@ export function PlacementDetailView({
 			<Card>
 				<CardHeader className="border-b">
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-						<div className="min-w-0">
+						<div className="min-w-0 flex-1">
 							<CardTitle className="text-lg font-semibold sm:text-xl">
 								{detail.jobTitle}
 							</CardTitle>
-							<CardDescription className="text-base wrap-break-word">
+							<CardDescription className="mt-1 text-base wrap-break-word">
 								{detail.facilityName}
 							</CardDescription>
 						</div>
-						<Badge
-							variant="secondary"
-							className={cn(
-								"w-fit shrink-0 self-start text-xs font-medium",
-								badgeClass,
-							)}
-						>
-							{detail.statusLabel}
-						</Badge>
+						{detail.kind !== "upcoming" && (
+							<Button
+								size="sm"
+								variant="outline"
+								className="shrink-0 self-start"
+								asChild
+							>
+								<Link href={timecardHref}>
+									<FileClock className="size-4" />
+									View Timecards
+								</Link>
+							</Button>
+						)}
 					</div>
 				</CardHeader>
 				<CardContent className="space-y-6">
@@ -91,14 +101,31 @@ export function PlacementDetailView({
 						</span>
 						<span className="inline-flex items-center gap-1.5">
 							<Calendar className="size-4 shrink-0 opacity-80" aria-hidden />
-							{detail.dateRangeLabel}
+							{assignmentDateRange}
 						</span>
 					</div>
 					<div className="bg-muted/60 rounded-lg px-4 py-4 sm:px-6">
-						<div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-							<DetailItem label="Start Date" value={detail.summary.startDate} />
-							<DetailItem label="End Date" value={detail.summary.endDate} />
+						<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+							<DetailItem
+								label="Start Date"
+								value={fmtShortDate(detail.summary.startDate)}
+							/>
+							<DetailItem
+								label="End Date"
+								value={fmtShortDate(detail.summary.endDate)}
+							/>
 							<DetailItem label="Pay Rate" value={detail.summary.payRate} />
+							<DetailItem
+								label="Status"
+								value={
+									<Badge
+										variant="secondary"
+										className={cn("w-fit text-xs font-medium", badgeClass)}
+									>
+										{detail.statusLabel}
+									</Badge>
+								}
+							/>
 						</div>
 					</div>
 				</CardContent>
@@ -138,10 +165,6 @@ export function PlacementDetailView({
 					</Tabs>
 				</CardContent>
 			</Card>
-
-			<Button variant="outline" className="w-full sm:w-auto" asChild>
-				<Link href={timecardHref}>View Timecards</Link>
-			</Button>
 		</div>
 	);
 }

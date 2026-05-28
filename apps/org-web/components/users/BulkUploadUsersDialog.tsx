@@ -26,7 +26,7 @@ export function BulkUploadUsersDialog({
 	onOpenChange,
 	onSubmit,
 	isSubmitting = false,
-}: BulkUploadUsersDialogProps) {
+}: Readonly<BulkUploadUsersDialogProps>) {
 	const { file, fileError, syncFile, downloadTemplate, reset, maxSizeMb } =
 		useBulkUploadUsersDialog(open);
 

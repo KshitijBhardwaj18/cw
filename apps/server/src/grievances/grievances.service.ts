@@ -11,7 +11,6 @@ import {
 	Prisma,
 } from "@repo/db";
 import type { PagePaginatedResponse } from "@repo/shared";
-import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
 import { PrismaService } from "src/prisma/prisma.service";
 import type { CreateGrievanceDto } from "./dto/create-grievance.dto";
 import type { CreateGrievanceTaskDto } from "./dto/create-grievance-task.dto";
@@ -25,18 +24,13 @@ import type { UpdateGrievanceTaskDto } from "./dto/update-grievance-task.dto";
 
 const PLACEMENT_OPEN_STATUSES: PlacementStatus[] = [
 	PlacementStatus.UPCOMING,
-	PlacementStatus.PENDING,
 	PlacementStatus.ON_HOLD,
 	PlacementStatus.ACTIVE,
-	PlacementStatus.ENDING_SOON,
 ];
 
 @Injectable()
 export class GrievancesService {
-	constructor(
-		private readonly prisma: PrismaService,
-		private readonly backgroundJobs: BackgroundJobsService,
-	) {}
+	constructor(private readonly prisma: PrismaService) {}
 
 	private async assertCandidateInOrg(
 		orgId: string,
@@ -307,7 +301,7 @@ export class GrievancesService {
 				},
 			},
 		});
-		if (!g) throw new NotFoundException("Grievance not found");
+		if (!g) throw new NotFoundException("Grievance not found.");
 
 		const placementHospitalName = g.placement?.location?.name ?? null;
 		const jobPart =
@@ -373,9 +367,6 @@ export class GrievancesService {
 						select: { id: true },
 					});
 				});
-				await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-					orgId,
-				);
 				return created;
 			} catch (e) {
 				lastError = e;
@@ -400,7 +391,7 @@ export class GrievancesService {
 				...(dto.status != null ? { status: dto.status } : {}),
 			},
 		});
-		if (n.count === 0) throw new NotFoundException("Grievance not found");
+		if (n.count === 0) throw new NotFoundException("Grievance not found.");
 		return this.getById(orgId, grievanceId);
 	}
 
@@ -459,7 +450,7 @@ export class GrievancesService {
 		const task = await this.prisma.grievanceTask.findFirst({
 			where: { id: taskId, grievanceId },
 		});
-		if (!task) throw new NotFoundException("Task not found");
+		if (!task) throw new NotFoundException("Task not found.");
 
 		const now = new Date();
 		const nextStatus = dto.status ?? task.status;
@@ -507,6 +498,6 @@ export class GrievancesService {
 		const n = await this.prisma.grievance.count({
 			where: { id: grievanceId, organizationId: orgId },
 		});
-		if (n === 0) throw new NotFoundException("Grievance not found");
+		if (n === 0) throw new NotFoundException("Grievance not found.");
 	}
 }

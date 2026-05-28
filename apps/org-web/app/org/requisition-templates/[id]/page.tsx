@@ -10,7 +10,9 @@ type Props = {
 	params: Promise<{ id: string }>;
 };
 
-export default async function ViewRequisitionTemplatePage({ params }: Props) {
+export default async function ViewRequisitionTemplatePage({
+	params,
+}: Readonly<Props>) {
 	const { id } = await params;
 	return (
 		<CreateRequisitionTemplatePageContent forcedMode="view" templateId={id} />

@@ -20,7 +20,7 @@ const cardToneStyles = {
 export const ActiveWorkforceStatCard = ({
 	card,
 	count,
-}: ActiveWorkforceStatCardProps) => {
+}: Readonly<ActiveWorkforceStatCardProps>) => {
 	return (
 		<Card className="rounded-none border py-1">
 			<CardContent className="space-y-3 p-4">

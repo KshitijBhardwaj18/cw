@@ -17,9 +17,30 @@ export const shiftTemplateKeys = {
 		[...shiftTemplateKeys.all, "list", query] as const,
 	detail: (id: string) => [...shiftTemplateKeys.all, "detail", id] as const,
 	occupations: () => [...shiftTemplateKeys.all, "occupations"] as const,
+	occupationSpecialties: (organizationOccupationId: string) =>
+		[
+			...shiftTemplateKeys.all,
+			"occupation-specialties",
+			organizationOccupationId,
+		] as const,
 	departments: () => [...shiftTemplateKeys.all, "departments"] as const,
 	locations: () => [...shiftTemplateKeys.all, "locations"] as const,
 };
+
+export function useOrgOccupationSpecialties(
+	organizationOccupationId: string | null | undefined,
+	options?: { enabled?: boolean },
+) {
+	const trimmed = (organizationOccupationId ?? "").trim();
+	const enabled = (options?.enabled ?? true) && trimmed.length > 0;
+	return useQuery({
+		queryKey: shiftTemplateKeys.occupationSpecialties(trimmed),
+		queryFn: () =>
+			ShiftTemplatesService.getSpecialtiesForOrgOccupation(trimmed),
+		enabled,
+		staleTime: 5 * 60 * 1000,
+	});
+}
 
 export function useShiftTemplates(query: ShiftTemplatesQuery) {
 	return useQuery({
@@ -46,12 +67,31 @@ export function useShiftTemplateOccupations(options?: { enabled?: boolean }) {
 	});
 }
 
-export function useShiftTemplateDepartments(options?: { enabled?: boolean }) {
+export function useShiftTemplateDepartments(options?: {
+	enabled?: boolean;
+	organizationOccupationId?: string;
+	organizationSpecialtyId?: string;
+	limit?: number;
+}) {
+	const enabled = options?.enabled ?? true;
+	const orgOccId = options?.organizationOccupationId;
+	const orgSpecId = options?.organizationSpecialtyId;
+	const limit = options?.limit ?? 100;
 	return useQuery({
-		queryKey: shiftTemplateKeys.departments(),
-		queryFn: () => ShiftTemplatesService.getDepartments(),
+		queryKey: [
+			...shiftTemplateKeys.all,
+			"departments",
+			orgOccId ?? "all",
+			orgSpecId ?? "all",
+		],
+		queryFn: () =>
+			ShiftTemplatesService.getDepartments({
+				limit,
+				...(orgOccId ? { organizationOccupationId: orgOccId } : {}),
+				...(orgSpecId ? { organizationSpecialtyId: orgSpecId } : {}),
+			}),
 		staleTime: 5 * 60 * 1000,
-		enabled: options?.enabled ?? true,
+		enabled,
 	});
 }
 

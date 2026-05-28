@@ -1,5 +1,6 @@
 "use client";
 
+import { DelayUnit } from "@repo/shared";
 import { useForm } from "@tanstack/react-form";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -15,15 +16,15 @@ interface RoutingDelaySettings {
 }
 
 export function useRoutingDelayForm(
-	orgId: string,
 	settings: RoutingDelaySettings | null | undefined,
 ) {
-	const mutation = useUpdateRoutingSettings(orgId);
+	const mutation = useUpdateRoutingSettings();
 
 	const defaultValues: DelayFormValues = {
 		enableRoutingDelay: settings?.enableRoutingDelay ?? false,
 		delayDuration: settings?.delayDuration ?? 24,
-		delayUnit: (settings?.delayUnit as DelayFormValues["delayUnit"]) ?? "HOURS",
+		delayUnit:
+			(settings?.delayUnit as DelayFormValues["delayUnit"]) ?? DelayUnit.HOURS,
 	};
 
 	const form = useForm({

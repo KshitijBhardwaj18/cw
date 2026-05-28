@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	description: "Your candidate profile and account details",
 };
 
-const ProfileLayout = ({ children }: { children: React.ReactNode }) => {
+const ProfileLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<CandidateMainShell title="Profile">
 			<PageContainer>{children}</PageContainer>

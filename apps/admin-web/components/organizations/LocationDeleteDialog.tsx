@@ -15,7 +15,7 @@ export function LocationDeleteDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: LocationDeleteDialogProps) {
+}: Readonly<LocationDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={!!location}

@@ -8,7 +8,10 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@repo/ui/components/tabs";
+import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
+import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
+import { useState } from "react";
 import {
 	SUBMISSION_TABS,
 	type SubmissionTabValue,
@@ -40,7 +43,12 @@ export default function CandidateSubmissionsPageContent() {
 		portalCopy,
 		withdrawMutation,
 		acceptMutation,
+		searchValue,
+		setSearchValue,
+		hasActiveSearch,
 	} = useCandidateSubmissionsPage();
+
+	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
 	if (isLoading) {
 		return (
@@ -59,8 +67,27 @@ export default function CandidateSubmissionsPageContent() {
 		);
 	}
 
+	const totalApplications = tabStats?.["all-applications"] ?? 0;
+
 	return (
 		<div className="w-full space-y-6">
+			<ConfigPageHeader
+				title="My Applications"
+				total={totalApplications}
+				itemLabel="application"
+				itemLabelPlural="applications"
+				description="Track jobs you've applied to and follow their progress"
+			/>
+
+			<SearchWithFilters
+				searchPlaceholder="Search by job title, occupation, or location..."
+				searchValue={searchValue}
+				onSearchChange={setSearchValue}
+				filtersExpanded={filtersExpanded}
+				onFiltersExpandedChange={setFiltersExpanded}
+				filterConfigs={[]}
+			/>
+
 			<Tabs
 				value={activeTab}
 				onValueChange={(v) => setActiveTab(v as SubmissionTabValue)}
@@ -104,6 +131,7 @@ export default function CandidateSubmissionsPageContent() {
 								limit={limit}
 								setLimit={setLimit}
 								portalCopy={portalCopy}
+								hasSearch={hasActiveSearch}
 								withdrawMutation={withdrawMutation}
 								acceptMutation={acceptMutation}
 							/>

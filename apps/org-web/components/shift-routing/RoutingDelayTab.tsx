@@ -43,19 +43,17 @@ function toMinutes(duration: number, unit: string): number {
 }
 
 interface RoutingDelayTabProps {
-	orgId: string;
 	settings: ShiftRoutingSettingsType;
 	tiers: ShiftRoutingTierType[];
 	readOnly?: boolean;
 }
 
 export function RoutingDelayTab({
-	orgId,
 	settings,
 	tiers,
 	readOnly = false,
-}: RoutingDelayTabProps) {
-	const { form, isSaving } = useRoutingDelayForm(orgId, settings);
+}: Readonly<RoutingDelayTabProps>) {
+	const { form, isSaving } = useRoutingDelayForm(settings);
 
 	const orderedTiers = [...tiers].sort(
 		(a, b) => a.priorityOrder - b.priorityOrder,

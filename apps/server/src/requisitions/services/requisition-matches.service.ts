@@ -5,12 +5,19 @@ import {
 } from "@nestjs/common";
 import {
 	CandidatePreferredContractLength,
+	ComplianceListItemResponseStyle,
 	MatchingCriterionKey,
 	Prisma,
 	RequisitionStatus,
 	RequisitionType,
+	ShiftType,
 	SubmissionStage,
 } from "@repo/db";
+import {
+	ACCEPTANCE_CRITERIA_SELECT,
+	CANDIDATE_COMPLIANCE_FOR_CRITERION_SELECT,
+	deriveAcceptanceCriterionItem,
+} from "src/common/utils/acceptance-criterion";
 import { PrismaService } from "src/prisma/prisma.service";
 import type { QueryCandidateMatchesDto } from "../dto/query-candidate-matches.dto";
 
@@ -53,11 +60,15 @@ const MATCH_LIST_SELECT = {
 			occupation: { select: { id: true, name: true } },
 		},
 	},
-	organizationSpecialty: {
+	requisitionSpecialties: {
 		select: {
-			id: true,
-			specialtyId: true,
-			specialty: { select: { id: true, name: true } },
+			organizationSpecialty: {
+				select: {
+					id: true,
+					specialtyId: true,
+					specialty: { select: { id: true, name: true } },
+				},
+			},
 		},
 	},
 } as const;
@@ -141,7 +152,7 @@ function mapRequisitionToItem(
 		type: string;
 		jobTitle: string | null;
 		unitName: string | null;
-		shiftType: string | null;
+		shiftType: ShiftType | null;
 		startTime: string | null;
 		endTime: string | null;
 		shiftHours: number | null;
@@ -162,10 +173,12 @@ function mapRequisitionToItem(
 		organizationOccupation: {
 			occupation: { name: string };
 		} | null;
-		organizationSpecialty: {
-			specialtyId: string;
-			specialty: { name: string };
-		} | null;
+		requisitionSpecialties: {
+			organizationSpecialty: {
+				specialtyId: string;
+				specialty: { name: string };
+			};
+		}[];
 	},
 	matchPercentage: number,
 	matchBreakdown: { criterionName: string; matched: boolean; weight: number }[],
@@ -183,8 +196,10 @@ function mapRequisitionToItem(
 		id: req.id,
 		jobTitle: req.jobTitle ?? "Untitled Position",
 		occupation: req.organizationOccupation?.occupation?.name ?? null,
-		specialty: req.organizationSpecialty?.specialty?.name ?? null,
-		specialtyId: req.organizationSpecialty?.specialtyId ?? null,
+		specialties: req.requisitionSpecialties.map((s) => ({
+			id: s.organizationSpecialty.specialtyId,
+			name: s.organizationSpecialty.specialty.name,
+		})),
 		facilityName: req.location?.name ?? null,
 		locationCity: req.location?.city ?? null,
 		locationState: req.location?.state ?? null,
@@ -229,14 +244,25 @@ export class RequisitionMatchesService {
 			},
 		});
 		if (!candidate) {
-			throw new NotFoundException("Candidate profile not found");
+			throw new NotFoundException("Candidate profile not found.");
 		}
 		return candidate;
 	}
 
 	private async resolveMatchingLogic(organizationId: string) {
 		return this.prisma.matchingLogic.findMany({
-			where: { organizationId, active: true },
+			where: {
+				organizationId,
+				active: true,
+				matchingCriterion: {
+					key: {
+						notIn: [
+							MatchingCriterionKey.OCCUPATION,
+							MatchingCriterionKey.SPECIALTIES,
+						],
+					},
+				},
+			},
 			include: {
 				matchingCriterion: { select: { name: true, key: true } },
 			},
@@ -262,7 +288,9 @@ export class RequisitionMatchesService {
 				locationId: true,
 				shiftType: true,
 				organizationOccupation: { select: { occupationId: true } },
-				organizationSpecialty: { select: { specialtyId: true } },
+				requisitionSpecialties: {
+					select: { organizationSpecialty: { select: { specialtyId: true } } },
+				},
 				lengthWeeks: true,
 				publishedAt: true,
 			},
@@ -273,16 +301,18 @@ export class RequisitionMatchesService {
 		req: {
 			type: RequisitionType;
 			locationId: string | null;
-			shiftType: string | null;
+			shiftType: ShiftType | null;
 			organizationOccupation: { occupationId: string } | null;
-			organizationSpecialty: { specialtyId: string } | null;
+			requisitionSpecialties: {
+				organizationSpecialty: { specialtyId: string };
+			}[];
 			lengthWeeks: number | null;
 			publishedAt: Date | null;
 		},
 		candidate: {
 			occupationId: string;
 			candidatePreferredLocations: { locationId: string }[];
-			preferredShiftTypes: string[];
+			preferredShiftTypes: ShiftType[];
 			candidateSpecialties: { specialtyId: string }[];
 			preferredContractLengths: CandidatePreferredContractLength[];
 		},
@@ -297,11 +327,8 @@ export class RequisitionMatchesService {
 		const preferredLocationIds = new Set(
 			candidate.candidatePreferredLocations.map((l) => l.locationId),
 		);
-		const preferredShiftTypes = new Set(
-			candidate.preferredShiftTypes.map((s) => s.toUpperCase()),
-		);
-		const candidateSpecialtyIds = new Set(
-			candidate.candidateSpecialties.map((s) => s.specialtyId),
+		const preferredShiftTypeEnums = new Set<ShiftType>(
+			candidate.preferredShiftTypes,
 		);
 
 		let earnedWeight = 0;
@@ -314,6 +341,12 @@ export class RequisitionMatchesService {
 
 		for (const logic of matchingLogics) {
 			const { name, key } = logic.matchingCriterion;
+			if (
+				key === MatchingCriterionKey.OCCUPATION ||
+				key === MatchingCriterionKey.SPECIALTIES
+			) {
+				continue;
+			}
 			totalWeight += logic.weight;
 			let matched = false;
 
@@ -323,14 +356,12 @@ export class RequisitionMatchesService {
 						req.locationId !== null && preferredLocationIds.has(req.locationId);
 					break;
 				case MatchingCriterionKey.SHIFT_TYPE:
+					// FLEXIBLE on either side counts as a wildcard.
 					matched =
 						req.shiftType !== null &&
-						preferredShiftTypes.has(req.shiftType.toUpperCase());
-					break;
-				case MatchingCriterionKey.SPECIALTIES:
-					matched =
-						req.organizationSpecialty === null ||
-						candidateSpecialtyIds.has(req.organizationSpecialty.specialtyId);
+						(req.shiftType === ShiftType.FLEXIBLE ||
+							preferredShiftTypeEnums.has(ShiftType.FLEXIBLE) ||
+							preferredShiftTypeEnums.has(req.shiftType));
 					break;
 				case MatchingCriterionKey.CONTRACT_LENGTH: {
 					const jobBuckets = requisitionContractLengthBuckets(
@@ -343,11 +374,6 @@ export class RequisitionMatchesService {
 					);
 					break;
 				}
-				case MatchingCriterionKey.OCCUPATION:
-					matched =
-						req.organizationOccupation !== null &&
-						req.organizationOccupation.occupationId === candidate.occupationId;
-					break;
 				default:
 					matched = false;
 			}
@@ -365,53 +391,94 @@ export class RequisitionMatchesService {
 
 	private buildRequisitionWhere(
 		organizationId: string,
-		candidate: { occupationId: string },
+		candidate: {
+			occupationId: string;
+			candidateSpecialties: { specialtyId: string }[];
+		},
 		query: QueryCandidateMatchesDto,
 	): Prisma.RequisitionWhereInput {
+		const candidateSpecialtyIds = candidate.candidateSpecialties.map(
+			(s) => s.specialtyId,
+		);
+		const specialtyGate: Prisma.RequisitionWhereInput = {
+			OR: [
+				{ requisitionSpecialties: { none: {} } },
+				...(candidateSpecialtyIds.length > 0
+					? [
+							{
+								requisitionSpecialties: {
+									some: {
+										organizationSpecialty: {
+											specialtyId: { in: candidateSpecialtyIds },
+										},
+									},
+								},
+							},
+						]
+					: []),
+			],
+		};
+
+		const andClauses: Prisma.RequisitionWhereInput[] = [specialtyGate];
+
+		if (query.search) {
+			const q = query.search.toLowerCase();
+			andClauses.push({
+				OR: [
+					{ jobTitle: { contains: q, mode: "insensitive" } },
+					{ unitName: { contains: q, mode: "insensitive" } },
+					{
+						organizationOccupation: {
+							occupation: { name: { contains: q, mode: "insensitive" } },
+						},
+					},
+					{
+						requisitionSpecialties: {
+							some: {
+								organizationSpecialty: {
+									specialty: {
+										name: { contains: q, mode: "insensitive" },
+									},
+								},
+							},
+						},
+					},
+					{
+						location: {
+							OR: [
+								{ name: { contains: q, mode: "insensitive" } },
+								{ city: { contains: q, mode: "insensitive" } },
+							],
+						},
+					},
+				],
+			});
+		}
+
 		const where: Prisma.RequisitionWhereInput = {
 			organizationId,
 			status: RequisitionStatus.PUBLISHED,
 			organizationOccupation: {
 				occupationId: candidate.occupationId,
 			},
+			AND: andClauses,
 		};
 
 		if (query.specialtyId) {
-			where.organizationSpecialty = { specialtyId: query.specialtyId };
+			where.requisitionSpecialties = {
+				some: {
+					organizationSpecialty: { specialtyId: query.specialtyId },
+				},
+			};
 		}
 		if (query.locationId) {
 			where.locationId = query.locationId;
 		}
 		if (query.shiftType) {
-			where.shiftType = query.shiftType as never;
+			where.shiftType = query.shiftType;
 		}
 		if (query.contractType) {
 			where.type = query.contractType as never;
-		}
-		if (query.search) {
-			const q = query.search.toLowerCase();
-			where.OR = [
-				{ jobTitle: { contains: q, mode: "insensitive" } },
-				{ unitName: { contains: q, mode: "insensitive" } },
-				{
-					organizationOccupation: {
-						occupation: { name: { contains: q, mode: "insensitive" } },
-					},
-				},
-				{
-					organizationSpecialty: {
-						specialty: { name: { contains: q, mode: "insensitive" } },
-					},
-				},
-				{
-					location: {
-						OR: [
-							{ name: { contains: q, mode: "insensitive" } },
-							{ city: { contains: q, mode: "insensitive" } },
-						],
-					},
-				},
-			];
 		}
 
 		return where;
@@ -443,22 +510,23 @@ export class RequisitionMatchesService {
 			};
 		}
 
-		const [total, requisitions, allSavedRows] = await Promise.all([
+		const [total, requisitions] = await Promise.all([
 			this.prisma.requisition.count({ where }),
 			this.prisma.requisition.findMany({
 				where,
-				select: MATCH_LIST_SELECT,
+				select: {
+					...MATCH_LIST_SELECT,
+					savedByCandidate: {
+						where: { candidateId: candidate.id },
+						select: { id: true },
+						take: 1,
+					},
+				},
 				orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
 				skip: (page - 1) * limit,
 				take: limit,
 			}),
-			this.prisma.candidateSavedRequisition.findMany({
-				where: { candidateId: candidate.id },
-				select: { requisitionId: true },
-			}),
 		]);
-
-		const savedSet = new Set(allSavedRows.map((s) => s.requisitionId));
 
 		const requisitionIds = requisitions.map((r) => r.id);
 		const activeSubmissions =
@@ -486,7 +554,7 @@ export class RequisitionMatchesService {
 				req,
 				matchPercentage,
 				breakdown,
-				savedSet.has(req.id),
+				req.savedByCandidate.length > 0,
 				appliedSet.has(req.id),
 			);
 		});
@@ -508,7 +576,7 @@ export class RequisitionMatchesService {
 		const candidate = await this.resolveCandidate(userId, organizationId);
 		const matchingLogics = await this.resolveMatchingLogic(organizationId);
 
-		const [req, saved, activeSubmission] = await Promise.all([
+		const [req, saved, vendorReview, activeSubmission] = await Promise.all([
 			this.prisma.requisition.findFirst({
 				where: {
 					id: requisitionId,
@@ -523,14 +591,19 @@ export class RequisitionMatchesService {
 					shiftsPerWeek: true,
 					whoCanSubmit: true,
 					vendorNotes: true,
-					acceptanceCriteria: {
-						select: {
-							complianceListItem: { select: { id: true, name: true } },
-						},
-					},
+					acceptanceCriteria: { select: ACCEPTANCE_CRITERIA_SELECT },
 				},
 			}),
 			this.prisma.candidateSavedRequisition.findUnique({
+				where: {
+					candidateId_requisitionId: {
+						candidateId: candidate.id,
+						requisitionId,
+					},
+				},
+				select: { id: true },
+			}),
+			this.prisma.candidateRequisitionVendorReview.findUnique({
 				where: {
 					candidateId_requisitionId: {
 						candidateId: candidate.id,
@@ -551,7 +624,7 @@ export class RequisitionMatchesService {
 			}),
 		]);
 
-		if (!req) throw new NotFoundException("Job not found");
+		if (!req) throw new NotFoundException("Job not found.");
 
 		const { matchPercentage, breakdown } = this.computeMatchScore(
 			req,
@@ -567,6 +640,36 @@ export class RequisitionMatchesService {
 			activeSubmission !== null,
 		);
 
+		const candidateFacingCriteria = req.acceptanceCriteria.filter(
+			(c) =>
+				c.complianceListItem.displayToCandidate &&
+				c.complianceListItem.responseStyle !==
+					ComplianceListItemResponseStyle.INTERNAL_TASK,
+		);
+		const requiredItemIds = candidateFacingCriteria.map(
+			(c) => c.complianceListItemId,
+		);
+		const candidateDocs =
+			requiredItemIds.length === 0
+				? []
+				: await this.prisma.candidateCompliance.findMany({
+						where: {
+							candidateId: candidate.id,
+							complianceListItemId: { in: requiredItemIds },
+						},
+						select: CANDIDATE_COMPLIANCE_FOR_CRITERION_SELECT,
+					});
+		const docByItem = new Map(
+			candidateDocs.map((d) => [d.complianceListItemId, d]),
+		);
+		const now = new Date();
+		const acceptanceCriteria = candidateFacingCriteria.map((c) =>
+			deriveAcceptanceCriterionItem(c, docByItem.get(c.complianceListItemId), {
+				now,
+				viewerScope: "candidate",
+			}),
+		);
+
 		return {
 			...base,
 			hoursPerWeek: req.hoursPerWeek ?? null,
@@ -574,10 +677,8 @@ export class RequisitionMatchesService {
 			interviewRequired: req.interviewRequired ?? null,
 			whoCanSubmit: req.whoCanSubmit,
 			vendorNotes: req.vendorNotes ?? null,
-			acceptanceCriteria: req.acceptanceCriteria.map((c) => ({
-				id: c.complianceListItem.id,
-				name: c.complianceListItem.name,
-			})),
+			isSubmittedForVendorReview: vendorReview !== null,
+			acceptanceCriteria,
 		};
 	}
 
@@ -592,14 +693,14 @@ export class RequisitionMatchesService {
 			where: { id: requisitionId, organizationId },
 			select: { id: true },
 		});
-		if (!req) throw new NotFoundException("Job not found");
+		if (!req) throw new NotFoundException("Job not found.");
 
 		try {
 			await this.prisma.candidateSavedRequisition.create({
 				data: { candidateId: candidate.id, requisitionId },
 			});
 		} catch {
-			throw new ConflictException("Job already saved");
+			throw new ConflictException("Job already saved.");
 		}
 
 		return { isSaved: true };
@@ -617,6 +718,59 @@ export class RequisitionMatchesService {
 		});
 
 		return { isSaved: false };
+	}
+
+	async submitRequisitionForVendorReview(
+		userId: string,
+		organizationId: string,
+		requisitionId: string,
+	) {
+		const candidate = await this.resolveCandidate(userId, organizationId);
+
+		const req = await this.prisma.requisition.findFirst({
+			where: { id: requisitionId, organizationId },
+			select: { id: true },
+		});
+		if (!req) throw new NotFoundException("Job not found.");
+
+		const [activeSubmission, existingReview] = await Promise.all([
+			this.prisma.submission.findFirst({
+				where: {
+					candidateId: candidate.id,
+					requisitionId,
+					stage: {
+						notIn: [SubmissionStage.WITHDRAWN, SubmissionStage.REJECTED],
+					},
+				},
+				select: { id: true },
+			}),
+			this.prisma.candidateRequisitionVendorReview.findUnique({
+				where: {
+					candidateId_requisitionId: {
+						candidateId: candidate.id,
+						requisitionId,
+					},
+				},
+				select: { id: true },
+			}),
+		]);
+		if (activeSubmission) {
+			throw new ConflictException("You have already applied to this job.");
+		}
+		if (existingReview) {
+			throw new ConflictException(
+				"You have already submitted this job to your vendor for review",
+			);
+		}
+
+		await this.prisma.candidateRequisitionVendorReview.create({
+			data: {
+				candidateId: candidate.id,
+				requisitionId,
+			},
+		});
+
+		return { submitted: true as const };
 	}
 
 	/**

@@ -1,7 +1,9 @@
 "use client";
 
-import { formatDate } from "@repo/shared";
-import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
+import {
+	getCandidateComplianceStatusLabel,
+	getCandidateComplianceStatusVariant,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -10,78 +12,53 @@ import {
 	CardFooter,
 	CardHeader,
 } from "@repo/ui/components/card";
+import { getCandidateComplianceStatusIcon } from "@repo/ui/lib/compliance-status-icon";
 import { cn } from "@repo/ui/lib/utils";
 import {
 	AlertTriangle,
 	Check,
-	CircleX,
+	CheckCircle2,
 	Clock,
 	Download,
+	ExternalLink,
 	Eye,
 	FileText,
-	Trash2,
 	Upload,
 	X,
 } from "lucide-react";
-import type { DocumentWalletRequirement } from "@/components/document-wallet/mock-document-wallet";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { CandidateDocumentWalletItem } from "@/types/candidate-document-wallet";
+import { formatVendorPlacementCalendarDay } from "@/utils/vendor-calendar-display";
 
 export type DocumentRequirementAudience = "candidate" | "vendor";
 
-export type DocumentRequirementCardProps =
-	| DocumentRequirementCardMockProps
-	| DocumentRequirementCardApiProps;
-
-type DocumentRequirementCardMockProps = {
-	requirement: DocumentWalletRequirement;
-	audience?: DocumentRequirementAudience;
-	onUploadClick: () => void;
-	onReplaceClick: () => void;
-	onDownloadClick?: () => void;
-	onViewClick?: () => void;
-	onApproveClick?: () => void;
-	onRejectClick?: () => void;
-	onDeleteClick?: () => void;
-};
-
-type DocumentRequirementCardApiProps = {
+export interface DocumentRequirementCardProps {
 	requirement: CandidateDocumentWalletItem;
 	onUploadClick: () => void;
 	onReplaceClick: () => void;
+	onMarkLinkClick?: () => void;
+	isMarkingLink?: boolean;
 	onDownloadClick?: () => void;
 	onViewClick?: () => void;
 	audience?: DocumentRequirementAudience;
 	onApproveClick?: () => void;
 	onRejectClick?: () => void;
 	isReviewActionPending?: boolean;
-};
-
-export function DocumentRequirementCard(props: DocumentRequirementCardProps) {
-	if ("complianceListItemId" in props.requirement) {
-		return (
-			<DocumentRequirementCardApi
-				{...(props as DocumentRequirementCardApiProps)}
-			/>
-		);
-	}
-	return (
-		<DocumentRequirementCardMock
-			{...(props as DocumentRequirementCardMockProps)}
-		/>
-	);
 }
 
-function DocumentRequirementCardApi({
+export function DocumentRequirementCard({
 	requirement,
 	onUploadClick,
 	onReplaceClick,
+	onMarkLinkClick,
+	isMarkingLink = false,
 	onDownloadClick,
 	onViewClick,
 	audience = "candidate",
 	onApproveClick,
 	onRejectClick,
 	isReviewActionPending,
-}: DocumentRequirementCardApiProps) {
+}: Readonly<DocumentRequirementCardProps>) {
 	const {
 		title,
 		description,
@@ -89,17 +66,25 @@ function DocumentRequirementCardApi({
 		uploadedAt,
 		expiresAt,
 		documentFileName,
+		responseStyle,
+		link,
+		rejectionReason,
 	} = requirement;
 
+	const { fmtShortDate, fmtDateTime, fmtCalendarDate } = useUserTimezone();
 	const isVendor = audience === "vendor";
+	const isLink = responseStyle === "LINK";
 
-	const uploadedLabel = uploadedAt ? formatDate(uploadedAt) : undefined;
-	const expiresLabel = expiresAt ? formatDate(expiresAt) : undefined;
+	const uploadedLabel = uploadedAt ? fmtDateTime(uploadedAt) : undefined;
+	const expiresLabel = expiresAt
+		? formatVendorPlacementCalendarDay(expiresAt, fmtCalendarDate, fmtShortDate)
+		: undefined;
 
 	const showFileMeta =
-		status === "approved" ||
-		status === "pending_verification" ||
-		(status === "expired" && uploadedLabel);
+		status === "APPROVED" ||
+		status === "PENDING_REVIEW" ||
+		(status === "EXPIRED" && uploadedLabel) ||
+		(status === "REJECTED" && uploadedLabel);
 
 	return (
 		<Card className="overflow-hidden border shadow-sm">
@@ -120,7 +105,7 @@ function DocumentRequirementCardApi({
 								</p>
 							)}
 						</div>
-						<StatusRowApi status={status} />
+						<StatusRow status={status} />
 					</div>
 				</div>
 			</CardHeader>
@@ -136,7 +121,7 @@ function DocumentRequirementCardApi({
 							<div
 								className={cn(
 									"flex items-center gap-2",
-									status === "expired" && "text-destructive",
+									status === "EXPIRED" && "text-destructive",
 								)}
 							>
 								<AlertTriangle className="size-4 shrink-0" aria-hidden />
@@ -146,29 +131,75 @@ function DocumentRequirementCardApi({
 					</div>
 				)}
 
-				{(status === "pending_upload" ||
-					(status === "expired" && !uploadedLabel)) && (
+				{(status === "MISSING" || (status === "EXPIRED" && !uploadedLabel)) && (
 					<p className="flex min-h-16 items-center justify-center text-center text-sm text-muted-foreground">
 						No document uploaded yet
 					</p>
 				)}
+
+				{status === "REJECTED" && rejectionReason && (
+					<div className="flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+						<X
+							className="size-4 shrink-0 text-destructive mt-0.5"
+							aria-hidden
+						/>
+						<div className="min-w-0 space-y-1">
+							<p className="font-medium text-destructive">Rejection reason</p>
+							<p className="text-muted-foreground break-words">
+								{rejectionReason}
+							</p>
+						</div>
+					</div>
+				)}
 			</CardContent>
 
 			<CardFooter className="flex flex-col gap-2 border-t bg-muted/20 pt-4 pb-4">
-				{status === "pending_upload" && !isVendor && (
+				{isLink && link && (
+					<Button type="button" variant="outline" className="w-full" asChild>
+						<a href={link} target="_blank" rel="noopener noreferrer">
+							<ExternalLink className="size-4" aria-hidden />
+							Visit Link
+						</a>
+					</Button>
+				)}
+
+				{isLink &&
+					(status === "MISSING" ||
+						status === "EXPIRED" ||
+						status === "REJECTED") &&
+					!isVendor &&
+					onMarkLinkClick && (
+						<Button
+							type="button"
+							className="w-full"
+							disabled={isMarkingLink}
+							onClick={onMarkLinkClick}
+						>
+							<CheckCircle2 className="size-4" aria-hidden />
+							{isMarkingLink ? "Marking…" : "Mark as Submitted"}
+						</Button>
+					)}
+
+				{isLink && status === "MISSING" && isVendor && (
+					<p className="text-center text-sm text-muted-foreground">
+						The candidate marks the link as submitted from their portal.
+					</p>
+				)}
+
+				{!isLink && status === "MISSING" && !isVendor && (
 					<Button type="button" className="w-full" onClick={onUploadClick}>
 						<Upload className="size-4" aria-hidden />
 						Upload Document
 					</Button>
 				)}
 
-				{status === "pending_upload" && isVendor && (
+				{!isLink && status === "MISSING" && isVendor && (
 					<p className="text-center text-sm text-muted-foreground">
 						The candidate uploads documents from their portal.
 					</p>
 				)}
 
-				{status === "approved" && (
+				{!isLink && status === "APPROVED" && (
 					<div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
 						<Button
 							type="button"
@@ -191,7 +222,34 @@ function DocumentRequirementCardApi({
 					</div>
 				)}
 
-				{(status === "expired" || status === "pending_verification") &&
+				{!isLink &&
+					status === "PENDING_REVIEW" &&
+					uploadedLabel &&
+					!isVendor && (
+						<div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+							<Button
+								type="button"
+								variant="outline"
+								className="w-full"
+								onClick={onViewClick}
+							>
+								<Eye className="size-4" aria-hidden />
+								View
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								className="w-full"
+								onClick={onDownloadClick}
+							>
+								<Download className="size-4" aria-hidden />
+								Download
+							</Button>
+						</div>
+					)}
+
+				{!isLink &&
+					(status === "EXPIRED" || status === "REJECTED") &&
 					uploadedLabel &&
 					!isVendor && (
 						<div className="flex w-full flex-col gap-2">
@@ -227,40 +285,50 @@ function DocumentRequirementCardApi({
 						</div>
 					)}
 
-				{status === "expired" && uploadedLabel && isVendor && (
-					<div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
-						<Button
-							type="button"
-							variant="outline"
-							className="w-full"
-							onClick={onViewClick}
-						>
-							<Eye className="size-4" aria-hidden />
-							View
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							className="w-full"
-							onClick={onDownloadClick}
-						>
-							<Download className="size-4" aria-hidden />
-							Download
-						</Button>
-					</div>
-				)}
+				{!isLink &&
+					(status === "EXPIRED" || status === "REJECTED") &&
+					uploadedLabel &&
+					isVendor && (
+						<div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+							<Button
+								type="button"
+								variant="outline"
+								className="w-full"
+								onClick={onViewClick}
+							>
+								<Eye className="size-4" aria-hidden />
+								View
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								className="w-full"
+								onClick={onDownloadClick}
+							>
+								<Download className="size-4" aria-hidden />
+								Download
+							</Button>
+						</div>
+					)}
 
-				{status === "pending_verification" && isVendor && (
-					<div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
-						<Button
-							type="button"
-							variant="outline"
-							className="border-primary text-primary w-full"
-							onClick={onViewClick}
-						>
-							<Eye className="size-4" aria-hidden />
-							View
-						</Button>
+				{status === "PENDING_REVIEW" && isVendor && (
+					<div
+						className={cn(
+							"grid w-full grid-cols-1 gap-2",
+							isLink ? "sm:grid-cols-2" : "sm:grid-cols-3",
+						)}
+					>
+						{!isLink && (
+							<Button
+								type="button"
+								variant="outline"
+								className="border-primary text-primary w-full"
+								onClick={onViewClick}
+							>
+								<Eye className="size-4" aria-hidden />
+								View
+							</Button>
+						)}
 						<Button
 							type="button"
 							className="w-full bg-green-600 text-white hover:bg-green-600/90"
@@ -287,378 +355,19 @@ function DocumentRequirementCardApi({
 	);
 }
 
-function StatusRowApi({
+function StatusRow({
 	status,
-}: {
+}: Readonly<{
 	status: CandidateDocumentWalletItem["status"];
-}) {
-	if (status === "approved") {
-		return (
-			<Badge variant="success" className="gap-1">
-				<Check className="size-3.5" aria-hidden />
-				Approved
-			</Badge>
-		);
-	}
-	if (status === "pending_verification") {
-		return (
-			<Badge variant="warning" className="gap-1">
-				<Clock className="size-3.5" aria-hidden />
-				Pending Verification
-			</Badge>
-		);
-	}
-	if (status === "expired") {
-		return (
-			<Badge variant="error" className="gap-1">
-				<AlertTriangle className="size-3.5" aria-hidden />
-				Expired
-			</Badge>
-		);
-	}
+}>) {
+	const Icon = getCandidateComplianceStatusIcon(status);
 	return (
-		<div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-			<AlertTriangle className="size-4 shrink-0 text-amber-600" aria-hidden />
-			<span>Pending Upload</span>
-		</div>
-	);
-}
-
-function DocumentRequirementCardMock({
-	requirement,
-	audience = "candidate",
-	onUploadClick,
-	onReplaceClick,
-	onDownloadClick,
-	onViewClick,
-	onApproveClick,
-	onRejectClick,
-	onDeleteClick,
-}: DocumentRequirementCardMockProps) {
-	const {
-		title,
-		description,
-		status,
-		uploadedAt,
-		expiresAt,
-		fileName,
-		fileSizeLabel,
-		rejectionReason,
-	} = requirement;
-
-	const isVendor = audience === "vendor";
-
-	const showFileMeta =
-		status === "approved" ||
-		status === "pending_verification" ||
-		status === "rejected" ||
-		(status === "expired" && uploadedAt);
-
-	const showFileDetailsBox = showFileMeta && (fileName || uploadedAt);
-
-	const showRejectionAlert =
-		isVendor && status === "rejected" && Boolean(rejectionReason);
-
-	const showCandidateEmptyDocumentMessage =
-		!isVendor &&
-		(status === "pending_upload" || (status === "expired" && !uploadedAt));
-
-	const showCardContent =
-		showRejectionAlert ||
-		showFileDetailsBox ||
-		showCandidateEmptyDocumentMessage;
-
-	const footer = resolveDocumentRequirementFooter(isVendor, status, uploadedAt);
-
-	return (
-		<Card className="overflow-hidden border shadow-sm">
-			<CardHeader className="space-y-3">
-				<div className="flex gap-3">
-					<div className="bg-muted/60 flex size-10 shrink-0 items-center justify-center rounded-md">
-						<FileText className="text-muted-foreground size-5" aria-hidden />
-					</div>
-					<div className="min-w-0 flex-1 space-y-1">
-						<div className="flex items-start justify-between gap-2">
-							<div>
-								<p className="text-foreground font-semibold leading-tight">
-									{title}
-								</p>
-								<p className="text-muted-foreground text-sm">{description}</p>
-							</div>
-							{!isVendor &&
-								(status === "approved" ||
-									status === "pending_verification") && (
-									<button
-										type="button"
-										className="text-muted-foreground hover:bg-muted hover:text-foreground shrink-0 rounded-md p-1.5 transition-colors"
-										aria-label="Download"
-										onClick={onDownloadClick}
-									>
-										<Download className="size-4" />
-									</button>
-								)}
-						</div>
-						<StatusRowMock audience={audience} status={status} />
-					</div>
-				</div>
-			</CardHeader>
-
-			{showCardContent && (
-				<CardContent className="space-y-3 border-t pt-4">
-					{showRejectionAlert && (
-						<Alert variant="destructive" className="py-3">
-							<AlertTitle>Rejection reason</AlertTitle>
-							<AlertDescription>{rejectionReason}</AlertDescription>
-						</Alert>
-					)}
-
-					{showFileDetailsBox && (
-						<div className="bg-muted/40 space-y-2 rounded-lg border p-3 text-sm">
-							{fileName && (
-								<div className="flex flex-wrap items-baseline justify-between gap-2">
-									<p className="font-semibold">{fileName}</p>
-									{fileSizeLabel && (
-										<span className="text-muted-foreground">
-											{fileSizeLabel}
-										</span>
-									)}
-								</div>
-							)}
-							{uploadedAt && (
-								<p className="text-muted-foreground">Uploaded: {uploadedAt}</p>
-							)}
-							{expiresAt && (
-								<p
-									className={cn(
-										"text-muted-foreground",
-										status === "expired" && "text-destructive",
-									)}
-								>
-									Expires: {expiresAt}
-								</p>
-							)}
-						</div>
-					)}
-
-					{showCandidateEmptyDocumentMessage && (
-						<p className="text-muted-foreground flex min-h-16 items-center justify-center text-center text-sm">
-							No document uploaded yet
-						</p>
-					)}
-				</CardContent>
-			)}
-
-			{footer.kind !== "none" && (
-				<CardFooter className="bg-muted/20 flex flex-col gap-2 border-t pt-4 pb-4">
-					{footer.kind === "upload" && (
-						<Button type="button" className="w-full" onClick={onUploadClick}>
-							<Upload className="size-4" aria-hidden />
-							{isVendor ? "Upload" : "Upload Document"}
-						</Button>
-					)}
-
-					{footer.kind === "vendor-verify" && (
-						<div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
-							<Button
-								type="button"
-								variant="outline"
-								className="border-primary text-primary w-full"
-								onClick={onViewClick}
-							>
-								<Eye className="size-4" aria-hidden />
-								View
-							</Button>
-							<Button
-								type="button"
-								className="w-full bg-green-600 text-white hover:bg-green-600/90"
-								onClick={onApproveClick}
-							>
-								<Check className="size-4" aria-hidden />
-								Approve
-							</Button>
-							<Button
-								type="button"
-								variant="destructive"
-								className="w-full"
-								onClick={onRejectClick}
-							>
-								<X className="size-4" aria-hidden />
-								Reject
-							</Button>
-						</div>
-					)}
-
-					{footer.kind === "vendor-view-delete" && (
-						<VendorViewDeleteActions
-							onViewClick={onViewClick}
-							onDeleteClick={onDeleteClick}
-						/>
-					)}
-
-					{footer.kind === "candidate-doc-actions" && (
-						<div
-							className={cn(
-								"grid w-full gap-2",
-								footer.showReplace
-									? "grid-cols-1 sm:grid-cols-2"
-									: "grid-cols-1",
-							)}
-						>
-							<Button
-								type="button"
-								variant="outline"
-								className="w-full"
-								onClick={onViewClick}
-							>
-								<Eye className="size-4" aria-hidden />
-								View
-							</Button>
-							{footer.showReplace && (
-								<Button
-									type="button"
-									variant="outline"
-									className="w-full"
-									onClick={onReplaceClick}
-								>
-									<Upload className="size-4" aria-hidden />
-									Upload
-								</Button>
-							)}
-						</div>
-					)}
-				</CardFooter>
-			)}
-		</Card>
-	);
-}
-
-type DocumentRequirementFooter =
-	| { kind: "none" }
-	| { kind: "upload" }
-	| { kind: "vendor-verify" }
-	| { kind: "vendor-view-delete" }
-	| { kind: "candidate-doc-actions"; showReplace: boolean };
-
-function resolveDocumentRequirementFooter(
-	isVendor: boolean,
-	status: DocumentWalletRequirement["status"],
-	uploadedAt: string | undefined,
-): DocumentRequirementFooter {
-	if (status === "pending_upload") {
-		return { kind: "upload" };
-	}
-	if (!isVendor && status === "expired" && !uploadedAt) {
-		return { kind: "upload" };
-	}
-	if (isVendor && status === "pending_verification") {
-		return { kind: "vendor-verify" };
-	}
-	if (isVendor && (status === "approved" || status === "rejected")) {
-		return { kind: "vendor-view-delete" };
-	}
-	if (!isVendor && status === "rejected") {
-		return { kind: "upload" };
-	}
-	if (
-		!isVendor &&
-		(status === "pending_verification" ||
-			status === "approved" ||
-			(status === "expired" && Boolean(uploadedAt)))
-	) {
-		return {
-			kind: "candidate-doc-actions",
-			showReplace: status === "expired" && Boolean(uploadedAt),
-		};
-	}
-	return { kind: "none" };
-}
-
-function VendorViewDeleteActions({
-	onViewClick,
-	onDeleteClick,
-}: {
-	onViewClick?: () => void;
-	onDeleteClick?: () => void;
-}) {
-	return (
-		<div className="flex w-full gap-2">
-			<Button
-				type="button"
-				variant="outline"
-				className="border-primary text-primary flex-1"
-				onClick={onViewClick}
-			>
-				<Eye className="size-4" aria-hidden />
-				View
-			</Button>
-			<Button
-				type="button"
-				variant="outline"
-				size="icon"
-				className="text-destructive shrink-0"
-				aria-label="Delete document"
-				onClick={onDeleteClick}
-			>
-				<Trash2 className="size-4" />
-			</Button>
-		</div>
-	);
-}
-
-function StatusRowMock({
-	audience,
-	status,
-}: {
-	audience: DocumentRequirementAudience;
-	status: DocumentWalletRequirement["status"];
-}) {
-	if (status === "approved") {
-		return (
-			<Badge variant="success" className="gap-1">
-				<Check className="size-3.5" aria-hidden />
-				Approved
-			</Badge>
-		);
-	}
-	if (status === "pending_verification") {
-		return (
-			<Badge variant="warning" className="gap-1">
-				<Clock className="size-3.5" aria-hidden />
-				Pending Verification
-			</Badge>
-		);
-	}
-	if (
-		status === "expired" ||
-		(status === "rejected" && audience === "candidate")
-	) {
-		return (
-			<Badge variant="error" className="gap-1">
-				<AlertTriangle className="size-3.5" aria-hidden />
-				Expired
-			</Badge>
-		);
-	}
-	if (status === "rejected") {
-		return (
-			<Badge variant="error" className="gap-1">
-				<CircleX className="size-3.5" aria-hidden />
-				Rejected
-			</Badge>
-		);
-	}
-	if (audience === "vendor") {
-		return (
-			<Badge variant="inactive" className="gap-1">
-				<AlertTriangle className="size-3.5" aria-hidden />
-				Missing
-			</Badge>
-		);
-	}
-	return (
-		<div className="text-muted-foreground flex items-center gap-1.5 text-sm">
-			<AlertTriangle className="size-4 shrink-0 text-amber-600" aria-hidden />
-			<span>Pending Upload</span>
-		</div>
+		<Badge
+			variant={getCandidateComplianceStatusVariant(status)}
+			className="gap-1"
+		>
+			<Icon className="size-3.5" aria-hidden />
+			{getCandidateComplianceStatusLabel(status)}
+		</Badge>
 	);
 }

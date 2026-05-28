@@ -3,7 +3,6 @@
 import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useCallback, useMemo, useState } from "react";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useOrganizationLocationsForOnboarding,
 	useOrgDepartmentsForUsers,
@@ -36,8 +35,6 @@ export const CRED_PARAMS = {
 } as const;
 
 export function useCredentialFilters() {
-	const { id: orgId } = useOrgContext();
-
 	const { page, limit, setPage, setLimit } = usePaginationControls({
 		pageParamKey: CRED_PARAMS.PAGE,
 		limitParamKey: CRED_PARAMS.LIMIT,
@@ -117,16 +114,16 @@ export function useCredentialFilters() {
 		limit,
 	};
 
-	const { data: countsData } = usePlacementCredentialCounts(orgId, baseFilters);
-	const { data, isLoading } = usePlacementCredentials(orgId, listQuery);
+	const { data: countsData } = usePlacementCredentialCounts(baseFilters);
+	const { data, isLoading } = usePlacementCredentials(listQuery);
 
 	const totalCount = data?.total ?? 0;
 	const pageCount = Math.ceil(totalCount / limit) || 1;
 
-	const locationsQuery = useOrganizationLocationsForOnboarding(orgId);
-	const departmentsQuery = useOrgDepartmentsForUsers(orgId);
-	const vendorsQuery = useOrgVendors(orgId);
-	const membersQuery = useOrgMembersForPicker(orgId);
+	const locationsQuery = useOrganizationLocationsForOnboarding();
+	const departmentsQuery = useOrgDepartmentsForUsers();
+	const vendorsQuery = useOrgVendors();
+	const membersQuery = useOrgMembersForPicker();
 
 	const locationOptions = useMemo(
 		() => [

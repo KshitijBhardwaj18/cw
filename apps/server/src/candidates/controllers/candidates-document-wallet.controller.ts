@@ -98,7 +98,7 @@ export class CandidatesDocumentWalletController {
 		@Body() dto: UploadCandidateComplianceDocumentDto,
 	) {
 		if (!file?.buffer?.length) {
-			throw new BadRequestException("File is required");
+			throw new BadRequestException("File is required.");
 		}
 		const organizationId = requireActiveOrganizationId(session);
 		return this.candidatesDocumentWalletService.uploadCandidateComplianceDocumentAsCandidate(
@@ -107,6 +107,136 @@ export class CandidatesDocumentWalletController {
 			complianceListItemId,
 			file,
 			dto.expiryDate,
+			dto.issueDate,
+		);
+	}
+
+	@Post("me/document-wallet/items/:complianceListItemId/mark-link-submitted")
+	@Permissions({ action: Action.Update, subject: "CandidateCompliance" })
+	@ApiOperation({
+		summary:
+			"Mark a LINK-type compliance item as submitted (no file upload required)",
+	})
+	markLinkSubmitted(
+		@Session() session: UserSession,
+		@Param("complianceListItemId", ParseUUIDPipe) complianceListItemId: string,
+	) {
+		const organizationId = requireActiveOrganizationId(session);
+		return this.candidatesDocumentWalletService.markComplianceLinkSubmittedAsCandidate(
+			session.user.id,
+			organizationId,
+			complianceListItemId,
+		);
+	}
+
+	@Post(
+		"me/requisitions/:requisitionId/compliance-items/:complianceListItemId/document",
+	)
+	@Permissions({ action: Action.Update, subject: "CandidateCompliance" })
+	@ApiOperation({
+		summary:
+			"Upload or replace a compliance document required for a specific job (candidate self-service)",
+	})
+	@ApiConsumes("multipart/form-data")
+	@UseInterceptors(
+		FileInterceptor("file", { limits: { fileSize: FILE_MAX_SIZE } }),
+	)
+	uploadDocumentForRequisition(
+		@Session() session: UserSession,
+		@Param("requisitionId", ParseUUIDPipe) requisitionId: string,
+		@Param("complianceListItemId", ParseUUIDPipe) complianceListItemId: string,
+		@UploadedFile() file: Express.Multer.File | undefined,
+		@Body() dto: UploadCandidateComplianceDocumentDto,
+	) {
+		if (!file?.buffer?.length) {
+			throw new BadRequestException("File is required.");
+		}
+		const organizationId = requireActiveOrganizationId(session);
+		return this.candidatesDocumentWalletService.uploadCandidateComplianceDocumentForRequisitionAsCandidate(
+			session.user.id,
+			organizationId,
+			requisitionId,
+			complianceListItemId,
+			file,
+			dto.expiryDate,
+			dto.issueDate,
+		);
+	}
+
+	@Post(
+		"me/requisitions/:requisitionId/compliance-items/:complianceListItemId/mark-link-submitted",
+	)
+	@Permissions({ action: Action.Update, subject: "CandidateCompliance" })
+	@ApiOperation({
+		summary:
+			"Mark a LINK-type compliance item required for a specific job as submitted",
+	})
+	markLinkSubmittedForRequisition(
+		@Session() session: UserSession,
+		@Param("requisitionId", ParseUUIDPipe) requisitionId: string,
+		@Param("complianceListItemId", ParseUUIDPipe) complianceListItemId: string,
+	) {
+		const organizationId = requireActiveOrganizationId(session);
+		return this.candidatesDocumentWalletService.markComplianceLinkSubmittedForRequisitionAsCandidate(
+			session.user.id,
+			organizationId,
+			requisitionId,
+			complianceListItemId,
+		);
+	}
+
+	@Post(
+		"me/placements/:placementId/compliance-items/:complianceListItemId/document",
+	)
+	@Permissions({ action: Action.Update, subject: "CandidateCompliance" })
+	@ApiOperation({
+		summary:
+			"Upload or replace a compliance document for a placement (candidate self-service)",
+	})
+	@ApiConsumes("multipart/form-data")
+	@UseInterceptors(
+		FileInterceptor("file", { limits: { fileSize: FILE_MAX_SIZE } }),
+	)
+	uploadDocumentForPlacement(
+		@Session() session: UserSession,
+		@Param("placementId", ParseUUIDPipe) placementId: string,
+		@Param("complianceListItemId", ParseUUIDPipe) complianceListItemId: string,
+		@UploadedFile() file: Express.Multer.File | undefined,
+		@Body() dto: UploadCandidateComplianceDocumentDto,
+	) {
+		if (!file?.buffer?.length) {
+			throw new BadRequestException("File is required.");
+		}
+		const organizationId = requireActiveOrganizationId(session);
+		return this.candidatesDocumentWalletService.uploadCandidateComplianceDocumentForPlacementAsCandidate(
+			session.user.id,
+			organizationId,
+			placementId,
+			complianceListItemId,
+			file,
+			dto.expiryDate,
+			dto.issueDate,
+		);
+	}
+
+	@Post(
+		"me/placements/:placementId/compliance-items/:complianceListItemId/mark-link-submitted",
+	)
+	@Permissions({ action: Action.Update, subject: "CandidateCompliance" })
+	@ApiOperation({
+		summary: "Mark a LINK-type compliance item for a placement as submitted",
+	})
+	markLinkSubmittedForPlacement(
+		@Session() session: UserSession,
+		@Param("placementId", ParseUUIDPipe) placementId: string,
+		@Param("complianceListItemId", ParseUUIDPipe) complianceListItemId: string,
+	) {
+		const organizationId = requireActiveOrganizationId(session);
+		return this.candidatesDocumentWalletService.markComplianceLinkSubmittedForPlacementAsCandidate(
+			session.user.id,
+			organizationId,
+			placementId,
+			complianceListItemId,
 		);
 	}
 

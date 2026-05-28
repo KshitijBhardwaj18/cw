@@ -18,6 +18,7 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { format } from "date-fns";
 import {
+	AlertTriangle,
 	Award,
 	Briefcase,
 	Calendar,
@@ -28,21 +29,27 @@ import {
 	Phone,
 	UserPlus,
 } from "lucide-react";
+import { PriorityFactorsCard } from "@/components/candidate-shared/PriorityFactorsCard";
 import { useCandidateProfileSheet } from "@/hooks/candidate/use-candidate-profile-sheet";
+import type { ComplianceSeverity } from "@/services/talent-community.service";
 import { AssignWorkforceTypeDialog } from "./AssignWorkforceTypeDialog";
 import { SectionLabel } from "./SectionLabel";
 
+const COMPLIANCE_SEVERITY_CLASS: Record<ComplianceSeverity, string> = {
+	ok: "text-green-600 dark:text-green-500",
+	warning: "text-amber-600 dark:text-amber-500",
+	danger: "text-destructive",
+};
+
 export function CandidateProfileSheet({
-	orgId,
 	candidate,
 	open,
 	onOpenChange,
-}: {
-	orgId: string;
+}: Readonly<{
 	candidate: CandidateTalentType | null;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-}) {
+}>) {
 	const ability = useAbility();
 	const canAssignWorkforceType = ability.can(Action.Update, "TalentCommunity");
 
@@ -57,7 +64,7 @@ export function CandidateProfileSheet({
 		setAssignDialogOpen,
 		submitAssignWorkforceType,
 		isAssignPending,
-	} = useCandidateProfileSheet({ orgId, candidate, open });
+	} = useCandidateProfileSheet({ candidate, open });
 
 	if (!profile) {
 		return null;
@@ -165,6 +172,11 @@ export function CandidateProfileSheet({
 								</div>
 							</div>
 
+							<PriorityFactorsCard
+								tags={profile.candidateTags.map((ct) => ct.tag.name)}
+								variant="inline"
+							/>
+
 							<div>
 								<div className="mb-3 flex items-center justify-between gap-2">
 									<p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
@@ -254,35 +266,57 @@ export function CandidateProfileSheet({
 							<div>
 								<SectionLabel>Compliance & documents</SectionLabel>
 								<div className="bg-muted/40 space-y-3 rounded-xl p-4">
-									<div className="flex items-center gap-2 text-sm">
-										<CheckCircle2 className="size-4 shrink-0 text-green-600 dark:text-green-500" />
-										<span className="font-medium">
-											All required documents verified
-										</span>
-									</div>
-									<div className="space-y-2">
-										{profileData?.candidateCompliances?.map((doc) => (
-											<div
-												key={doc.id}
-												className="bg-background flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 shadow-sm"
-											>
-												<div className="flex min-w-0 items-center gap-2">
-													<FileText className="text-muted-foreground size-4 shrink-0" />
-													<span className="truncate text-sm">
-														{doc.documentName}
-													</span>
-												</div>
-												<span className="shrink-0 text-xs font-medium text-green-600 dark:text-green-500">
-													{doc.status}
-												</span>
+									{profileData?.complianceSummary &&
+									profileData.complianceSummary.total > 0 ? (
+										<>
+											<div className="flex items-center gap-2 text-sm">
+												{profileData.complianceSummary.allVerified ? (
+													<>
+														<CheckCircle2 className="size-4 shrink-0 text-green-600 dark:text-green-500" />
+														<span className="font-medium">
+															All required documents verified
+														</span>
+													</>
+												) : (
+													<>
+														<AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-500" />
+														<span className="font-medium">
+															{profileData.complianceSummary.verified} of{" "}
+															{profileData.complianceSummary.total} documents
+															verified
+														</span>
+													</>
+												)}
 											</div>
-										))}
-										{!profileData?.candidateCompliances?.length && (
-											<p className="text-muted-foreground text-xs">
-												No compliance documents found.
-											</p>
-										)}
-									</div>
+											<div className="space-y-2">
+												{profileData.candidateCompliances.map((doc) => (
+													<div
+														key={doc.id}
+														className="bg-background flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 shadow-sm"
+													>
+														<div className="flex min-w-0 items-center gap-2">
+															<FileText className="text-muted-foreground size-4 shrink-0" />
+															<span className="truncate text-sm">
+																{doc.documentName}
+															</span>
+														</div>
+														<span
+															className={cn(
+																"shrink-0 text-xs font-medium",
+																COMPLIANCE_SEVERITY_CLASS[doc.severity],
+															)}
+														>
+															{doc.status}
+														</span>
+													</div>
+												))}
+											</div>
+										</>
+									) : (
+										<p className="text-muted-foreground text-xs">
+											No compliance documents found.
+										</p>
+									)}
 								</div>
 							</div>
 
@@ -357,6 +391,8 @@ export function CandidateProfileSheet({
 					onOpenChange={setAssignDialogOpen}
 					candidateName={profile.user.name}
 					vendors={vendors}
+					initialWorkforceType={profile.workforceType}
+					initialVendorId={profile.vendorId ?? profile.vendor?.id ?? null}
 					isSubmitting={isAssignPending}
 					onAssign={submitAssignWorkforceType}
 				/>

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { todayIsoDate } from "./job-posting-details.schema";
 
 const PUBLISH_MODE_VALUES = [
 	"SAVE_AS_DRAFT",
@@ -28,6 +29,12 @@ export const jobPostingPublishSchema = z
 				message: "Publish date is required",
 				path: ["scheduledPublishDate"],
 			});
+		} else if (value.scheduledPublishDate < todayIsoDate()) {
+			ctx.addIssue({
+				code: "custom",
+				message: "Publish date cannot be in the past",
+				path: ["scheduledPublishDate"],
+			});
 		}
 
 		if (
@@ -39,6 +46,16 @@ export const jobPostingPublishSchema = z
 				message: "Publish time is required",
 				path: ["scheduledPublishTime"],
 			});
+		} else if (value.scheduledPublishDate === todayIsoDate()) {
+			const now = new Date();
+			const currentTime = now.toTimeString().slice(0, 5);
+			if (value.scheduledPublishTime < currentTime) {
+				ctx.addIssue({
+					code: "custom",
+					message: "Publish time must be in the future for today's date",
+					path: ["scheduledPublishTime"],
+				});
+			}
 		}
 	});
 

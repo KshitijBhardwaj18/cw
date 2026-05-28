@@ -132,7 +132,7 @@ export class BillingService {
 			where: { id: payCodeId, organizationId: orgId },
 			select: { id: true },
 		});
-		if (!code) throw new NotFoundException("Pay code not found");
+		if (!code) throw new NotFoundException("Pay code not found.");
 
 		await this.prisma.organizationPayCode.delete({ where: { id: payCodeId } });
 		return { success: true };
@@ -142,7 +142,7 @@ export class BillingService {
 		const existing = await this.prisma.organizationPayCode.findFirst({
 			where: { id: payCodeId, organizationId: orgId },
 		});
-		if (!existing) throw new NotFoundException("Pay code not found");
+		if (!existing) throw new NotFoundException("Pay code not found.");
 
 		const nextCode = dto.code ?? existing.code;
 		if (nextCode !== existing.code) {
@@ -222,7 +222,7 @@ export class BillingService {
 				dto.invoiceDeliveryDownload ?? config?.invoiceDeliveryDownload ?? false;
 			if (!nextDeliveryEmail && !nextDeliverySftp && !nextDeliveryDownload) {
 				throw new BadRequestException(
-					"At least one invoice delivery method must be enabled",
+					"Enable at least one invoice delivery method.",
 				);
 			}
 		}
@@ -318,7 +318,7 @@ export class BillingService {
 		const row = await this.prisma.organizationWorkforceBillingRate.findFirst({
 			where: { id: rateId, organizationId: orgId },
 		});
-		if (!row) throw new NotFoundException("Workforce billing rate not found");
+		if (!row) throw new NotFoundException("Workforce billing rate not found.");
 
 		const updated = await this.prisma.organizationWorkforceBillingRate.update({
 			where: { id: rateId },

@@ -1,5 +1,6 @@
 "use client";
 
+import { enumToTitleText } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -7,17 +8,11 @@ import { Mail, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import type { EnrolledOrganizationUserRow } from "@/types/users";
 
-const formatEnumLabel = (value: string) =>
-	value
-		.split("_")
-		.map((part) => part.charAt(0) + part.slice(1).toLowerCase())
-		.join(" ");
-
 function InviteStatusCell({
 	status,
-}: {
+}: Readonly<{
 	status: EnrolledOrganizationUserRow["inviteStatus"];
-}) {
+}>) {
 	const isSent = status === "Sent";
 	const isScheduled = status === "Scheduled";
 	return (
@@ -76,9 +71,7 @@ export function useEnrolledOrganizationUserColumns(options: Options = {}) {
 				accessorKey: "role",
 				header: "ROLE",
 				cell: ({ row }) => (
-					<Badge variant="secondary">
-						{formatEnumLabel(row.original.role)}
-					</Badge>
+					<Badge variant="secondary">{row.original.role}</Badge>
 				),
 			},
 			{
@@ -88,7 +81,7 @@ export function useEnrolledOrganizationUserColumns(options: Options = {}) {
 					<Badge
 						variant={row.original.status === "ACTIVE" ? "success" : "inactive"}
 					>
-						{formatEnumLabel(row.original.status)}
+						{enumToTitleText(row.original.status)}
 					</Badge>
 				),
 			},

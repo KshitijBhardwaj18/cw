@@ -20,6 +20,7 @@ import { requireActiveOrganizationId } from "src/common/utils/require-active-org
 import { CancelPerDiemShiftDto } from "../dto/per-diem-shifts/cancel-per-diem-shift.dto";
 import { CreatePerDiemShiftDto } from "../dto/per-diem-shifts/create-per-diem-shift.dto";
 import { PerDiemShiftsQueryDto } from "../dto/per-diem-shifts/per-diem-shifts-query.dto";
+import { UpdatePerDiemShiftDto } from "../dto/per-diem-shifts/update-per-diem-shift.dto";
 import { PerDiemShiftsService } from "../services/per-diem-shifts.service";
 
 @ApiTags("per-diem-shifts")
@@ -79,6 +80,35 @@ export class PerDiemShiftsController {
 		const orgId = requireActiveOrganizationId(session);
 		const user = session.user;
 		return this.perDiemShiftsService.create(orgId, dto, user.id);
+	}
+
+	@Get(":shiftId")
+	@ApiOperation({ summary: "Get a per diem shift by id (for edit/detail)" })
+	@ApiResponse({ status: 200, description: "Shift detail" })
+	@Permissions({ action: Action.Read, subject: "PerDiemShift" })
+	async findOne(
+		@Session() session: UserSession,
+		@Param("shiftId", ParseUUIDPipe) shiftId: string,
+	) {
+		const orgId = requireActiveOrganizationId(session);
+		return this.perDiemShiftsService.findOne(orgId, shiftId);
+	}
+
+	@Patch(":shiftId")
+	@HttpCode(HttpStatus.OK)
+	@ApiOperation({
+		summary: "Edit an OPEN per diem shift (rejected once claimed)",
+	})
+	@ApiResponse({ status: 200, description: "Shift updated" })
+	@Permissions({ action: Action.Update, subject: "PerDiemShift" })
+	async update(
+		@Session() session: UserSession,
+		@Param("shiftId", ParseUUIDPipe) shiftId: string,
+		@Body() dto: UpdatePerDiemShiftDto,
+	) {
+		const orgId = requireActiveOrganizationId(session);
+		const user = session.user;
+		return this.perDiemShiftsService.update(orgId, shiftId, dto, user.id);
 	}
 
 	@Patch(":shiftId/cancel")

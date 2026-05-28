@@ -3,7 +3,6 @@
 import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useCallback, useMemo, useState } from "react";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useCommandCenterShifts,
 	useCommandCenterShiftsMeta,
@@ -24,8 +23,6 @@ function toOption(value: string) {
 }
 
 export function useCommandCenterShiftsTab() {
-	const { id: orgId } = useOrgContext();
-
 	const { page, limit, setPage, setLimit } = usePaginationControls({
 		pageParamKey: SHIFT_TAB_PARAMS.PAGE,
 		defaultLimit: 2,
@@ -74,8 +71,8 @@ export function useCommandCenterShiftsTab() {
 		[department, occupation, page, limit, searchFromUrl],
 	);
 
-	const locationsQuery = useCommandCenterShifts(orgId, query);
-	const filtersMetaQuery = useCommandCenterShiftsMeta(orgId);
+	const locationsQuery = useCommandCenterShifts(query);
+	const filtersMetaQuery = useCommandCenterShiftsMeta();
 
 	const departmentOccupationMap =
 		filtersMetaQuery.data?.filtersMeta.departmentOccupations ?? [];

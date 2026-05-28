@@ -44,7 +44,7 @@ export function ManageSpecialtyDialog({
 	organizationOccupationId,
 	occupationId,
 	linkedSpecialtyIds,
-}: ManageSpecialtyDialogProps) {
+}: Readonly<ManageSpecialtyDialogProps>) {
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
 	const {
 		search,

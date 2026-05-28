@@ -43,6 +43,7 @@ export const HiringFunnelTab = () => {
 		setPage,
 		limit,
 		setLimit,
+		pageSizeOptions,
 	} = useHiringFunnel();
 	const { columns } = useHiringFunnelJobListingColumns();
 
@@ -125,6 +126,10 @@ export const HiringFunnelTab = () => {
 							goToPage={setPage}
 							limit={limit}
 							setLimit={setLimit}
+							pageSizeOptions={pageSizeOptions}
+							totalItems={total}
+							itemLabel="job"
+							itemLabelPlural="jobs"
 						/>
 					</>
 				)}

@@ -4,7 +4,6 @@ import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useMemo, useState } from "react";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useOrganizationLocationsForOnboarding,
 	useOrgDepartmentsForUsers,
@@ -48,8 +47,6 @@ export const UPCOMING_PLACEMENTS_PARAMS = {
 } as const;
 
 export function useUpcomingPlacements() {
-	const { id: orgId } = useOrgContext();
-
 	const { page, limit, setPage, setLimit, resetPage } = usePaginationControls({
 		pageParamKey: UPCOMING_PLACEMENTS_PARAMS.PAGE,
 		limitParamKey: UPCOMING_PLACEMENTS_PARAMS.LIMIT,
@@ -127,19 +124,17 @@ export function useUpcomingPlacements() {
 
 	const listQuery = { ...baseFilters, complianceStatus, page, limit };
 
-	const { data: countsData } = usePlacementUpcomingComplianceCounts(
-		orgId,
-		baseFilters,
-	);
-	const { data, isLoading } = usePlacementUpcomingCompliance(orgId, listQuery);
+	const { data: countsData } =
+		usePlacementUpcomingComplianceCounts(baseFilters);
+	const { data, isLoading } = usePlacementUpcomingCompliance(listQuery);
 
 	const totalCount = data?.total ?? 0;
 	const pageCount = Math.ceil(totalCount / limit) || 1;
 
-	const locationsQuery = useOrganizationLocationsForOnboarding(orgId);
-	const departmentsQuery = useOrgDepartmentsForUsers(orgId);
-	const vendorsQuery = useOrgVendors(orgId);
-	const membersQuery = useOrgMembersForPicker(orgId);
+	const locationsQuery = useOrganizationLocationsForOnboarding();
+	const departmentsQuery = useOrgDepartmentsForUsers();
+	const vendorsQuery = useOrgVendors();
+	const membersQuery = useOrgMembersForPicker();
 
 	const locationOptions = useMemo(
 		() => [

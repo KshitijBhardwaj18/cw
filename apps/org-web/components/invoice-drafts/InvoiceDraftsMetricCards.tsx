@@ -25,7 +25,7 @@ const EMPTY_SUMMARY: InvoiceDraftListSummary = {
 };
 
 const iconWrap = (
-	tone: keyof typeof TINTED_METRIC_TONE_STYLES,
+	tone: Readonly<keyof typeof TINTED_METRIC_TONE_STYLES>,
 	Icon: typeof FileText,
 ) => {
 	const styles = TINTED_METRIC_TONE_STYLES[tone];
@@ -47,7 +47,7 @@ export type InvoiceDraftsMetricCardsProps = {
 
 export function InvoiceDraftsMetricCards({
 	summary,
-}: InvoiceDraftsMetricCardsProps) {
+}: Readonly<InvoiceDraftsMetricCardsProps>) {
 	const s = summary ?? EMPTY_SUMMARY;
 
 	return (

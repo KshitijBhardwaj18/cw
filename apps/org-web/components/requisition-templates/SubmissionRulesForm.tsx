@@ -1,5 +1,6 @@
 "use client";
 
+import { WorkflowType } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent, CardHeader } from "@repo/ui/components/card";
 import {
@@ -46,7 +47,7 @@ import { STEP_VALIDATION_TOAST } from "./CreateRequisitionTemplatePageContent";
 const defaultValues: RequisitionTemplateSubmissionRulesFormValues = {
 	approvalRequired: false,
 	approverRole: "HIRING_MANAGER",
-	workflowType: "VENDOR_CANDIDATE",
+	workflowType: WorkflowType.VENDOR_CANDIDATE,
 	whoCanSubmit: "ALL_VENDORS",
 	selectedVendorIds: [],
 	internalNotes: "",
@@ -70,7 +71,7 @@ export function SubmissionRulesForm({
 	vendors,
 	initialValues,
 	readOnly = false,
-}: SubmissionRulesFormProps) {
+}: Readonly<SubmissionRulesFormProps>) {
 	const initialValuesKey = useMemo(
 		() => (initialValues ? JSON.stringify(initialValues) : ""),
 		[initialValues],
@@ -104,7 +105,7 @@ export function SubmissionRulesForm({
 		(s) => s.values.approvalRequired,
 	);
 	const workflowType = useStore(form.store, (s) => s.values.workflowType);
-	const isCandidateOnly = workflowType === "CANDIDATE_ONLY";
+	const isCandidateOnly = workflowType === WorkflowType.CANDIDATE_ONLY;
 
 	const submissionAttempts = useStore(
 		form.store,
@@ -291,7 +292,7 @@ export function SubmissionRulesForm({
 														const next =
 															v as RequisitionTemplateSubmissionRulesFormValues["workflowType"];
 														field.handleChange(next);
-														if (next === "CANDIDATE_ONLY") {
+														if (next === WorkflowType.CANDIDATE_ONLY) {
 															form.setFieldValue("whoCanSubmit", "ALL_VENDORS");
 															form.setFieldValue("selectedVendorIds", []);
 														}

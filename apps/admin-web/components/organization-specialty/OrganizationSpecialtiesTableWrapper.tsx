@@ -12,7 +12,7 @@ interface OrganizationSpecialtiesTableWrapperProps {
 export function OrganizationSpecialtiesTableWrapper({
 	data,
 	organizationId,
-}: OrganizationSpecialtiesTableWrapperProps) {
+}: Readonly<OrganizationSpecialtiesTableWrapperProps>) {
 	const rows = toOrganizationSpecialtyTableRows(data);
 
 	return (

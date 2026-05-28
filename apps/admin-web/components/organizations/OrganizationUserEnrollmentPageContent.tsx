@@ -1,7 +1,6 @@
 "use client";
 
 import { OrganizationTimezone } from "@repo/shared";
-import { Alert } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
 import {
 	Tabs,
@@ -9,18 +8,20 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@repo/ui/components/tabs";
+import { BulkJobAlert } from "@repo/ui/general/BulkJobAlert";
+import { CustomAlertDialog } from "@repo/ui/general/CustomAlertDialog";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
 import { SearchBar } from "@repo/ui/general/SearchBar";
 import {
 	Briefcase,
 	Building2,
-	Loader2,
 	ShoppingBag,
 	Upload,
 	UserPlus,
-	X,
+	Users,
 } from "lucide-react";
 import { BulkEnrollmentOrganizationUsersDialog } from "@/components/organizations/BulkEnrollmentOrganizationUsersDialog";
+import { CandidatesTabContent } from "@/components/organizations/CandidatesTabContent";
 import { EnrollOrganizationUserDialog } from "@/components/organizations/EnrollOrganizationUserDialog";
 import { EnrollProgramUserDialog } from "@/components/organizations/EnrollProgramUserDialog";
 import { EnrollVendorUserDialog } from "@/components/organizations/EnrollVendorUserDialog";
@@ -33,6 +34,7 @@ import {
 	OrganizationUserEnrollmentProvider,
 	useOrganizationUserEnrollment,
 } from "@/contexts/organization-user-enrollment.context";
+import { toBulkEnrollmentAlertStatus } from "@/utils/bulk-job-banner";
 
 type OrganizationUserEnrollmentPageContentProps = {
 	organizationId: string;
@@ -48,6 +50,15 @@ function OrganizationUserEnrollmentContent() {
 		orgResult,
 		programResult,
 		vendorResult,
+		candidateResult,
+		candidateToToggle,
+		setCandidateToToggle,
+		candidateToDelete,
+		setCandidateToDelete,
+		handleConfirmToggleActive,
+		handleConfirmDeleteCandidate,
+		setActiveMutation,
+		deleteCandidateMutation,
 		isEnrollDialogOpen,
 		setIsEnrollDialogOpen,
 		isEnrollProgramDialogOpen,
@@ -78,6 +89,7 @@ function OrganizationUserEnrollmentContent() {
 					{activeTab === "organization" && "Organization User Enrollment"}
 					{activeTab === "program" && "Program User Enrollment"}
 					{activeTab === "vendor" && "Vendor User Enrollment"}
+					{activeTab === "candidate" && "Candidates"}
 				</h1>
 				<p className="text-muted-foreground text-sm">
 					{activeTab === "organization" &&
@@ -86,6 +98,8 @@ function OrganizationUserEnrollmentContent() {
 						"Grant program users access to this organization and assign organization-specific roles"}
 					{activeTab === "vendor" &&
 						"Grant vendor users access to this organization and assign vendor-specific roles"}
+					{activeTab === "candidate" &&
+						"View, deactivate, or remove candidates onboarded into this organization"}
 				</p>
 			</div>
 
@@ -96,50 +110,11 @@ function OrganizationUserEnrollmentContent() {
 				placeholder="Search enrolled users..."
 			/>
 
-			{bulkEnrollmentStatus.phase !== "idle" && (
-				<Alert
-					className="flex items-center justify-between gap-3 border-primary/40 bg-primary/4 px-4 py-3"
-					variant={
-						bulkEnrollmentStatus.phase === "failed" ? "destructive" : undefined
-					}
-				>
-					<div className="flex min-w-0 flex-1 items-center gap-3">
-						{bulkEnrollmentStatus.phase === "processing" && (
-							<>
-								<Loader2 className="size-5 shrink-0 animate-spin text-primary" />
-								<span className="text-sm font-medium text-foreground">
-									Processing bulk enrollment…
-								</span>
-							</>
-						)}
-						{bulkEnrollmentStatus.phase === "completed" && (
-							<span className="text-sm text-foreground">
-								Bulk enrollment complete. Enrolled:{" "}
-								{bulkEnrollmentStatus.enrolled}, Skipped:{" "}
-								{bulkEnrollmentStatus.skipped}, Failed:{" "}
-								{bulkEnrollmentStatus.failed}
-								{bulkEnrollmentStatus.errors &&
-								bulkEnrollmentStatus.errors.length > 0
-									? ` (${bulkEnrollmentStatus.errors.length} error details)`
-									: ""}
-							</span>
-						)}
-						{bulkEnrollmentStatus.phase === "failed" && (
-							<span className="text-sm">{bulkEnrollmentStatus.message}</span>
-						)}
-					</div>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
-						className="shrink-0"
-						onClick={handleDismissBulkStatus}
-						aria-label="Dismiss"
-					>
-						<X className="size-4" />
-					</Button>
-				</Alert>
-			)}
+			<BulkJobAlert
+				status={toBulkEnrollmentAlertStatus(bulkEnrollmentStatus)}
+				onDismiss={handleDismissBulkStatus}
+				errorsTitle="Bulk enrollment errors"
+			/>
 
 			{/* Tabs + Action buttons + Table content */}
 			<Tabs
@@ -166,6 +141,10 @@ function OrganizationUserEnrollmentContent() {
 								<TabsTrigger value="vendor" className="flex-none">
 									<ShoppingBag className="size-4" />
 									Vendor Users ({vendorResult?.total ?? 0})
+								</TabsTrigger>
+								<TabsTrigger value="candidate" className="flex-none">
+									<Users className="size-4" />
+									Candidates ({candidateResult?.total ?? 0})
 								</TabsTrigger>
 							</TabsList>
 						</ScrollableLineTabsRow>
@@ -220,6 +199,10 @@ function OrganizationUserEnrollmentContent() {
 				<TabsContent value="vendor" className="mt-4">
 					<VendorUsersTabContent />
 				</TabsContent>
+
+				<TabsContent value="candidate" className="mt-4">
+					<CandidatesTabContent />
+				</TabsContent>
 			</Tabs>
 
 			<BulkEnrollmentOrganizationUsersDialog
@@ -250,6 +233,48 @@ function OrganizationUserEnrollmentContent() {
 				onConfirm={handleRemoveConfirm}
 				isPending={removeMemberMutation.isPending}
 			/>
+			<CustomAlertDialog
+				isOpen={!!candidateToToggle}
+				onClose={() => setCandidateToToggle(null)}
+				onConfirm={handleConfirmToggleActive}
+				isLoading={setActiveMutation.isPending}
+				title={
+					candidateToToggle?.isActive
+						? "Deactivate candidate"
+						: "Activate candidate"
+				}
+				description={
+					candidateToToggle
+						? candidateToToggle.isActive
+							? `Are you sure you want to deactivate ${candidateToToggle.name}? They will lose access until reactivated.`
+							: `Are you sure you want to activate ${candidateToToggle.name}?`
+						: ""
+				}
+				cancelText="Cancel"
+				confirmText={
+					setActiveMutation.isPending
+						? "Saving…"
+						: candidateToToggle?.isActive
+							? "Deactivate"
+							: "Activate"
+				}
+			/>
+			<CustomAlertDialog
+				isOpen={!!candidateToDelete}
+				onClose={() => setCandidateToDelete(null)}
+				onConfirm={handleConfirmDeleteCandidate}
+				isLoading={deleteCandidateMutation.isPending}
+				title="Close candidate account"
+				description={
+					candidateToDelete
+						? `Close ${candidateToDelete.name}'s account? Their user will be deactivated, active submissions withdrawn, saved/vendor-review lists cleared and all sessions revoked. This cannot be undone.`
+						: ""
+				}
+				cancelText="Cancel"
+				confirmText={
+					deleteCandidateMutation.isPending ? "Closing…" : "Close account"
+				}
+			/>
 			<SendOrganizationInvitationDialog
 				organizationId={org.id}
 				recipients={inviteRecipients}
@@ -265,7 +290,7 @@ function OrganizationUserEnrollmentContent() {
 
 export function OrganizationUserEnrollmentPageContent({
 	organizationId,
-}: OrganizationUserEnrollmentPageContentProps) {
+}: Readonly<OrganizationUserEnrollmentPageContentProps>) {
 	return (
 		<OrganizationUserEnrollmentProvider organizationId={organizationId}>
 			<OrganizationUserEnrollmentContent />

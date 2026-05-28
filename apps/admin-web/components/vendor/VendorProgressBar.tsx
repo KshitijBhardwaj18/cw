@@ -32,7 +32,7 @@ export function VendorProgressBar({
 	currentStep,
 	vendorId = "",
 	onStepChange,
-}: VendorProgressBarProps) {
+}: Readonly<VendorProgressBarProps>) {
 	const normalizedVendorId = vendorId.trim();
 	const isEditMode = normalizedVendorId.length > 0;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDateRange } from "@repo/shared";
+import { TimesheetEntryStatus } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
@@ -8,6 +8,7 @@ import type { TimeApprovalEntry } from "@repo/ui/general/timekeeping/types";
 import { cn } from "@repo/ui/lib/utils";
 import { AlertTriangle, Calendar, Check, Clock, User } from "lucide-react";
 import { TIMEKEEPING_POLICY_DEFAULTS } from "@/constants/timekeeping";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 interface TimeApprovalCardProps {
 	entry: TimeApprovalEntry;
@@ -23,7 +24,8 @@ export function TimeApprovalCard({
 	onDispute,
 	className,
 	canMutateTimesheet = true,
-}: TimeApprovalCardProps) {
+}: Readonly<TimeApprovalCardProps>) {
+	const { fmtDateRange } = useUserTimezone();
 	const {
 		workerName,
 		position,
@@ -74,7 +76,7 @@ export function TimeApprovalCard({
 					<div className="flex items-center gap-2 text-muted-foreground">
 						<Calendar className="size-3.5" />
 						<span className="text-sm font-medium">
-							{formatDateRange(startDate, endDate)}
+							{fmtDateRange(startDate, endDate)}
 						</span>
 					</div>
 
@@ -107,7 +109,7 @@ export function TimeApprovalCard({
 
 					<div className="mt-auto pt-1 space-y-3">
 						<div className="flex items-center justify-between">
-							{status === "PENDING" && (
+							{status === TimesheetEntryStatus.PENDING && (
 								<Badge
 									variant="warning"
 									className="rounded-full px-2.5 py-0.5 text-sm font-medium shadow-none bg-amber-50 text-amber-700 border-amber-100"
@@ -116,7 +118,7 @@ export function TimeApprovalCard({
 									Pending ({pendingDays ?? 0} days)
 								</Badge>
 							)}
-							{status === "APPROVED" && (
+							{status === TimesheetEntryStatus.APPROVED && (
 								<Badge
 									variant="success"
 									className="rounded-full px-2.5 py-0.5 text-sm font-medium shadow-none"
@@ -125,7 +127,7 @@ export function TimeApprovalCard({
 									Approved
 								</Badge>
 							)}
-							{status === "DISPUTED" && (
+							{status === TimesheetEntryStatus.DISPUTED && (
 								<Badge
 									variant="error"
 									className="rounded-full px-2.5 py-0.5 text-sm font-medium shadow-none"
@@ -136,7 +138,7 @@ export function TimeApprovalCard({
 							)}
 						</div>
 
-						{status === "PENDING" && canMutateTimesheet && (
+						{status === TimesheetEntryStatus.PENDING && canMutateTimesheet && (
 							<div className="flex items-center gap-2">
 								<Button
 									variant="default"

@@ -42,7 +42,7 @@ export function AccessBlockedState({
 	backLabel = "Back",
 	footer,
 	className,
-}: AccessBlockedStateProps) {
+}: Readonly<AccessBlockedStateProps>) {
 	const media =
 		icon === null ? null : (
 			<EmptyMedia variant="icon">

@@ -1,12 +1,15 @@
 "use client";
 
-import { getLabel } from "@repo/shared";
-import { addWeeks, format, parse } from "date-fns";
+import {
+	type ComplianceChecklistItemPhase,
+	getLabel,
+	WorkflowType,
+} from "@repo/shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { REQUISITION_TEMPLATE_TYPE_OPTIONS } from "@/constants/requisition-templates";
-import { useOrgContext } from "@/contexts/org-context";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useActiveComplianceListItems,
 	useComplianceChecklists,
@@ -31,20 +34,6 @@ const COMPENSATION_STEP = 2;
 const COMPLIANCE_STEP = 3;
 const SUBMISSION_RULES_STEP = 4;
 
-function computeEndDate(
-	startDate: string,
-	lengthWeeks: number,
-): string | undefined {
-	try {
-		return format(
-			addWeeks(parse(startDate, "yyyy-MM-dd", new Date()), lengthWeeks),
-			"yyyy-MM-dd",
-		);
-	} catch {
-		return undefined;
-	}
-}
-
 type UseRequisitionTemplateBuilderPageParams = {
 	forcedMode?: "create" | "edit" | "view";
 	templateId?: string;
@@ -55,7 +44,7 @@ export function useRequisitionTemplateBuilderPage({
 	templateId: templateIdProp,
 }: UseRequisitionTemplateBuilderPageParams = {}) {
 	const router = useRouter();
-	const { id: orgId } = useOrgContext();
+	const { tz } = useUserTimezone();
 	const searchParams = useSearchParams();
 	const mode =
 		forcedMode ??
@@ -75,21 +64,17 @@ export function useRequisitionTemplateBuilderPage({
 		useState<RequisitionTemplateComplianceChecklistFormValues | null>(null);
 	const hydratedTemplateIdRef = useRef<string | null>(null);
 
-	const createTemplateMutation = useCreateRequisitionTemplate(orgId);
+	const createTemplateMutation = useCreateRequisitionTemplate();
 	const templateQuery = useRequisitionTemplate(
-		orgId,
 		mode === "create" ? null : templateId,
 	);
-	const updateTemplateMutation = useUpdateRequisitionTemplate(
-		orgId,
-		templateId ?? "",
-	);
-	const complianceChecklistsQuery = useComplianceChecklists(orgId, {
+	const updateTemplateMutation = useUpdateRequisitionTemplate(templateId ?? "");
+	const complianceChecklistsQuery = useComplianceChecklists({
 		page: 1,
 		limit: 100,
 	});
 	const complianceItemsQuery = useActiveComplianceListItems();
-	const vendorsQuery = useOrgVendors(orgId);
+	const vendorsQuery = useOrgVendors();
 
 	const isViewMode = mode === "view";
 	const isEditMode = mode === "edit";
@@ -114,7 +99,8 @@ export function useRequisitionTemplateBuilderPage({
 				? {
 						templateName: templateQuery.data.templateName,
 						occupationId: templateQuery.data.occupationId,
-						specialtyId: templateQuery.data.specialtyId ?? "",
+						specialtyIds: templateQuery.data.specialtyIds ?? [],
+						locationId: templateQuery.data.locationId,
 						departmentId: templateQuery.data.departmentId,
 						unitName: templateQuery.data.unitName ?? "",
 						jobDescription: templateQuery.data.jobDescription ?? "",
@@ -131,14 +117,11 @@ export function useRequisitionTemplateBuilderPage({
 		() =>
 			templateQuery.data
 				? {
-						startDate: templateQuery.data.startDate
-							? templateQuery.data.startDate.slice(0, 10)
-							: "",
 						lengthWeeks: templateQuery.data.lengthWeeks ?? 1,
 						startTime: templateQuery.data.startTime ?? "",
 						endTime: templateQuery.data.endTime ?? "",
 						shiftType: (templateQuery.data.shiftType ??
-							"DAYS") as RequisitionTemplateShiftsScheduleFormValues["shiftType"],
+							"DAY") as RequisitionTemplateShiftsScheduleFormValues["shiftType"],
 						shiftHours: templateQuery.data.shiftHours ?? 8,
 						shiftsPerWeek: templateQuery.data.shiftsPerWeek ?? 1,
 						hoursPerWeek: templateQuery.data.hoursPerWeek ?? undefined,
@@ -168,9 +151,9 @@ export function useRequisitionTemplateBuilderPage({
 	const checklistCards = useMemo(
 		() =>
 			(complianceChecklistsQuery.data?.data ?? []).map((item) =>
-				toCardItem(item),
+				toCardItem(item, 0, tz),
 			),
-		[complianceChecklistsQuery.data?.data],
+		[complianceChecklistsQuery.data?.data, tz],
 	);
 
 	const initialCompliance = useMemo<
@@ -284,9 +267,9 @@ export function useRequisitionTemplateBuilderPage({
 			const complianceChecklistItemPhases = card
 				? card.checklistItems.map(({ complianceListItemId, phase }) => ({
 						complianceListItemId,
-						phase:
-							compliance.itemUsages[checklistId]?.[complianceListItemId] ??
-							phase,
+						phase: (compliance.itemUsages[checklistId]?.[
+							complianceListItemId
+						] ?? phase) as ComplianceChecklistItemPhase,
 					}))
 				: undefined;
 
@@ -294,17 +277,13 @@ export function useRequisitionTemplateBuilderPage({
 				type: finalType,
 				templateName: templateDetails.templateName,
 				occupationId: templateDetails.occupationId,
-				specialtyId: templateDetails.specialtyId,
+				specialtyIds: templateDetails.specialtyIds,
+				locationId: templateDetails.locationId,
 				departmentId: templateDetails.departmentId,
 				unitName: templateDetails.unitName ?? undefined,
 				jobDescription: templateDetails.jobDescription,
 				benefitsPerks: templateDetails.benefitsPerks,
 				status: templateDetails.status,
-				startDate: shiftsSchedule.startDate,
-				endDate: computeEndDate(
-					shiftsSchedule.startDate,
-					shiftsSchedule.lengthWeeks,
-				),
 				lengthWeeks: shiftsSchedule.lengthWeeks,
 				startTime: shiftsSchedule.startTime,
 				endTime: shiftsSchedule.endTime,
@@ -418,7 +397,8 @@ export function useRequisitionTemplateBuilderPage({
 		? ({
 				approvalRequired: templateQuery.data.requiresApproval,
 				approverRole: templateQuery.data.approvalRole ?? "HIRING_MANAGER",
-				workflowType: templateQuery.data.workflowType ?? "VENDOR_CANDIDATE",
+				workflowType:
+					templateQuery.data.workflowType ?? WorkflowType.VENDOR_CANDIDATE,
 				whoCanSubmit:
 					templateQuery.data.whoCanSubmit === "selected_vendors"
 						? "SELECTED_VENDORS"
@@ -435,7 +415,8 @@ export function useRequisitionTemplateBuilderPage({
 			id: item.id,
 			name: item.name,
 			category: item.category,
-			tracksExpiration: true,
+			tracksExpiration: item.expirationType !== "NON_EXPIRABLE",
+			displayToCandidate: item.displayToCandidate,
 		}),
 	);
 

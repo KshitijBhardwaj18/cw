@@ -12,11 +12,13 @@ import {
 import { Banner } from "@repo/ui/general/Banner";
 import { AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 type ComplianceAlertItem = {
 	id: string;
 	title: string;
 	description: string;
+	placementStartDate?: string | null;
 	severity: "info" | "warning" | "error";
 };
 
@@ -37,9 +39,11 @@ const ALERT_VARIANTS = {
 
 export function ComplianceAlerts({
 	alerts,
-}: {
+}: Readonly<{
 	alerts: ComplianceAlertItem[];
-}) {
+}>) {
+	const { fmtCalendarDate } = useUserTimezone();
+
 	return (
 		<Card>
 			<CardHeader>
@@ -53,6 +57,12 @@ export function ComplianceAlerts({
 			<CardContent className="flex flex-col gap-4">
 				{alerts.map((alert) => {
 					const config = ALERT_VARIANTS[alert.severity];
+					const startIso = alert.placementStartDate?.trim();
+					const descriptionSuffix =
+						startIso && /^(\d{4}-\d{2}-\d{2})/.test(startIso)
+							? ` starting ${fmtCalendarDate(startIso.slice(0, 10))}`
+							: "";
+					const description = `${alert.description.trim()}${descriptionSuffix}`;
 					return (
 						<Banner
 							key={alert.id}
@@ -60,7 +70,7 @@ export function ComplianceAlerts({
 							size="sm"
 							icon={<AlertCircle className="size-4" />}
 							title={alert.title}
-							description={alert.description}
+							description={description}
 							className={`border-0 border-l-4 ${config.borderLeftColor} shadow-none`}
 							flow="col"
 							tintedText

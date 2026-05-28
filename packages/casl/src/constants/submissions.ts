@@ -1,27 +1,33 @@
 import type { PrismaQuery } from "@casl/prisma";
 import type { SubmissionStage } from "@repo/db";
+import {
+	SUBMISSION_TAB_INTERVIEW_STAGES,
+	SUBMISSION_TAB_OFFER_STAGES,
+	SUBMISSION_TAB_QUALIFIED_STAGES,
+	SUBMISSION_TAB_REJECTED_STAGES,
+	SUBMISSION_TAB_SUBMITTED_STAGES,
+} from "@repo/shared";
 
-export const SUBMISSION_SUBMITTED_STAGES: SubmissionStage[] = ["SUBMITTED"];
+/** Shared enums mirror Prisma — spread + cast preserves `@repo/db` typing for CASL queries. */
+export const SUBMISSION_SUBMITTED_STAGES = [
+	...SUBMISSION_TAB_SUBMITTED_STAGES,
+] as SubmissionStage[];
 
-export const SUBMISSION_QUALIFIED_STAGES: SubmissionStage[] = [
-	"QUALIFIED",
-	"SHORTLISTED",
-];
+export const SUBMISSION_QUALIFIED_STAGES = [
+	...SUBMISSION_TAB_QUALIFIED_STAGES,
+] as SubmissionStage[];
 
-export const SUBMISSION_INTERVIEW_STAGES: SubmissionStage[] = [
-	"INTERVIEW_SCHEDULED",
-	"INTERVIEW_COMPLETED",
-];
+export const SUBMISSION_INTERVIEW_STAGES = [
+	...SUBMISSION_TAB_INTERVIEW_STAGES,
+] as SubmissionStage[];
 
-export const SUBMISSION_OFFER_STAGES: SubmissionStage[] = [
-	"OFFERED",
-	"ACCEPTED",
-];
+export const SUBMISSION_OFFER_STAGES = [
+	...SUBMISSION_TAB_OFFER_STAGES,
+] as SubmissionStage[];
 
-export const SUBMISSION_REJECTED_STAGES: SubmissionStage[] = [
-	"REJECTED",
-	"WITHDRAWN",
-];
+export const SUBMISSION_REJECTED_STAGES = [
+	...SUBMISSION_TAB_REJECTED_STAGES,
+] as SubmissionStage[];
 
 export const SUBMISSION_TAB_CONDITIONS = {
 	submitted: { stage: { in: SUBMISSION_SUBMITTED_STAGES } },

@@ -27,7 +27,7 @@ const HeaderUserMenu = ({
 	user,
 	onLogout,
 	profileLink = "/profile",
-}: HeaderUserMenuProps) => {
+}: Readonly<HeaderUserMenuProps>) => {
 	const router = useRouter();
 	const initials = getInitials(user?.name ?? "Not Available");
 	const role = user?.subRole
@@ -37,7 +37,7 @@ const HeaderUserMenu = ({
 			: "—";
 
 	return (
-		<div className="flex items-center gap-3 px-4">
+		<div className="flex items-center gap-2 px-2 sm:gap-3 sm:px-4 shrink-0">
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<button

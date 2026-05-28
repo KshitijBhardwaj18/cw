@@ -7,14 +7,21 @@ import {
 	SubmissionStage,
 } from "@repo/db";
 import {
+	AgingRuleStageTransition,
+	agingRuleThresholdToDays,
+	agingRuleUnitLabel,
+	attentionRuleThresholdToDays,
 	CandidateWorkforceType,
 	COMMAND_CENTER_EMPTY_WORKFORCE_COUNTS,
 	type CommandCenterWorkforceTypeKey,
 	formatMetricValue,
 	isHigherBetterMetric,
+	RequisitionAttentionRuleKey,
 } from "@repo/shared";
+import { AgingRulesService } from "src/aging-rules/services/aging-rules.service";
 import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
 import { PrismaService } from "src/prisma/prisma.service";
+import { RequisitionAttentionRulesService } from "src/requisition-attention-rules/services/requisition-attention-rules.service";
 import { QueryCommandCenterActiveWorkforceDto } from "../dto/query-command-center-active-workforce.dto";
 import { QueryCommandCenterHiringFunnelDto } from "../dto/query-command-center-hiring-funnel.dto";
 import {
@@ -36,6 +43,8 @@ type CandidateFilterKey =
 	| "overdue-submissions"
 	| "aging-qualified"
 	| "aging-shortlisted"
+	| "interview-delayed"
+	| "offer-pending"
 	| "overdue-offers"
 	| "delayed-onboarding";
 
@@ -48,6 +57,8 @@ const CANDIDATE_FILTERS: CandidateFilterKey[] = [
 	"overdue-submissions",
 	"aging-qualified",
 	"aging-shortlisted",
+	"interview-delayed",
+	"offer-pending",
 	"overdue-offers",
 	"delayed-onboarding",
 ];
@@ -79,6 +90,15 @@ const OPERATIONS_FILTER_META: Record<
 	"aging-shortlisted": {
 		heading: "Showing: Aging Shortlisted",
 		description: "Candidates in Shortlisted stage past review SLA",
+	},
+	"interview-delayed": {
+		heading: "Showing: Interview Delayed",
+		description:
+			"Candidates where interview was scheduled but not completed within threshold.",
+	},
+	"offer-pending": {
+		heading: "Showing: Offer Pending",
+		description: "Candidates with completed interviews but no offer sent yet.",
 	},
 	"overdue-offers": {
 		heading: "Showing: Overdue Offers",
@@ -124,7 +144,7 @@ function performancePeriod(query: QueryCommandCenterPerformanceDto): {
 	if (range === "custom-date-range") {
 		if (!query.startDate || !query.endDate) {
 			throw new BadRequestException(
-				"startDate and endDate are required for custom-date-range",
+				"Start date and end date are required for a custom date range.",
 			);
 		}
 		const start = new Date(`${query.startDate.slice(0, 10)}T00:00:00.000Z`);
@@ -132,10 +152,10 @@ function performancePeriod(query: QueryCommandCenterPerformanceDto): {
 			`${query.endDate.slice(0, 10)}T00:00:00.000Z`,
 		);
 		if (Number.isNaN(start.getTime()) || Number.isNaN(endInclusive.getTime())) {
-			throw new BadRequestException("Invalid startDate or endDate");
+			throw new BadRequestException("Enter a valid start date and end date.");
 		}
 		if (start > endInclusive) {
-			throw new BadRequestException("startDate cannot be after endDate");
+			throw new BadRequestException("Start date cannot be after end date.");
 		}
 		const end = new Date(endInclusive);
 		end.setUTCDate(end.getUTCDate() + 1);
@@ -178,6 +198,8 @@ export class CommandCenterService {
 	constructor(
 		private readonly prisma: PrismaService,
 		private readonly backgroundJobs: BackgroundJobsService,
+		private readonly attentionRulesService: RequisitionAttentionRulesService,
+		private readonly agingRulesService: AgingRulesService,
 	) {}
 
 	async getOperations(
@@ -201,53 +223,110 @@ export class CommandCenterService {
 				notIn: [
 					RequisitionStatus.DRAFT,
 					RequisitionStatus.CANCELLED,
-					RequisitionStatus.CLOSED,
 					RequisitionStatus.FILLED,
 					RequisitionStatus.PENDING_APPROVAL,
 				],
 			},
 		};
-		const slowThreshold = daysAgo(14);
-		const noSubmissionThreshold = daysAgo(7);
+		const attentionRules =
+			await this.attentionRulesService.resolveByKey(organizationId);
+		const slowRule =
+			attentionRules[RequisitionAttentionRuleKey.SLOW_TIME_TO_FILL];
+		const noSubRule =
+			attentionRules[RequisitionAttentionRuleKey.NO_SUBMISSIONS];
+		const lowSubRule =
+			attentionRules[RequisitionAttentionRuleKey.LOW_SUBMISSION_COUNT];
+		const slowThreshold = daysAgo(
+			attentionRuleThresholdToDays(
+				slowRule.thresholdValue,
+				slowRule.thresholdUnit,
+			),
+		);
+		const noSubmissionThreshold = daysAgo(
+			attentionRuleThresholdToDays(
+				noSubRule.thresholdValue,
+				noSubRule.thresholdUnit,
+			),
+		);
+		const lowSubmissionMaxCount = lowSubRule.thresholdValue;
+
+		const agingRules =
+			await this.agingRulesService.resolveByTransition(organizationId);
+		const subToQual =
+			agingRules[AgingRuleStageTransition.SUBMISSION_TO_QUALIFIED];
+		const qualToShort =
+			agingRules[AgingRuleStageTransition.QUALIFIED_TO_SHORTLISTED];
+		const shortToIntSched =
+			agingRules[AgingRuleStageTransition.SHORTLISTED_TO_INTERVIEW_SCHEDULED];
+		const intSchedToIntComp =
+			agingRules[
+				AgingRuleStageTransition.INTERVIEW_SCHEDULED_TO_INTERVIEW_COMPLETED
+			];
+		const intCompToOffer =
+			agingRules[AgingRuleStageTransition.INTERVIEW_COMPLETED_TO_OFFER_SENT];
+		const offerToAcc =
+			agingRules[AgingRuleStageTransition.OFFER_SENT_TO_OFFER_ACCEPTED];
+		const accToOnboard =
+			agingRules[AgingRuleStageTransition.OFFER_ACCEPTED_TO_ONBOARDING];
+
+		const ruleDaysAgo = (r: typeof subToQual) =>
+			daysAgo(agingRuleThresholdToDays(r.thresholdValue, r.thresholdUnit));
+		const ruleActive = (r: typeof subToQual) => r.isEnabled && r.isConfigured;
+		const ruleSummary = (r: typeof subToQual) =>
+			r.isConfigured
+				? `>${r.thresholdValue} ${agingRuleUnitLabel(r.thresholdUnit)}`
+				: "Not configured";
+		const FAR_PAST = new Date(0);
+		const thresholdOrFarPast = (r: typeof subToQual) =>
+			ruleActive(r) ? ruleDaysAgo(r) : FAR_PAST;
+
+		const overdueSubmissionThreshold = ruleDaysAgo(subToQual);
+		const agingQualifiedThreshold = ruleDaysAgo(qualToShort);
+		const shortlistedSubThreshold = thresholdOrFarPast(shortToIntSched);
+		const interviewSchedSubThreshold = thresholdOrFarPast(intSchedToIntComp);
+		const interviewCompSubThreshold = thresholdOrFarPast(intCompToOffer);
+		const overdueOffersThreshold = ruleDaysAgo(offerToAcc);
+		const onboardingAcceptThreshold = thresholdOrFarPast(accToOnboard);
 
 		const overdueSubmissionWhere = {
 			organizationId,
 			stage: SubmissionStage.SUBMITTED,
-			submittedAt: { lte: daysAgo(1) },
+			submittedAt: { lte: overdueSubmissionThreshold },
 		};
 		const agingQualifiedWhere = {
 			organizationId,
 			stage: SubmissionStage.QUALIFIED,
-			qualifiedAt: { lte: daysAgo(3) },
+			qualifiedAt: { lte: agingQualifiedThreshold },
 		};
 		const agingShortlistedWhere = {
 			organizationId,
-			stage: {
-				in: [
-					SubmissionStage.SHORTLISTED,
-					SubmissionStage.INTERVIEW_SCHEDULED,
-					SubmissionStage.INTERVIEW_COMPLETED,
-				],
-			},
-			stageEnteredAt: { lte: daysAgo(7) },
+			stage: SubmissionStage.SHORTLISTED,
+			stageEnteredAt: { lte: shortlistedSubThreshold },
+		};
+		const interviewDelayedWhere = {
+			organizationId,
+			stage: SubmissionStage.INTERVIEW_SCHEDULED,
+			stageEnteredAt: { lte: interviewSchedSubThreshold },
+		};
+		const offerPendingWhere = {
+			organizationId,
+			stage: SubmissionStage.INTERVIEW_COMPLETED,
+			stageEnteredAt: { lte: interviewCompSubThreshold },
 		};
 		const overdueOffersWhere = {
 			organizationId,
 			stage: SubmissionStage.OFFERED,
-			offerExtendedAt: { lte: daysAgo(2) },
+			offerExtendedAt: { lte: overdueOffersThreshold },
 		};
 		const delayedOnboardingWhere = {
 			organizationId,
 			stage: SubmissionStage.ACCEPTED,
-			acceptedAt: { not: null },
-			requisition: {
-				startDate: { lte: daysAgo(5) },
-			},
 			placements: {
 				none: {
 					status: { in: [PlacementStatus.ACTIVE, PlacementStatus.COMPLETED] },
 				},
 			},
+			acceptedAt: { lte: onboardingAcceptThreshold },
 		};
 
 		const [counts] = await this.prisma.$queryRaw<
@@ -255,6 +334,8 @@ export class CommandCenterService {
 				overdueCount: number;
 				qualifiedCount: number;
 				shortlistedCount: number;
+				interviewDelayedCount: number;
+				offerPendingCount: number;
 				offersCount: number;
 				delayedCount: number;
 				slowTimeToFillCount: number;
@@ -268,41 +349,49 @@ export class CommandCenterService {
 					FROM submission s
 					WHERE s."organizationId" = ${organizationId}::uuid
 						AND s.stage = 'SUBMITTED'::"SubmissionStage"
-						AND s."submittedAt" <= ${daysAgo(1)}
+						AND s."submittedAt" <= ${overdueSubmissionThreshold}
 				) AS "overdueCount",
 				(
 					SELECT COUNT(*)::int
 					FROM submission s
 					WHERE s."organizationId" = ${organizationId}::uuid
 						AND s.stage = 'QUALIFIED'::"SubmissionStage"
-						AND s."qualifiedAt" <= ${daysAgo(3)}
+						AND s."qualifiedAt" <= ${agingQualifiedThreshold}
 				) AS "qualifiedCount",
 				(
 					SELECT COUNT(*)::int
 					FROM submission s
 					WHERE s."organizationId" = ${organizationId}::uuid
-						AND s.stage IN (
-							'SHORTLISTED'::"SubmissionStage",
-							'INTERVIEW_SCHEDULED'::"SubmissionStage",
-							'INTERVIEW_COMPLETED'::"SubmissionStage"
-						)
-						AND s."stageEnteredAt" <= ${daysAgo(7)}
+						AND s.stage = 'SHORTLISTED'::"SubmissionStage"
+						AND s."stageEnteredAt" <= ${shortlistedSubThreshold}
 				) AS "shortlistedCount",
 				(
 					SELECT COUNT(*)::int
 					FROM submission s
 					WHERE s."organizationId" = ${organizationId}::uuid
+						AND s.stage = 'INTERVIEW_SCHEDULED'::"SubmissionStage"
+						AND s."stageEnteredAt" <= ${interviewSchedSubThreshold}
+				) AS "interviewDelayedCount",
+				(
+					SELECT COUNT(*)::int
+					FROM submission s
+					WHERE s."organizationId" = ${organizationId}::uuid
+						AND s.stage = 'INTERVIEW_COMPLETED'::"SubmissionStage"
+						AND s."stageEnteredAt" <= ${interviewCompSubThreshold}
+				) AS "offerPendingCount",
+				(
+					SELECT COUNT(*)::int
+					FROM submission s
+					WHERE s."organizationId" = ${organizationId}::uuid
 						AND s.stage = 'OFFERED'::"SubmissionStage"
-						AND s."offerExtendedAt" <= ${daysAgo(2)}
+						AND s."offerExtendedAt" <= ${overdueOffersThreshold}
 				) AS "offersCount",
 				(
 					SELECT COUNT(*)::int
 					FROM submission s
-					INNER JOIN requisition r ON r.id = s."requisitionId"
 					WHERE s."organizationId" = ${organizationId}::uuid
 						AND s.stage = 'ACCEPTED'::"SubmissionStage"
-						AND s."acceptedAt" IS NOT NULL
-						AND r."startDate" <= ${daysAgo(5)}
+						AND s."acceptedAt" <= ${onboardingAcceptThreshold}
 						AND NOT EXISTS (
 							SELECT 1
 							FROM placement p
@@ -320,7 +409,6 @@ export class CommandCenterService {
 						AND r.status NOT IN (
 							'DRAFT'::"RequisitionStatus",
 							'CANCELLED'::"RequisitionStatus",
-							'CLOSED'::"RequisitionStatus",
 							'FILLED'::"RequisitionStatus",
 							'PENDING_APPROVAL'::"RequisitionStatus"
 						)
@@ -333,7 +421,6 @@ export class CommandCenterService {
 						AND r.status NOT IN (
 							'DRAFT'::"RequisitionStatus",
 							'CANCELLED'::"RequisitionStatus",
-							'CLOSED'::"RequisitionStatus",
 							'FILLED'::"RequisitionStatus",
 							'PENDING_APPROVAL'::"RequisitionStatus"
 						)
@@ -343,30 +430,113 @@ export class CommandCenterService {
 						)
 				) AS "noSubmissionsCount",
 				(
-					SELECT COUNT(*)::int
-					FROM requisition r
-					WHERE r."organizationId" = ${organizationId}::uuid
-						AND r.status NOT IN (
-							'DRAFT'::"RequisitionStatus",
-							'CANCELLED'::"RequisitionStatus",
-							'CLOSED'::"RequisitionStatus",
-							'FILLED'::"RequisitionStatus",
-							'PENDING_APPROVAL'::"RequisitionStatus"
-						)
-						AND (
-							SELECT COUNT(*) FROM submission s WHERE s."requisitionId" = r.id
-						) < 3
+					SELECT COUNT(*)::int FROM (
+						SELECT r.id
+						FROM requisition r
+						LEFT JOIN submission s ON s."requisitionId" = r.id
+						WHERE r."organizationId" = ${organizationId}::uuid
+							AND r.status NOT IN (
+								'DRAFT'::"RequisitionStatus",
+								'CANCELLED'::"RequisitionStatus",
+								'FILLED'::"RequisitionStatus",
+								'PENDING_APPROVAL'::"RequisitionStatus"
+							)
+						GROUP BY r.id
+						HAVING COUNT(s.id) < ${lowSubmissionMaxCount}
+					) low_subs
 				) AS "lowSubmissionsCount"
 		`;
 
-		const overdueCount = Number(counts?.overdueCount ?? 0);
-		const qualifiedCount = Number(counts?.qualifiedCount ?? 0);
-		const shortlistedCount = Number(counts?.shortlistedCount ?? 0);
-		const offersCount = Number(counts?.offersCount ?? 0);
-		const delayedCount = Number(counts?.delayedCount ?? 0);
-		const slowTimeToFillCount = Number(counts?.slowTimeToFillCount ?? 0);
-		const noSubmissionsCount = Number(counts?.noSubmissionsCount ?? 0);
-		const lowSubmissionsCount = Number(counts?.lowSubmissionsCount ?? 0);
+		const overdueSubActive = ruleActive(subToQual);
+		const agingQualifiedActive = ruleActive(qualToShort);
+		const overdueOffersActive = ruleActive(offerToAcc);
+		const agingShortlistedActive = ruleActive(shortToIntSched);
+		const interviewDelayedActive = ruleActive(intSchedToIntComp);
+		const offerPendingActive = ruleActive(intCompToOffer);
+		const delayedOnboardingActive = ruleActive(accToOnboard);
+		const overdueCount = overdueSubActive
+			? Number(counts?.overdueCount ?? 0)
+			: 0;
+		const qualifiedCount = agingQualifiedActive
+			? Number(counts?.qualifiedCount ?? 0)
+			: 0;
+		const shortlistedCount = agingShortlistedActive
+			? Number(counts?.shortlistedCount ?? 0)
+			: 0;
+		const interviewDelayedCount = interviewDelayedActive
+			? Number(counts?.interviewDelayedCount ?? 0)
+			: 0;
+		const offerPendingCount = offerPendingActive
+			? Number(counts?.offerPendingCount ?? 0)
+			: 0;
+		const offersCount = overdueOffersActive
+			? Number(counts?.offersCount ?? 0)
+			: 0;
+		const delayedCount = delayedOnboardingActive
+			? Number(counts?.delayedCount ?? 0)
+			: 0;
+		const formatOnboardingSummary = () => {
+			if (!accToOnboard.isConfigured) return "Not configured";
+			return `>${accToOnboard.thresholdValue} ${agingRuleUnitLabel(accToOnboard.thresholdUnit)} delayed`;
+		};
+		const candidateCardDescriptions = {
+			"overdue-submissions": ruleActive(subToQual)
+				? `${ruleSummary(subToQual)} review deadline`
+				: ruleSummary(subToQual),
+			"aging-qualified": ruleActive(qualToShort)
+				? `${ruleSummary(qualToShort)} in Qualified`
+				: ruleSummary(qualToShort),
+			"aging-shortlisted": ruleActive(shortToIntSched)
+				? `${ruleSummary(shortToIntSched)} in Shortlisted`
+				: ruleSummary(shortToIntSched),
+			"interview-delayed": ruleActive(intSchedToIntComp)
+				? `${ruleSummary(intSchedToIntComp)} since interview scheduled`
+				: ruleSummary(intSchedToIntComp),
+			"offer-pending": ruleActive(intCompToOffer)
+				? `${ruleSummary(intCompToOffer)} since interview completed`
+				: ruleSummary(intCompToOffer),
+			"overdue-offers": ruleActive(offerToAcc)
+				? `${ruleSummary(offerToAcc)} response deadline`
+				: ruleSummary(offerToAcc),
+			"delayed-onboarding": formatOnboardingSummary(),
+		};
+		const slowActive = slowRule.isEnabled && slowRule.isConfigured;
+		const candidateAgingRulesConfigured =
+			subToQual.isConfigured ||
+			qualToShort.isConfigured ||
+			shortToIntSched.isConfigured ||
+			intSchedToIntComp.isConfigured ||
+			intCompToOffer.isConfigured ||
+			offerToAcc.isConfigured ||
+			accToOnboard.isConfigured;
+		const attentionUnitLabel = (r: typeof slowRule): string =>
+			r.thresholdUnit.toLowerCase();
+		const requisitionCardDescriptions = {
+			"slow-time-to-fill": slowRule.isConfigured
+				? `>${slowRule.thresholdValue} ${attentionUnitLabel(slowRule)} open`
+				: "Not configured",
+			"no-submissions": noSubRule.isConfigured
+				? `>${noSubRule.thresholdValue} ${attentionUnitLabel(noSubRule)}, 0 candidates`
+				: "Not configured",
+			"low-submissions": lowSubRule.isConfigured
+				? `<${lowSubRule.thresholdValue} candidates`
+				: "Not configured",
+		};
+		const noSubActive = noSubRule.isEnabled && noSubRule.isConfigured;
+		const lowSubActive = lowSubRule.isEnabled && lowSubRule.isConfigured;
+		const slowTimeToFillCount = slowActive
+			? Number(counts?.slowTimeToFillCount ?? 0)
+			: 0;
+		const noSubmissionsCount = noSubActive
+			? Number(counts?.noSubmissionsCount ?? 0)
+			: 0;
+		const lowSubmissionsCount = lowSubActive
+			? Number(counts?.lowSubmissionsCount ?? 0)
+			: 0;
+		const requisitionAttentionRulesConfigured =
+			slowRule.isConfigured &&
+			noSubRule.isConfigured &&
+			lowSubRule.isConfigured;
 
 		const mapCandidateRows = (
 			rows: Array<{
@@ -404,6 +574,8 @@ export class CommandCenterService {
 			"overdue-submissions": overdueCount,
 			"aging-qualified": qualifiedCount,
 			"aging-shortlisted": shortlistedCount,
+			"interview-delayed": interviewDelayedCount,
+			"offer-pending": offerPendingCount,
 			"overdue-offers": offersCount,
 			"delayed-onboarding": delayedCount,
 		};
@@ -420,36 +592,36 @@ export class CommandCenterService {
 				const [totalRow] = await this.prisma.$queryRaw<
 					Array<{ count: number }>
 				>`
-					SELECT COUNT(*)::int AS count
-					FROM requisition r
-					WHERE r."organizationId" = ${organizationId}::uuid
-						AND r.status NOT IN (
-							'DRAFT'::"RequisitionStatus",
-							'CANCELLED'::"RequisitionStatus",
-							'CLOSED'::"RequisitionStatus",
-							'FILLED'::"RequisitionStatus",
-							'PENDING_APPROVAL'::"RequisitionStatus"
-						)
-						AND (
-							SELECT COUNT(*) FROM submission s WHERE s."requisitionId" = r.id
-						) < 3
+					SELECT COUNT(*)::int AS count FROM (
+						SELECT r.id
+						FROM requisition r
+						LEFT JOIN submission s ON s."requisitionId" = r.id
+						WHERE r."organizationId" = ${organizationId}::uuid
+							AND r.status NOT IN (
+								'DRAFT'::"RequisitionStatus",
+								'CANCELLED'::"RequisitionStatus",
+								'FILLED'::"RequisitionStatus",
+								'PENDING_APPROVAL'::"RequisitionStatus"
+							)
+						GROUP BY r.id
+						HAVING COUNT(s.id) < ${lowSubmissionMaxCount}
+					) low_subs
 				`;
 				rowsTotal = Number(totalRow?.count ?? 0);
 				const idRows = await this.prisma.$queryRaw<Array<{ id: string }>>`
-					SELECT r.id
+					SELECT r.id, MAX(r."createdAt") AS created_at
 					FROM requisition r
+					LEFT JOIN submission s ON s."requisitionId" = r.id
 					WHERE r."organizationId" = ${organizationId}::uuid
 						AND r.status NOT IN (
 							'DRAFT'::"RequisitionStatus",
 							'CANCELLED'::"RequisitionStatus",
-							'CLOSED'::"RequisitionStatus",
 							'FILLED'::"RequisitionStatus",
 							'PENDING_APPROVAL'::"RequisitionStatus"
 						)
-						AND (
-							SELECT COUNT(*) FROM submission s WHERE s."requisitionId" = r.id
-						) < 3
-					ORDER BY r."createdAt" DESC
+					GROUP BY r.id
+					HAVING COUNT(s.id) < ${lowSubmissionMaxCount}
+					ORDER BY created_at DESC
 					OFFSET ${skip}
 					LIMIT ${limit}
 				`;
@@ -650,15 +822,21 @@ export class CommandCenterService {
 						? agingQualifiedWhere
 						: activeFilterKey === "aging-shortlisted"
 							? agingShortlistedWhere
-							: activeFilterKey === "overdue-offers"
-								? overdueOffersWhere
-								: delayedOnboardingWhere;
+							: activeFilterKey === "interview-delayed"
+								? interviewDelayedWhere
+								: activeFilterKey === "offer-pending"
+									? offerPendingWhere
+									: activeFilterKey === "overdue-offers"
+										? overdueOffersWhere
+										: delayedOnboardingWhere;
 			const orderBy =
 				activeFilterKey === "overdue-submissions"
 					? { submittedAt: "asc" as const }
 					: activeFilterKey === "aging-qualified"
 						? { qualifiedAt: "asc" as const }
-						: activeFilterKey === "aging-shortlisted"
+						: activeFilterKey === "aging-shortlisted" ||
+								activeFilterKey === "interview-delayed" ||
+								activeFilterKey === "offer-pending"
 							? { stageEnteredAt: "asc" as const }
 							: activeFilterKey === "overdue-offers"
 								? { offerExtendedAt: "asc" as const }
@@ -708,6 +886,38 @@ export class CommandCenterService {
 			rowsTotal,
 			page,
 			limit,
+			requisitionAttentionRulesConfigured,
+			candidateAgingRulesConfigured,
+			requisitionCardDescriptions,
+			candidateCardDescriptions,
+			requisitionCardConfigured: {
+				"slow-time-to-fill": slowRule.isConfigured,
+				"no-submissions": noSubRule.isConfigured,
+				"low-submissions": lowSubRule.isConfigured,
+			},
+			candidateCardConfigured: {
+				"overdue-submissions": subToQual.isConfigured,
+				"aging-qualified": qualToShort.isConfigured,
+				"aging-shortlisted": shortToIntSched.isConfigured,
+				"interview-delayed": intSchedToIntComp.isConfigured,
+				"offer-pending": intCompToOffer.isConfigured,
+				"overdue-offers": offerToAcc.isConfigured,
+				"delayed-onboarding": accToOnboard.isConfigured,
+			},
+			requisitionCardActive: {
+				"slow-time-to-fill": slowActive,
+				"no-submissions": noSubActive,
+				"low-submissions": lowSubActive,
+			},
+			candidateCardActive: {
+				"overdue-submissions": overdueSubActive,
+				"aging-qualified": agingQualifiedActive,
+				"aging-shortlisted": agingShortlistedActive,
+				"interview-delayed": interviewDelayedActive,
+				"offer-pending": offerPendingActive,
+				"overdue-offers": overdueOffersActive,
+				"delayed-onboarding": delayedOnboardingActive,
+			},
 		};
 	}
 
@@ -721,7 +931,7 @@ export class CommandCenterService {
 			select: { id: true },
 		});
 		if (!requisition) {
-			throw new BadRequestException("Requisition not found for organization");
+			throw new BadRequestException("Requisition not found for organization.");
 		}
 
 		const basePlacementWhere = {
@@ -864,11 +1074,12 @@ export class CommandCenterService {
 			metricIds.length === 0
 				? []
 				: await this.prisma.$queryRaw<
-						Array<{ metricId: string; value: number }>
+						Array<{ metricId: string; value: number; computedAt: Date }>
 					>`
 						SELECT DISTINCT ON (ms."metricId")
 							ms."metricId",
-							ms.value
+							ms.value,
+							ms."computedAt"
 						FROM organization_metric_snapshot ms
 						WHERE ms."organizationId" = ${organizationId}::uuid
 							AND ms."metricId" = ANY(${metricIds}::uuid[])
@@ -932,6 +1143,12 @@ export class CommandCenterService {
 			groupedMap.set(metric.type, list);
 		}
 
+		const lastRefreshedAt = snapshots.reduce<Date | null>((latest, row) => {
+			if (!row.computedAt) return latest;
+			if (!latest || row.computedAt > latest) return row.computedAt;
+			return latest;
+		}, null);
+
 		return {
 			summaryStats: [
 				{
@@ -949,6 +1166,7 @@ export class CommandCenterService {
 				type,
 				metrics: rows,
 			})),
+			lastRefreshedAt: lastRefreshedAt ? lastRefreshedAt.toISOString() : null,
 		};
 	}
 
@@ -985,7 +1203,8 @@ export class CommandCenterService {
 				COUNT(*)::int AS count
 			FROM candidate c
 			WHERE c."workforceType" IS NOT NULL
-				AND c."workforceType" != 'SELF'::"CandidateWorkforceType"
+				AND c."isActive" = TRUE
+				AND c."inviteStatus" IS DISTINCT FROM 'PENDING'::"CandidateInviteStatus"
 				AND (
 					c."organizationId" = ${organizationId}::uuid
 					OR c."vendorId" IN (
@@ -1046,9 +1265,8 @@ export class CommandCenterService {
 					LEFT JOIN organization_location loc ON loc.id = r."locationId"
 					WHERE r."organizationId" = ${organizationId}::uuid
 						AND r.status NOT IN (
-							'DRAFT'::"RequisitionStatus",
-							'CANCELLED'::"RequisitionStatus",
-							'PENDING_APPROVAL'::"RequisitionStatus"
+							'PENDING_APPROVAL'::"RequisitionStatus",
+							'DRAFT'::"RequisitionStatus"
 						)
 						AND (
 							${search}::text IS NULL
@@ -1065,9 +1283,8 @@ export class CommandCenterService {
 					LEFT JOIN organization_location loc ON loc.id = r."locationId"
 					WHERE r."organizationId" = ${organizationId}::uuid
 						AND r.status NOT IN (
-							'DRAFT'::"RequisitionStatus",
-							'CANCELLED'::"RequisitionStatus",
-							'PENDING_APPROVAL'::"RequisitionStatus"
+							'PENDING_APPROVAL'::"RequisitionStatus",
+							'DRAFT'::"RequisitionStatus"
 						)
 						AND (
 							${search}::text IS NULL
@@ -1131,9 +1348,8 @@ export class CommandCenterService {
 						AND s."organizationId" = ${organizationId}::uuid
 					WHERE r."organizationId" = ${organizationId}::uuid
 						AND r.status NOT IN (
-							'DRAFT'::"RequisitionStatus",
-							'CANCELLED'::"RequisitionStatus",
-							'PENDING_APPROVAL'::"RequisitionStatus"
+							'PENDING_APPROVAL'::"RequisitionStatus",
+							'DRAFT'::"RequisitionStatus"
 						)
 						AND (
 							${search}::text IS NULL
@@ -1193,9 +1409,8 @@ export class CommandCenterService {
 					LEFT JOIN department d ON d.id = r."departmentId"
 					WHERE r."organizationId" = ${organizationId}::uuid
 						AND r.status NOT IN (
-							'DRAFT'::"RequisitionStatus",
-							'CANCELLED'::"RequisitionStatus",
-							'PENDING_APPROVAL'::"RequisitionStatus"
+							'PENDING_APPROVAL'::"RequisitionStatus",
+							'DRAFT'::"RequisitionStatus"
 						)
 						AND (
 							${search}::text IS NULL
@@ -1226,7 +1441,7 @@ export class CommandCenterService {
 		const jobListings = listingRows.map((row) => ({
 			id: row.id,
 			jobTitle: row.jobTitle ?? "Untitled requisition",
-			status: row.status === "FILLED" ? "closed" : "open",
+			status: row.status,
 			location: row.location ?? "Unknown",
 			department: row.department ?? "Unknown",
 			submitted: Number(row.submitted),

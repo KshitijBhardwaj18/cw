@@ -35,15 +35,14 @@ export default async function RootLayout({
 	children: React.ReactNode;
 }>) {
 	const headersList = await headers();
-	const orgId = headersList.get("x-org-id");
+	const orgSlug = headersList.get("x-org-slug");
 
-	const content = orgId ? (
+	const content = orgSlug ? (
 		<OrgContextProvider
 			org={
 				{
-					id: orgId,
 					name: headersList.get("x-org-name") ?? "",
-					slug: headersList.get("x-org-slug") ?? "",
+					slug: orgSlug,
 					logo: headersList.get("x-org-logo") ?? null,
 					timeZone: headersList.get("x-org-timezone") ?? "",
 					industry: headersList.get("x-org-industry") ?? "",

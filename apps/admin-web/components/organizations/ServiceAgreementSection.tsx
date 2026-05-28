@@ -33,7 +33,7 @@ export function ServiceAgreementSection({
 	organizationId,
 	description = "",
 	onDescriptionChange,
-}: ServiceAgreementSectionProps) {
+}: Readonly<ServiceAgreementSectionProps>) {
 	const signedUrlMutation = useOrganizationServiceAgreementSignedUrl();
 	const hasExistingDocument = !!existingAgreementKey;
 

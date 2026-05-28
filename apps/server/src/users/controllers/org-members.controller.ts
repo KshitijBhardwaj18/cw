@@ -179,7 +179,7 @@ export class OrgMembersController {
 	@ApiOperation({ summary: "Stream bulk enrollment job status via SSE" })
 	@ApiResponse({ status: 200, description: "SSE stream of job status events" })
 	@ApiResponse({ status: 404, description: "Job or organization not found" })
-	@Permissions({ action: Action.Read, subject: "BackGroundJob" })
+	@Permissions({ action: Action.Read, subject: "User" })
 	streamBulkEnrollmentJobFromSession(
 		@Session() session: UserSession,
 		@Param("jobId", ParseUUIDPipe) jobId: string,
@@ -192,7 +192,7 @@ export class OrgMembersController {
 	@ApiOperation({ summary: "Get bulk enrollment job status" })
 	@ApiResponse({ status: 200, description: "Job status and result" })
 	@ApiResponse({ status: 404, description: "Job or organization not found" })
-	@Permissions({ action: Action.Read, subject: "BackGroundJob" })
+	@Permissions({ action: Action.Read, subject: "User" })
 	async getBulkEnrollmentJobFromSession(
 		@Session() session: UserSession,
 		@Param("jobId", ParseUUIDPipe) jobId: string,
@@ -365,7 +365,7 @@ export class OrgMembersController {
 	@ApiOperation({ summary: "Stream bulk enrollment job status via SSE" })
 	@ApiResponse({ status: 200, description: "SSE stream of job status events" })
 	@ApiResponse({ status: 404, description: "Job or organization not found" })
-	@Permissions({ action: Action.Read, subject: "BackGroundJob" })
+	@Permissions({ action: Action.Read, subject: "User" })
 	streamBulkEnrollmentJob(
 		@Param("id", ParseUUIDPipe) orgId: string,
 		@Param("jobId", ParseUUIDPipe) jobId: string,
@@ -377,7 +377,7 @@ export class OrgMembersController {
 	@ApiOperation({ summary: "Get bulk enrollment job status" })
 	@ApiResponse({ status: 200, description: "Job status and result" })
 	@ApiResponse({ status: 404, description: "Job or organization not found" })
-	@Permissions({ action: Action.Read, subject: "BackGroundJob" })
+	@Permissions({ action: Action.Read, subject: "User" })
 	async getBulkEnrollmentJob(
 		@Param("id", ParseUUIDPipe) id: string,
 		@Param("jobId", ParseUUIDPipe) jobId: string,

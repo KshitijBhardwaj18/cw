@@ -16,7 +16,7 @@ interface PageContentProps {
 
 export default function TimeApprovalPageContent({
 	organizationId,
-}: PageContentProps) {
+}: Readonly<PageContentProps>) {
 	const [currentPage, setCurrentPage] = useState(1);
 	const [limit, setLimit] = useState(10);
 	const pendingQuery = useInvoices(organizationId, {

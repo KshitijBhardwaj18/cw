@@ -1,6 +1,9 @@
 "use client";
 
-import type { OrganizationVendorWithVendorType } from "@repo/shared";
+import type {
+	OrganizationVendorStatus,
+	OrganizationVendorWithVendorType,
+} from "@repo/shared";
 
 /** Extended type for form dialog - includes contract fields from API */
 type OrganizationVendorForForm = OrganizationVendorWithVendorType & {
@@ -58,7 +61,7 @@ export function OrganizationVendorFormDialog({
 	organizationId,
 	initialOrganizationVendor,
 	viewOnly = false,
-}: OrganizationVendorFormDialogProps) {
+}: Readonly<OrganizationVendorFormDialogProps>) {
 	const {
 		form,
 		isEdit,
@@ -242,7 +245,9 @@ export function OrganizationVendorFormDialog({
 										</FieldLabel>
 										<Select
 											value={field.state.value}
-											onValueChange={field.handleChange}
+											onValueChange={(v) =>
+												field.handleChange(v as OrganizationVendorStatus)
+											}
 											disabled={isViewOnly}
 										>
 											<SelectTrigger

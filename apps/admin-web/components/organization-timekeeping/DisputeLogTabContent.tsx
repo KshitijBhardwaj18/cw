@@ -19,7 +19,7 @@ import type { DisputeLogTabState } from "@/hooks/organization-timekeeping/use-di
 
 import { RejectDisputeDialog } from "./RejectDisputeDialog";
 
-export function DisputeLogTabContent(props: DisputeLogTabState) {
+export function DisputeLogTabContent(props: Readonly<DisputeLogTabState>) {
 	const {
 		filteredDisputeLogs,
 		disputeStatusCounts,

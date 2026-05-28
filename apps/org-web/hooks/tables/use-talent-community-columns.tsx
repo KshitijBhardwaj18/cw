@@ -3,6 +3,7 @@
 import {
 	CANDIDATE_WORKFORCE_TYPE_OPTIONS,
 	type CandidateTalentType,
+	enumToTitleText,
 	getLabel,
 } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
@@ -115,7 +116,7 @@ export function useTalentCommunityColumns(
 						},
 					};
 					const { label, className } = config[status] ?? {
-						label: status,
+						label: enumToTitleText(status),
 						className: "text-muted-foreground border-muted-foreground/30",
 					};
 					return (

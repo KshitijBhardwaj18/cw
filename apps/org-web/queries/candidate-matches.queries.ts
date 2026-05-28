@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CandidateMatchesService } from "@/services/candidate-matches.service";
 import type { CandidateMatchesQueryParams } from "@/types/candidate-matches";
+import { candidateSubmissionsKeys } from "./candidate-submissions.queries";
 
 export const candidateMatchesKeys = {
 	all: ["candidate", "matches"] as const,
@@ -69,6 +70,20 @@ export function useUnsaveMatch() {
 	});
 }
 
+export function useSubmitForVendorReview() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (requisitionId: string) =>
+			CandidateMatchesService.submitForVendorReview(requisitionId),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: candidateMatchesKeys.all });
+			queryClient.invalidateQueries({
+				queryKey: candidateSubmissionsKeys.all,
+			});
+		},
+	});
+}
+
 export function useCandidateSavedJobs(
 	limit = 3,
 	options?: { enabled?: boolean },
@@ -101,6 +116,9 @@ export function useApplyToJob() {
 			queryClient.invalidateQueries({ queryKey: candidateMatchesKeys.all });
 			queryClient.invalidateQueries({
 				queryKey: candidateMatchesKeys.detail(vars.requisitionId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: candidateSubmissionsKeys.all,
 			});
 		},
 	});

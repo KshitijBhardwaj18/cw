@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PlacementStatus } from "@repo/db";
+import { isInternalWorkforceType } from "@repo/shared";
 import { PrismaService } from "src/prisma/prisma.service";
 import { PLACEMENT_TAB_STATUS } from "../placements.constants";
 import { formatLongDate } from "../placements-formatters";
@@ -13,7 +14,12 @@ export type CandidatePortalListItem = {
 	jobTitle: string;
 	employerName: string;
 	locationLabel: string;
+	/** @deprecated Prefer {@link startDate} / {@link endDate} with client TZ formatters */
 	dateLabel: string;
+	/** Assignment start instant (ISO); null when unknown */
+	startDate: string | null;
+	/** Assignment end instant (ISO); null when unknown */
+	endDate: string | null;
 	shiftLabel?: string;
 	onboardingPercent?: number;
 };
@@ -40,7 +46,7 @@ export class CandidatePlacementsService {
 			select: { id: true },
 		});
 		if (!ok) {
-			throw new NotFoundException("Placement not found");
+			throw new NotFoundException("Placement not found.");
 		}
 	}
 
@@ -71,16 +77,8 @@ export class CandidatePlacementsService {
 			organization: { name: string };
 		},
 		compliancePercent: number,
-	): {
-		id: string;
-		kind: "active" | "upcoming" | "past";
-		jobTitle: string;
-		employerName: string;
-		locationLabel: string;
-		dateLabel: string;
-		shiftLabel?: string;
-		onboardingPercent?: number;
-	} {
+		hasComplianceRequirements: boolean,
+	): CandidatePortalListItem {
 		const jobTitle =
 			p.jobTitle ??
 			p.submission.requisition?.jobTitle ??
@@ -101,17 +99,26 @@ export class CandidatePlacementsService {
 			dateLabel = start !== "—" && end !== "—" ? `${start} - ${end}` : start;
 		}
 
-		const base = {
+		const base: CandidatePortalListItem = {
 			id: p.id,
 			kind,
 			jobTitle,
 			employerName: p.organization.name,
 			locationLabel: p.location?.name ?? "—",
 			dateLabel,
+			startDate: p.startDate?.toISOString() ?? null,
+			endDate: p.endDate?.toISOString() ?? null,
 		};
 
 		if (kind === "upcoming") {
-			return { ...base, onboardingPercent: compliancePercent };
+			// Banner is meant to nudge the candidate to finish required docs.
+			// Suppress it when there's nothing to nudge: no requirements
+			// configured for the placement, or candidate is already 100% compliant.
+			const showOnboardingBanner =
+				hasComplianceRequirements && compliancePercent < 100;
+			return showOnboardingBanner
+				? { ...base, onboardingPercent: compliancePercent }
+				: base;
 		}
 		if (kind === "active") {
 			return { ...base, shiftLabel };
@@ -126,13 +133,14 @@ export class CandidatePlacementsService {
 		active: CandidatePortalListItem[];
 		upcoming: CandidatePortalListItem[];
 		past: CandidatePortalListItem[];
+		isInternal: boolean;
 	}> {
 		const candidate = await this.prisma.candidate.findFirst({
 			where: { userId, organizationId: orgId },
-			select: { id: true },
+			select: { id: true, workforceType: true },
 		});
 		if (!candidate) {
-			return { active: [], upcoming: [], past: [] };
+			return { active: [], upcoming: [], past: [], isInternal: false };
 		}
 
 		const rows = await this.prisma.placement.findMany({
@@ -149,10 +157,26 @@ export class CandidatePlacementsService {
 			orderBy: { createdAt: "desc" },
 		});
 
-		const percentMap =
-			await this.placementComplianceService.batchCompliancePercents(
+		const placementIds = rows.map((r) => r.id);
+		const fetchRequirementCounts =
+			placementIds.length === 0
+				? Promise.resolve(
+						[] as Array<{ placementId: string; _count: { _all: number } }>,
+					)
+				: this.prisma.placementComplianceItem.groupBy({
+						by: ["placementId"],
+						where: { placementId: { in: placementIds }, removedAt: null },
+						_count: { _all: true },
+					});
+		const [percentMap, requirementCounts] = await Promise.all([
+			this.placementComplianceService.batchCompliancePercents(
 				rows as unknown as PlacementListRow[],
-			);
+			),
+			fetchRequirementCounts,
+		]);
+		const requirementCountByPlacement = new Map<string, number>(
+			requirementCounts.map((row) => [row.placementId, row._count._all]),
+		);
 
 		const active: CandidatePortalListItem[] = [];
 		const upcoming: CandidatePortalListItem[] = [];
@@ -160,7 +184,8 @@ export class CandidatePlacementsService {
 
 		for (const r of rows) {
 			const pct = percentMap.get(r.id) ?? 0;
-			const item = this.mapCandidatePortalListItem(r, pct);
+			const hasRequirements = (requirementCountByPlacement.get(r.id) ?? 0) > 0;
+			const item = this.mapCandidatePortalListItem(r, pct, hasRequirements);
 			if (PLACEMENT_TAB_STATUS.active.includes(r.status)) {
 				active.push(item);
 			} else if (PLACEMENT_TAB_STATUS.upcoming.includes(r.status)) {
@@ -170,7 +195,12 @@ export class CandidatePlacementsService {
 			}
 		}
 
-		return { active, upcoming, past };
+		return {
+			active,
+			upcoming,
+			past,
+			isInternal: isInternalWorkforceType(candidate.workforceType),
+		};
 	}
 
 	async countCandidatePlacements(
@@ -195,7 +225,10 @@ export class CandidatePlacementsService {
 				where: { ...baseWhere, status: { in: PLACEMENT_TAB_STATUS.upcoming } },
 			}),
 			this.prisma.placement.count({
-				where: { ...baseWhere, status: { in: PLACEMENT_TAB_STATUS.completed } },
+				where: {
+					...baseWhere,
+					status: { in: PLACEMENT_TAB_STATUS.completed },
+				},
 			}),
 		]);
 
@@ -221,15 +254,14 @@ export class CandidatePlacementsService {
 				},
 			},
 		});
-		if (!p) throw new NotFoundException("Placement not found");
+		if (!p) throw new NotFoundException("Placement not found.");
 
 		const kind = this.candidateKindFromStatus(p.status);
 
 		const statusLabel =
-			p.status === PlacementStatus.ACTIVE ||
-			p.status === PlacementStatus.ENDING_SOON
+			kind === "active"
 				? "Active"
-				: PLACEMENT_TAB_STATUS.upcoming.includes(p.status)
+				: kind === "upcoming"
 					? "Upcoming"
 					: p.status === PlacementStatus.COMPLETED
 						? "Completed"
@@ -276,16 +308,19 @@ export class CandidatePlacementsService {
 				{ label: "Offer accepted", complete: !!p.acceptedAt },
 				{
 					label: "Compliance complete",
-					complete:
-						(p.summary?.complianceProgressTotal ?? 0) > 0 &&
-						(p.summary?.complianceProgressCompleted ?? 0) >=
-							(p.summary?.complianceProgressTotal ?? 0),
+					complete: (() => {
+						const total = p.summary?.complianceProgressTotal ?? 0;
+						const done = p.summary?.complianceProgressCompleted ?? 0;
+						if (total === 0) return true;
+						return done >= total;
+					})(),
 				},
 				{
 					label: "Assignment active",
 					complete:
 						p.status === PlacementStatus.ACTIVE ||
-						p.status === PlacementStatus.ENDING_SOON,
+						p.status === PlacementStatus.ON_HOLD ||
+						p.status === PlacementStatus.COMPLETED,
 				},
 			],
 		};
@@ -309,6 +344,7 @@ export class CandidatePlacementsService {
 		return this.placementComplianceService.getPlacementCompliance(
 			orgId,
 			placementId,
+			"candidate",
 		);
 	}
 }

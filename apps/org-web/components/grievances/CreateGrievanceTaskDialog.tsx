@@ -39,7 +39,6 @@ const INITIAL_VALUES: CreateGrievanceTaskFormValues = {
 export type CreateGrievanceTaskDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	orgId: string;
 	grievanceId: string;
 	memberOptions: { value: string; label: string }[];
 };
@@ -47,11 +46,10 @@ export type CreateGrievanceTaskDialogProps = {
 export function CreateGrievanceTaskDialog({
 	open,
 	onOpenChange,
-	orgId,
 	grievanceId,
 	memberOptions,
-}: CreateGrievanceTaskDialogProps) {
-	const createTask = useCreateGrievanceTask(orgId, grievanceId);
+}: Readonly<CreateGrievanceTaskDialogProps>) {
+	const createTask = useCreateGrievanceTask(grievanceId);
 
 	const form = useForm({
 		defaultValues: INITIAL_VALUES,

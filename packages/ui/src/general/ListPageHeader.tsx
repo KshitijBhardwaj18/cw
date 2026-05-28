@@ -37,14 +37,14 @@ function ListPageHeader({
 	showSearch = true,
 	children,
 	className,
-}: ListPageHeaderProps) {
+}: Readonly<ListPageHeaderProps>) {
 	return (
 		<Card className={className}>
 			<CardHeader>
 				<CardTitle>{title}</CardTitle>
-				<CardAction className="flex items-center gap-2">
+				<CardAction className="flex w-full items-center justify-end gap-2 sm:w-auto">
 					{actionLabel && (
-						<Button onClick={onAction} className="w-auto">
+						<Button onClick={onAction} className="w-full sm:w-auto">
 							{actionIcon ?? <Plus className="size-4" />}
 							{actionLabel}
 						</Button>

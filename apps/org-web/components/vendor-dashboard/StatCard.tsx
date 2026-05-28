@@ -56,7 +56,7 @@ export function StatCard({
 	progress,
 	variant = "default",
 	className,
-}: StatCardProps) {
+}: Readonly<StatCardProps>) {
 	const progressColor = progressBarVariants[variant || "default"];
 
 	return (

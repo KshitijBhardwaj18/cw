@@ -15,6 +15,14 @@ export const complianceKeys = {
 		["compliance", "list", category, page, limit, search ?? ""] as const,
 	listAll: (page: number, limit: number, search?: string, status?: string) =>
 		["compliance", "listAll", page, limit, search ?? "", status ?? ""] as const,
+	walletTemplatePicker: (page: number, limit: number, search?: string) =>
+		[
+			"compliance",
+			"wallet-template-picker",
+			page,
+			limit,
+			search ?? "",
+		] as const,
 };
 
 export const useComplianceSummary = (search?: string) => {
@@ -64,6 +72,21 @@ export function useComplianceItemsPaginated(
 				search,
 				options?.status ? { status: options.status } : undefined,
 			),
+		enabled: options?.enabled ?? true,
+		placeholderData: keepPreviousData,
+	});
+}
+
+export function useWalletTemplatePickerItems(
+	page = 1,
+	limit = 10,
+	search?: string,
+	options?: { enabled?: boolean },
+) {
+	return useQuery({
+		queryKey: complianceKeys.walletTemplatePicker(page, limit, search),
+		queryFn: () =>
+			ComplianceService.getWalletTemplatePickerItems(page, limit, search),
 		enabled: options?.enabled ?? true,
 		placeholderData: keepPreviousData,
 	});

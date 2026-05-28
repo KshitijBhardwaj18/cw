@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
 	BadRequestException,
 	Injectable,
@@ -7,6 +6,7 @@ import {
 import {
 	CandidateComplianceStatus,
 	type ComplianceListItemCategory,
+	ComplianceListItemResponseStyle,
 	ComplianceListItemStatus,
 	PlacementComplianceItemSource,
 	PlacementComplianceStatus,
@@ -14,11 +14,18 @@ import {
 	Prisma,
 } from "@repo/db";
 import {
+	ComplianceListItemExpirationType,
+	type ExpirationRuleUnit,
 	getComplianceListItemCategoryLabel,
-	S3_PREFIX_COMPLIANCE_DOCS,
 } from "@repo/shared";
 import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
-import { FilesService } from "src/files/files.service";
+import { CandidateComplianceWriteService } from "src/common/services/candidate-compliance-write.service";
+import { deriveStoredComplianceStatus } from "src/common/utils/derive-stored-compliance-status";
+import type { ComplianceViewerScope } from "src/common/utils/resolve-compliance-viewer-scope";
+import {
+	hybridSummaryFetch,
+	type SummaryEntry,
+} from "src/common/utils/summary-hybrid";
 import { PrismaService } from "src/prisma/prisma.service";
 import type { AddPlacementComplianceItemDto } from "../dto/add-placement-compliance-item.dto";
 import type { BulkAddPlacementComplianceItemsDto } from "../dto/bulk-add-placement-compliance-items.dto";
@@ -29,6 +36,7 @@ import { assertPlacementInOrganization } from "../placement-assertions";
 import { PLACEMENT_TAB_STATUS } from "../placements.constants";
 import { formatLongDate, formatShortDate } from "../placements-formatters";
 import type { PlacementListRow } from "../placements-list.include";
+import { vendorPlacementWhere } from "../vendor-placement-where";
 
 type CredentialDataRow = {
 	id: string;
@@ -64,19 +72,6 @@ type UpcomingComplianceRow = {
 	progressTotal: number;
 	missingItems: string;
 };
-
-function deriveComplianceRowStatus(
-	cc: { status: CandidateComplianceStatus; expiryDate: Date | null } | null,
-): "missing" | "approved" | "expired" | "pending" {
-	if (!cc) return "missing";
-	const now = new Date();
-	if (cc.expiryDate && cc.expiryDate < now) return "expired";
-	if (cc.status === CandidateComplianceStatus.EXPIRED) return "expired";
-	if (cc.status === CandidateComplianceStatus.APPROVED) return "approved";
-	if (cc.status === CandidateComplianceStatus.PENDING) return "pending";
-	if (cc.status === CandidateComplianceStatus.MISSING) return "missing";
-	return "missing";
-}
 
 function buildComplianceAuditLog(
 	cc: {
@@ -138,12 +133,16 @@ function buildComplianceAuditLog(
 export class PlacementComplianceService {
 	constructor(
 		private readonly prisma: PrismaService,
-		private readonly filesService: FilesService,
 		private readonly backgroundJobs: BackgroundJobsService,
+		private readonly complianceWrite: CandidateComplianceWriteService,
 	) {}
 
-	async getPlacementCompliance(orgId: string, placementId: string) {
-		return this.computePlacementCompliance(orgId, placementId);
+	async getPlacementCompliance(
+		orgId: string,
+		placementId: string,
+		viewerScope: ComplianceViewerScope = "org",
+	) {
+		return this.computePlacementCompliance(orgId, placementId, viewerScope);
 	}
 
 	async getAvailableComplianceListItems(
@@ -157,7 +156,7 @@ export class PlacementComplianceService {
 				submission: { select: { candidateId: true, requisitionId: true } },
 			},
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 
 		const { requisitionId } = placement.submission;
 
@@ -222,7 +221,7 @@ export class PlacementComplianceService {
 			where: { id: placementId },
 			select: { candidateId: true },
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 
 		const existingPair = await this.prisma.placementComplianceItem.findFirst({
 			where: { placementId, complianceListItemId: dto.complianceListItemId },
@@ -277,7 +276,7 @@ export class PlacementComplianceService {
 			where: { id: placementId },
 			select: { candidateId: true },
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 
 		const ids = [...new Set(dto.complianceListItemIds)];
 
@@ -320,7 +319,7 @@ export class PlacementComplianceService {
 			}
 			if (row.source !== PlacementComplianceItemSource.PLACEMENT_EXTRA) {
 				throw new BadRequestException(
-					`Compliance item ${listItemId} was removed from the requisition checklist and cannot be bulk re-attached here.`,
+					"One of the selected items was removed from the requisition checklist and cannot be re-attached here.",
 				);
 			}
 			toRestoreIds.push(row.id);
@@ -364,7 +363,7 @@ export class PlacementComplianceService {
 			where: { id: placementComplianceItemId, placementId, removedAt: null },
 		});
 		if (!row)
-			throw new NotFoundException("Placement compliance item not found");
+			throw new NotFoundException("Placement compliance item not found.");
 		if (row.source !== PlacementComplianceItemSource.PLACEMENT_EXTRA) {
 			throw new BadRequestException(
 				"Only placement-added requirements can be removed",
@@ -375,7 +374,7 @@ export class PlacementComplianceService {
 			where: { id: placementId },
 			select: { candidateId: true },
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 
 		await this.prisma.$transaction(async (tx) => {
 			await tx.placementComplianceItem.update({
@@ -395,26 +394,142 @@ export class PlacementComplianceService {
 	async batchCompliancePercents(
 		rows: PlacementListRow[],
 	): Promise<Map<string, number>> {
-		const out = new Map<string, number>();
-		if (rows.length === 0) return out;
-		const ids = rows.map((r) => r.id);
-		const summaries = await this.prisma.placementSummary.findMany({
-			where: { placementId: { in: ids } },
-			select: {
-				placementId: true,
-				complianceProgressCompleted: true,
-				complianceProgressTotal: true,
+		if (rows.length === 0) return new Map();
+		const candidateByPlacement = new Map(
+			rows.map((r) => [r.id, r.candidateId]),
+		);
+
+		return hybridSummaryFetch<string, number>({
+			scope: "placement-compliance-percent",
+			keys: rows.map((r) => r.id),
+			fetchSummaries: async (ids): Promise<SummaryEntry<string, number>[]> => {
+				const summaries = await this.prisma.placementSummary.findMany({
+					where: { placementId: { in: ids } },
+					select: {
+						placementId: true,
+						complianceProgressCompleted: true,
+						complianceProgressTotal: true,
+						lastComplianceUpdatedAt: true,
+					},
+				});
+				return summaries.map((s) => ({
+					key: s.placementId,
+					value:
+						s.complianceProgressTotal > 0
+							? Math.round(
+									(s.complianceProgressCompleted / s.complianceProgressTotal) *
+										100,
+								)
+							: 0,
+					computedAt: s.lastComplianceUpdatedAt,
+				}));
+			},
+			computeLive: async (staleIds) => {
+				const pairs: { placementId: string; candidateId: string }[] = [];
+				for (const id of staleIds) {
+					const candidateId = candidateByPlacement.get(id);
+					if (candidateId) pairs.push({ placementId: id, candidateId });
+				}
+				return this.computeCompliancePercentsLive(pairs);
+			},
+			onStale: (staleIds) => {
+				for (const id of staleIds) {
+					void this.backgroundJobs
+						.enqueuePlacementSummary(id)
+						.catch(() => undefined);
+				}
 			},
 		});
-		for (const s of summaries) {
-			const total = s.complianceProgressTotal;
-			const completed = s.complianceProgressCompleted;
-			const pct = total > 0 ? Math.round((completed / total) * 100) : 100;
-			out.set(s.placementId, pct);
+	}
+
+	/**
+	 * Batch live compliance-percent computation. Mirrors the worker's placement
+	 * summary calc but without writing to PlacementSummary. Used as the live
+	 * fallback in batchCompliancePercents when summary rows are missing/stale.
+	 */
+	private async computeCompliancePercentsLive(
+		pairs: { placementId: string; candidateId: string }[],
+	): Promise<Map<string, number>> {
+		const out = new Map<string, number>();
+		if (pairs.length === 0) return out;
+
+		const placementIds = pairs.map((p) => p.placementId);
+		const items = await this.prisma.placementComplianceItem.findMany({
+			where: { placementId: { in: placementIds }, removedAt: null },
+			select: {
+				placementId: true,
+				complianceListItemId: true,
+			},
+		});
+
+		const itemsByPlacement = new Map<
+			string,
+			{ complianceListItemId: string }[]
+		>();
+		const allItemIds = new Set<string>();
+		for (const it of items) {
+			const arr = itemsByPlacement.get(it.placementId) ?? [];
+			arr.push({ complianceListItemId: it.complianceListItemId });
+			itemsByPlacement.set(it.placementId, arr);
+			allItemIds.add(it.complianceListItemId);
 		}
-		for (const row of rows) {
-			if (!out.has(row.id)) out.set(row.id, 100);
+
+		const candidateIds = [...new Set(pairs.map((p) => p.candidateId))];
+		const ccRows =
+			allItemIds.size > 0 && candidateIds.length > 0
+				? await this.prisma.candidateCompliance.findMany({
+						where: {
+							candidateId: { in: candidateIds },
+							complianceListItemId: { in: [...allItemIds] },
+						},
+						select: {
+							candidateId: true,
+							complianceListItemId: true,
+							status: true,
+							expiryDate: true,
+						},
+					})
+				: [];
+
+		const ccByCandidateItem = new Map<
+			string,
+			{ status: CandidateComplianceStatus; expiryDate: Date | null }
+		>();
+		const ccKey = (candidateId: string, itemId: string): string =>
+			`${candidateId}:${itemId}`;
+		for (const r of ccRows) {
+			ccByCandidateItem.set(ccKey(r.candidateId, r.complianceListItemId), {
+				status: r.status,
+				expiryDate: r.expiryDate,
+			});
 		}
+
+		const now = new Date();
+		for (const { placementId, candidateId } of pairs) {
+			const required = itemsByPlacement.get(placementId) ?? [];
+			const total = required.length;
+			if (total === 0) {
+				out.set(placementId, 0);
+				continue;
+			}
+			let completed = 0;
+			for (const r of required) {
+				const cc = ccByCandidateItem.get(
+					ccKey(candidateId, r.complianceListItemId),
+				);
+				if (!cc) continue;
+				const isExpired =
+					cc.status === CandidateComplianceStatus.EXPIRED ||
+					(cc.expiryDate != null && cc.expiryDate <= now);
+				const isApproved =
+					cc.status === CandidateComplianceStatus.APPROVED &&
+					!isExpired &&
+					(cc.expiryDate == null || cc.expiryDate > now);
+				if (isApproved) completed += 1;
+			}
+			out.set(placementId, Math.round((completed / total) * 100));
+		}
+
 		return out;
 	}
 
@@ -462,14 +577,14 @@ export class PlacementComplianceService {
 						)::integer
 					END AS pct
 				FROM placement p
-				INNER JOIN candidate c ON c.id = p."candidateId"
+				INNER JOIN submission s ON s.id = p."submissionId"
 				LEFT JOIN placement_summary ps ON ps."placementId" = p.id
 				WHERE p."organizationId" = ${organizationId}::uuid
 					AND p.status IN (${upcomingStatusSql})
 					AND p."startDate" IS NOT NULL
 					AND p."startDate" >= ${windowStart}
 					AND p."startDate" <= ${windowEnd}
-					AND c."vendorId" = ${vendorId}::uuid
+					AND s."vendorId" = ${vendorId}::uuid
 			)
 			SELECT
 				COUNT(*)::int AS "totalPlacements",
@@ -493,33 +608,56 @@ export class PlacementComplianceService {
 		};
 	}
 
-	private async computePlacementCompliance(orgId: string, placementId: string) {
+	private async computePlacementCompliance(
+		orgId: string,
+		placementId: string,
+		viewerScope: ComplianceViewerScope = "org",
+	) {
 		const placement = await this.prisma.placement.findFirst({
 			where: { id: placementId, organizationId: orgId },
 			select: { candidateId: true, requisitionId: true },
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 
 		return this.computePlacementComplianceForKnown(
 			placementId,
 			placement.candidateId,
+			viewerScope,
 		);
 	}
 
 	private async computePlacementComplianceForKnown(
 		placementId: string,
 		candidateId: string,
+		viewerScope: ComplianceViewerScope = "org",
 	) {
-		const pciRows = await this.prisma.placementComplianceItem.findMany({
+		const allPciRows = await this.prisma.placementComplianceItem.findMany({
 			where: { placementId, removedAt: null },
 			include: { complianceListItem: true },
 		});
+
+		const pciRows =
+			viewerScope === "org"
+				? allPciRows
+				: allPciRows.filter(
+						(p) =>
+							p.complianceListItem.displayToCandidate &&
+							p.complianceListItem.responseStyle !==
+								ComplianceListItemResponseStyle.INTERNAL_TASK,
+					);
 
 		const listItemIds = pciRows.map((p) => p.complianceListItemId);
 
 		if (listItemIds.length === 0) {
 			return {
-				summary: { complete: 0, missing: 0, expired: 0, pending: 0, total: 0 },
+				summary: {
+					complete: 0,
+					missing: 0,
+					expired: 0,
+					pending: 0,
+					rejected: 0,
+					total: 0,
+				},
 				categories: [] as Array<{
 					categoryKey: string;
 					title: string;
@@ -530,7 +668,14 @@ export class PlacementComplianceService {
 						name: string;
 						category: string;
 						categoryKey: string;
-						status: "missing" | "approved" | "expired" | "pending";
+						status: `${CandidateComplianceStatus}`;
+						rejectionReason: string | null;
+						responseStyle: `${ComplianceListItemResponseStyle}`;
+						link: string | null;
+						expirationType: `${ComplianceListItemExpirationType}`;
+						expirationRuleValue: number | null;
+						expirationRuleUnit: `${ExpirationRuleUnit}` | null;
+						issueDate: string | null;
 						completionDate: string | null;
 						expirationDate: string | null;
 						documentName: string | null;
@@ -561,10 +706,11 @@ export class PlacementComplianceService {
 			candidateCompliances.map((cc) => [cc.complianceListItemId, cc]),
 		);
 
+		const now = new Date();
 		const rowItems = pciRows.map((pci) => {
 			const li = pci.complianceListItem;
 			const cc = ccByListItem.get(li.id) ?? null;
-			const status = deriveComplianceRowStatus(cc);
+			const status = deriveStoredComplianceStatus(cc, now);
 			const fromRequisition =
 				pci.source === PlacementComplianceItemSource.REQUISITION;
 
@@ -574,6 +720,16 @@ export class PlacementComplianceService {
 				category: getComplianceListItemCategoryLabel(li.category),
 				categoryKey: li.category,
 				status,
+				rejectionReason:
+					status === CandidateComplianceStatus.REJECTED
+						? (cc?.notes?.trim() ?? null)
+						: null,
+				responseStyle: li.responseStyle,
+				link: li.file,
+				expirationType: li.expirationType,
+				expirationRuleValue: li.expirationRuleValue,
+				expirationRuleUnit: li.expirationRuleUnit,
+				issueDate: cc?.issueDate != null ? formatShortDate(cc.issueDate) : null,
 				completionDate:
 					cc?.verifiedAt != null
 						? formatShortDate(cc.verifiedAt)
@@ -605,17 +761,30 @@ export class PlacementComplianceService {
 				title: getComplianceListItemCategoryLabel(
 					categoryKey as ComplianceListItemCategory,
 				),
-				completed: items.filter((i) => i.status === "approved").length,
+				completed: items.filter(
+					(i) => i.status === CandidateComplianceStatus.APPROVED,
+				).length,
 				total: items.length,
 				items: items.sort((a, b) => a.name.localeCompare(b.name)),
 			}))
 			.sort((a, b) => a.title.localeCompare(b.title));
 
 		const summary = {
-			complete: rowItems.filter((i) => i.status === "approved").length,
-			missing: rowItems.filter((i) => i.status === "missing").length,
-			expired: rowItems.filter((i) => i.status === "expired").length,
-			pending: rowItems.filter((i) => i.status === "pending").length,
+			complete: rowItems.filter(
+				(i) => i.status === CandidateComplianceStatus.APPROVED,
+			).length,
+			missing: rowItems.filter(
+				(i) => i.status === CandidateComplianceStatus.MISSING,
+			).length,
+			expired: rowItems.filter(
+				(i) => i.status === CandidateComplianceStatus.EXPIRED,
+			).length,
+			pending: rowItems.filter(
+				(i) => i.status === CandidateComplianceStatus.PENDING_REVIEW,
+			).length,
+			rejected: rowItems.filter(
+				(i) => i.status === CandidateComplianceStatus.REJECTED,
+			).length,
 			total: rowItems.length,
 		};
 
@@ -912,11 +1081,13 @@ export class PlacementComplianceService {
 			"locationId" | "departmentId" | "vendorId" | "hiringManagerId" | "search"
 		>,
 	) {
-		const where = this.buildPlacementSummaryWhere(
-			orgId,
-			PLACEMENT_TAB_STATUS.upcoming,
-			filters,
-		);
+		const where: Prisma.PlacementSummaryWhereInput = {
+			...this.buildPlacementSummaryWhere(
+				orgId,
+				PLACEMENT_TAB_STATUS.upcoming,
+				filters,
+			),
+		};
 
 		const [total, groups] = await Promise.all([
 			this.prisma.placementSummary.count({ where }),
@@ -991,7 +1162,11 @@ export class PlacementComplianceService {
 		};
 	}
 
-	async getPlacementCredentialDetail(orgId: string, placementId: string) {
+	async getPlacementCredentialDetail(
+		orgId: string,
+		placementId: string,
+		viewerScope: ComplianceViewerScope = "org",
+	) {
 		const p = await this.prisma.placement.findFirst({
 			where: { id: placementId, organizationId: orgId },
 			select: {
@@ -1013,11 +1188,12 @@ export class PlacementComplianceService {
 				},
 			},
 		});
-		if (!p) throw new NotFoundException("Placement not found");
+		if (!p) throw new NotFoundException("Placement not found.");
 
 		const compliance = await this.computePlacementComplianceForKnown(
 			placementId,
 			p.candidateId,
+			viewerScope,
 		);
 
 		return {
@@ -1033,6 +1209,71 @@ export class PlacementComplianceService {
 		};
 	}
 
+	async vendorUpdatePlacementComplianceStatus(
+		orgId: string,
+		vendorId: string,
+		placementId: string,
+		complianceListItemId: string,
+		dto: UpdateCandidateComplianceStatusDto,
+		userId: string,
+	) {
+		const placement = await this.prisma.placement.findFirst({
+			where: vendorPlacementWhere(orgId, placementId, vendorId),
+			select: { candidateId: true },
+		});
+		if (!placement) {
+			throw new NotFoundException("Placement not found for this vendor.");
+		}
+
+		const requirement = await this.prisma.placementComplianceItem.findFirst({
+			where: { placementId, complianceListItemId, removedAt: null },
+			select: { id: true },
+		});
+		if (!requirement) {
+			throw new NotFoundException("Compliance item not on this placement.");
+		}
+
+		const [existing, listItem] = await Promise.all([
+			this.prisma.candidateCompliance.findUnique({
+				where: {
+					candidateId_complianceListItemId: {
+						candidateId: placement.candidateId,
+						complianceListItemId,
+					},
+				},
+			}),
+			this.prisma.complianceListItem.findUnique({
+				where: { id: complianceListItemId },
+				select: { responseStyle: true },
+			}),
+		]);
+		const isLinkItem =
+			listItem?.responseStyle === ComplianceListItemResponseStyle.LINK;
+		const candidateHasActed = isLinkItem
+			? existing?.status === CandidateComplianceStatus.PENDING_REVIEW ||
+				existing?.status === CandidateComplianceStatus.APPROVED ||
+				existing?.status === CandidateComplianceStatus.REJECTED
+			: !!existing?.documentUrl?.trim();
+		if (
+			dto.status === CandidateComplianceStatus.APPROVED &&
+			!candidateHasActed
+		) {
+			throw new BadRequestException(
+				isLinkItem
+					? "Cannot approve until the candidate marks the link as submitted"
+					: "Cannot approve without an uploaded document",
+			);
+		}
+
+		return this.applyCandidateComplianceStatus(
+			placement.candidateId,
+			complianceListItemId,
+			dto,
+			userId,
+			placementId,
+		);
+	}
+
 	async updateCandidateComplianceStatus(
 		orgId: string,
 		placementId: string,
@@ -1044,10 +1285,24 @@ export class PlacementComplianceService {
 			where: { id: placementId, organizationId: orgId },
 			select: { candidateId: true },
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 
-		const { candidateId } = placement;
+		return this.applyCandidateComplianceStatus(
+			placement.candidateId,
+			complianceListItemId,
+			dto,
+			userId,
+			placementId,
+		);
+	}
 
+	private async applyCandidateComplianceStatus(
+		candidateId: string,
+		complianceListItemId: string,
+		dto: UpdateCandidateComplianceStatusDto,
+		userId: string,
+		placementId: string,
+	) {
 		let expiryDate: Date | null = null;
 		if (dto.expiryDate?.trim()) {
 			const d = new Date(dto.expiryDate.trim());
@@ -1068,7 +1323,7 @@ export class PlacementComplianceService {
 					expiryDate,
 					...(dto.status === CandidateComplianceStatus.APPROVED
 						? { verifiedById: userId, verifiedAt: new Date() }
-						: {}),
+						: { verifiedById: null, verifiedAt: null }),
 				},
 				create: {
 					candidateId,
@@ -1088,7 +1343,135 @@ export class PlacementComplianceService {
 			placementId,
 		);
 
+		const placement = await this.prisma.placement.findUniqueOrThrow({
+			where: { id: placementId },
+			select: { organizationId: true },
+		});
+		return this.computePlacementCompliance(
+			placement.organizationId,
+			placementId,
+		);
+	}
+
+	async vendorUploadCandidateComplianceDocument(
+		orgId: string,
+		vendorId: string,
+		placementId: string,
+		complianceListItemId: string,
+		file: Express.Multer.File,
+		expiryDateRaw: string | undefined,
+		issueDateRaw: string | undefined,
+		userId: string,
+	) {
+		const placement = await this.prisma.placement.findFirst({
+			where: vendorPlacementWhere(orgId, placementId, vendorId),
+			select: { id: true },
+		});
+		if (!placement) {
+			throw new NotFoundException("Placement not found for this vendor.");
+		}
+		return this.uploadCandidateComplianceDocument(
+			orgId,
+			placementId,
+			complianceListItemId,
+			file,
+			expiryDateRaw,
+			issueDateRaw,
+			userId,
+		);
+	}
+
+	private async loadPlacementForMarkLink(
+		orgId: string,
+		placementId: string,
+		extraWhere: { vendorId?: string } = {},
+	) {
+		const where = extraWhere.vendorId
+			? vendorPlacementWhere(orgId, placementId, extraWhere.vendorId)
+			: { id: placementId, organizationId: orgId };
+		const placement = await this.prisma.placement.findFirst({
+			where,
+			select: {
+				candidateId: true,
+				candidate: { select: { workforceType: true } },
+			},
+		});
+		if (!placement) {
+			throw new NotFoundException(
+				extraWhere.vendorId
+					? "Placement not found for this vendor"
+					: "Placement not found",
+			);
+		}
+		return placement;
+	}
+
+	private async applyMarkLinkSubmittedForPlacement(
+		orgId: string,
+		placement: {
+			candidateId: string;
+			candidate: {
+				workforceType: `${import("@repo/db").CandidateWorkforceType}` | null;
+			};
+		},
+		placementId: string,
+		complianceListItemId: string,
+		userId: string,
+	) {
+		await this.complianceWrite.assertComplianceListItemOnPlacement(
+			orgId,
+			placementId,
+			complianceListItemId,
+		);
+
+		await this.complianceWrite.writeMarkLinkSubmitted({
+			candidateId: placement.candidateId,
+			workforceType: placement.candidate.workforceType,
+			complianceListItemId,
+			userId,
+		});
+
+		await this.backgroundJobs.enqueueComplianceRelatedSummaries(
+			placement.candidateId,
+			placementId,
+		);
+
 		return this.computePlacementCompliance(orgId, placementId);
+	}
+
+	async markComplianceLinkSubmittedForPlacement(
+		orgId: string,
+		placementId: string,
+		complianceListItemId: string,
+		userId: string,
+	) {
+		const placement = await this.loadPlacementForMarkLink(orgId, placementId);
+		return this.applyMarkLinkSubmittedForPlacement(
+			orgId,
+			placement,
+			placementId,
+			complianceListItemId,
+			userId,
+		);
+	}
+
+	async vendorMarkComplianceLinkSubmittedForPlacement(
+		orgId: string,
+		vendorId: string,
+		placementId: string,
+		complianceListItemId: string,
+		userId: string,
+	) {
+		const placement = await this.loadPlacementForMarkLink(orgId, placementId, {
+			vendorId,
+		});
+		return this.applyMarkLinkSubmittedForPlacement(
+			orgId,
+			placement,
+			placementId,
+			complianceListItemId,
+			userId,
+		);
 	}
 
 	async uploadCandidateComplianceDocument(
@@ -1097,70 +1480,37 @@ export class PlacementComplianceService {
 		complianceListItemId: string,
 		file: Express.Multer.File,
 		expiryDateRaw: string | undefined,
+		issueDateRaw: string | undefined,
 		userId: string,
 	) {
 		const placement = await this.prisma.placement.findFirst({
 			where: { id: placementId, organizationId: orgId },
-			select: { candidateId: true },
+			select: {
+				candidateId: true,
+				candidate: { select: { workforceType: true } },
+			},
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 
-		const { candidateId } = placement;
-
-		let expiryDate: Date | null = null;
-		if (expiryDateRaw?.trim()) {
-			const d = new Date(expiryDateRaw.trim());
-			if (!Number.isNaN(d.getTime())) expiryDate = d;
-		}
-
-		const original = file.originalname ?? "upload";
-		const ext =
-			original.includes(".") && original.lastIndexOf(".") < original.length - 1
-				? original.slice(original.lastIndexOf(".") + 1).replace(/[^\w.-]/g, "")
-				: "bin";
-		const safeExt = ext.length > 16 ? "bin" : ext || "bin";
-		const key = `${S3_PREFIX_COMPLIANCE_DOCS}/${orgId}/${placementId}/${complianceListItemId}/${randomUUID()}.${safeExt}`;
-
-		const { key: documentUrl } = await this.filesService.uploadFileBuffer(
-			file.buffer,
-			key,
-			file.mimetype || "application/octet-stream",
+		await this.complianceWrite.assertComplianceListItemOnPlacement(
+			orgId,
+			placementId,
+			complianceListItemId,
 		);
 
-		const documentFileName = original || "document";
-
-		const now = new Date();
-
-		await this.prisma.$transaction(async (tx) => {
-			await tx.candidateCompliance.upsert({
-				where: {
-					candidateId_complianceListItemId: {
-						candidateId,
-						complianceListItemId,
-					},
-				},
-				update: {
-					documentUrl,
-					documentFileName,
-					uploadedById: userId,
-					uploadedAt: now,
-					...(expiryDate ? { expiryDate } : {}),
-				},
-				create: {
-					candidateId,
-					complianceListItemId,
-					documentUrl,
-					documentFileName,
-					uploadedById: userId,
-					uploadedAt: now,
-					expiryDate,
-					status: CandidateComplianceStatus.PENDING,
-				},
-			});
+		await this.complianceWrite.writeUpload({
+			candidateId: placement.candidateId,
+			workforceType: placement.candidate.workforceType,
+			complianceListItemId,
+			file,
+			expiryDateRaw,
+			issueDateRaw,
+			userId,
+			s3KeyPath: `${orgId}/${placementId}/${complianceListItemId}`,
 		});
 
 		await this.backgroundJobs.enqueueComplianceRelatedSummaries(
-			candidateId,
+			placement.candidateId,
 			placementId,
 		);
 

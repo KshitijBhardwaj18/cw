@@ -16,7 +16,7 @@ export function RemoveRequisitionConfirmationDialog({
 	onOpenChange,
 	onConfirm,
 	isPending = false,
-}: RemoveRequisitionConfirmationDialogProps) {
+}: Readonly<RemoveRequisitionConfirmationDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={open && !!requisitionId}

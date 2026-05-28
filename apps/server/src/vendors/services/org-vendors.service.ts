@@ -52,14 +52,14 @@ export class OrgVendorsService {
 		search?: string,
 	) {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id: organizationId },
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const searchFilter = search?.trim()
@@ -115,14 +115,14 @@ export class OrgVendorsService {
 		search?: string,
 	) {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id: organizationId },
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const searchFilter = search?.trim()
@@ -179,21 +179,21 @@ export class OrgVendorsService {
 		files?: { contract?: Express.Multer.File },
 	) {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id: organizationId },
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const vendor = await this.prisma.vendor.findUnique({
 			where: { id: dto.vendorId },
 		});
 		if (!vendor) {
-			throw new NotFoundException("Vendor not found");
+			throw new NotFoundException("Vendor not found.");
 		}
 
 		const existing = await this.prisma.organizationVendor.findFirst({
@@ -251,14 +251,14 @@ export class OrgVendorsService {
 		files?: { contract?: Express.Multer.File },
 	) {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id: organizationId },
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const orgVendor = await this.prisma.organizationVendor.findFirst({
@@ -269,7 +269,7 @@ export class OrgVendorsService {
 		});
 
 		if (!orgVendor) {
-			throw new NotFoundException("Organization vendor link not found");
+			throw new NotFoundException("Organization vendor link not found.");
 		}
 
 		const updateData: Record<string, unknown> = {};
@@ -295,7 +295,7 @@ export class OrgVendorsService {
 
 		if (Object.keys(updateData).length === 0) {
 			throw new BadRequestException(
-				"At least one field is required for update",
+				"At least one field is required to update.",
 			);
 		}
 
@@ -315,14 +315,14 @@ export class OrgVendorsService {
 		session: UserSession,
 	): Promise<void> {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id: organizationId },
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const orgVendor = await this.prisma.organizationVendor.findFirst({
@@ -333,7 +333,7 @@ export class OrgVendorsService {
 		});
 
 		if (!orgVendor) {
-			throw new NotFoundException("Organization vendor link not found");
+			throw new NotFoundException("Organization vendor link not found.");
 		}
 
 		await this.prisma.organizationVendor.delete({
@@ -347,14 +347,14 @@ export class OrgVendorsService {
 		session: UserSession,
 	): Promise<{ signedUrl: string }> {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id: organizationId },
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const orgVendor = await this.prisma.organizationVendor.findFirst({
@@ -365,11 +365,13 @@ export class OrgVendorsService {
 		});
 
 		if (!orgVendor) {
-			throw new NotFoundException("Organization vendor link not found");
+			throw new NotFoundException("Organization vendor link not found.");
 		}
 
 		if (!orgVendor.contractDocumentKey) {
-			throw new NotFoundException("No contract document for this vendor");
+			throw new NotFoundException(
+				"No contract document found for this vendor.",
+			);
 		}
 
 		const signedUrl = await this.filesService.getSignedUrl(

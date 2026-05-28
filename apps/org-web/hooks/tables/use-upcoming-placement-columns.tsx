@@ -19,6 +19,7 @@ import {
 	UPCOMING_PLACEMENT_COMPLIANCE_LABEL,
 	UPCOMING_PLACEMENT_PROGRESS_BAR_CLASS,
 } from "@/constants/credentials";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { UpcomingPlacementTableItem } from "@/types/credentials";
 
 export interface UpcomingPlacementColumnsCallbacks {
@@ -28,6 +29,8 @@ export interface UpcomingPlacementColumnsCallbacks {
 export const useUpcomingPlacementColumns = ({
 	onViewDetails,
 }: UpcomingPlacementColumnsCallbacks) => {
+	const { fmtShortDate } = useUserTimezone();
+
 	const columns = useMemo<ColumnDef<UpcomingPlacementTableItem>[]>(
 		() => [
 			{
@@ -69,7 +72,7 @@ export const useUpcomingPlacementColumns = ({
 				header: "Start Date",
 				cell: ({ row }) => (
 					<div className="space-y-0.5">
-						<p>{row.original.startDate}</p>
+						<p>{fmtShortDate(row.original.startDate)}</p>
 						<p className="text-muted-foreground text-xs">
 							{row.original.startMeta}
 						</p>
@@ -160,7 +163,7 @@ export const useUpcomingPlacementColumns = ({
 				),
 			},
 		],
-		[onViewDetails],
+		[onViewDetails, fmtShortDate],
 	);
 
 	return { columns };

@@ -15,13 +15,17 @@ type ShiftSummaryCardProps = {
 	template: ShiftTemplateListItem | null;
 	canCreate: boolean;
 	onCreate: () => void;
+	submitLabel?: string;
+	submitting?: boolean;
 };
 
 export function ShiftSummaryCard({
 	template,
 	canCreate,
 	onCreate,
-}: ShiftSummaryCardProps) {
+	submitLabel = "Create Shift",
+	submitting = false,
+}: Readonly<ShiftSummaryCardProps>) {
 	const router = useRouter();
 
 	return (
@@ -51,8 +55,12 @@ export function ShiftSummaryCard({
 					</div>
 				</div>
 
-				<Button className="w-full" onClick={onCreate} disabled={!canCreate}>
-					Create Shift
+				<Button
+					className="w-full"
+					onClick={onCreate}
+					disabled={!canCreate || submitting}
+				>
+					{submitting ? "Saving…" : submitLabel}
 				</Button>
 				<Button
 					variant="outline"

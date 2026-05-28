@@ -1,14 +1,9 @@
-import type {
-	$Enums,
-	Member,
-	Organization,
-	User,
-	Vendor,
-	VendorUser,
-} from "@repo/db";
+import type { Member, Organization, User, Vendor, VendorUser } from "@repo/db";
 import type {
 	BulkEnrollmentJobResult,
 	MemberRole,
+	UserRole,
+	UserStatus,
 	VendorUserRole,
 } from "@repo/shared";
 
@@ -41,8 +36,8 @@ export type CreateProgramUserInput = {
 	email: string;
 	officePhone: string;
 	phoneNumber: string;
-	role: $Enums.UserRole;
-	status: $Enums.UserStatus;
+	role: UserRole;
+	status: UserStatus;
 	mspId: string | null;
 };
 
@@ -56,8 +51,8 @@ export type EditProgramUserInput = {
 	title: string;
 	officePhone: string | null;
 	phoneNumber: string | null;
-	role: $Enums.UserRole;
-	status: $Enums.UserStatus;
+	role: UserRole;
+	status: UserStatus;
 	mspId: string | null;
 };
 
@@ -71,8 +66,8 @@ export type OrganizationUserTableRow = {
 	email: string;
 	officePhone: string | null;
 	phoneNumber: string | null;
-	role: $Enums.UserRole;
-	status: $Enums.UserStatus;
+	role: UserRole;
+	status: UserStatus;
 };
 
 export type VendorUserTableRow = {
@@ -86,7 +81,7 @@ export type VendorUserTableRow = {
 	officePhone: string | null;
 	phoneNumber: string | null;
 	role: VendorUserRole;
-	status: $Enums.UserStatus;
+	status: UserStatus;
 };
 
 export type PlatformUserTableRow = {
@@ -97,8 +92,8 @@ export type PlatformUserTableRow = {
 	email: string;
 	officePhone: string | null;
 	phoneNumber: string | null;
-	role: $Enums.UserRole;
-	status: $Enums.UserStatus;
+	role: UserRole;
+	status: UserStatus;
 };
 
 export type BulkImportUserRow = {
@@ -109,8 +104,8 @@ export type BulkImportUserRow = {
 	email: string;
 	officePhone: string;
 	phoneNumber: string;
-	role: $Enums.UserRole;
-	status: $Enums.UserStatus;
+	role: UserRole;
+	status: UserStatus;
 	mspId: string | null;
 };
 
@@ -158,6 +153,19 @@ export type EnrolledVendorUserRow = {
 	title: string | null;
 	organizationRole: string;
 	inviteStatus: string;
+};
+
+export type EnrolledCandidateRow = {
+	id: string;
+	name: string;
+	email: string;
+	occupation: string;
+	workforceType: string | null;
+	vendorName: string | null;
+	source: string | null;
+	inviteStatus: string | null;
+	isActive: boolean;
+	createdAt: string;
 };
 
 export type BulkEnrollmentJobResponse = {

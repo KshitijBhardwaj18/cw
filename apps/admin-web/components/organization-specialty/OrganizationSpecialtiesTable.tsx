@@ -12,7 +12,7 @@ export interface OrganizationSpecialtiesTableProps {
 export function OrganizationSpecialtiesTable({
 	data,
 	organizationId,
-}: OrganizationSpecialtiesTableProps) {
+}: Readonly<OrganizationSpecialtiesTableProps>) {
 	const { columns } = useOrganizationSpecialtyColumns({ organizationId });
 
 	return <CustomTable columns={columns} data={data} enableSorting={false} />;

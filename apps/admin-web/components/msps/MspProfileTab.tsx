@@ -1,12 +1,10 @@
 "use client";
 
-import type { MspResponseType } from "@repo/shared";
-import {
-	formatCurrency,
-	formatDate,
-	getLabel,
-	TIMEZONE_OPTIONS,
+import type {
+	MspLinkedOrgWithOrganization,
+	MspResponseType,
 } from "@repo/shared";
+import { formatCurrency, getLabel, TIMEZONE_OPTIONS } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Card,
@@ -15,37 +13,187 @@ import {
 	CardTitle,
 } from "@repo/ui/components/card";
 import { DetailItem } from "@repo/ui/components/detail-item";
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@repo/ui/components/empty";
+import { Skeleton } from "@repo/ui/components/skeleton";
+import { CustomAlertDialog } from "@repo/ui/general/CustomAlertDialog";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import UserAvatar from "@repo/ui/general/UserAvatar";
-import { Download, ExternalLink, FileText, Loader2, Plus } from "lucide-react";
+import {
+	Building2,
+	Download,
+	ExternalLink,
+	FileText,
+	Loader2,
+	Plus,
+} from "lucide-react";
 import { useState } from "react";
 import { formatPhoneNumber } from "react-phone-number-input";
 import { toast } from "sonner";
 import {
-	MOCK_MSP_FINANCIAL_SUMMARY,
-	MOCK_MSP_LINKED_ORGANIZATIONS,
 	MSP_INDUSTRY_OPTIONS,
 	MSP_ORGANIZATION_TYPE_OPTIONS,
 } from "@/constants/msp";
 import { useMspLinkedOrgColumns } from "@/hooks/tables/use-msp-linked-org-columns";
+import { useMspAbilities } from "@/hooks/use-msp-abilities";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
+import {
+	useCreateMspLinkedOrg,
+	useDeleteMspLinkedOrg,
+	useMspFinancialSummary,
+	useMspLinkedOrgAgreementSignedUrl,
+	useMspLinkedOrgs,
+	useUpdateMspLinkedOrg,
+} from "@/queries/msp-linked-orgs.query";
 import { useMsaSignedUrl } from "@/queries/msps.query";
+import type { MspLinkOrgPayload } from "@/schemas/msp-link-org.schema";
 import { LinkOrganizationDialog } from "./LinkOrganizationDialog";
 
 type MspProfileTabProps = {
 	msp: MspResponseType;
 };
 
-export function MspProfileTab({ msp }: MspProfileTabProps) {
+export function MspProfileTab({ msp }: Readonly<MspProfileTabProps>) {
+	const {
+		canCreateLinkedOrg,
+		canUpdateLinkedOrg,
+		canDeleteLinkedOrg,
+		canReadMspFeeFields,
+	} = useMspAbilities();
+	const { fmtShortDate } = useUserTimezone();
 	const msaSignedUrlMutation = useMsaSignedUrl();
 	const [isLinkOrgOpen, setIsLinkOrgOpen] = useState(false);
+	const [editingLink, setEditingLink] =
+		useState<MspLinkedOrgWithOrganization | null>(null);
+	const [deletingLink, setDeletingLink] =
+		useState<MspLinkedOrgWithOrganization | null>(null);
 
-	// TODO: Replace with real backend data (useMspLinkedOrganizationsQuery)
-	const linkedOrgs = MOCK_MSP_LINKED_ORGANIZATIONS;
+	const linkedOrgsQuery = useMspLinkedOrgs(msp.id);
+	const financialSummaryQuery = useMspFinancialSummary(msp.id);
+	const createLinkedOrg = useCreateMspLinkedOrg(msp.id);
+	const updateLinkedOrg = useUpdateMspLinkedOrg(msp.id);
+	const deleteLinkedOrg = useDeleteMspLinkedOrg(msp.id);
+	const agreementSignedUrl = useMspLinkedOrgAgreementSignedUrl(msp.id);
+
+	const linkedOrgs = linkedOrgsQuery.data ?? [];
+	const financialSummary = financialSummaryQuery.data;
+
+	const openAgreementUrl = (
+		row: MspLinkedOrgWithOrganization,
+		download: boolean,
+	) => {
+		if (!row.hasAddendumAgreement) {
+			toast.info("No addendum agreement on file");
+			return;
+		}
+		agreementSignedUrl.mutate(row.id, {
+			onSuccess: ({ signedUrl }) => {
+				if (download) {
+					const a = document.createElement("a");
+					a.href = signedUrl;
+					a.download = row.addendumAgreementFileName ?? "addendum.pdf";
+					a.target = "_blank";
+					a.click();
+				} else {
+					window.open(signedUrl, "_blank");
+				}
+			},
+			onError: (err) => {
+				toast.error(
+					err instanceof Error ? err.message : "Failed to fetch agreement",
+				);
+			},
+		});
+	};
 
 	const { columns: linkedOrgColumns } = useMspLinkedOrgColumns({
-		onEdit: (row) => toast.info(`Edit ${row.organization.name}`),
-		onDelete: (row) => toast.info(`Delete ${row.organization.name}`),
+		onEdit: canUpdateLinkedOrg ? (row) => setEditingLink(row) : undefined,
+		onDelete: canDeleteLinkedOrg ? (row) => setDeletingLink(row) : undefined,
+		onViewAgreement: (row) => openAgreementUrl(row, false),
+		onDownloadAgreement: (row) => openAgreementUrl(row, true),
+		showFeeFields: canReadMspFeeFields,
 	});
+
+	const handleCreateLink = (data: MspLinkOrgPayload) => {
+		createLinkedOrg.mutate(
+			{
+				organizationId: data.organizationId,
+				addendumAgreement: data.addendumFileKey,
+				addendumAgreementFileName: data.addendumFileName,
+				addendumRevisionDate: data.addendumRevisionDate ?? null,
+				mspFeePercentage: data.mspFeePercentage,
+				saasFeePercentage: data.saasFeePercentage,
+				startDate: data.startDate,
+				renewalDate: data.renewalDate,
+				possibleCancellationDate: data.possibleCancellationDate ?? null,
+			},
+			{
+				onSuccess: () => {
+					setIsLinkOrgOpen(false);
+					toast.success("Organization linked");
+				},
+				onError: (err) => {
+					toast.error(
+						err instanceof Error ? err.message : "Failed to link organization",
+					);
+				},
+			},
+		);
+	};
+
+	const handleUpdateLink = (data: MspLinkOrgPayload) => {
+		if (!editingLink) return;
+		updateLinkedOrg.mutate(
+			{
+				linkedOrgId: editingLink.id,
+				payload: {
+					...(data.addendumFileKey && data.addendumFileKey !== "__existing__"
+						? {
+								addendumAgreement: data.addendumFileKey,
+								addendumAgreementFileName: data.addendumFileName,
+							}
+						: {}),
+					addendumRevisionDate: data.addendumRevisionDate ?? null,
+					mspFeePercentage: data.mspFeePercentage,
+					saasFeePercentage: data.saasFeePercentage,
+					startDate: data.startDate,
+					renewalDate: data.renewalDate,
+					possibleCancellationDate: data.possibleCancellationDate ?? null,
+				},
+			},
+			{
+				onSuccess: () => {
+					setEditingLink(null);
+					toast.success("Link updated");
+				},
+				onError: (err) => {
+					toast.error(
+						err instanceof Error ? err.message : "Failed to update link",
+					);
+				},
+			},
+		);
+	};
+
+	const handleDeleteLink = () => {
+		if (!deletingLink) return;
+		deleteLinkedOrg.mutate(deletingLink.id, {
+			onSuccess: () => {
+				toast.success("Organization unlinked");
+				setDeletingLink(null);
+			},
+			onError: (err) => {
+				toast.error(
+					err instanceof Error ? err.message : "Failed to unlink organization",
+				);
+			},
+		});
+	};
 
 	const hq = msp.headquarters;
 	const billing = msp.billing;
@@ -175,7 +323,7 @@ export function MspProfileTab({ msp }: MspProfileTabProps) {
 										Upload Date
 									</p>
 									<p className="text-sm font-medium">
-										{msp.msaUploadedAt ? formatDate(msp.msaUploadedAt) : "—"}
+										{fmtShortDate(msp.msaUploadedAt)}
 									</p>
 								</div>
 								<div className="space-y-1">
@@ -183,9 +331,7 @@ export function MspProfileTab({ msp }: MspProfileTabProps) {
 										Agreement Revision Date
 									</p>
 									<p className="text-sm font-medium">
-										{msp.msaAgreementRevisionDate
-											? formatDate(msp.msaAgreementRevisionDate)
-											: "—"}
+										{fmtShortDate(msp.msaAgreementRevisionDate)}
 									</p>
 								</div>
 							</div>
@@ -226,81 +372,138 @@ export function MspProfileTab({ msp }: MspProfileTabProps) {
 			</Card>
 
 			<Card>
-				<CardHeader>
-					<CardTitle className="text-xl font-bold">Financial Summary</CardTitle>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="flex items-center justify-between">
-						<div>
-							<p className="text-muted-foreground text-sm font-medium">
-								Total Portfolio Value
-							</p>
-							<p className="text-3xl font-bold tracking-tight">
-								{formatCurrency(MOCK_MSP_FINANCIAL_SUMMARY.totalPortfolioValue)}
+				<CardContent className="space-y-2 p-6">
+					<CardTitle className="text-base">Financial Summary</CardTitle>
+					{financialSummaryQuery.isLoading || !financialSummary ? (
+						<Skeleton className="mt-4 h-16 w-64 rounded-lg" />
+					) : (
+						<div className="flex flex-wrap items-start justify-between gap-4 pt-2">
+							<div className="space-y-1">
+								<p className="text-muted-foreground text-sm">
+									Total Portfolio Value
+								</p>
+								<p className="text-3xl font-bold">
+									{formatCurrency(financialSummary.totalPortfolioValue)}
+								</p>
+							</div>
+							<p className="text-muted-foreground max-w-xs text-right text-sm">
+								Sum of Bill Rates times Hours for all requisitions created by
+								this MSP (updated dynamically)
 							</p>
 						</div>
-						<p className="text-muted-foreground text-xs text-right max-w-[300px]">
-							Sum of Bill Rates times Hours for all requisitions created by this
-							MSP (updated dynamically)
-						</p>
-					</div>
+					)}
 				</CardContent>
 			</Card>
 
 			<Card>
 				<CardContent className="space-y-6">
-					<div className="flex items-start justify-between">
+					<div className="flex flex-wrap items-start justify-between gap-4">
 						<div className="space-y-2">
-							<div className="flex items-baseline gap-2">
-								<p className="text-muted-foreground text-sm font-medium">
-									Total Expected MSP Revenue:
-								</p>
-								<p className="text-lg font-bold">
-									{formatCurrency(
-										MOCK_MSP_FINANCIAL_SUMMARY.totalExpectedMspRevenue,
-									)}
-								</p>
-							</div>
-							<div className="flex items-baseline gap-2">
-								<p className="text-muted-foreground text-sm font-medium">
-									Total Expected SAS Revenue:
-								</p>
-								<p className="text-lg font-bold">
-									{formatCurrency(
-										MOCK_MSP_FINANCIAL_SUMMARY.totalExpectedSaasRevenue,
-									)}
-								</p>
-							</div>
+							{financialSummaryQuery.isLoading || !financialSummary ? (
+								<>
+									<Skeleton className="h-5 w-72 rounded" />
+									<Skeleton className="h-5 w-72 rounded" />
+								</>
+							) : (
+								canReadMspFeeFields && (
+									<>
+										<div className="flex items-center gap-2 text-sm">
+											<span className="text-muted-foreground">
+												Total Expected MSP Revenue:
+											</span>
+											<span className="font-bold">
+												{formatCurrency(
+													financialSummary.totalExpectedMspRevenue,
+												)}
+											</span>
+										</div>
+										<div className="flex items-center gap-2 text-sm">
+											<span className="text-muted-foreground">
+												Total Expected SAAS Revenue:
+											</span>
+											<span className="font-bold">
+												{formatCurrency(
+													financialSummary.totalExpectedSasRevenue,
+												)}
+											</span>
+										</div>
+									</>
+								)
+							)}
 						</div>
-						<Button
-							variant="outline"
-							className="text-primary border-primary hover:bg-primary/5 hover:text-primary"
-							onClick={() => setIsLinkOrgOpen(true)}
-						>
-							<Plus className="mr-2 size-4" />
-							Link Organization
-						</Button>
+						{canCreateLinkedOrg && (
+							<Button
+								type="button"
+								variant="outline"
+								className="text-primary border-primary hover:bg-primary/5 hover:text-primary shrink-0"
+								onClick={() => setIsLinkOrgOpen(true)}
+							>
+								<Plus className="mr-2 size-4" aria-hidden />
+								Link Organization
+							</Button>
+						)}
 					</div>
-					<CustomTable
-						columns={linkedOrgColumns}
-						data={linkedOrgs}
-						enablePagination={true}
-						pageSize={10}
-						className="border-none shadow-none"
-					/>
+					{linkedOrgsQuery.isLoading ? (
+						<div className="space-y-2">
+							<Skeleton className="h-10 w-full rounded-lg" />
+							<Skeleton className="h-32 w-full rounded-lg" />
+						</div>
+					) : linkedOrgs.length === 0 ? (
+						<Empty className="border-muted/40 py-8">
+							<EmptyMedia variant="icon">
+								<Building2 className="size-8" aria-hidden />
+							</EmptyMedia>
+							<EmptyHeader>
+								<EmptyTitle>No linked organizations</EmptyTitle>
+								<EmptyDescription>
+									Use Link Organization to connect organizations for fee
+									sharing.
+								</EmptyDescription>
+							</EmptyHeader>
+						</Empty>
+					) : (
+						<CustomTable
+							columns={linkedOrgColumns}
+							data={linkedOrgs}
+							enablePagination={true}
+							pageSize={10}
+							className="border-none shadow-none"
+						/>
+					)}
 				</CardContent>
 			</Card>
 
-			<LinkOrganizationDialog
-				mspId={msp.id}
-				isOpen={isLinkOrgOpen}
-				onClose={() => setIsLinkOrgOpen(false)}
-				onLink={(data) => {
-					// TODO: Add real mutation logic here to persist the link
-					console.log("Linking org:", data);
-					setIsLinkOrgOpen(false);
-					toast.success("Organization linked successfully (mock)");
-				}}
+			{isLinkOrgOpen && (
+				<LinkOrganizationDialog
+					mspId={msp.id}
+					isOpen={isLinkOrgOpen}
+					onClose={() => setIsLinkOrgOpen(false)}
+					onLink={handleCreateLink}
+					isPending={createLinkedOrg.isPending}
+					excludeOrganizationIds={linkedOrgs.map((l) => l.organizationId)}
+				/>
+			)}
+
+			{editingLink && (
+				<LinkOrganizationDialog
+					mspId={msp.id}
+					isOpen={!!editingLink}
+					onClose={() => setEditingLink(null)}
+					onLink={handleUpdateLink}
+					isPending={updateLinkedOrg.isPending}
+					initialLink={editingLink}
+				/>
+			)}
+
+			<CustomAlertDialog
+				isOpen={!!deletingLink}
+				onClose={() => setDeletingLink(null)}
+				onConfirm={handleDeleteLink}
+				isLoading={deleteLinkedOrg.isPending}
+				title="Unlink Organization"
+				description={`Are you sure you want to unlink ${deletingLink?.organization.name} from this MSP? This action cannot be undone.`}
+				cancelText="Cancel"
+				confirmText={deleteLinkedOrg.isPending ? "Unlinking..." : "Unlink"}
 			/>
 		</div>
 	);

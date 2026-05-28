@@ -23,7 +23,7 @@ export class UsersService {
 			select: { id: true },
 		});
 		if (!msp) {
-			throw new NotFoundException("MSP not found");
+			throw new NotFoundException("MSP not found.");
 		}
 		return msp;
 	}
@@ -66,6 +66,10 @@ export class UsersService {
 		});
 	}
 
+	/**
+	 * Admin-side: directly bind the admin's session to any organization without
+	 * a per-org access check — admins have access to all organizations.
+	 */
 	async setActiveOrganizationForAdmin(
 		session: UserSession,
 		organizationId: string,
@@ -80,17 +84,25 @@ export class UsersService {
 			(actor.role !== UserRole.SUPER_ADMIN &&
 				actor.role !== UserRole.GENERAL_ADMIN)
 		) {
-			throw new ForbiddenException();
+			throw new ForbiddenException(
+				"You don't have permission to switch organizations.",
+			);
 		}
 
-		const org = await this.prisma.organization.findUnique({
-			where: { id: organizationId },
-			select: { id: true },
+		await this.assertOrganizationExists(organizationId);
+
+		const sessionRowId = await this.resolveSessionRowId(session, userId);
+
+		await this.prisma.session.update({
+			where: { id: sessionRowId },
+			data: { activeOrganizationId: organizationId },
 		});
-		if (!org) {
-			throw new NotFoundException("Organization not found");
-		}
+	}
 
+	private async resolveSessionRowId(
+		session: UserSession,
+		userId: string,
+	): Promise<string> {
 		const sessionPayload = session.session as { id?: string };
 		let sessionRowId: string | undefined = sessionPayload?.id?.trim();
 
@@ -111,14 +123,23 @@ export class UsersService {
 				select: { id: true },
 			});
 			if (!latest) {
-				throw new ForbiddenException();
+				throw new ForbiddenException("No session found.");
 			}
 			sessionRowId = latest.id;
 		}
 
-		await this.prisma.session.update({
-			where: { id: sessionRowId },
-			data: { activeOrganizationId: organizationId },
+		return sessionRowId;
+	}
+
+	private async assertOrganizationExists(
+		organizationId: string,
+	): Promise<void> {
+		const org = await this.prisma.organization.findUnique({
+			where: { id: organizationId },
+			select: { id: true },
 		});
+		if (!org) {
+			throw new NotFoundException("Organization not found.");
+		}
 	}
 }

@@ -378,10 +378,10 @@ export class BackgroundJobsService {
 			where: { id },
 		});
 		if (!job) {
-			throw new NotFoundException("Job not found");
+			throw new NotFoundException("Job not found.");
 		}
 		if (organizationId != null && job.organizationId !== organizationId) {
-			throw new NotFoundException("Job not found");
+			throw new NotFoundException("Job not found.");
 		}
 		return job;
 	}
@@ -518,11 +518,16 @@ export class BackgroundJobsService {
 		s3Key: string,
 		fileName: string,
 		uploadedById: string,
+		vendorId?: string,
 	) {
 		const job = await this.prisma.backGroundJob.create({
 			data: {
 				type: BackGroundJobType.TIMEKEEPING_UPLOAD,
-				payload: { s3Key, fileName } as object,
+				payload: {
+					s3Key,
+					fileName,
+					...(vendorId ? { vendorId } : {}),
+				} as object,
 				organizationId,
 			},
 		});
@@ -532,6 +537,7 @@ export class BackgroundJobsService {
 			s3Key,
 			fileName,
 			uploadedById,
+			...(vendorId ? { vendorId } : {}),
 		};
 		await this.importsQueue.add(
 			BackGroundJobName.TIMEKEEPING_INTERNAL_UPLOAD,

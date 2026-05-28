@@ -1,19 +1,17 @@
 "use client";
 
-import type { CandidatePreferredContractLength } from "@repo/shared";
-import { useForm } from "@tanstack/react-form";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useForm, useStore } from "@tanstack/react-form";
+import { useEffect, useMemo, useRef } from "react";
+import {
+	useCandidateOccupationSpecialties,
+	useCandidateOrgOccupations,
+} from "@/queries/candidate-org-occupations.queries";
 import {
 	type ProfessionalDetailsFormValues,
 	type ProfessionalDetailsInviteFormValues,
 	professionalDetailsInviteSchema,
 	professionalDetailsSchema,
 } from "@/schemas/candidate-sign-up.schema";
-import {
-	type CandidateOccupation,
-	OnboardingService,
-} from "@/services/onboarding.service";
 
 interface UseProfessionalDetailsStepFormProps {
 	defaultValues?: Partial<ProfessionalDetailsFormValues>;
@@ -27,7 +25,6 @@ interface UseProfessionalDetailsStepFormProps {
 	inviteMode?: boolean;
 	occupationId?: string;
 	occupationName?: string;
-	orgId?: string;
 }
 
 export function useProfessionalDetailsStepForm({
@@ -38,13 +35,10 @@ export function useProfessionalDetailsStepForm({
 	inviteMode,
 	occupationId: inviteOccupationId,
 	occupationName: inviteOccupationName,
-	orgId,
 }: UseProfessionalDetailsStepFormProps) {
 	const baseDefaults = {
 		occupationId: inviteMode ? (inviteOccupationId ?? "") : "",
-		yearsOfExperience: 0,
 		specialtyIds: [] as string[],
-		preferredContractLengths: [] as CandidatePreferredContractLength[],
 		...initialValues,
 	};
 	const defaultValues: ProfessionalDetailsFormValues = {
@@ -82,138 +76,47 @@ export function useProfessionalDetailsStepForm({
 		}
 	}, [form.state.values, onValuesChange]);
 
-	const formOccupationId = form.state.values.occupationId;
+	const formOccupationId = useStore(form.store, (s) => s.values.occupationId);
 	const shouldFetchOccupations = !inviteMode || !inviteOccupationName;
 	const canFetchSpecialties = formOccupationId.trim().length > 0;
 
-	type SpecialtyRow = { id: string; name: string };
+	const { data: orgOccupations, isLoading: orgOccupationsLoading } =
+		useCandidateOrgOccupations({ enabled: shouldFetchOccupations });
 
-	const OCCUPATIONS_PAGE_SIZE = 20;
-	const SPECIALTIES_PAGE_SIZE = 10;
+	const occupationsData = useMemo(
+		() =>
+			(orgOccupations ?? []).map((o) => ({
+				id: o.occupationId,
+				name: o.name,
+				acronym: o.acronym ?? "",
+			})),
+		[orgOccupations],
+	);
 
-	const [occupationsPage, setOccupationsPage] = useState(1);
-	const [occupationsItems, setOccupationsItems] = useState<
-		CandidateOccupation[]
-	>([]);
+	const { data: specialtyRows, isLoading: specialtiesLoading } =
+		useCandidateOccupationSpecialties(
+			canFetchSpecialties ? formOccupationId : null,
+			{ enabled: canFetchSpecialties },
+		);
 
-	const {
-		data: occupationsPageData,
-		isLoading: occupationsInitialLoading,
-		isFetching: occupationsFetching,
-	} = useQuery({
-		queryKey: ["candidate-onboarding", "occupations", orgId, occupationsPage],
-		enabled: shouldFetchOccupations && !!orgId,
-		staleTime: 60_000,
-		queryFn: () =>
-			OnboardingService.getOccupationsForOrg({
-				page: occupationsPage,
-				limit: OCCUPATIONS_PAGE_SIZE,
-			}),
-	});
-
-	useEffect(() => {
-		if (!occupationsPageData?.data) return;
-		setOccupationsItems((prev) => {
-			if (occupationsPage === 1) return occupationsPageData.data;
-			const existing = new Set(prev.map((p) => p.id));
-			return [
-				...prev,
-				...occupationsPageData.data.filter((d) => !existing.has(d.id)),
-			];
-		});
-	}, [occupationsPageData, occupationsPage]);
-
-	const occupationsHasMore =
-		!!occupationsPageData && occupationsPage < occupationsPageData.totalPages;
-
-	const loadMoreOccupations = () => {
-		if (!occupationsHasMore) return;
-		if (occupationsInitialLoading || occupationsFetching) return;
-		void setOccupationsPage((p) => p + 1);
-	};
-
-	useEffect(() => {
-		void orgId;
-		void shouldFetchOccupations;
-		setOccupationsPage(1);
-		setOccupationsItems([]);
-	}, [orgId, shouldFetchOccupations]);
-
-	const [specialtiesPage, setSpecialtiesPage] = useState(1);
-	const [specialtiesItems, setSpecialtiesItems] = useState<SpecialtyRow[]>([]);
-
-	const {
-		data: specialtiesPageData,
-		isLoading: specialtiesInitialLoading,
-		isFetching: specialtiesFetching,
-	} = useQuery({
-		queryKey: [
-			"candidate-onboarding",
-			"specialties",
-			formOccupationId,
-			specialtiesPage,
-		],
-		enabled: canFetchSpecialties && !!orgId,
-		staleTime: 60_000,
-		refetchOnMount: false,
-		queryFn: () =>
-			OnboardingService.getSpecialtiesForOccupation(formOccupationId, {
-				page: specialtiesPage,
-				limit: SPECIALTIES_PAGE_SIZE,
-			}),
-	});
-
-	useEffect(() => {
-		if (!specialtiesPageData?.data) return;
-		setSpecialtiesItems((prev) => {
-			if (specialtiesPage === 1) return specialtiesPageData.data;
-			const existing = new Set(prev.map((p) => p.id));
-			return [
-				...prev,
-				...specialtiesPageData.data.filter((d) => !existing.has(d.id)),
-			];
-		});
-	}, [specialtiesPageData, specialtiesPage]);
-
-	const specialtiesHasMore =
-		!!specialtiesPageData && specialtiesPage < specialtiesPageData.totalPages;
-
-	const loadMoreSpecialties = () => {
-		if (!specialtiesHasMore) return;
-		if (specialtiesInitialLoading || specialtiesFetching) return;
-		void setSpecialtiesPage((p) => p + 1);
-	};
-
-	const prevOccupationIdRef = useRef(formOccupationId);
-	useEffect(() => {
-		if (prevOccupationIdRef.current === formOccupationId) return;
-		prevOccupationIdRef.current = formOccupationId;
-		setSpecialtiesPage(1);
-		setSpecialtiesItems([]);
-	}, [formOccupationId]);
-
-	const occupationsLoading = occupationsInitialLoading && occupationsPage === 1;
-	const specialtiesLoading = specialtiesInitialLoading && specialtiesPage === 1;
-
-	const specialties = specialtiesItems.map((s) => ({
-		id: s.id,
-		label: s.name,
-	}));
+	const specialties = useMemo(
+		() =>
+			(specialtyRows ?? []).map((s) => ({
+				id: s.specialtyId,
+				label: s.name,
+			})),
+		[specialtyRows],
+	);
 
 	return {
 		form,
-		occupationsData: occupationsItems,
-		occupationsLoading:
-			occupationsLoading || (occupationsFetching && occupationsPage > 1),
-		onScrollToBottomOccupations: loadMoreOccupations,
+		occupationsData,
+		occupationsLoading: orgOccupationsLoading,
+		onScrollToBottomOccupations: () => {},
 		canFetchSpecialties,
 		specialties,
-		specialtiesLoading:
-			specialtiesLoading || (specialtiesFetching && specialtiesPage > 1),
-		onScrollToBottomSpecialties: loadMoreSpecialties,
+		specialtiesLoading,
 		shouldFetchOccupations,
-		formOccupationId,
-		occupationsHasMore,
-		specialtiesHasMore,
+		occupationsHasMore: false,
 	};
 }

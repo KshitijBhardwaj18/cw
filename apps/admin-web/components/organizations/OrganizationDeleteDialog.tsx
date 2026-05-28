@@ -15,7 +15,7 @@ export function OrganizationDeleteDialog({
 	organization,
 	open,
 	onOpenChange,
-}: OrganizationDeleteDialogProps) {
+}: Readonly<OrganizationDeleteDialogProps>) {
 	const deleteMutation = useDeleteOrganization();
 
 	const handleConfirm = () => {

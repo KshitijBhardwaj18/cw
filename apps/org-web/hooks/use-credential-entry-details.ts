@@ -1,8 +1,8 @@
 "use client";
 
+import { getCandidateComplianceStatusLabel } from "@repo/shared";
 import { useMemo, useRef } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	usePlacementCredentialDetail,
 	useUpdateCandidateComplianceStatus,
@@ -19,12 +19,10 @@ import type {
 export const CREDENTIAL_COMPLIANCE_STATUS_OPTIONS: Array<{
 	value: CredentialComplianceItemStatus;
 	label: string;
-}> = [
-	{ value: "missing", label: "Missing" },
-	{ value: "pending", label: "Pending review" },
-	{ value: "approved", label: "Approved" },
-	{ value: "expired", label: "Expired" },
-];
+}> = (["APPROVED", "REJECTED", "EXPIRED"] as const).map((v) => ({
+	value: v,
+	label: getCandidateComplianceStatusLabel(v),
+}));
 
 function getUpcomingStatusLabel(summary: {
 	missing: number;
@@ -52,12 +50,7 @@ export function useCredentialEntryDetails({
 	entryType,
 	entryId,
 }: UseCredentialEntryDetailsParams) {
-	const { id: orgId } = useOrgContext();
-
-	const { data: apiData, isLoading } = usePlacementCredentialDetail(
-		orgId,
-		entryId,
-	);
+	const { data: apiData, isLoading } = usePlacementCredentialDetail(entryId);
 
 	const record = useMemo<CredentialEntryDetailRecord | null>(() => {
 		if (!apiData) return null;
@@ -76,7 +69,11 @@ export function useCredentialEntryDetails({
 				status: item.status,
 				documentName: item.documentName ?? undefined,
 				completionDate: item.completionDate ?? undefined,
+				issueDate: item.issueDate ?? undefined,
 				expirationDate: item.expirationDate ?? undefined,
+				expirationType: item.expirationType,
+				expirationRuleValue: item.expirationRuleValue,
+				expirationRuleUnit: item.expirationRuleUnit,
 			})),
 		}));
 
@@ -143,38 +140,27 @@ export function useCredentialEntryDetails({
 	);
 
 	const itemsRequired = useMemo(
-		() => allItems.filter((item) => item.status !== "approved"),
+		() => allItems.filter((item) => item.status !== "APPROVED"),
 		[allItems],
 	);
 
-	const updateStatusMutation = useUpdateCandidateComplianceStatus(
-		orgId,
-		entryId,
-	);
-	const uploadDocumentMutation = useUploadCandidateComplianceDocument(
-		orgId,
-		entryId,
-	);
-
-	const STATUS_MAP: Record<CredentialComplianceItemStatus, string> = {
-		missing: "MISSING",
-		pending: "PENDING",
-		approved: "APPROVED",
-		expired: "EXPIRED",
-	};
+	const updateStatusMutation = useUpdateCandidateComplianceStatus(entryId);
+	const uploadDocumentMutation = useUploadCandidateComplianceDocument(entryId);
 
 	const updateStatus = ({
 		itemId,
 		status,
 		completionDate: _completionDate,
 		expirationDate,
+		notes,
 	}: CredentialEntryStatusUpdatePayload) => {
 		updateStatusMutation.mutate(
 			{
 				complianceListItemId: itemId,
 				body: {
-					status: STATUS_MAP[status],
+					status,
 					expiryDate: expirationDate,
+					notes,
 				},
 			},
 			{
@@ -193,6 +179,7 @@ export function useCredentialEntryDetails({
 		itemId,
 		file,
 		expirationDate,
+		issueDate,
 	}: CredentialEntryUploadDocumentPayload) => {
 		if (uploadingRef.current) return;
 		uploadingRef.current = true;
@@ -202,6 +189,7 @@ export function useCredentialEntryDetails({
 				complianceListItemId: itemId,
 				file,
 				expiryDate: expirationDate,
+				issueDate,
 			},
 			{
 				onSuccess: () => {

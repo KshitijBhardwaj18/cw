@@ -6,7 +6,9 @@ export const metadata: Metadata = {
 	title: "Document Wallet",
 };
 
-const DocumentWalletLayout = ({ children }: { children: React.ReactNode }) => {
+const DocumentWalletLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<CandidateMainShell title="Document Wallet">
 			<PageContainer>{children}</PageContainer>

@@ -96,6 +96,7 @@ export function useSubmitTimecardTableColumns(
 							id={`${r.id}-start`}
 							value={r.start}
 							onChange={(v) => updateRow(r.id, { start: v })}
+							disabledOptions={r.end ? [r.end] : []}
 							className="h-9 min-w-30 font-mono text-sm"
 						/>
 					);
@@ -111,6 +112,7 @@ export function useSubmitTimecardTableColumns(
 							id={`${r.id}-end`}
 							value={r.end}
 							onChange={(v) => updateRow(r.id, { end: v })}
+							disabledOptions={r.start ? [r.start] : []}
 							className="h-9 min-w-30 font-mono text-sm"
 						/>
 					);

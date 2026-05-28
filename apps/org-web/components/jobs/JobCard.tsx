@@ -1,5 +1,10 @@
 "use client";
 
+import {
+	coerceYmdOrIsoToUtcInstant,
+	getRequisitionStatusLabel,
+	getRequisitionStatusVariant,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
@@ -12,26 +17,13 @@ import {
 	MapPin,
 	UserRound,
 } from "lucide-react";
-import type { OrgJobCardItem, OrgJobDisplayStatus } from "@/types/org-job";
-
-const STATUS_BADGE_STYLES: Record<OrgJobDisplayStatus, string> = {
-	OPEN: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-	OFFER_ACCEPTED:
-		"bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-	FILLED:
-		"bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300",
-	DRAFT:
-		"bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
-	CLOSED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-};
-
-const STATUS_LABELS: Record<OrgJobDisplayStatus, string> = {
-	OPEN: "Open",
-	OFFER_ACCEPTED: "Offer Accepted",
-	FILLED: "Filled",
-	DRAFT: "Draft",
-	CLOSED: "Closed",
-};
+import { LockableActionButton } from "@/components/general/LockableActionButton";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
+import type { OrgJobCardItem } from "@/types/org-job";
+import {
+	isJobActionLocked,
+	jobActionLockedReason,
+} from "@/utils/job-status-actions";
 
 interface JobCardProps {
 	job: OrgJobCardItem;
@@ -47,7 +39,20 @@ export function JobCard({
 	onEdit,
 	showView = true,
 	showEdit = true,
-}: JobCardProps) {
+}: Readonly<JobCardProps>) {
+	const editLocked = isJobActionLocked(job.status);
+	const editLockReason = jobActionLockedReason(job.status);
+	const { fmtShortDate } = useUserTimezone();
+	const expectedStartSource = (
+		job.expectedStartDateIso ||
+		job.expectedStartDate ||
+		""
+	).trim();
+	const expectedStartInstant = coerceYmdOrIsoToUtcInstant(expectedStartSource);
+	const expectedStartDisplay = expectedStartInstant
+		? fmtShortDate(expectedStartInstant)
+		: "—";
+
 	return (
 		<Card className="h-full overflow-hidden border py-1 transition-shadow hover:shadow-sm">
 			<CardContent className="flex h-full flex-col gap-4 p-5">
@@ -56,9 +61,10 @@ export function JobCard({
 						{job.title}
 					</h3>
 					<Badge
-						className={`shrink-0 px-3 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[job.status]}`}
+						variant={getRequisitionStatusVariant(job.status)}
+						className="shrink-0 px-3 py-1 text-xs font-medium"
 					>
-						{STATUS_LABELS[job.status]}
+						{getRequisitionStatusLabel(job.status)}
 					</Badge>
 				</div>
 
@@ -101,7 +107,7 @@ export function JobCard({
 						<div>
 							<p className="text-muted-foreground text-xs">Expected Start</p>
 							<p className="mt-0.5 font-medium text-sm leading-tight">
-								{job.expectedStartDate}
+								{expectedStartDisplay}
 							</p>
 						</div>
 					</div>
@@ -124,16 +130,17 @@ export function JobCard({
 							</Button>
 						) : null}
 						{showEdit ? (
-							<Button
-								type="button"
+							<LockableActionButton
+								locked={editLocked}
+								lockReason={editLockReason}
+								onClick={() => onEdit?.(job.id)}
+								className="font-medium"
 								variant="outline"
 								size="sm"
-								className="font-medium"
-								onClick={() => onEdit?.(job.id)}
 							>
 								<FileEdit className="size-4" data-icon="inline-start" />
 								Edit
-							</Button>
+							</LockableActionButton>
 						) : null}
 					</div>
 				)}

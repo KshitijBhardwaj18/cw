@@ -1,4 +1,5 @@
 import {
+	DelayUnit,
 	OrganizationIndustry,
 	OrganizationTimezone,
 	OrganizationType,
@@ -26,4 +27,11 @@ export const getOrganizationDataset = () => ({
 	agreementRenewalDate: new Date("2025-12-31"),
 	isActive: true,
 	expectedAnnualSpend: 1000000,
+});
+
+export const getShiftRoutingSettingsDataset = (orgId: string) => ({
+	organizationId: orgId,
+	enableRoutingDelay: true,
+	delayDuration: 2,
+	delayUnit: DelayUnit.HOURS,
 });

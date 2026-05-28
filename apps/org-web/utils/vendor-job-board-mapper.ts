@@ -1,4 +1,9 @@
-import { formatUsdPerHour } from "@repo/shared";
+import {
+	DEFAULT_TIMEZONE,
+	formatTzShortDate,
+	formatUsdPerHour,
+	VendorCandidateJobBoardMatchTier,
+} from "@repo/shared";
 import type {
 	VendorRequisitionCandidateRow,
 	VendorRequisitionDetail,
@@ -6,6 +11,7 @@ import type {
 } from "@/services/vendor-requisitions.service";
 import type { VendorCandidateListRow } from "@/types/vendor-candidates";
 import type { Candidate, Requisition } from "@/types/vendor-jobs-board";
+import { parseVendorRequisitionSubmissionStage } from "@/utils/vendor-job-board-candidate-status";
 
 function formatLocation(loc: VendorRequisitionListItem["location"]): string {
 	if (!loc) return "—";
@@ -32,15 +38,12 @@ function formatDurationWeeks(weeks: number | null | undefined): string {
 	return `${weeks} week${weeks === 1 ? "" : "s"}`;
 }
 
-function formatDate(d: Date | string | null | undefined): string {
-	if (d == null) return "—";
-	const date = d instanceof Date ? d : new Date(d);
-	if (Number.isNaN(date.getTime())) return "—";
-	return date.toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
+export type VendorRequisitionShortDateFormatter = (
+	d: Date | string | null | undefined,
+) => string;
+
+function formatDateDefaultTz(d: Date | string | null | undefined): string {
+	return formatTzShortDate(d, DEFAULT_TIMEZONE);
 }
 
 function formatOpenings(
@@ -51,24 +54,19 @@ function formatOpenings(
 	return `${open} open (${item.positionsFilled}/${item.numberOfPositions} filled)`;
 }
 
-function humanizeSubmissionStage(stage: string): string {
-	return stage
-		.replaceAll("_", " ")
-		.toLowerCase()
-		.replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 export function mapListItemToRequisition(
 	item: VendorRequisitionListItem,
+	formatShortDate: VendorRequisitionShortDateFormatter = formatDateDefaultTz,
 ): Requisition {
 	const occupation = item.organizationOccupation?.occupation.name ?? "—";
-	const specialty = item.organizationSpecialty?.specialty.name ?? "—";
-	const requirements = item.jobSummary
-		? item.jobSummary
-				.split(/\n+/)
-				.map((s) => s.trim())
-				.filter(Boolean)
-		: [];
+	const occupationId = item.organizationOccupation?.occupation.id ?? null;
+	const specialtyNames = item.requisitionSpecialties.map(
+		(s) => s.organizationSpecialty.specialty.name,
+	);
+	const specialty = specialtyNames.length > 0 ? specialtyNames.join(", ") : "—";
+	const specialtyIds = item.requisitionSpecialties.map(
+		(s) => s.organizationSpecialty.specialty.id,
+	);
 
 	return {
 		id: item.id,
@@ -79,12 +77,12 @@ export function mapListItemToRequisition(
 		department: item.unitName?.trim() || item.department?.name || "—",
 		vendorRate: formatUsdPerHour(item.billRate),
 		duration: formatDurationWeeks(item.lengthWeeks),
-		startDate: formatDate(item.startDate),
+		startDate: formatShortDate(item.startDate),
 		openings: formatOpenings(item),
 		occupation,
+		occupationId,
 		specialty,
-		requirements,
-		benefits: [],
+		specialtyIds,
 		contractType: item.type?.replaceAll("_", " ") ?? "—",
 		expectedWeeklyHours:
 			item.shiftHours != null ? `${item.shiftHours * 5} hrs (est.)` : "—",
@@ -96,20 +94,19 @@ export function mapListItemToRequisition(
 
 export function mapDetailToRequisition(
 	detail: VendorRequisitionDetail,
+	formatShortDate: VendorRequisitionShortDateFormatter = formatDateDefaultTz,
 ): Requisition {
-	const base = mapListItemToRequisition(detail);
-	const requirements =
-		detail.acceptanceCriteria?.map((a) => a.complianceListItem.name) ?? [];
-	const jobSummaryBullets = detail.jobSummary
-		? detail.jobSummary
-				.split(/\n+/)
-				.map((s) => s.trim())
-				.filter(Boolean)
-		: [];
+	const base = mapListItemToRequisition(detail, formatShortDate);
+	const criteria = detail.acceptanceCriteria ?? [];
+	const checklistItems = detail.complianceChecklist?.items ?? [];
+	const requirements = (criteria.length > 0 ? criteria : checklistItems).map(
+		(a: { complianceListItem: { name: string } }) => a.complianceListItem.name,
+	);
+	const jobSummary = detail.jobSummary?.trim() || "";
 	return {
 		...base,
-		requirements:
-			jobSummaryBullets.length > 0 ? jobSummaryBullets : requirements,
+		requirements,
+		jobSummary,
 		benefits: detail.benefitsPerks ?? [],
 		expectedWeeklyHours:
 			detail.hoursPerWeek != null
@@ -130,10 +127,10 @@ export function mapVendorCandidateListRowToCandidate(
 	return {
 		id: row.id,
 		name: row.name,
-		status: row.status === "ACTIVE" ? "Active" : row.status,
+		status: row.status,
 		role: row.occupationName !== "—" ? row.occupationName : row.specialty,
 		location: row.locationLine,
-		experience: row.yearsExperienceLabel,
+		experience: row.experienceBandLabel,
 		availability: "—",
 		matchScore: 0,
 		email: row.email,
@@ -154,6 +151,7 @@ export function mapVendorCandidateListRowToCandidate(
 		certificationPALS: "",
 		summaryNote: "",
 		skills: [],
+		tags: row.tags,
 		compliance: [],
 	};
 }
@@ -161,13 +159,16 @@ export function mapVendorCandidateListRowToCandidate(
 export function mapCandidateRowToCandidate(
 	row: VendorRequisitionCandidateRow,
 ): Candidate {
-	const status = row.submissionStage
-		? humanizeSubmissionStage(row.submissionStage)
-		: row.matchScore >= 80
-			? "Strong match"
+	const submissionKey = parseVendorRequisitionSubmissionStage(
+		row.submissionStage,
+	);
+	const status =
+		submissionKey ??
+		(row.matchScore >= 80
+			? VendorCandidateJobBoardMatchTier.STRONG
 			: row.matchScore >= 60
-				? "Good match"
-				: "Review";
+				? VendorCandidateJobBoardMatchTier.GOOD
+				: VendorCandidateJobBoardMatchTier.REVIEW);
 
 	return {
 		id: row.id,
@@ -195,6 +196,7 @@ export function mapCandidateRowToCandidate(
 		certificationPALS: "",
 		summaryNote: "",
 		skills: [],
+		tags: row.tags,
 		compliance: [],
 	};
 }

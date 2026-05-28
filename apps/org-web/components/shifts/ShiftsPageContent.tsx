@@ -5,6 +5,7 @@ import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { cn } from "@repo/ui/lib/utils";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { CalendarClock, Plus } from "lucide-react";
@@ -12,7 +13,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-	SHIFT_LIST_PAGE_SIZE,
 	SHIFT_STAT_CARDS,
 	type Shift,
 	type ShiftStatus,
@@ -32,6 +32,9 @@ export function ShiftsPageContent() {
 		handleSearchChange,
 		setStatusFilter,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions,
 		counts,
 		pagedShifts,
 		hasActiveFilters,
@@ -181,33 +184,17 @@ export function ShiftsPageContent() {
 				)}
 			</div>
 
-			{totalPages > 1 && (
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-					<p className="text-muted-foreground text-sm">
-						Showing {(currentPage - 1) * SHIFT_LIST_PAGE_SIZE + 1}–
-						{Math.min(currentPage * SHIFT_LIST_PAGE_SIZE, totalCount)} of{" "}
-						{totalCount} shifts
-					</p>
-					<div className="flex gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={currentPage <= 1}
-							onClick={() => setPage(currentPage - 1)}
-						>
-							Previous
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={currentPage >= totalPages}
-							onClick={() => setPage(currentPage + 1)}
-						>
-							Next
-						</Button>
-					</div>
-				</div>
-			)}
+			<PaginationControls
+				currentPage={currentPage}
+				pageCount={totalPages}
+				goToPage={setPage}
+				limit={limit}
+				setLimit={setLimit}
+				pageSizeOptions={pageSizeOptions}
+				totalItems={totalCount}
+				itemLabel="shift"
+				itemLabelPlural="shifts"
+			/>
 
 			<ShiftDetailDialog
 				shift={detailShift}

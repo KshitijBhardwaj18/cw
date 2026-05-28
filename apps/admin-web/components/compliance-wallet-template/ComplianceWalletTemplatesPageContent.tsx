@@ -46,7 +46,7 @@ type ComplianceWalletTemplatesPageContentProps = {
 
 export default function ComplianceWalletTemplatesPageContent({
 	organizationId,
-}: ComplianceWalletTemplatesPageContentProps) {
+}: Readonly<ComplianceWalletTemplatesPageContentProps>) {
 	const { ability } = useAuth();
 	const canUpdate = ability.can(Action.Update, "ComplianceWalletTemplate");
 	const canDelete = ability.can(Action.Delete, "ComplianceWalletTemplate");

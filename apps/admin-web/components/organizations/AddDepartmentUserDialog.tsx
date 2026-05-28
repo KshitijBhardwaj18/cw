@@ -30,7 +30,7 @@ export function AddDepartmentUserDialog({
 	organizationId,
 	existingUserIds,
 	onAdd,
-}: AddDepartmentUserDialogProps) {
+}: Readonly<AddDepartmentUserDialogProps>) {
 	const { search, debouncedSearch, setSearch } = useLocalDebouncedSearch("");
 	const listRef = useRef<HTMLDivElement>(null);
 	const fetchNextPageRef = useRef<() => void>(() => {});

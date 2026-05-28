@@ -12,87 +12,55 @@ import { TalentCommunityService } from "@/services/talent-community.service";
 
 export const talentCommunityKeys = {
 	all: ["talent-community"] as const,
-	list: (orgId: string, query: TalentCommunityQuery) =>
-		[...talentCommunityKeys.all, "list", orgId, query] as const,
-	orgOccupations: (orgId: string) =>
-		[...talentCommunityKeys.all, "org-occupations", orgId] as const,
-	orgOccupationSpecialties: (orgId: string) =>
-		[...talentCommunityKeys.all, "org-occupation-specialties", orgId] as const,
-	specialties: (occupationId: string) =>
-		[...talentCommunityKeys.all, "specialties", occupationId] as const,
-	vendors: (orgId: string) =>
-		[...talentCommunityKeys.all, "vendors", orgId] as const,
-	existing: (orgId: string, query: ExistingTalentQuery) =>
-		[...talentCommunityKeys.all, "existing", orgId, query] as const,
-	candidateProfile: (orgId: string, candidateId: string) =>
-		[
-			...talentCommunityKeys.all,
-			"candidate-profile",
-			orgId,
-			candidateId,
-		] as const,
-	candidateActivity: (orgId: string, candidateId: string) =>
-		[
-			...talentCommunityKeys.all,
-			"candidate-activity",
-			orgId,
-			candidateId,
-		] as const,
+	list: (query: TalentCommunityQuery) =>
+		[...talentCommunityKeys.all, "list", query] as const,
+	orgOccupations: () =>
+		[...talentCommunityKeys.all, "org-occupations"] as const,
+	orgOccupationSpecialties: () =>
+		[...talentCommunityKeys.all, "org-occupation-specialties"] as const,
+	vendors: () => [...talentCommunityKeys.all, "vendors"] as const,
+	existing: (query: ExistingTalentQuery) =>
+		[...talentCommunityKeys.all, "existing", query] as const,
+	candidateProfile: (candidateId: string) =>
+		[...talentCommunityKeys.all, "candidate-profile", candidateId] as const,
+	candidateActivity: (candidateId: string) =>
+		[...talentCommunityKeys.all, "candidate-activity", candidateId] as const,
 };
 
-export function useTalentCommunity(orgId: string, query: TalentCommunityQuery) {
+export function useTalentCommunity(query: TalentCommunityQuery) {
 	return useQuery({
-		queryKey: talentCommunityKeys.list(orgId, query),
+		queryKey: talentCommunityKeys.list(query),
 		queryFn: () => TalentCommunityService.getTalentCommunity(query),
 		refetchOnMount: "always",
-		enabled: !!orgId,
 	});
 }
 
-export function useOrgOccupations(orgId: string) {
+export function useOrgOccupations() {
 	return useQuery({
-		queryKey: talentCommunityKeys.orgOccupations(orgId),
+		queryKey: talentCommunityKeys.orgOccupations(),
 		queryFn: () => OnboardingService.getLinkedOccupationsForOrg({ limit: 100 }),
-		enabled: !!orgId,
 		staleTime: 5 * 60 * 1000,
 	});
 }
 
-export function useOrgLinkedOccupationSpecialties(orgId: string) {
+export function useOrgLinkedOccupationSpecialties() {
 	return useQuery({
-		queryKey: talentCommunityKeys.orgOccupationSpecialties(orgId),
+		queryKey: talentCommunityKeys.orgOccupationSpecialties(),
 		queryFn: () =>
 			OnboardingService.getDistinctSpecialtiesForOrgLinkedOccupations(),
-		enabled: !!orgId,
 		staleTime: 5 * 60 * 1000,
 	});
 }
 
-export function useSpecialtiesForOccupation(
-	orgId: string,
-	occupationId: string | null,
-) {
+export function useOrgVendors() {
 	return useQuery({
-		queryKey: talentCommunityKeys.specialties(occupationId ?? ""),
-		queryFn: () =>
-			OnboardingService.listCatalogSpecialtiesForOccupation(
-				occupationId as string,
-			),
-		enabled: !!occupationId && !!orgId,
-		staleTime: 5 * 60 * 1000,
-	});
-}
-
-export function useOrgVendors(orgId: string) {
-	return useQuery({
-		queryKey: talentCommunityKeys.vendors(orgId),
+		queryKey: talentCommunityKeys.vendors(),
 		queryFn: () => TalentCommunityService.getOrgVendors(),
-		enabled: !!orgId,
 		staleTime: 5 * 60 * 1000,
 	});
 }
 
-export function useInviteCandidate(_orgId: string) {
+export function useInviteCandidate() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (input: InviteCandidateInput) =>
@@ -105,16 +73,15 @@ export function useInviteCandidate(_orgId: string) {
 	});
 }
 
-export function useExistingTalent(orgId: string, query: ExistingTalentQuery) {
+export function useExistingTalent(query: ExistingTalentQuery) {
 	return useQuery({
-		queryKey: talentCommunityKeys.existing(orgId, query),
+		queryKey: talentCommunityKeys.existing(query),
 		queryFn: () => TalentCommunityService.getExistingCandidates(query),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useAddExistingTalent(_orgId: string) {
+export function useAddExistingTalent() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (candidateIds: string[]) =>
@@ -125,30 +92,27 @@ export function useAddExistingTalent(_orgId: string) {
 	});
 }
 
-export function useCandidateProfile(orgId: string, candidateId: string | null) {
+export function useCandidateProfile(candidateId: string | null) {
 	return useQuery<CandidateProfileType>({
-		queryKey: talentCommunityKeys.candidateProfile(orgId, candidateId ?? ""),
+		queryKey: talentCommunityKeys.candidateProfile(candidateId ?? ""),
 		queryFn: () =>
 			TalentCommunityService.getCandidateProfile(candidateId as string),
-		enabled: !!orgId && !!candidateId,
+		enabled: !!candidateId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useCandidateActivity(
-	orgId: string,
-	candidateId: string | null,
-) {
+export function useCandidateActivity(candidateId: string | null) {
 	return useQuery<CandidateActivityEvent[]>({
-		queryKey: talentCommunityKeys.candidateActivity(orgId, candidateId ?? ""),
+		queryKey: talentCommunityKeys.candidateActivity(candidateId ?? ""),
 		queryFn: () =>
 			TalentCommunityService.getCandidateActivity(candidateId as string),
-		enabled: !!orgId && !!candidateId,
+		enabled: !!candidateId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useAssignCandidateWorkforceType(orgId: string) {
+export function useAssignCandidateWorkforceType() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -168,16 +132,10 @@ export function useAssignCandidateWorkforceType(orgId: string) {
 		onSuccess: (_updated, variables) => {
 			void queryClient.invalidateQueries({ queryKey: talentCommunityKeys.all });
 			void queryClient.invalidateQueries({
-				queryKey: talentCommunityKeys.candidateProfile(
-					orgId,
-					variables.candidateId,
-				),
+				queryKey: talentCommunityKeys.candidateProfile(variables.candidateId),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: talentCommunityKeys.candidateActivity(
-					orgId,
-					variables.candidateId,
-				),
+				queryKey: talentCommunityKeys.candidateActivity(variables.candidateId),
 			});
 		},
 	});

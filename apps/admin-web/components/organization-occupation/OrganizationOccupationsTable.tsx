@@ -16,7 +16,7 @@ export function OrganizationOccupationsTable({
 	organizationId,
 	onUnlink,
 	onManageSpecialty,
-}: OrganizationOccupationsTableProps) {
+}: Readonly<OrganizationOccupationsTableProps>) {
 	const { columns } = useOrganizationOccupationColumns({
 		organizationId,
 		onUnlink,

@@ -38,7 +38,7 @@ export interface CandidateJobApplyTimeOffCardProps {
 
 export function CandidateJobApplyTimeOffCard({
 	timeOff,
-}: CandidateJobApplyTimeOffCardProps) {
+}: Readonly<CandidateJobApplyTimeOffCardProps>) {
 	const t = timeOff;
 
 	return (

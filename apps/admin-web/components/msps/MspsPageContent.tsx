@@ -1,6 +1,5 @@
 "use client";
 
-import { Action } from "@repo/casl";
 import { Button } from "@repo/ui/components/button";
 import {
 	Tabs,
@@ -16,7 +15,7 @@ import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
 import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { LayoutGrid, List, Plus } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "@/contexts";
+import { useMspAbilities } from "@/hooks/use-msp-abilities";
 import { useMsps } from "@/queries/msps.query";
 import { MspCard } from "./MspCard";
 import { MspFormDialog } from "./MspFormDialog";
@@ -51,8 +50,7 @@ export function MspsPageContent() {
 	const msps = response.data;
 	const total = response.total;
 	const totalPages = response.totalPages;
-	const { ability } = useAuth();
-	const canCreateMsp = ability.can(Action.Create, "MSP");
+	const { canCreateMsp } = useMspAbilities();
 
 	return (
 		<div className="space-y-6">

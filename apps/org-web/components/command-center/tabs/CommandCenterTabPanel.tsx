@@ -8,7 +8,7 @@ type CommandCenterTabPanelProps = {
 export const CommandCenterTabPanel = ({
 	title,
 	description,
-}: CommandCenterTabPanelProps) => {
+}: Readonly<CommandCenterTabPanelProps>) => {
 	return (
 		<Card>
 			<CardContent className="p-6">

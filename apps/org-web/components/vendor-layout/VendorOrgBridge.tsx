@@ -30,7 +30,9 @@ export function useVendorOrgSession(): VendorOrgSession {
 	return ctx;
 }
 
-export function VendorOrgBridge({ children }: { children: React.ReactNode }) {
+export function VendorOrgBridge({
+	children,
+}: Readonly<{ children: React.ReactNode }>) {
 	const { data, isLoading, isError } = useVendorContextQuery();
 
 	if (isLoading) {
@@ -70,7 +72,6 @@ export function VendorOrgBridge({ children }: { children: React.ReactNode }) {
 		<VendorOrgSessionContext.Provider value={session}>
 			<OrgContextProvider
 				org={{
-					id: data.organizationId,
 					name: data.organizationName ?? "",
 					slug: data.organizationSlug ?? "",
 					logo: null,

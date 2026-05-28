@@ -73,7 +73,7 @@ export function OrganizationDetailsSection({
 	isPending = false,
 	onSlugLoading,
 	excludeOrganizationId,
-}: OrganizationDetailsSectionProps) {
+}: Readonly<OrganizationDetailsSectionProps>) {
 	const submissionAttempts = useStore(
 		// OrganizationDetailsForm narrows the Field API; parent passes the full TanStack form.
 		// @ts-expect-error -- store exists at runtime on the concrete form instance

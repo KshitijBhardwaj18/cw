@@ -11,8 +11,8 @@ import {
 	INVOICE_DRAFT_STATUS_LABEL,
 	type InvoiceDraftStatus,
 } from "@/constants/invoice-drafts";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { OrgInvoiceListRow } from "@/services/billing.service";
-import { fmtPeriod } from "@/utils/format";
 
 const TEXT_WIDE = "min-w-0 max-w-[16rem] px-2";
 const BADGE = "min-w-0 px-2";
@@ -33,6 +33,7 @@ function statusBadgeVariant(
 }
 
 export function useInvoiceDraftListColumns() {
+	const { fmtPeriod } = useUserTimezone();
 	const projectLabel = useCallback((row: OrgInvoiceListRow): string => {
 		const count = row.projectCount ?? 0;
 		const name = row.projectName?.trim();
@@ -224,6 +225,6 @@ export function useInvoiceDraftListColumns() {
 				),
 			},
 		],
-		[projectLabel, uiStatus],
+		[fmtPeriod, projectLabel, uiStatus],
 	);
 }

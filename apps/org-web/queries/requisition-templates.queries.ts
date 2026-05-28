@@ -6,25 +6,20 @@ import {
 
 export const requisitionTemplatesKeys = {
 	all: ["requisition-templates"] as const,
-	lists: (orgId: string) =>
-		[...requisitionTemplatesKeys.all, "list", orgId] as const,
-	list: (
-		orgId: string,
-		params: {
-			search?: string;
-			status?: string;
-			organizationOccupationId?: string;
-			organizationSpecialtyId?: string;
-			page?: number;
-			limit?: number;
-		},
-	) => [...requisitionTemplatesKeys.lists(orgId), params] as const,
-	detail: (orgId: string, id: string) =>
-		[...requisitionTemplatesKeys.all, "detail", orgId, id] as const,
+	lists: () => [...requisitionTemplatesKeys.all, "list"] as const,
+	list: (params: {
+		search?: string;
+		status?: string;
+		organizationOccupationId?: string;
+		organizationSpecialtyId?: string;
+		page?: number;
+		limit?: number;
+	}) => [...requisitionTemplatesKeys.lists(), params] as const,
+	detail: (id: string) =>
+		[...requisitionTemplatesKeys.all, "detail", id] as const,
 };
 
 export function useRequisitionTemplates(
-	orgId: string,
 	params: {
 		search?: string;
 		status?: string;
@@ -36,55 +31,52 @@ export function useRequisitionTemplates(
 	options?: { enabled?: boolean },
 ) {
 	return useQuery({
-		queryKey: requisitionTemplatesKeys.list(orgId, params),
+		queryKey: requisitionTemplatesKeys.list(params),
 		queryFn: () => RequisitionTemplatesService.list(params),
-		enabled: (options?.enabled ?? true) && !!orgId,
+		enabled: options?.enabled ?? true,
 		refetchOnMount: "always",
 	});
 }
 
-export function useCreateRequisitionTemplate(orgId: string) {
+export function useCreateRequisitionTemplate() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (input: CreateRequisitionTemplateInput) =>
 			RequisitionTemplatesService.create(input),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: requisitionTemplatesKeys.lists(orgId),
+				queryKey: requisitionTemplatesKeys.lists(),
 			});
 		},
 	});
 }
 
 /** Shared definition for template detail — use with `useQuery` or `queryClient.fetchQuery`. */
-export function requisitionTemplateDetailQueryOptions(
-	orgId: string,
-	templateId: string,
-) {
+export function requisitionTemplateDetailQueryOptions(templateId: string) {
 	return {
-		queryKey: requisitionTemplatesKeys.detail(orgId, templateId),
+		queryKey: requisitionTemplatesKeys.detail(templateId),
 		queryFn: () => RequisitionTemplatesService.findOne(templateId),
 	};
 }
 
-export function useRequisitionTemplate(orgId: string, id: string | null) {
+export function useRequisitionTemplate(id: string | null) {
 	return useQuery({
-		...requisitionTemplateDetailQueryOptions(orgId, id ?? ""),
-		enabled: !!orgId && !!id,
+		...requisitionTemplateDetailQueryOptions(id ?? ""),
+		enabled: !!id,
 	});
 }
 
-export function useUpdateRequisitionTemplate(orgId: string, id: string) {
+export function useUpdateRequisitionTemplate(id: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (input: Partial<CreateRequisitionTemplateInput>) =>
 			RequisitionTemplatesService.update(id, input),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: requisitionTemplatesKeys.lists(orgId),
+				queryKey: requisitionTemplatesKeys.lists(),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: requisitionTemplatesKeys.detail(orgId, id),
+				queryKey: requisitionTemplatesKeys.detail(id),
 			});
 		},
 	});

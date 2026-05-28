@@ -3,6 +3,7 @@
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { CheckCircle2, Clock, Eye, FileEdit, FileText } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { RequisitionTemplateCardItem } from "@/types/requisition-template";
 
 const STATUS_BADGE_CLASS: Record<"ACTIVE" | "DRAFT", string> = {
@@ -28,17 +29,11 @@ export function RequisitionTemplateCard({
 	onEdit,
 	onUseTemplate,
 	onViewDetails,
-}: RequisitionTemplateCardProps) {
+}: Readonly<RequisitionTemplateCardProps>) {
+	const { fmtShortDate } = useUserTimezone();
 	const statusClass = STATUS_BADGE_CLASS[template.status];
 	const statusLabel = STATUS_LABEL[template.status];
-	const lastUpdatedLabel = new Date(template.lastUpdated).toLocaleDateString(
-		"en-US",
-		{
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		},
-	);
+	const lastUpdatedLabel = fmtShortDate(template.lastUpdated);
 
 	return (
 		<Card className="overflow-hidden transition-shadow hover:shadow-md">

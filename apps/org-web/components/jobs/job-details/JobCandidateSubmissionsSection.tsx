@@ -6,6 +6,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/ui/components/card";
+import { ScheduleInterviewDialog } from "@/components/submissions/ScheduleInterviewDialog";
 import type { SubmissionStageKey } from "@/constants/submissions";
 import { useJobCandidateSubmissionsSection } from "@/hooks/use-job-candidate-submissions-section";
 import { getSubmissionStageLabel } from "@/utils/submission-stage-label";
@@ -13,23 +14,25 @@ import { JobCandidateSubmissionRejectDialog } from "./JobCandidateSubmissionReje
 import { JobCandidateSubmissionsListBody } from "./JobCandidateSubmissionsListBody";
 import { JobCandidateSubmissionsPagination } from "./JobCandidateSubmissionsPagination";
 import { JobCandidateSubmissionsStageTabs } from "./JobCandidateSubmissionsStageTabs";
-import { JobOfferAdjustmentDialog } from "./JobOfferAdjustmentDialog";
+import {
+	type JobOfferAdjustmentDefaults,
+	JobOfferAdjustmentDialog,
+} from "./JobOfferAdjustmentDialog";
 import { JobSubmissionHistorySheet } from "./JobSubmissionHistorySheet";
 
-const cardSectionTitleClassName =
-	"text-muted-foreground text-sm font-semibold tracking-wide uppercase";
-
 export interface JobCandidateSubmissionsSectionProps {
-	orgId: string;
 	jobId: string;
 	allowedStages: readonly SubmissionStageKey[];
+	isInterviewRequired: boolean;
+	offerDefaults?: JobOfferAdjustmentDefaults | null;
 }
 
 export function JobCandidateSubmissionsSection({
-	orgId,
 	jobId,
 	allowedStages,
-}: JobCandidateSubmissionsSectionProps) {
+	isInterviewRequired,
+	offerDefaults,
+}: Readonly<JobCandidateSubmissionsSectionProps>) {
 	const {
 		stageCounts,
 		activeStage,
@@ -41,6 +44,8 @@ export function JobCandidateSubmissionsSection({
 		setRejectRow,
 		offerRow,
 		setOfferRow,
+		scheduleInterviewRow,
+		setScheduleInterviewRow,
 		visibleTabs,
 		rows,
 		totalPages,
@@ -50,7 +55,12 @@ export function JobCandidateSubmissionsSection({
 		handleAdvance,
 		confirmReject,
 		confirmOffer,
-	} = useJobCandidateSubmissionsSection({ orgId, jobId, allowedStages });
+		confirmScheduleInterview,
+	} = useJobCandidateSubmissionsSection({
+		jobId,
+		allowedStages,
+		isInterviewRequired,
+	});
 
 	if (visibleTabs.length === 0 || !activeStage) {
 		return null;
@@ -59,10 +69,8 @@ export function JobCandidateSubmissionsSection({
 	return (
 		<>
 			<Card>
-				<CardHeader className="space-y-1">
-					<CardTitle className={cardSectionTitleClassName}>
-						Candidate submissions
-					</CardTitle>
+				<CardHeader className="space-y-1 border-b">
+					<CardTitle className="text-xl">Candidate submissions</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<JobCandidateSubmissionsStageTabs
@@ -80,6 +88,7 @@ export function JobCandidateSubmissionsSection({
 							onAdvance={handleAdvance}
 							onOpenHistory={setHistoryRow}
 							onRequestReject={setRejectRow}
+							isInterviewRequired={isInterviewRequired}
 						/>
 					</div>
 
@@ -99,7 +108,6 @@ export function JobCandidateSubmissionsSection({
 							setHistoryRow(null);
 						}
 					}}
-					orgId={orgId}
 					submissionId={historyRow.id}
 					candidateName={historyRow.candidateName}
 					occupationLabel={historyRow.occupationLabel}
@@ -122,6 +130,7 @@ export function JobCandidateSubmissionsSection({
 			<JobOfferAdjustmentDialog
 				open={offerRow != null}
 				row={offerRow}
+				offerDefaults={offerDefaults}
 				isPending={updateStage.isPending}
 				onOpenChange={(o) => {
 					if (!o) {
@@ -129,6 +138,19 @@ export function JobCandidateSubmissionsSection({
 					}
 				}}
 				onConfirm={confirmOffer}
+			/>
+
+			<ScheduleInterviewDialog
+				open={scheduleInterviewRow != null}
+				candidateName={scheduleInterviewRow?.candidateName}
+				jobTitle={scheduleInterviewRow?.jobTitle}
+				isPending={updateStage.isPending}
+				onOpenChange={(o) => {
+					if (!o) {
+						setScheduleInterviewRow(null);
+					}
+				}}
+				onSubmit={confirmScheduleInterview}
 			/>
 		</>
 	);

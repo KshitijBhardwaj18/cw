@@ -67,7 +67,7 @@ export function MissingTimeEntriesTabContent({
 	pagination,
 	bulkAllCount,
 	canManageMissingTime = true,
-}: MissingTimeEntriesTabContentProps) {
+}: Readonly<MissingTimeEntriesTabContentProps>) {
 	const { columns } = useMissingTimeColumns({
 		onView: handlers.handleViewWorker,
 		onRemind: handlers.handleSendReminder,

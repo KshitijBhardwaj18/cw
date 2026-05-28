@@ -19,7 +19,7 @@ type HiringFunnelSummaryCardProps = {
 export const HiringFunnelSummaryCard = ({
 	card,
 	summaryByKey,
-}: HiringFunnelSummaryCardProps) => {
+}: Readonly<HiringFunnelSummaryCardProps>) => {
 	const Icon = card.icon;
 	const summary = summaryByKey[card.key];
 

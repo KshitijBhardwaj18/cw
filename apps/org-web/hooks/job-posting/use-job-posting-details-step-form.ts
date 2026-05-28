@@ -5,7 +5,6 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { type FormEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { JOB_POSTING_STEP_VALIDATION_TOAST } from "@/constants/job-posting-flow";
-import { useOrgContext } from "@/contexts/org-context";
 import { useComplianceChecklists } from "@/queries/compliance-checklist.queries";
 import { useOrgMembersForPicker } from "@/queries/organizations.queries";
 import {
@@ -32,8 +31,6 @@ export function useJobPostingDetailsStepForm({
 	const lockFields = isPending;
 	const [benefitInput, setBenefitInput] = useState("");
 	const [complianceOpen, setComplianceOpen] = useState(false);
-	const { id: orgId } = useOrgContext();
-
 	const form = useForm({
 		defaultValues: initialValues,
 		validators: { onSubmit: jobPostingDetailsSchema },
@@ -47,13 +44,26 @@ export function useJobPostingDetailsStepForm({
 		form.store,
 		(s) => s.values.occupation,
 	);
+	const selectedOrganizationSpecialtyIds = useStore(
+		form.store,
+		(s) => s.values.specialty,
+	);
 	const occupationsQuery = useShiftTemplateOccupations();
 	const locationsQuery = useShiftTemplateLocations();
-	const departmentsQuery = useShiftTemplateDepartments();
-	const membersQuery = useOrgMembersForPicker(orgId, {
+
+	const departmentsQuery = useShiftTemplateDepartments({
+		organizationOccupationId: selectedOrganizationOccupationId,
+		...(selectedOrganizationSpecialtyIds &&
+		selectedOrganizationSpecialtyIds.length === 1
+			? { organizationSpecialtyId: selectedOrganizationSpecialtyIds[0] }
+			: {}),
+		enabled: Boolean(selectedOrganizationOccupationId),
+	});
+
+	const membersQuery = useOrgMembersForPicker({
 		role: MemberRole.HIRING_MANAGER,
 	});
-	const checklistsQuery = useComplianceChecklists(orgId, {
+	const checklistsQuery = useComplianceChecklists({
 		page: 1,
 		limit: 100,
 	});

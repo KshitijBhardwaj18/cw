@@ -36,6 +36,14 @@ export type SavingsByCostCenterRow = {
 	trend: SavingsTrendKind;
 };
 
+export type SavingsByDepartmentTableRow = {
+	id: string;
+	departmentKey: string;
+	departmentLabel: string;
+	savingsAmount: number;
+	trend: SavingsTrendKind;
+};
+
 /** Date range only; department and cost center options come from `/api/org/departments`. */
 export const SPEND_ANALYTICS_FILTER_FIELDS = [
 	{

@@ -19,7 +19,6 @@ import { FileText } from "lucide-react";
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { AccessBlockedState } from "@/components/general/AccessBlockedState";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useApproveRequisition,
 	usePendingRequisitionApprovals,
@@ -37,8 +36,6 @@ export function JobApprovalsPageContent() {
 	const ability = useAbility();
 	const canReadApprovals = ability.can(Action.Read, "RequisitionApprovals");
 	const canUpdateApprovals = ability.can(Action.Update, "RequisitionApprovals");
-	const { id: orgId } = useOrgContext();
-
 	const { page, setPage, limit, setLimit } = usePaginationControls({
 		pageParamKey: APPROVAL_PARAMS.PAGE,
 		limitParamKey: APPROVAL_PARAMS.LIMIT,
@@ -61,11 +58,11 @@ export function JobApprovalsPageContent() {
 		}),
 		[page, limit, searchFromUrl],
 	);
-	const pendingQuery = usePendingRequisitionApprovals(orgId, query, {
+	const pendingQuery = usePendingRequisitionApprovals(query, {
 		enabled: canReadApprovals,
 	});
-	const approveMutation = useApproveRequisition(orgId);
-	const rejectMutation = useRejectRequisition(orgId);
+	const approveMutation = useApproveRequisition();
+	const rejectMutation = useRejectRequisition();
 	const pending = pendingQuery.data?.data ?? [];
 	const count = pendingQuery.data?.total ?? 0;
 	const pageCount = pendingQuery.data?.totalPages ?? 1;

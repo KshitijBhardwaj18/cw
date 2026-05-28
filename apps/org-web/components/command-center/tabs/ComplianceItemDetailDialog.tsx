@@ -1,6 +1,11 @@
 "use client";
 
 import { Action, useAbility } from "@repo/casl";
+import {
+	enumToTitleText,
+	getComplianceListItemCategoryLabel,
+	shortId,
+} from "@repo/shared";
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Badge, type BadgeVariants } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
@@ -40,6 +45,7 @@ import {
 	User,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { CommandCenterService } from "@/services/command-center.service";
 import type { RequisitionPerformanceTableItem } from "@/types/command-center";
 
@@ -53,12 +59,13 @@ export function ComplianceItemDetailDialog({
 	item,
 	isOpen,
 	onClose,
-}: ComplianceItemDetailDialogProps) {
+}: Readonly<ComplianceItemDetailDialogProps>) {
 	const ability = useAbility();
 	const canUpdateRequisition = ability.can(Action.Update, "Requisition");
+	const { fmtShortDate } = useUserTimezone();
 
 	const isOverdue = Boolean(item && (item.daysOverdue ?? 0) > 0);
-	const statusLabel = item?.status ?? "Unknown";
+	const statusLabel = item?.status ? enumToTitleText(item.status) : "Unknown";
 	const blockerText =
 		item?.documents?.find((d) => d.status !== "Complete")?.name ??
 		"No blocker details available";
@@ -111,8 +118,12 @@ export function ComplianceItemDetailDialog({
 								<CardTitle className="mt-2 wrap-break-word text-xl">
 									{item.checklistItem}
 								</CardTitle>
-								<p className="text-muted-foreground text-sm font-medium">
-									Requisition: {item.requisitionId} — {item.requisitionName}
+								<p
+									className="text-muted-foreground text-sm font-medium"
+									title={`${item.requisitionId} — ${item.requisitionName}`}
+								>
+									Requisition: {shortId(item.requisitionId)} —{" "}
+									{item.requisitionName}
 								</p>
 							</CardHeader>
 
@@ -123,14 +134,16 @@ export function ComplianceItemDetailDialog({
 											Item Type:
 										</span>
 										<Badge variant="outline" className="bg-white">
-											{item.category}
+											{getComplianceListItemCategoryLabel(item.category ?? "")}
 										</Badge>
 									</div>
 									<div className="flex items-center gap-1">
 										<span className="text-muted-foreground text-xs font-medium">
 											Priority:
 										</span>
-										<Badge variant="error">{item.priority}</Badge>
+										<Badge variant="error">
+											{item.priority ? enumToTitleText(item.priority) : "—"}
+										</Badge>
 									</div>
 									<div className="flex items-center gap-1">
 										<span className="text-muted-foreground text-xs font-medium">
@@ -156,7 +169,11 @@ export function ComplianceItemDetailDialog({
 								/>
 								<DetailItem
 									label="Item Category"
-									value={<Badge variant="secondary">{item.category}</Badge>}
+									value={
+										<Badge variant="secondary">
+											{getComplianceListItemCategoryLabel(item.category ?? "")}
+										</Badge>
+									}
 								/>
 								<DetailItem
 									label="Assigned To"
@@ -193,7 +210,9 @@ export function ComplianceItemDetailDialog({
 									value={
 										<div className="flex items-center gap-1.5">
 											<Clock className="size-3.5 text-destructive" />
-											<span className="text-destructive">{item.dueDate}</span>
+											<span className="text-destructive">
+												{fmtShortDate(item.dueDate)}
+											</span>
 										</div>
 									}
 								/>
@@ -209,7 +228,11 @@ export function ComplianceItemDetailDialog({
 								/>
 								<DetailItem
 									label="Item Priority"
-									value={<Badge variant="error">{item.priority}</Badge>}
+									value={
+										<Badge variant="error">
+											{item.priority ? enumToTitleText(item.priority) : "—"}
+										</Badge>
+									}
 								/>
 							</CardContent>
 						</Card>

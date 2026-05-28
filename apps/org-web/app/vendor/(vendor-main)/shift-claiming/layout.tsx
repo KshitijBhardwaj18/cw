@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	title: "Shift Claiming",
 };
 
-const ShiftClaimingLayout = ({ children }: { children: React.ReactNode }) => {
+const ShiftClaimingLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.List, subject: "PerDiemShift" }]}

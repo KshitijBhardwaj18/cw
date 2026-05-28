@@ -61,7 +61,9 @@ export function useOrganizationLocationColumns({
 						{
 							id: ORGANIZATION_LOCATION_COLUMN_KEYS.actions,
 							header: ORGANIZATION_LOCATION_COLUMN_HEADERS.actions,
-							cell: ({ row }: { row: Row<OrganizationLocationType> }) => (
+							cell: ({
+								row,
+							}: Readonly<{ row: Row<OrganizationLocationType> }>) => (
 								<div className="flex items-center gap-2">
 									{onEdit && (
 										<Button

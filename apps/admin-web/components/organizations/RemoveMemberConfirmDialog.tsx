@@ -16,7 +16,7 @@ export function RemoveMemberConfirmDialog({
 	onOpenChange,
 	onConfirm,
 	isPending,
-}: RemoveMemberConfirmDialogProps) {
+}: Readonly<RemoveMemberConfirmDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={isOpen}

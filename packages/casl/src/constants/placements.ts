@@ -1,20 +1,15 @@
 import type { PrismaQuery } from "@casl/prisma";
 import type { PlacementStatus } from "@repo/db";
 
-export const PLACEMENT_UPCOMING_STATUSES: PlacementStatus[] = [
-	"UPCOMING",
-	"PENDING",
-];
+export const PLACEMENT_UPCOMING_STATUSES: PlacementStatus[] = ["UPCOMING"];
 
 export const PLACEMENT_ACTIVE_STATUSES: PlacementStatus[] = [
 	"ACTIVE",
-	"ENDING_SOON",
 	"ON_HOLD",
 ];
 
 export const PLACEMENT_COMPLETED_STATUSES: PlacementStatus[] = [
 	"COMPLETED",
-	"INACTIVE",
 	"TERMINATED",
 ];
 

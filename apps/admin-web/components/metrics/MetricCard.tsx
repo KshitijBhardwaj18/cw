@@ -20,7 +20,7 @@ export function MetricCard({
 	metric,
 	onStatusChange,
 	canUpdate,
-}: MetricCardProps) {
+}: Readonly<MetricCardProps>) {
 	return (
 		<Card className="group relative gap-0">
 			<CardHeader className="pb-2">

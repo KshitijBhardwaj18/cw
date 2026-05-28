@@ -21,7 +21,9 @@ import { TIMEKEEPING_STATUS_FILTER_OPTIONS } from "@/constants/timekeeping";
 import type { TimekeepingMainTabState } from "@/hooks/organization-timekeeping/use-timekeeping-main-tab";
 import type { ApprovalStatusFilter } from "@/types/timekeeping";
 
-export function TimekeepingTabContent(props: TimekeepingMainTabState) {
+export function TimekeepingTabContent(
+	props: Readonly<TimekeepingMainTabState>,
+) {
 	const {
 		searchQuery,
 		setSearchQuery,

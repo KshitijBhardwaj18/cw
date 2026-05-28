@@ -11,21 +11,20 @@ import { FileText } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-const cardSectionTitleClassName =
-	"text-muted-foreground text-sm font-semibold tracking-wide uppercase";
+const cardSectionTitleClassName = "text-xl";
 const detailItemLabelClassName =
 	"text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 
 function StackedCard({
 	title,
 	children,
-}: {
+}: Readonly<{
 	title: string;
 	children: ReactNode;
-}) {
+}>) {
 	return (
 		<Card className="h-full">
-			<CardHeader className="pb-0">
+			<CardHeader className="border-b">
 				<CardTitle className={cardSectionTitleClassName}>{title}</CardTitle>
 			</CardHeader>
 			<CardContent className="divide-y px-0 pb-0">{children}</CardContent>
@@ -36,10 +35,10 @@ function StackedCard({
 function StackedItem({
 	children,
 	isFirst = false,
-}: {
+}: Readonly<{
 	children: ReactNode;
 	isFirst?: boolean;
-}) {
+}>) {
 	return (
 		<div className={`px-6 ${isFirst ? "pt-2 pb-4" : "py-4"}`}>{children}</div>
 	);
@@ -79,14 +78,14 @@ export function JobDetailsMetadataCards({
 	visibility,
 	submissionRule,
 	postedOrPublishLabel,
-}: JobDetailsMetadataCardsProps) {
+}: Readonly<JobDetailsMetadataCardsProps>) {
 	const templateIdTrim = templateId?.trim() ?? "";
 	const templateHref = `/org/requisition-templates/${templateIdTrim}`;
 
 	return (
 		<div className="space-y-4">
 			<Card>
-				<CardHeader>
+				<CardHeader className="border-b">
 					<CardTitle className={cardSectionTitleClassName}>
 						Requisition template
 					</CardTitle>

@@ -15,20 +15,24 @@ import {
 	VendorOnboardingService,
 } from "@/services/vendor-onboarding.service";
 
-const PAGE_SIZE = 10;
+const DEFAULT_LIMIT = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 export type WeekBucketType = "1" | "2" | "3" | "all";
 
 export const VONB_PARAMS = {
 	PAGE: "vOnbPage",
+	LIMIT: "vOnbLimit",
 	SEARCH: "vOnbSearch",
 	BUCKET: "vOnbBucket",
 } as const;
 
 export function useVendorOnboarding() {
-	const { page, setPage } = usePaginationControls({
+	const { page, setPage, limit, setLimit } = usePaginationControls({
 		pageParamKey: VONB_PARAMS.PAGE,
-		defaultLimit: PAGE_SIZE,
+		limitParamKey: VONB_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
@@ -54,7 +58,7 @@ export function useVendorOnboarding() {
 	const listQuery = useVendorOnboardingList({
 		weekBucket,
 		page,
-		limit: PAGE_SIZE,
+		limit,
 		search: searchFromUrl.trim() || undefined,
 	});
 
@@ -88,7 +92,9 @@ export function useVendorOnboarding() {
 		pageCount: listQuery.data?.totalPages ?? 1,
 		page,
 		setPage,
-		pageSize: PAGE_SIZE,
+		limit,
+		setLimit,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 		weekBucket,
 		setWeekBucket,
 		search: localSearch,

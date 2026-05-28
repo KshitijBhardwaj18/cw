@@ -11,7 +11,7 @@ type MetricsPageLayoutProps = {
 	children: React.ReactNode;
 };
 
-function MetricsPageLayout({ children }: MetricsPageLayoutProps) {
+function MetricsPageLayout({ children }: Readonly<MetricsPageLayoutProps>) {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.Read, subject: "Metric" }]}

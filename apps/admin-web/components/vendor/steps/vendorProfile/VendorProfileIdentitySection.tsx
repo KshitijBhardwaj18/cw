@@ -36,7 +36,7 @@ export function VendorProfileIdentitySection({
 	logoPreview,
 	setLogoFile,
 	setLogoPreview,
-}: VendorProfileIdentitySectionProps) {
+}: Readonly<VendorProfileIdentitySectionProps>) {
 	const logoInputRef = useRef<HTMLInputElement>(null);
 
 	const handleLogoClick = () => logoInputRef.current?.click();

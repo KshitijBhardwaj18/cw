@@ -1,16 +1,54 @@
+import { SubmissionStage } from "@repo/shared";
 import type { SubmissionStageKey } from "@/constants/submissions";
 
-/** Primary action to move a submission to the next funnel stage (job details table). */
-export const JOB_SUBMISSION_PRIMARY_ADVANCE: Partial<
-	Record<SubmissionStageKey, { label: string; next: SubmissionStageKey }>
+/** Primary action details for moving a submission to the next funnel stage. */
+export interface SubmissionPrimaryAdvanceAction {
+	label: string;
+	next: SubmissionStageKey;
+}
+
+const DEFAULT_ADVANCE: Partial<
+	Record<SubmissionStageKey, SubmissionPrimaryAdvanceAction>
 > = {
-	SUBMITTED: { label: "Qualified", next: "QUALIFIED" },
-	QUALIFIED: { label: "Shortlist", next: "SHORTLISTED" },
-	SHORTLISTED: { label: "Schedule interview", next: "INTERVIEW_SCHEDULED" },
-	INTERVIEW_SCHEDULED: {
-		label: "Interview complete",
-		next: "INTERVIEW_COMPLETED",
+	[SubmissionStage.SUBMITTED]: {
+		label: "Qualified",
+		next: SubmissionStage.QUALIFIED,
 	},
-	INTERVIEW_COMPLETED: { label: "Make offer", next: "OFFERED" },
-	OFFERED: { label: "Mark accepted", next: "ACCEPTED" },
+	[SubmissionStage.QUALIFIED]: {
+		label: "Shortlist",
+		next: SubmissionStage.SHORTLISTED,
+	},
+	[SubmissionStage.SHORTLISTED]: {
+		label: "Schedule interview",
+		next: SubmissionStage.INTERVIEW_SCHEDULED,
+	},
+	[SubmissionStage.INTERVIEW_SCHEDULED]: {
+		label: "Interview complete",
+		next: SubmissionStage.INTERVIEW_COMPLETED,
+	},
+	[SubmissionStage.INTERVIEW_COMPLETED]: {
+		label: "Make offer",
+		next: SubmissionStage.OFFERED,
+	},
+	[SubmissionStage.OFFERED]: {
+		label: "Mark accepted",
+		next: SubmissionStage.ACCEPTED,
+	},
 };
+
+/**
+ * Returns the primary advancement action for a submission stage,
+ * accounting for job-specific configurations like interview requirements.
+ */
+export function getSubmissionPrimaryAdvance(
+	stage: SubmissionStageKey,
+	isInterviewRequired: boolean = true,
+): SubmissionPrimaryAdvanceAction | undefined {
+	if (!isInterviewRequired && stage === SubmissionStage.SHORTLISTED) {
+		return {
+			label: "Make offer",
+			next: SubmissionStage.OFFERED,
+		};
+	}
+	return DEFAULT_ADVANCE[stage];
+}

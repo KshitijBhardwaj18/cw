@@ -6,12 +6,18 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@repo/ui/components/accordion";
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@repo/ui/components/empty";
 import { PageSubheading } from "@repo/ui/general/PageSubheading";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Mail } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Mail } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import { useUpdateOrgSubmissionStage } from "@/queries/submissions.queries";
 import { vendorDashboardKey } from "@/queries/vendor-dashboard.queries";
 import type { VendorDashboardOfferItem } from "@/types/vendor-dashboard";
@@ -21,20 +27,20 @@ import { OfferItem } from "./OfferItem";
 export function OffersOverview({
 	offers,
 	allowOfferActions = true,
-}: {
+}: Readonly<{
 	offers: {
+		overdueThresholdLabel: string;
 		overdue: VendorDashboardOfferItem[];
 		pending: VendorDashboardOfferItem[];
 	};
 	/** When false, Accept / Withdraw are hidden (Vendor View Only). */
 	allowOfferActions?: boolean;
-}) {
+}>) {
 	const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
 	const [dialogMode, setDialogMode] = useState<"accept" | "withdraw" | null>(
 		null,
 	);
-	const { id: orgId } = useOrgContext();
-	const updateStageMutation = useUpdateOrgSubmissionStage(orgId);
+	const updateStageMutation = useUpdateOrgSubmissionStage();
 	const queryClient = useQueryClient();
 
 	const handleManage = (offer: Offer, mode: "accept" | "withdraw") => {
@@ -112,28 +118,44 @@ export function OffersOverview({
 						<div className="flex items-center gap-2 font-semibold text-sm">
 							<AlertTriangle className="size-4" />
 							<span>
-								Overdue Offers (&gt;24 hours) – {offers.overdue.length}
+								Overdue Offers ({offers.overdueThresholdLabel}) –{" "}
+								{offers.overdue.length}
 							</span>
 						</div>
 					</AccordionTrigger>
 					<AccordionContent className="border-t border-border px-4 py-0">
-						{offers.overdue.map((offer) => (
-							<OfferItem
-								key={offer.submissionId}
-								{...offer}
-								showActionButtons={allowOfferActions}
-								onAccept={
-									allowOfferActions
-										? () => handleManage(offer, "accept")
-										: undefined
-								}
-								onWithdraw={
-									allowOfferActions
-										? () => handleManage(offer, "withdraw")
-										: undefined
-								}
-							/>
-						))}
+						{offers.overdue.length === 0 ? (
+							<Empty className="my-4 border-muted/60 py-10">
+								<EmptyMedia variant="icon">
+									<CheckCircle2 className="text-muted-foreground" />
+								</EmptyMedia>
+								<EmptyHeader>
+									<EmptyTitle>No overdue offers</EmptyTitle>
+									<EmptyDescription>
+										None of your active offers have been waiting more than 24
+										hours for a response.
+									</EmptyDescription>
+								</EmptyHeader>
+							</Empty>
+						) : (
+							offers.overdue.map((offer) => (
+								<OfferItem
+									key={offer.submissionId}
+									{...offer}
+									showActionButtons={allowOfferActions}
+									onAccept={
+										allowOfferActions
+											? () => handleManage(offer, "accept")
+											: undefined
+									}
+									onWithdraw={
+										allowOfferActions
+											? () => handleManage(offer, "withdraw")
+											: undefined
+									}
+								/>
+							))
+						)}
 					</AccordionContent>
 				</AccordionItem>
 
@@ -145,23 +167,37 @@ export function OffersOverview({
 						</div>
 					</AccordionTrigger>
 					<AccordionContent className="border-t border-border px-4 py-0">
-						{offers.pending.map((offer) => (
-							<OfferItem
-								key={offer.submissionId}
-								{...offer}
-								showActionButtons={allowOfferActions}
-								onAccept={
-									allowOfferActions
-										? () => handleManage(offer, "accept")
-										: undefined
-								}
-								onWithdraw={
-									allowOfferActions
-										? () => handleManage(offer, "withdraw")
-										: undefined
-								}
-							/>
-						))}
+						{offers.pending.length === 0 ? (
+							<Empty className="my-4 border-muted/60 py-10">
+								<EmptyMedia variant="icon">
+									<Mail className="text-muted-foreground" />
+								</EmptyMedia>
+								<EmptyHeader>
+									<EmptyTitle>No pending offers</EmptyTitle>
+									<EmptyDescription>
+										There are no offers awaiting a response right now.
+									</EmptyDescription>
+								</EmptyHeader>
+							</Empty>
+						) : (
+							offers.pending.map((offer) => (
+								<OfferItem
+									key={offer.submissionId}
+									{...offer}
+									showActionButtons={allowOfferActions}
+									onAccept={
+										allowOfferActions
+											? () => handleManage(offer, "accept")
+											: undefined
+									}
+									onWithdraw={
+										allowOfferActions
+											? () => handleManage(offer, "withdraw")
+											: undefined
+									}
+								/>
+							))
+						)}
 					</AccordionContent>
 				</AccordionItem>
 			</Accordion>

@@ -1,5 +1,6 @@
 "use client";
 
+import { EXTERNAL_WORKFORCE_TYPES } from "@repo/shared";
 import { useQuery } from "@tanstack/react-query";
 import { OnboardingService } from "@/services/onboarding.service";
 
@@ -14,6 +15,10 @@ export function useCandidateOrganizationId() {
 
 	const organizationId = query.data?.organizationId?.trim() ?? "";
 	const occupationId = query.data?.occupationId?.trim() ?? "";
+	const workforceType = query.data?.workforceType ?? null;
+	const isExternalCandidate =
+		workforceType !== null &&
+		(EXTERNAL_WORKFORCE_TYPES as readonly string[]).includes(workforceType);
 
 	return {
 		organizationId: organizationId || null,
@@ -22,7 +27,9 @@ export function useCandidateOrganizationId() {
 		email: query.data?.email ?? null,
 		phoneNumber: query.data?.phoneNumber ?? null,
 		occupationName: query.data?.occupationName ?? null,
-		yearsOfExperience: query.data?.yearsOfExperience ?? null,
+		experienceBand: query.data?.totalProfessionalExperienceBand ?? null,
+		workforceType,
+		isExternalCandidate,
 		isLoading: query.isPending,
 		isReady: query.isSuccess,
 	};

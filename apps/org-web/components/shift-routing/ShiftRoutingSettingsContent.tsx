@@ -11,7 +11,6 @@ import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
 import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { ArrowUpDown, Clock } from "lucide-react";
-import { useOrgContext } from "@/contexts/org-context";
 import { useShiftRoutingSettingsSuspense } from "@/queries/shift-routing.queries";
 import { RoutingDelayTab } from "./RoutingDelayTab";
 import { RoutingOrderTab } from "./RoutingOrderTab";
@@ -22,8 +21,7 @@ export function ShiftRoutingSettingsContent() {
 		Action.Update,
 		"ShiftRoutingSettings",
 	);
-	const { id: orgId } = useOrgContext();
-	const { data } = useShiftRoutingSettingsSuspense(orgId);
+	const { data } = useShiftRoutingSettingsSuspense();
 
 	const [activeTab, setActiveTab] = useTabSwitch(["order", "delay"]);
 
@@ -65,16 +63,11 @@ export function ShiftRoutingSettingsContent() {
 				</ScrollableLineTabsRow>
 
 				<TabsContent value="order">
-					<RoutingOrderTab
-						orgId={orgId}
-						tiers={data.tiers}
-						readOnly={!canEditShiftRouting}
-					/>
+					<RoutingOrderTab tiers={data.tiers} readOnly={!canEditShiftRouting} />
 				</TabsContent>
 
 				<TabsContent value="delay">
 					<RoutingDelayTab
-						orgId={orgId}
 						settings={data.settings}
 						tiers={data.tiers}
 						readOnly={!canEditShiftRouting}

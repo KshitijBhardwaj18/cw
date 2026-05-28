@@ -1,8 +1,10 @@
-export type CandidateDocumentWalletUiStatus =
-	| "pending_upload"
-	| "pending_verification"
-	| "approved"
-	| "expired";
+import type {
+	CandidateComplianceStatus,
+	ComplianceListItemExpirationType,
+	ExpirationRuleUnit,
+} from "@repo/shared";
+
+export type CandidateDocumentWalletUiStatus = `${CandidateComplianceStatus}`;
 
 export type CandidateDocumentWalletItem = {
 	complianceListItemId: string;
@@ -11,9 +13,20 @@ export type CandidateDocumentWalletItem = {
 	description: string;
 	categoryKey: string;
 	status: CandidateDocumentWalletUiStatus;
+	rejectionReason: string | null;
 	uploadedAt: string | null;
+	issuedAt: string | null;
 	expiresAt: string | null;
 	documentFileName: string | null;
+	expirationType: `${ComplianceListItemExpirationType}`;
+	expirationRuleValue: number | null;
+	expirationRuleUnit: `${ExpirationRuleUnit}` | null;
+	responseStyle:
+		| "PENDING_FILE_UPLOAD"
+		| "INTERNAL_TASK"
+		| "DOWNLOAD_AND_UPLOAD"
+		| "LINK";
+	link: string | null;
 };
 
 export type CandidateDocumentWalletCategory = {
@@ -36,12 +49,16 @@ export type CandidateDocumentWalletPickerItem = {
 	placementId: string | null;
 	title: string;
 	categoryKey: string;
+	expirationType: `${ComplianceListItemExpirationType}`;
+	expirationRuleValue: number | null;
+	expirationRuleUnit: `${ExpirationRuleUnit}` | null;
 };
 
 export type CandidateDocumentWalletUploadVars = {
 	complianceListItemId: string;
 	file: File;
 	expiryDate?: string;
+	issueDate?: string;
 };
 
 export type CandidateDocumentWalletItemsResponse = {

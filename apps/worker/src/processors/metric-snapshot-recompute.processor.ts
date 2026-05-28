@@ -268,13 +268,8 @@ async function computeMetric(
 					where: {
 						organizationId,
 						startDate: { gte: periodStart, lt: periodEnd },
-						// TERMINATED = ended before completion; UPCOMING/PENDING = not yet started
 						status: {
-							in: [
-								PlacementStatus.TERMINATED,
-								PlacementStatus.UPCOMING,
-								PlacementStatus.PENDING,
-							],
+							in: [PlacementStatus.TERMINATED, PlacementStatus.UPCOMING],
 						},
 					},
 				}),

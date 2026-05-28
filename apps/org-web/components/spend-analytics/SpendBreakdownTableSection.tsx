@@ -11,13 +11,13 @@ import {
 } from "@repo/ui/components/card";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { CustomTable } from "@repo/ui/general/CustomTable";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { useState } from "react";
 import type { SpendBreakdownRow } from "@/constants/spend-analytics";
 import { useSpendBreakdownColumns } from "@/hooks/tables/use-spend-breakdown-columns";
 import { CancelRequisitionDialog } from "./CancelRequisitionDialog";
 
 export type SpendBreakdownTableSectionProps = {
-	orgId: string;
 	data?: SpendBreakdownRow[];
 	total: number;
 	page: number;
@@ -29,7 +29,6 @@ export type SpendBreakdownTableSectionProps = {
 };
 
 export function SpendBreakdownTableSection({
-	orgId,
 	data,
 	total,
 	page,
@@ -38,12 +37,13 @@ export function SpendBreakdownTableSection({
 	totalOpenSpend = 0,
 	totalCommittedSpend = 0,
 	isLoading = false,
-}: SpendBreakdownTableSectionProps) {
+}: Readonly<SpendBreakdownTableSectionProps>) {
 	const ability = useAbility();
 	const canCancel = ability.can(Action.Update, "SpendAnalytics");
 	const [cancelRow, setCancelRow] = useState<SpendBreakdownRow | null>(null);
 
 	const rows = data ?? [];
+	const pageCount = Math.ceil(total / limit) || 1;
 
 	const columns = useSpendBreakdownColumns({
 		onCancelRequest: (row) => setCancelRow(row),
@@ -81,19 +81,24 @@ export function SpendBreakdownTableSection({
 								data={rows}
 								columns={columns}
 								enableSorting
-								enablePagination
-								paginationMode="server"
-								totalCount={total}
-								currentPage={page}
-								pageSize={limit}
-								onPaginationChange={onPaginationChange}
-								pageSizeOptions={[10, 20, 30, 50]}
+								enablePagination={false}
 								className="rounded-none border-0 border-b-0"
 								emptyState={
 									<p className="text-muted-foreground py-8 text-center text-sm">
 										No requisitions in this breakdown.
 									</p>
 								}
+							/>
+							<PaginationControls
+								currentPage={page}
+								pageCount={pageCount}
+								goToPage={(nextPage) => onPaginationChange(nextPage, limit)}
+								limit={limit}
+								setLimit={(nextLimit) => onPaginationChange(1, nextLimit)}
+								pageSizeOptions={[5, 10, 20, 50]}
+								totalItems={total}
+								itemLabel="requisition"
+								itemLabelPlural="requisitions"
 							/>
 							<div className="bg-muted/30 flex flex-wrap items-center justify-end gap-6 border-t px-4 py-3 text-sm">
 								<span className="text-muted-foreground font-medium">
@@ -120,7 +125,6 @@ export function SpendBreakdownTableSection({
 			</Card>
 
 			<CancelRequisitionDialog
-				orgId={orgId}
 				row={cancelRow}
 				onOpenChange={(open) => !open && setCancelRow(null)}
 			/>

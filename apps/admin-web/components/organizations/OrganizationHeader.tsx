@@ -14,7 +14,9 @@ type OrganizationHeaderProps = {
 	organization: OrganizationResponseType;
 };
 
-export function OrganizationHeader({ organization }: OrganizationHeaderProps) {
+export function OrganizationHeader({
+	organization,
+}: Readonly<OrganizationHeaderProps>) {
 	const [opening, setOpening] = useState(false);
 	const orgTypeLabel = getLabel(
 		ORGANIZATION_TYPE_OPTIONS,

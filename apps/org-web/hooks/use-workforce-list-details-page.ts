@@ -4,7 +4,6 @@ import { downloadFile, getInitials } from "@repo/shared";
 import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useAddWorkforceListMembers,
 	useBulkTagWorkforceList,
@@ -19,21 +18,20 @@ import type {
 } from "@/types/workforce-list";
 
 export function useWorkforceListDetailsPage(listId: string) {
-	const { id: orgId } = useOrgContext();
 	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
 		{ paramKey: "wldSearch", pageParamKey: null },
 	);
 	const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
 	const [addMembersDialogOpen, setAddMembersDialogOpen] = useState(false);
-	const listQuery = useWorkforceList(orgId, listId);
-	const membersQuery = useWorkforceListMembers(orgId, listId, {
+	const listQuery = useWorkforceList(listId);
+	const membersQuery = useWorkforceListMembers(listId, {
 		search: searchFromUrl.trim() || undefined,
 		page: 1,
 		limit: 100,
 	});
-	const addMembersMutation = useAddWorkforceListMembers(orgId, listId);
-	const removeMemberMutation = useRemoveWorkforceListMember(orgId, listId);
-	const bulkTagMutation = useBulkTagWorkforceList(orgId, listId);
+	const addMembersMutation = useAddWorkforceListMembers(listId);
+	const removeMemberMutation = useRemoveWorkforceListMember(listId);
+	const bulkTagMutation = useBulkTagWorkforceList(listId);
 
 	const listData = useMemo<WorkforceListDetail | null>(() => {
 		if (!listQuery.data) return null;

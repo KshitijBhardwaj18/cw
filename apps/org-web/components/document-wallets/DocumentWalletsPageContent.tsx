@@ -6,8 +6,9 @@ import {
 	ConfigPageErrorState,
 } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
 import { CustomTable } from "@repo/ui/general/CustomTable";
+import PaginationControls from "@repo/ui/general/PaginationControls";
+import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { Wallet } from "lucide-react";
 import { useVendorDocumentWallets } from "@/hooks/vendor/use-vendor-document-wallets";
 import { DocumentWalletsMetricCards } from "./DocumentWalletsMetricCards";
@@ -24,13 +25,15 @@ export function DocumentWalletsPageContent() {
 		setPage,
 		search,
 		setSearch,
+		filterConfigs,
+		filtersExpanded,
+		setFiltersExpanded,
 		limit,
+		setLimit,
+		pageSizeOptions,
 		isListLoading,
 		isListError,
 	} = useVendorDocumentWallets();
-
-	const rangeStart = totalRows === 0 ? 0 : (page - 1) * limit + 1;
-	const rangeEnd = totalRows === 0 ? 0 : Math.min(page * limit, totalRows);
 
 	return (
 		<div className="space-y-6">
@@ -40,11 +43,6 @@ export function DocumentWalletsPageContent() {
 				itemLabel="candidate"
 				itemLabelPlural="candidates"
 				description="Manage compliance documents for all candidates"
-				search={{
-					value: search,
-					onChange: setSearch,
-					placeholder: "Search by name, specialty, or email...",
-				}}
 			/>
 
 			{isMetricsLoading || !metrics ? (
@@ -56,6 +54,15 @@ export function DocumentWalletsPageContent() {
 			) : (
 				<DocumentWalletsMetricCards stats={metrics} />
 			)}
+
+			<SearchWithFilters
+				searchPlaceholder="Search by name, specialty, or email..."
+				searchValue={search}
+				onSearchChange={setSearch}
+				filtersExpanded={filtersExpanded}
+				onFiltersExpandedChange={setFiltersExpanded}
+				filterConfigs={filterConfigs}
+			/>
 
 			{isListError ? (
 				<ConfigPageErrorState
@@ -83,16 +90,17 @@ export function DocumentWalletsPageContent() {
 						enablePagination={false}
 						emptyState={null}
 					/>
-					<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-						<p className="text-muted-foreground text-sm">
-							Showing {rangeStart}–{rangeEnd} of {totalRows} candidates
-						</p>
-						<ConfigPagePagination
-							page={page}
-							totalPages={pageCount}
-							onPageChange={setPage}
-						/>
-					</div>
+					<PaginationControls
+						currentPage={page}
+						pageCount={pageCount}
+						goToPage={setPage}
+						limit={limit}
+						setLimit={setLimit}
+						pageSizeOptions={pageSizeOptions}
+						totalItems={totalRows}
+						itemLabel="candidate"
+						itemLabelPlural="candidates"
+					/>
 				</>
 			)}
 		</div>

@@ -1,7 +1,7 @@
 "use client";
 
 import type { MspResponseType } from "@repo/shared";
-import { formatDate, getLabel } from "@repo/shared";
+import { getLabel } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Edit, Trash2 } from "lucide-react";
@@ -11,6 +11,7 @@ import {
 	MSP_ORGANIZATION_TYPE_OPTIONS,
 } from "@/constants/msp";
 import { MSP_COLUMN_HEADERS, MSP_COLUMN_KEYS } from "@/constants/tables/msps";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { MspColumnsCallbacks } from "@/types/msp";
 
 export const useMspColumns = ({
@@ -18,6 +19,7 @@ export const useMspColumns = ({
 	onDelete,
 	actions,
 }: MspColumnsCallbacks) => {
+	const { fmtShortDate } = useUserTimezone();
 	const columns = useMemo<ColumnDef<MspResponseType>[]>(
 		() => [
 			{
@@ -68,9 +70,7 @@ export const useMspColumns = ({
 				accessorKey: MSP_COLUMN_KEYS.createdAt,
 				header: MSP_COLUMN_HEADERS.createdAt,
 				cell: ({ row }) => (
-					<div className="text-sm">
-						{row.original.createdAt ? formatDate(row.original.createdAt) : "—"}
-					</div>
+					<div className="text-sm">{fmtShortDate(row.original.createdAt)}</div>
 				),
 			},
 			{
@@ -112,7 +112,7 @@ export const useMspColumns = ({
 				),
 			},
 		],
-		[onEdit, onDelete, actions],
+		[onEdit, onDelete, actions, fmtShortDate],
 	);
 
 	return { columns };

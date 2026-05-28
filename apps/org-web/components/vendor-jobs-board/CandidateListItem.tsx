@@ -10,7 +10,12 @@ import {
 } from "@repo/ui/components/card";
 import { DetailItem } from "@repo/ui/components/detail-item";
 import { Calendar, TrendingUp } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { Candidate } from "@/types/vendor-jobs-board";
+import {
+	formatVendorJobBoardCandidateStatus,
+	vendorJobBoardCandidateStatusBadgeVariant,
+} from "@/utils/vendor-job-board-candidate-status";
 
 interface CandidateListItemProps {
 	candidate: Candidate;
@@ -20,7 +25,16 @@ interface CandidateListItemProps {
 export function CandidateListItem({
 	candidate,
 	onClick,
-}: CandidateListItemProps) {
+}: Readonly<CandidateListItemProps>) {
+	const { fmtDateTime } = useUserTimezone();
+	const statusUpdatedLabel = candidate.statusUpdatedDate
+		? fmtDateTime(candidate.statusUpdatedDate)
+		: null;
+	const statusLabel = formatVendorJobBoardCandidateStatus(candidate.status);
+	const statusVariant = vendorJobBoardCandidateStatusBadgeVariant(
+		candidate.status,
+	);
+
 	return (
 		<Card
 			role="button"
@@ -39,26 +53,16 @@ export function CandidateListItem({
 					<h4 className="min-w-0 wrap-break-word font-bold text-base text-foreground">
 						{candidate.name}
 					</h4>
-					<Badge
-						className="shrink-0"
-						variant={
-							candidate.status === "Available" ||
-							candidate.status === "Shortlisted"
-								? "success"
-								: candidate.status === "Under Review"
-									? "info"
-									: "warning"
-						}
-					>
-						{candidate.status}
+					<Badge className="shrink-0" variant={statusVariant}>
+						{statusLabel}
 					</Badge>
 				</CardTitle>
 				<CardAction className="text-right">
-					{candidate.statusUpdatedDate ? (
+					{statusUpdatedLabel ? (
 						<div className="space-y-0.5">
 							<div className="flex items-center justify-end gap-2 font-bold text-muted-foreground text-sm">
 								<Calendar className="size-4" />
-								{candidate.statusUpdatedDate}
+								{statusUpdatedLabel}
 							</div>
 							<p className="text-muted-foreground text-xs font-semibold">
 								Status Updated

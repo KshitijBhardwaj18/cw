@@ -1,3 +1,4 @@
+import { isWithinEndingSoonWindow } from "@repo/shared";
 import type { PlacementCardItem, PlacementStatus } from "@/types/placement";
 import type {
 	PlacementListMockRow,
@@ -6,19 +7,17 @@ import type {
 
 function mapApiStatusToListStatus(
 	status: PlacementStatus,
+	endDate: Date | string | null,
 ): PlacementListStatus {
 	switch (status) {
 		case "UPCOMING":
-		case "PENDING":
-		case "ON_HOLD":
 			return "upcoming";
-		case "ACTIVE":
+		case "ON_HOLD":
 			return "active";
-		case "ENDING_SOON":
-			return "ending_soon";
+		case "ACTIVE":
+			return isWithinEndingSoonWindow(endDate) ? "ending_soon" : "active";
 		case "COMPLETED":
 		case "TERMINATED":
-		case "INACTIVE":
 			return "completed";
 		default:
 			return "upcoming";
@@ -55,7 +54,7 @@ function daysUntilEnd(end: Date | string | null): number | undefined {
 export function mapPlacementCardToVendorTableRow(
 	p: PlacementCardItem,
 ): PlacementListMockRow {
-	const listStatus = mapApiStatusToListStatus(p.status);
+	const listStatus = mapApiStatusToListStatus(p.status, p.endDate);
 	return {
 		id: p.id,
 		displayId: p.placementNumber,

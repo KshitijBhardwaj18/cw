@@ -28,7 +28,7 @@ function SortableTierRow({
 	tier,
 	index,
 	readOnly = false,
-}: SortableTierRowProps) {
+}: Readonly<SortableTierRowProps>) {
 	const {
 		attributes,
 		listeners,
@@ -92,16 +92,14 @@ function SortableTierRow({
 }
 
 interface RoutingOrderTabProps {
-	orgId: string;
 	tiers: ShiftRoutingTierType[];
 	readOnly?: boolean;
 }
 
 export function RoutingOrderTab({
-	orgId,
 	tiers: serverTiers,
 	readOnly = false,
-}: RoutingOrderTabProps) {
+}: Readonly<RoutingOrderTabProps>) {
 	const {
 		localTiers,
 		isDirty,
@@ -109,7 +107,7 @@ export function RoutingOrderTab({
 		handleDragEnd,
 		handleSaveOrder,
 		isSaving,
-	} = useRoutingOrderTab(orgId, serverTiers);
+	} = useRoutingOrderTab(serverTiers);
 
 	return (
 		<div className="space-y-4">

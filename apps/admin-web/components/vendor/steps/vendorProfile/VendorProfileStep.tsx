@@ -12,7 +12,9 @@ interface VendorProfileStepProps {
 	vendorId: string | null;
 }
 
-export function VendorProfileStep({ vendorId }: VendorProfileStepProps) {
+export function VendorProfileStep({
+	vendorId,
+}: Readonly<VendorProfileStepProps>) {
 	const router = useRouter();
 	const { data: vendor } = useVendorDetailQuery(vendorId);
 	const createMutation = useCreateVendorMutation();

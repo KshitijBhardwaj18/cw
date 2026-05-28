@@ -39,7 +39,7 @@ export function ShiftBillingConfigurationDialog({
 	initialValues,
 	onSubmit,
 	isSubmitting,
-}: ShiftBillingConfigurationDialogProps) {
+}: Readonly<ShiftBillingConfigurationDialogProps>) {
 	const { form, handleOpenChange } = useShiftBillingConfigurationDialog({
 		open,
 		onOpenChange,

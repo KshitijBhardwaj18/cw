@@ -18,6 +18,7 @@ import { useId } from "react";
 import { CANDIDATE_PORTAL_COPY } from "@/constants/candidate-portal";
 import { useSubmitTimecardDialog } from "@/hooks/candidate/use-submit-timecard-dialog";
 import { useSubmitTimecardTableColumns } from "@/hooks/candidate/use-submit-timecard-table-columns";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { CandidateTimecardDetail } from "@/types/candidate-timecard";
 
 export interface SubmitTimecardDialogProps {
@@ -47,7 +48,7 @@ export function SubmitTimecardDialog({
 	initialDetail,
 	isLoadingDetail,
 	payCodeOptions = [],
-}: SubmitTimecardDialogProps) {
+}: Readonly<SubmitTimecardDialogProps>) {
 	const formId = useId();
 	const {
 		weekRange,
@@ -77,6 +78,9 @@ export function SubmitTimecardDialog({
 		payCodeOptions: initialDetail?.payCodes ?? payCodeOptions,
 	});
 
+	const { fmtCalendarDate } = useUserTimezone();
+	const weekEndingLabel = fmtCalendarDate(weekEnding);
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
@@ -96,7 +100,7 @@ export function SubmitTimecardDialog({
 						<DialogDescription asChild>
 							<div className="text-muted-foreground space-y-1 text-sm">
 								<p>{assignmentTitle}</p>
-								<p>Week Ending: {weekEnding}</p>
+								<p>Week Ending: {weekEndingLabel}</p>
 							</div>
 						</DialogDescription>
 					</DialogHeader>

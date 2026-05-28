@@ -2,8 +2,10 @@
 
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
-import { Calendar, Clock, DollarSign, MapPin, Users } from "lucide-react";
+import { Calendar, Clock, DollarSign, MapPin } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { ClaimableShift } from "@/types/vendor-claim-shifts";
+import { formatVendorShiftBoundaryTime } from "@/utils/time-entry";
 
 export interface ShiftItemProps extends ClaimableShift {
 	onClaim: () => void;
@@ -11,7 +13,8 @@ export interface ShiftItemProps extends ClaimableShift {
 	showClaimButton?: boolean;
 }
 
-export function ShiftItem(props: ShiftItemProps) {
+export function ShiftItem(props: Readonly<ShiftItemProps>) {
+	const { fmtCalendarDate, fmtShortDate } = useUserTimezone();
 	const {
 		role,
 		urgency,
@@ -21,7 +24,6 @@ export function ShiftItem(props: ShiftItemProps) {
 		date,
 		duration,
 		billRate,
-		openings,
 		startTime,
 		endTime,
 		onClaim,
@@ -33,6 +35,12 @@ export function ShiftItem(props: ShiftItemProps) {
 	const locationLine = [location.city, location.state]
 		.filter(Boolean)
 		.join(", ");
+	const trimmedDate = String(date ?? "").trim();
+	const shiftYmd = /^(\d{4}-\d{2}-\d{2})(?:T|$)/.exec(trimmedDate)?.[1];
+	const dateLabel = shiftYmd
+		? fmtCalendarDate(shiftYmd)
+		: fmtShortDate(trimmedDate);
+	const clockLabel = `${formatVendorShiftBoundaryTime(startTime)} – ${formatVendorShiftBoundaryTime(endTime)}`;
 
 	return (
 		<div className="space-y-6 border-b p-6 last:border-0">
@@ -77,15 +85,13 @@ export function ShiftItem(props: ShiftItemProps) {
 						<div className="flex items-center gap-2 text-xs text-muted-foreground font-medium uppercase tracking-wider">
 							<Calendar className="size-3.5" /> Date
 						</div>
-						<div className="text-sm font-semibold">{date}</div>
+						<div className="text-sm font-semibold">{dateLabel}</div>
 					</div>
 					<div className="flex flex-col gap-1.5">
 						<div className="flex items-center gap-2 text-xs text-muted-foreground font-medium uppercase tracking-wider">
 							<Clock className="size-3.5" /> Shift Time
 						</div>
-						<div className="text-sm font-semibold">
-							{startTime} - {endTime}
-						</div>
+						<div className="text-sm font-semibold">{clockLabel}</div>
 					</div>
 					<div className="flex flex-col gap-1.5">
 						<div className="flex items-center gap-2 text-xs text-muted-foreground font-medium uppercase tracking-wider">
@@ -100,12 +106,6 @@ export function ShiftItem(props: ShiftItemProps) {
 						<div className="text-sm font-semibold text-emerald-600">
 							{billRate}
 						</div>
-					</div>
-					<div className="flex flex-col gap-1.5">
-						<div className="flex items-center gap-2 text-xs text-muted-foreground font-medium uppercase tracking-wider">
-							<Users className="size-3.5" /> Openings
-						</div>
-						<div className="text-sm font-semibold">{String(openings)}</div>
 					</div>
 				</div>
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BillingPageLayout } from "@/components/organization-billing/BillingPageLayout";
 
 export const metadata: Metadata = {
 	title: "Billing",
@@ -6,8 +7,8 @@ export const metadata: Metadata = {
 
 export default function OrganizationBillingLayout({
 	children,
-}: {
+}: Readonly<{
 	children: React.ReactNode;
-}) {
-	return children;
+}>) {
+	return <BillingPageLayout>{children}</BillingPageLayout>;
 }

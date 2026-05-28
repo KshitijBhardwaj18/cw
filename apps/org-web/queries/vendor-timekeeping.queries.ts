@@ -8,6 +8,8 @@ export const vendorTimekeepingKeys = {
 	payCodes: () => [...vendorTimekeepingKeys.all, "pay-codes"] as const,
 	entries: (query: Record<string, unknown>) =>
 		[...vendorTimekeepingKeys.all, "entries", query] as const,
+	uploadJob: (jobId: string) =>
+		[...vendorTimekeepingKeys.all, "upload-job", jobId] as const,
 };
 
 export function useVendorTimekeepingMetrics() {
@@ -64,6 +66,34 @@ export function useSubmitVendorTimekeepingDrafts() {
 			VendorTimekeepingService.submitDrafts(entryIds),
 		onSuccess: () => {
 			void qc.invalidateQueries({ queryKey: vendorTimekeepingKeys.all });
+		},
+	});
+}
+
+export function useVendorInternalUpload() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (file: File) => VendorTimekeepingService.internalUpload(file),
+		onSuccess: () => {
+			void qc.invalidateQueries({ queryKey: vendorTimekeepingKeys.all });
+		},
+	});
+}
+
+export function useVendorUploadJobStatus(
+	jobId: string | null,
+	enabled = false,
+) {
+	return useQuery({
+		queryKey: vendorTimekeepingKeys.uploadJob(jobId ?? ""),
+		queryFn: () => {
+			if (!jobId) throw new Error("jobId is required");
+			return VendorTimekeepingService.getUploadJob(jobId);
+		},
+		enabled: !!jobId && enabled,
+		refetchInterval: (query) => {
+			const status = query.state.data?.status;
+			return status === "COMPLETED" || status === "FAILED" ? false : 3000;
 		},
 	});
 }

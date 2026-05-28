@@ -15,7 +15,7 @@ export function MspDeleteDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: MspDeleteDialogProps) {
+}: Readonly<MspDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={!!msp}

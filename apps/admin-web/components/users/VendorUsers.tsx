@@ -1,6 +1,7 @@
 "use client";
 
 import type { VendorUserRole } from "@repo/shared";
+import { splitFullNameToFirstLast as splitFullName } from "@repo/shared";
 import {
 	Empty,
 	EmptyDescription,
@@ -15,7 +16,6 @@ import { useMemo } from "react";
 import { useVendorUserColumns } from "@/hooks/tables/use-vendor-user-columns";
 import { useVendorUsers } from "@/queries/users.query";
 import type { UserDto, VendorUserTableRow } from "@/types/users";
-import { splitFullName } from "@/utils/users";
 
 export const VU_PARAMS = {
 	SEARCH: "vuSearch",
@@ -44,7 +44,7 @@ const buildVendorRows = (users: UserDto[]): VendorUserTableRow[] =>
 			officePhone: user.officePhone ?? null,
 			phoneNumber: user.phoneNumber ?? null,
 			role: user.vendorUser?.role as VendorUserRole,
-			status: user.status,
+			status: user.status as VendorUserTableRow["status"],
 		};
 	});
 

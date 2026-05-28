@@ -5,7 +5,11 @@ import {
 	TimeEntryDataSource,
 	TimesheetEntryStatus,
 } from "@repo/db";
-import { sendMail, timesheetUploadResultTemplate } from "@repo/mail";
+import {
+	orgMailBranding,
+	sendMail,
+	timesheetUploadResultTemplate,
+} from "@repo/mail";
 import type {
 	TimekeepingInternalUploadPayload,
 	TimekeepingUploadJobResult,
@@ -61,7 +65,8 @@ export async function runTimekeepingUploadProcessor(
 	bucket: string,
 	payload: TimekeepingInternalUploadPayload,
 ): Promise<void> {
-	const { jobId, organizationId, s3Key, fileName, uploadedById } = payload;
+	const { jobId, organizationId, s3Key, fileName, uploadedById, vendorId } =
+		payload;
 
 	await prisma.backGroundJob.update({
 		where: { id: jobId },
@@ -161,12 +166,13 @@ export async function runTimekeepingUploadProcessor(
 		where: {
 			organizationId,
 			user: { email: { in: uniqueEmails } },
+			...(vendorId ? { vendorId } : {}),
 		},
 		select: {
 			id: true,
 			user: { select: { email: true } },
 			placements: {
-				where: { status: { in: ["ACTIVE", "UPCOMING", "ENDING_SOON"] } },
+				where: { status: { in: ["ACTIVE", "UPCOMING"] } },
 				select: { id: true, locationId: true, departmentId: true },
 				take: 1,
 				orderBy: { startDate: "desc" },
@@ -413,12 +419,25 @@ export async function runTimekeepingUploadProcessor(
 
 	// Notify uploader by email (non-critical)
 	try {
-		const uploader = await prisma.user.findUnique({
-			where: { id: uploadedById },
-			select: { email: true, name: true },
-		});
+		const [uploader, organization] = await Promise.all([
+			prisma.user.findUnique({
+				where: { id: uploadedById },
+				select: { email: true, name: true },
+			}),
+			prisma.organization.findUnique({
+				where: { id: organizationId },
+				select: { name: true, logo: true },
+			}),
+		]);
 		if (uploader) {
-			const { subject, text } = timesheetUploadResultTemplate(
+			const branding = orgMailBranding({
+				orgName: organization?.name ?? "Your Organization",
+				orgLogoUrl: organization?.logo,
+				staffLogicLogoUrl: config.mail.staffLogicLogoUrl,
+				portal: "organization",
+			});
+			const { subject, text, html } = timesheetUploadResultTemplate(
+				branding,
 				uploader.name ?? uploader.email,
 				fileName,
 				result.created,
@@ -426,7 +445,7 @@ export async function runTimekeepingUploadProcessor(
 				result.failed,
 				result.errors.slice(0, 10),
 			);
-			await sendMail(config.mail, { to: uploader.email, subject, text });
+			await sendMail(config.mail, { to: uploader.email, subject, text, html });
 		}
 	} catch {
 		// non-critical — don't fail job if notification email fails

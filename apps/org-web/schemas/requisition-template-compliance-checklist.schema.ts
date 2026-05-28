@@ -1,6 +1,9 @@
+import { ComplianceChecklistItemPhase } from "@repo/shared";
 import { z } from "zod";
 
-const complianceItemUsageTypeSchema = z.enum(["SUBMISSION", "PLACEMENT"]);
+const complianceItemUsageTypeSchema = z.nativeEnum(
+	ComplianceChecklistItemPhase,
+);
 
 /** Per checklist template: compliance item id → usage type (from Edit Usage dialog). */
 export const requisitionTemplateComplianceChecklistSchema = z.object({

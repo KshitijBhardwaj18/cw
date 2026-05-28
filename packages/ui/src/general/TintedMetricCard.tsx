@@ -53,7 +53,7 @@ export function TintedMetricCard({
 	titleTrailing,
 	footer,
 	className,
-}: TintedMetricCardProps) {
+}: Readonly<TintedMetricCardProps>) {
 	const styles = TINTED_METRIC_TONE_STYLES[tone];
 	return (
 		<Card

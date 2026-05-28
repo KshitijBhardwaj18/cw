@@ -1,8 +1,24 @@
 export type ProjectStatus = "Active" | "Inactive";
 
+export const PROJECT_REQUISITION_STATUS_VALUES = [
+	"DRAFT",
+	"ACTIVE",
+	"INACTIVE",
+	"PENDING_APPROVAL",
+	"APPROVED",
+	"PUBLISHED",
+	"ON_HOLD",
+	"FILLED",
+	"CANCELLED",
+	"CLOSED",
+] as const;
+
+export type ProjectRequisitionStatus =
+	(typeof PROJECT_REQUISITION_STATUS_VALUES)[number];
+
 export type ProjectDetailRequisitionStatusFilter =
 	| "all"
-	| ProjectRequisitionItem["status"];
+	| ProjectRequisitionStatus;
 
 export interface ProjectRequisitionItem {
 	id: string;
@@ -13,7 +29,7 @@ export interface ProjectRequisitionItem {
 	openPositions: number;
 	specialty: string;
 	startDateLabel: string;
-	status: "Open" | "Closed" | "On Hold";
+	status: ProjectRequisitionStatus;
 }
 
 export interface ProjectItem {

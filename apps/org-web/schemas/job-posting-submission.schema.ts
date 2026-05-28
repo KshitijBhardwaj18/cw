@@ -21,6 +21,7 @@ export const jobPostingSubmissionSchema = z
 		selectedVendorIds: z.array(z.string().uuid()).optional(),
 	})
 	.superRefine((value, ctx) => {
+		if (value.submissionType === "CANDIDATE_ONLY") return;
 		if (value.vendorAccess !== "SELECTED_VENDORS") return;
 		const ids = value.selectedVendorIds ?? [];
 		if (ids.length === 0) {
@@ -35,3 +36,26 @@ export const jobPostingSubmissionSchema = z
 export type JobPostingSubmissionValues = z.infer<
 	typeof jobPostingSubmissionSchema
 >;
+
+/** Keeps vendorAccess/selectedVendorIds consistent across submission-type toggles. */
+export function normalizeJobPostingSubmissionVendorFields(
+	values: JobPostingSubmissionValues,
+): JobPostingSubmissionValues {
+	if (values.submissionType === "CANDIDATE_ONLY") {
+		return {
+			...values,
+			vendorAccess: "ALL_VENDORS",
+			selectedVendorIds: [],
+		};
+	}
+	if (values.vendorAccess === "ALL_VENDORS") {
+		return {
+			...values,
+			selectedVendorIds: [],
+		};
+	}
+	return {
+		...values,
+		selectedVendorIds: values.selectedVendorIds ?? [],
+	};
+}

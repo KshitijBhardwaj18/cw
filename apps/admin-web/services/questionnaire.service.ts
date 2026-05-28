@@ -1,4 +1,4 @@
-import type { QuestionType } from "@repo/db";
+import type { QuestionType } from "@repo/shared";
 import { ApiClient } from "@/lib/api-client";
 
 export interface QuestionWithTagging {

@@ -30,6 +30,10 @@ function shiftPrefixForOrg(orgId: string, slug: string | null): string {
 	return `SEED-VPD-${key}`;
 }
 
+function shiftSpecialtiesInput(specialtyId: string | null) {
+	return specialtyId ? { specialties: { create: [{ specialtyId }] } } : {};
+}
+
 async function seedShiftsForOrg(
 	prisma: PrismaClient,
 	orgId: string,
@@ -58,7 +62,18 @@ async function seedShiftsForOrg(
 	const dept = await prisma.department.findFirst({
 		where: { organizationId: orgId },
 		include: {
-			organizationOccupation: { select: { occupationId: true } },
+			departmentOccupations: {
+				take: 1,
+				include: {
+					organizationOccupation: { select: { occupationId: true } },
+				},
+			},
+			departmentSpecialties: {
+				take: 1,
+				include: {
+					organizationSpecialty: { select: { specialtyId: true } },
+				},
+			},
 		},
 	});
 
@@ -70,16 +85,18 @@ async function seedShiftsForOrg(
 		};
 	}
 
-	const occupationId = dept.organizationOccupation.occupationId;
-
-	let specialtyId: string | null = null;
-	if (dept.organizationSpecialtyId) {
-		const os = await prisma.organizationSpecialty.findUnique({
-			where: { id: dept.organizationSpecialtyId },
-			select: { specialtyId: true },
-		});
-		specialtyId = os?.specialtyId ?? null;
+	const occupationId =
+		dept.departmentOccupations[0]?.organizationOccupation.occupationId;
+	if (!occupationId) {
+		return {
+			createdOpen: 0,
+			createdAssigned: false,
+			skipped: "department has no linked occupation",
+		};
 	}
+
+	const specialtyId =
+		dept.departmentSpecialties[0]?.organizationSpecialty.specialtyId ?? null;
 
 	let template = await prisma.shiftTemplate.findFirst({
 		where: { organizationId: orgId, templateName },
@@ -94,7 +111,7 @@ async function seedShiftsForOrg(
 				occupationId,
 				departmentId: dept.id,
 				locationId: dept.locationId,
-				shiftType: ShiftType.DAYS,
+				shiftType: ShiftType.DAY,
 				durationHours: 12,
 				baseRate: 55,
 				baseBillRate: 85,
@@ -125,7 +142,7 @@ async function seedShiftsForOrg(
 			isUrgent: true,
 			startTime: "07:00",
 			endTime: "19:00",
-			shiftType: ShiftType.DAYS,
+			shiftType: ShiftType.DAY,
 		},
 		{
 			shiftNumber: `${shiftPrefix}-OPEN-2`,
@@ -133,7 +150,7 @@ async function seedShiftsForOrg(
 			isUrgent: false,
 			startTime: "07:00",
 			endTime: "19:00",
-			shiftType: ShiftType.DAYS,
+			shiftType: ShiftType.DAY,
 		},
 		{
 			shiftNumber: `${shiftPrefix}-OPEN-3`,
@@ -141,7 +158,7 @@ async function seedShiftsForOrg(
 			isUrgent: false,
 			startTime: "19:00",
 			endTime: "07:00",
-			shiftType: ShiftType.NIGHTS,
+			shiftType: ShiftType.NIGHT,
 		},
 	];
 
@@ -157,15 +174,14 @@ async function seedShiftsForOrg(
 				totalShiftHours,
 				shiftType: row.shiftType,
 				occupationId,
-				specialtyId,
 				departmentId: dept.id,
 				locationId: dept.locationId,
 				shiftRate,
 				vendorRate,
 				totalCost,
 				status: PerDiemShiftStatus.OPEN,
-				isPublic: true,
 				isUrgent: row.isUrgent,
+				...shiftSpecialtiesInput(specialtyId),
 			},
 		});
 	}
@@ -192,17 +208,16 @@ async function seedShiftsForOrg(
 					startTime: "07:00",
 					endTime: "15:00",
 					totalShiftHours: 8,
-					shiftType: ShiftType.DAYS,
+					shiftType: ShiftType.DAY,
 					occupationId,
-					specialtyId,
 					departmentId: dept.id,
 					locationId: dept.locationId,
 					shiftRate: 72,
 					vendorRate: 58,
 					totalCost: 72 * 8,
 					status: PerDiemShiftStatus.IN_PROGRESS,
-					isPublic: true,
 					isUrgent: false,
+					...shiftSpecialtiesInput(specialtyId),
 				},
 				select: { id: true },
 			});
@@ -224,17 +239,16 @@ async function seedShiftsForOrg(
 					startTime: "07:00",
 					endTime: "15:00",
 					totalShiftHours: 8,
-					shiftType: ShiftType.DAYS,
+					shiftType: ShiftType.DAY,
 					occupationId,
-					specialtyId,
 					departmentId: dept.id,
 					locationId: dept.locationId,
 					shiftRate: 72,
 					vendorRate: 58,
 					totalCost: 72 * 8,
 					status: PerDiemShiftStatus.COMPLETED,
-					isPublic: true,
 					isUrgent: false,
+					...shiftSpecialtiesInput(specialtyId),
 				},
 				select: { id: true },
 			});

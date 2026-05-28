@@ -2,7 +2,8 @@
  * Grievance UI constants. Enums mirror `GrievanceType` / `GrievanceStatus` in Prisma.
  */
 
-export const GRIEVANCES_PAGE_SIZE = 10;
+export const GRIEVANCES_DEFAULT_LIMIT = 10;
+export const GRIEVANCES_PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 /** Mirrors Prisma `GrievanceType`. */
 export const GRIEVANCE_TYPE = {
 	BEHAVIORAL: "BEHAVIORAL",

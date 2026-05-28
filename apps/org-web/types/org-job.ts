@@ -1,9 +1,6 @@
-export type OrgJobDisplayStatus =
-	| "OPEN"
-	| "OFFER_ACCEPTED"
-	| "FILLED"
-	| "DRAFT"
-	| "CLOSED";
+import type { RequisitionStatus } from "@repo/shared";
+
+export type OrgJobDisplayStatus = `${RequisitionStatus}`;
 
 export interface OrgJobSubmissionPipeline {
 	submitted: number;

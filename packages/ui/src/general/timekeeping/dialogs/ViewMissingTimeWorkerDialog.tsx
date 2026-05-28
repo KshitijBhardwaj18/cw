@@ -27,7 +27,7 @@ export function ViewMissingTimeWorkerDialog({
 	open,
 	onOpenChange,
 	onSendReminder,
-}: ViewMissingTimeWorkerDialogProps) {
+}: Readonly<ViewMissingTimeWorkerDialogProps>) {
 	if (!worker) return null;
 
 	return (

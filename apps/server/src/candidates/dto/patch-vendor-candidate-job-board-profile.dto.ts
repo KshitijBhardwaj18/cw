@@ -1,9 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ShiftType } from "@repo/db";
 import { Transform, Type } from "class-transformer";
 import {
 	IsArray,
 	IsBoolean,
 	IsDateString,
+	IsEnum,
 	IsISO8601,
 	IsOptional,
 	IsString,
@@ -89,11 +91,11 @@ export class PatchVendorCandidateJobBoardProfileDto {
 	@IsUUID("4", { each: true })
 	specialtyIds?: string[];
 
-	@ApiPropertyOptional()
+	@ApiPropertyOptional({ enum: ShiftType, isArray: true })
 	@IsOptional()
 	@IsArray()
-	@IsString({ each: true })
-	preferredShiftTypes?: string[];
+	@IsEnum(ShiftType, { each: true })
+	preferredShiftTypes?: ShiftType[];
 
 	@ApiPropertyOptional({ description: "ISO date or null to clear" })
 	@IsOptional()

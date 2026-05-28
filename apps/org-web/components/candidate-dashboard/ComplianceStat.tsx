@@ -14,7 +14,7 @@ export function ComplianceStat({
 	value,
 	icon: Icon,
 	variant,
-}: ComplianceStatProps) {
+}: Readonly<ComplianceStatProps>) {
 	return (
 		<Card
 			className={cn(

@@ -15,7 +15,7 @@ export function VendorDeleteDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: VendorDeleteDialogProps) {
+}: Readonly<VendorDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={!!vendor}

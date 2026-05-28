@@ -23,7 +23,7 @@ export function ProfileCard({
 	user,
 	editProfileSlot,
 	signOutSlot,
-}: ProfileCardProps) {
+}: Readonly<ProfileCardProps>) {
 	const role = user?.subRole
 		? enumToText(user.subRole)
 		: user?.role

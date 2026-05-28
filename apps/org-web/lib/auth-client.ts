@@ -7,12 +7,15 @@ import { createAuthClient } from "better-auth/react";
 import { envConfig } from "@/config";
 
 export const authClient = createAuthClient({
-	baseURL: envConfig.betterAuthUrl,
+	baseURL: typeof window === "undefined" ? envConfig.betterAuthUrl : "",
 	basePath: "/api/auth/org",
 	plugins: [
 		inferAdditionalFields(betterAuthInferAdditionalFields),
 		emailOTPClient(),
 	],
+	sessionOptions: {
+		refetchOnWindowFocus: true,
+	},
 });
 
 export const useSession = authClient.useSession;

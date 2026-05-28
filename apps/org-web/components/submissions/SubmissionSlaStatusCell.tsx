@@ -3,7 +3,9 @@
 import { Clock } from "lucide-react";
 import type { SubmissionListRow } from "@/constants/submissions";
 
-export function SubmissionSlaStatusCell({ row }: { row: SubmissionListRow }) {
+export function SubmissionSlaStatusCell({
+	row,
+}: Readonly<{ row: SubmissionListRow }>) {
 	const { slaLabel } = row;
 	if (slaLabel === "ON_TIME") {
 		return (

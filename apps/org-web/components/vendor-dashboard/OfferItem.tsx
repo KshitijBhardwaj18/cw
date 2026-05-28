@@ -9,6 +9,8 @@ import {
 	ThumbsDown,
 	ThumbsUp,
 } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
+import { formatVendorPlacementCalendarDay } from "@/utils/vendor-calendar-display";
 
 export interface OfferItemProps {
 	name: string;
@@ -39,18 +41,27 @@ export function OfferItem({
 	showActionButtons = true,
 	onAccept,
 	onWithdraw,
-}: OfferItemProps) {
+}: Readonly<OfferItemProps>) {
+	const { fmtShortDate, fmtDateTime, fmtCalendarDate } = useUserTimezone();
+	const startLabel = formatVendorPlacementCalendarDay(
+		startDate,
+		fmtCalendarDate,
+		fmtShortDate,
+	);
+	const badgeLabel =
+		overdueText ?? (postedTime ? fmtDateTime(postedTime) : undefined);
+
 	return (
 		<div className="flex flex-col gap-4 border-b py-6 last:border-0">
 			<div className="flex items-start justify-between">
 				<div className="flex flex-col gap-1">
 					<div className="flex items-center gap-2">
 						<h4 className="text-base font-semibold">{name}</h4>
-						{(overdueText || postedTime) && (
+						{badgeLabel ? (
 							<Badge variant={isOverdue ? "error" : "secondary"}>
-								{overdueText || postedTime}
+								{badgeLabel}
 							</Badge>
-						)}
+						) : null}
 					</div>
 					<p className="text-sm font-medium text-primary">{jobTitle}</p>
 					<p className="text-sm text-muted-foreground">{location}</p>
@@ -78,7 +89,7 @@ export function OfferItem({
 				</div>
 				<div className="flex items-center gap-1.5">
 					<Calendar className="size-4" />
-					<span>Start: {startDate}</span>
+					<span>Start: {startLabel}</span>
 				</div>
 				<div className="flex items-center gap-1.5">
 					<Clock className="size-4" />

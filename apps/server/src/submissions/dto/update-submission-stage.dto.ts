@@ -6,6 +6,8 @@ import {
 	IsEnum,
 	IsNumber,
 	IsOptional,
+	IsString,
+	MaxLength,
 	Min,
 } from "class-validator";
 
@@ -33,4 +35,21 @@ export class UpdateSubmissionStageDto {
 	@IsNumber()
 	@Min(0)
 	billRate?: number;
+
+	@ApiPropertyOptional()
+	@IsOptional()
+	@IsDateString()
+	interviewDate?: string;
+
+	@ApiPropertyOptional()
+	@IsOptional()
+	@IsString()
+	@MaxLength(500)
+	interviewLocation?: string;
+
+	@ApiPropertyOptional()
+	@IsOptional()
+	@IsString()
+	@MaxLength(2000)
+	interviewNotes?: string;
 }

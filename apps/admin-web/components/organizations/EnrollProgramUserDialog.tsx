@@ -46,7 +46,7 @@ export function EnrollProgramUserDialog({
 	open,
 	onOpenChange,
 	organizationId,
-}: EnrollProgramUserDialogProps) {
+}: Readonly<EnrollProgramUserDialogProps>) {
 	const { search, debouncedSearch, setSearch } = useLocalDebouncedSearch("");
 	const listRef = useRef<HTMLDivElement>(null);
 	const fetchNextPageRef = useRef<() => void>(() => {});
@@ -98,8 +98,6 @@ export function EnrollProgramUserDialog({
 					onSuccess: () => {
 						toast.success("Program user enrolled successfully");
 						onOpenChange(false);
-						form.reset();
-						setSearch("");
 					},
 					onError: (error) => {
 						toast.error(
@@ -116,11 +114,16 @@ export function EnrollProgramUserDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
-	const handleOpenChange = (next: boolean) => {
-		if (!next) {
-			form.reset();
+	const wasOpenRef = useRef(false);
+	useEffect(() => {
+		if (open && !wasOpenRef.current) {
+			form.reset({ userId: "" });
 			setSearch("");
 		}
+		wasOpenRef.current = open;
+	}, [open, form, setSearch]);
+
+	const handleOpenChange = (next: boolean) => {
 		onOpenChange(next);
 	};
 

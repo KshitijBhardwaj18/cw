@@ -18,25 +18,19 @@ import {
 } from "@/queries/talent-community.queries";
 
 export function useCandidateProfileSheet({
-	orgId,
 	candidate,
 	open,
 }: {
-	orgId: string;
 	candidate: CandidateTalentType | null;
 	open: boolean;
 }) {
 	const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-	const { data: profileData } = useCandidateProfile(
-		orgId,
-		candidate?.id ?? null,
-	);
+	const { data: profileData } = useCandidateProfile(candidate?.id ?? null);
 	const { data: activityEvents = [] } = useCandidateActivity(
-		orgId,
 		candidate?.id ?? null,
 	);
-	const assignMutation = useAssignCandidateWorkforceType(orgId);
-	const { data: vendors = [] } = useOrgVendors(orgId);
+	const assignMutation = useAssignCandidateWorkforceType();
+	const { data: vendors = [] } = useOrgVendors();
 	const profile = profileData ?? candidate;
 
 	useEffect(() => {

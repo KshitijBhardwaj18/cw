@@ -16,7 +16,7 @@ export function ChecklistTemplateDeleteDialog({
 	onOpenChange,
 	onConfirm,
 	isPending = false,
-}: ChecklistTemplateDeleteDialogProps) {
+}: Readonly<ChecklistTemplateDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={open && !!checklistName}

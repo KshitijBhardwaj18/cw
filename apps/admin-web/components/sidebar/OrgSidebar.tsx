@@ -18,11 +18,8 @@ import {
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type {
-	OrgSidebarGroup as OrgSidebarGroupType,
-	OrgSidebarItem,
-} from "@/constants/org-sidebar";
-import { orgSidebarItems } from "@/constants/org-sidebar";
+import type { OrgSidebarItem } from "@/constants/org-sidebar";
+import { useOrgSidebarItems } from "@/hooks/use-org-sidebar-items";
 
 type OrgSidebarMenuItemsProps = {
 	items: OrgSidebarItem[];
@@ -34,7 +31,7 @@ function OrgSidebarMenuItems({
 	items,
 	basePath,
 	isActive,
-}: OrgSidebarMenuItemsProps) {
+}: Readonly<OrgSidebarMenuItemsProps>) {
 	return (
 		<SidebarMenu>
 			{items.map((item) => (
@@ -60,13 +57,13 @@ type OrgSidebarProps = {
 	organizationId: string;
 };
 
-export function OrgSidebar({ organizationId }: OrgSidebarProps) {
+export function OrgSidebar({ organizationId }: Readonly<OrgSidebarProps>) {
 	const pathname = usePathname();
+	const { groups } = useOrgSidebarItems();
 	const basePath = `/organizations/${organizationId}`;
 
 	const isActive = (itemPath: string) => {
 		const fullPath = itemPath ? `${basePath}${itemPath}` : basePath;
-		// Match exact or path prefix for nested routes
 		if (itemPath === "") {
 			return pathname === basePath || pathname === `${basePath}/`;
 		}
@@ -79,7 +76,7 @@ export function OrgSidebar({ organizationId }: OrgSidebarProps) {
 			className="border-r w-56 shrink-0 sticky h-[calc(100vh-56px)] top-0"
 		>
 			<SidebarContent>
-				{orgSidebarItems.map((group: OrgSidebarGroupType) =>
+				{groups.map((group) =>
 					group.label ? (
 						<Collapsible key={group.label} defaultOpen asChild>
 							<SidebarGroup className="px-2 py-0.5">

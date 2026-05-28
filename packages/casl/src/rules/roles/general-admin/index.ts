@@ -1,7 +1,20 @@
 import { UserRole } from "@repo/shared";
+import {
+	BILLING_CONFIG_SECTION_CONDITIONS,
+	BILLING_TAB_CONDITIONS,
+} from "../../../constants/billing";
 import { Action } from "../../../types/actions";
 import type { AppSubjects } from "../../../types/subjects";
-import { type Can, CRU_ACTIONS, CRUD_ACTIONS } from "../../helpers";
+import {
+	type Can,
+	CREATE_READ_LIST_UPDATE_ACTIONS,
+	CREATE_READ_LIST_UPDATE_DELETE_ACTIONS,
+	CREATE_UPDATE_DELETE_ASSIGN_ACTIONS,
+	READ_LIST_ACTIONS,
+	READ_LIST_CREATE_ACTIONS,
+	READ_LIST_DELETE_ACTIONS,
+	READ_LIST_UPDATE_DELETE_ACTIONS,
+} from "../../helpers";
 
 const ORG_PORTAL_CRUD_SUBJECTS = [
 	"PerDiemShift",
@@ -19,18 +32,6 @@ const TIMEKEEPING_HIGH_CONTROL_SUBJECTS = [
 	"MissingTimeCase",
 ] as const satisfies readonly AppSubjects[];
 
-const TIMEKEEPING_READ_ONLY_GROUP_SUBJECTS = [
-	"TimekeepingSummary",
-	"OrganizationPayCode",
-	"OrganizationHoliday",
-] as const satisfies readonly AppSubjects[];
-
-const TIMEKEEPING_ALL_SUBJECTS = [
-	"Timekeeping",
-	...TIMEKEEPING_HIGH_CONTROL_SUBJECTS,
-	...TIMEKEEPING_READ_ONLY_GROUP_SUBJECTS,
-] as const satisfies readonly AppSubjects[];
-
 const MSP_LINKED_ORG_EDITABLE_FIELDS = [
 	"id",
 	"mspId",
@@ -44,56 +45,95 @@ const MSP_LINKED_ORG_EDITABLE_FIELDS = [
 ] as const;
 
 export function defineGeneralAdminRules(can: Can) {
-	can(
-		[Action.Read, Action.List],
-		["Dashboard", "Organization", "User", "Metric"],
-	);
+	can(READ_LIST_ACTIONS, ["Dashboard", "Organization", "User", "Metric"]);
 
-	can([Action.Create, Action.Update, Action.Delete, Action.Assign], "User", {
+	can(CREATE_UPDATE_DELETE_ASSIGN_ACTIONS, "User", {
 		role: {
 			notIn: [UserRole.SUPER_ADMIN, UserRole.GENERAL_ADMIN],
 		},
 	});
 
-	can(CRU_ACTIONS, ["Vendor", "MSP"]);
-	can(CRU_ACTIONS, "MSPLinkedOrg", [...MSP_LINKED_ORG_EDITABLE_FIELDS]);
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, ["Vendor", "MSP"]);
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "MSPLinkedOrg", [
+		...MSP_LINKED_ORG_EDITABLE_FIELDS,
+	]);
 
-	can([Action.Read, Action.List, Action.Update, Action.Delete], "Note", {
+	can(READ_LIST_UPDATE_DELETE_ACTIONS, "Note", {
 		type: { not: "BILLING" },
 	});
-	can([Action.Read, Action.List, Action.Delete], "Document", {
+	can(READ_LIST_DELETE_ACTIONS, "Document", {
 		type: { not: "FINANCE" },
 	});
 
-	can(CRU_ACTIONS, ["ComplianceWalletTemplate", "Questionnaire"]);
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, [
+		"ComplianceWalletTemplate",
+		"Questionnaire",
+	]);
 	can(Action.Manage, "Question");
 
-	can(CRUD_ACTIONS, [...ORG_PORTAL_CRUD_SUBJECTS]);
-	can(CRUD_ACTIONS, "CommandCenter");
-	can(
-		[Action.Create, Action.Read, Action.List, Action.Update, Action.Delete],
-		"Placement",
-	);
-	can(
-		[Action.Create, Action.Read, Action.List, Action.Update, Action.Delete],
-		"PlacementComplianceItem",
-	);
-	can(
-		[Action.Create, Action.Read, Action.List, Action.Update, Action.Delete],
-		"Submission",
-	);
-	can(CRUD_ACTIONS, [
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, [...ORG_PORTAL_CRUD_SUBJECTS]);
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, "CommandCenter");
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, "Placement");
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, "PlacementComplianceItem");
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, "Submission");
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, [
 		"TalentCommunity",
 		"WorkforceLists",
 		"ShiftRoutingSettings",
 	]);
-	can(CRUD_ACTIONS, "Credentials");
-	can(CRUD_ACTIONS, [...TIMEKEEPING_ALL_SUBJECTS]);
-	can(CRUD_ACTIONS, ["SpendAnalytics", "Invoice"]);
-	can(CRUD_ACTIONS, [
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, "Credentials");
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, [
+		"Timekeeping",
+		...TIMEKEEPING_HIGH_CONTROL_SUBJECTS,
+		"TimekeepingSummary",
+		"OrganizationHoliday",
+	]);
+	can(READ_LIST_CREATE_ACTIONS, "OrganizationPayCode");
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, ["SpendAnalytics"]);
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "Invoice");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "BillingConfig");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "OrganizationWorkforceBillingRate");
+	can(
+		CREATE_READ_LIST_UPDATE_ACTIONS,
+		"Billing",
+		BILLING_TAB_CONDITIONS["billing-configuration"],
+	);
+	can(
+		CREATE_READ_LIST_UPDATE_ACTIONS,
+		"Billing",
+		BILLING_TAB_CONDITIONS["invoice-history"],
+	);
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "Billing", BILLING_TAB_CONDITIONS.rates);
+	can(
+		CREATE_READ_LIST_UPDATE_ACTIONS,
+		"BillingConfig",
+		BILLING_CONFIG_SECTION_CONDITIONS.general,
+	);
+	can(
+		CREATE_READ_LIST_UPDATE_ACTIONS,
+		"BillingConfig",
+		BILLING_CONFIG_SECTION_CONDITIONS["invoice-preferences"],
+	);
+	can(
+		CREATE_READ_LIST_UPDATE_ACTIONS,
+		"BillingConfig",
+		BILLING_CONFIG_SECTION_CONDITIONS.timekeeping,
+	);
+	can(
+		CREATE_READ_LIST_UPDATE_ACTIONS,
+		"BillingConfig",
+		BILLING_CONFIG_SECTION_CONDITIONS["fee-structure"],
+	);
+	can(
+		CREATE_READ_LIST_UPDATE_ACTIONS,
+		"BillingConfig",
+		BILLING_CONFIG_SECTION_CONDITIONS["financial-tables"],
+	);
+	can(CREATE_READ_LIST_UPDATE_DELETE_ACTIONS, [
 		"ComplianceChecklist",
 		"RequisitionTemplate",
 		"ShiftTemplate",
-		"Billing",
 	]);
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "RequisitionAttentionRule");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "AgingRule");
 }

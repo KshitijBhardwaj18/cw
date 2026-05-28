@@ -2,8 +2,8 @@
 
 import { Action, useAbility } from "@repo/casl";
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/tabs";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
 import { MetricCard } from "@repo/ui/general/MetricCard";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
 import { ApproveTimeLogDialog } from "@repo/ui/general/timekeeping/dialogs/ApproveTimeLogDialog";
 import { DisputeDialog } from "@repo/ui/general/timekeeping/dialogs/DisputeDialog";
@@ -36,6 +36,10 @@ export function TimeApprovalTabContent() {
 		submitDispute,
 		currentPage,
 		setCurrentPage,
+		approvalLimit,
+		setApprovalLimit,
+		approvalPageSizeOptions,
+		approvalTotalCount,
 		totalPages,
 		paginatedApprovalEntries,
 	} = useTimekeepingContext();
@@ -116,13 +120,17 @@ export function TimeApprovalTabContent() {
 				))}
 			</div>
 
-			{totalPages > 1 && (
-				<ConfigPagePagination
-					page={currentPage}
-					totalPages={totalPages}
-					onPageChange={setCurrentPage}
-				/>
-			)}
+			<PaginationControls
+				currentPage={currentPage}
+				pageCount={totalPages}
+				goToPage={setCurrentPage}
+				limit={approvalLimit}
+				setLimit={setApprovalLimit}
+				pageSizeOptions={approvalPageSizeOptions}
+				totalItems={approvalTotalCount}
+				itemLabel="entry"
+				itemLabelPlural="entries"
+			/>
 
 			<ApproveTimeLogDialog
 				isOpen={isApproveDialogOpen}

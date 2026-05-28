@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_JOB_POSTING_VALUES } from "@/constants/job-posting-flow";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	requisitionTemplateDetailQueryOptions,
 	useRequisitionTemplates,
@@ -48,7 +47,6 @@ export function useJobPostingFlowPage(options: UseJobPostingFlowPageOptions) {
 	const { mode, jobId, presetTemplateId, queriesEnabled = true } = options;
 	const ability = useAbility();
 	const canReadRequisition = ability.can(Action.Read, "Requisition");
-	const { id: orgId } = useOrgContext();
 	const router = useRouter();
 	const queryClient = useQueryClient();
 
@@ -70,7 +68,7 @@ export function useJobPostingFlowPage(options: UseJobPostingFlowPageOptions) {
 	const presetIdTrimmed = presetTemplateId?.trim() ?? "";
 
 	useEffect(() => {
-		if (!queriesEnabled || mode !== "create" || !presetIdTrimmed || !orgId) {
+		if (!queriesEnabled || mode !== "create" || !presetIdTrimmed) {
 			setIsApplyingPresetFromUrl(false);
 			return;
 		}
@@ -81,7 +79,7 @@ export function useJobPostingFlowPage(options: UseJobPostingFlowPageOptions) {
 		void (async () => {
 			try {
 				const detail = await queryClient.fetchQuery(
-					requisitionTemplateDetailQueryOptions(orgId, presetIdTrimmed),
+					requisitionTemplateDetailQueryOptions(presetIdTrimmed),
 				);
 				if (cancelled) return;
 				setFlowValues((prev) => ({
@@ -108,10 +106,9 @@ export function useJobPostingFlowPage(options: UseJobPostingFlowPageOptions) {
 		return () => {
 			cancelled = true;
 		};
-	}, [mode, orgId, presetIdTrimmed, queryClient, queriesEnabled]);
+	}, [mode, presetIdTrimmed, queryClient, queriesEnabled]);
 
 	const detailQuery = useRequisitionDetail(
-		orgId,
 		mode === "edit" && jobId ? jobId : null,
 		{
 			enabled:
@@ -153,7 +150,6 @@ export function useJobPostingFlowPage(options: UseJobPostingFlowPageOptions) {
 	}, [mode, jobId, detailQuery.data, hydratedFromDetail]);
 
 	const templatesQuery = useRequisitionTemplates(
-		orgId,
 		{
 			status: "ACTIVE",
 			page: 1,
@@ -179,9 +175,8 @@ export function useJobPostingFlowPage(options: UseJobPostingFlowPageOptions) {
 		}));
 	}, [templatesQuery.data?.data]);
 
-	const createMutation = useCreateRequisition(orgId);
+	const createMutation = useCreateRequisition();
 	const updateMutation = useUpdateRequisition(
-		orgId,
 		mode === "edit" && jobId ? jobId : undefined,
 	);
 
@@ -223,46 +218,27 @@ export function useJobPostingFlowPage(options: UseJobPostingFlowPageOptions) {
 
 	const handleTemplateSubmit = useCallback(
 		async (values: JobPostingTemplateSelectionValues) => {
-			if (!queriesEnabled || !orgId) return;
+			if (!queriesEnabled) return;
+			if (mode === "edit") {
+				setStep(2);
+				return;
+			}
 			try {
 				const detail = await queryClient.fetchQuery(
-					requisitionTemplateDetailQueryOptions(orgId, values.templateId),
+					requisitionTemplateDetailQueryOptions(values.templateId),
 				);
-				setFlowValues((prev) => {
-					const fromTemplate = mapTemplateDetailToSubmissionSettings(detail);
-					const mappedJobDetails = mapTemplateDetailToJobDetails(
-						detail,
-						prev.jobDetails,
-					);
-					return {
-						...prev,
-						templateSelection: values,
-						jobDetails:
-							mode === "edit"
-								? {
-										...mappedJobDetails,
-										requisitionName: prev.jobDetails.requisitionName,
-									}
-								: mappedJobDetails,
-						submissionSettings:
-							mode === "edit"
-								? {
-										...fromTemplate,
-										notesForVendors:
-											prev.submissionSettings.notesForVendors ?? "",
-										selectedVendorIds: [
-											...(prev.submissionSettings.selectedVendorIds ?? []),
-										],
-									}
-								: fromTemplate,
-					};
-				});
+				setFlowValues((prev) => ({
+					...prev,
+					templateSelection: values,
+					jobDetails: mapTemplateDetailToJobDetails(detail, prev.jobDetails),
+					submissionSettings: mapTemplateDetailToSubmissionSettings(detail),
+				}));
 				setStep(2);
 			} catch (e) {
 				toast.error(e instanceof Error ? e.message : "Could not load template");
 			}
 		},
-		[mode, orgId, queryClient, queriesEnabled],
+		[mode, queryClient, queriesEnabled],
 	);
 
 	const handleConfirmSubmit = useCallback(() => {

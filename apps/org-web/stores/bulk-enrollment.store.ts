@@ -3,10 +3,9 @@ import { OrganizationsService } from "@/services/organizations.service";
 
 export type BulkEnrollmentStatus =
 	| { phase: "idle" }
-	| { phase: "processing"; organizationId: string; jobId: string }
+	| { phase: "processing"; jobId: string }
 	| {
 			phase: "completed";
-			organizationId: string;
 			jobId: string;
 			enrolled: number;
 			skipped: number;
@@ -15,14 +14,13 @@ export type BulkEnrollmentStatus =
 	  }
 	| {
 			phase: "failed";
-			organizationId: string;
 			jobId: string;
 			message: string;
 	  };
 
 interface BulkEnrollmentStore {
 	status: BulkEnrollmentStatus;
-	startJob: (organizationId: string, jobId: string) => void;
+	startJob: (jobId: string) => void;
 	dismiss: () => void;
 }
 
@@ -39,10 +37,10 @@ export const useBulkEnrollmentStore = create<BulkEnrollmentStore>(
 	(set, get) => ({
 		status: { phase: "idle" },
 
-		startJob: (organizationId, jobId) => {
+		startJob: (jobId) => {
 			closeActiveEventSource();
 
-			set({ status: { phase: "processing", organizationId, jobId } });
+			set({ status: { phase: "processing", jobId } });
 
 			const es = OrganizationsService.createBulkEnrollmentStream(jobId);
 			activeEventSource = es;
@@ -62,7 +60,6 @@ export const useBulkEnrollmentStore = create<BulkEnrollmentStore>(
 						set({
 							status: {
 								phase: "completed",
-								organizationId,
 								jobId,
 								enrolled: data.enrolled ?? 0,
 								skipped: data.skipped ?? 0,
@@ -79,7 +76,6 @@ export const useBulkEnrollmentStore = create<BulkEnrollmentStore>(
 						set({
 							status: {
 								phase: "failed",
-								organizationId,
 								jobId,
 								message,
 							},
@@ -92,7 +88,6 @@ export const useBulkEnrollmentStore = create<BulkEnrollmentStore>(
 					set({
 						status: {
 							phase: "failed",
-							organizationId,
 							jobId,
 							message,
 						},
@@ -109,7 +104,6 @@ export const useBulkEnrollmentStore = create<BulkEnrollmentStore>(
 					set({
 						status: {
 							phase: "failed",
-							organizationId: current.organizationId,
 							jobId: current.jobId,
 							message,
 						},

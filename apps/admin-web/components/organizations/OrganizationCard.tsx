@@ -1,7 +1,6 @@
 "use client";
 
 import {
-	formatDate,
 	getInitials,
 	getLabel,
 	LocationType,
@@ -17,14 +16,13 @@ import { Calendar, Globe, MapPin, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { ORGANIZATION_TYPE_OPTIONS } from "@/constants/organization";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { OrganizationDeleteDialog } from "./OrganizationDeleteDialog";
 
 type OrganizationCardProps = {
 	org: OrganizationResponseType;
 	canDelete?: boolean;
 };
-
-const DATE_PATTERN = "MM/dd/yyyy";
 
 function getHeadquarters(org: OrganizationResponseType): string | null {
 	const hq = org.locations.find(
@@ -38,8 +36,9 @@ function getHeadquarters(org: OrganizationResponseType): string | null {
 export function OrganizationCard({
 	org,
 	canDelete = false,
-}: OrganizationCardProps) {
+}: Readonly<OrganizationCardProps>) {
 	const [deleteOpen, setDeleteOpen] = useState(false);
+	const { fmtShortDate } = useUserTimezone();
 	const orgTypeLabel = getLabel(
 		ORGANIZATION_TYPE_OPTIONS,
 		org.organizationType,
@@ -97,12 +96,12 @@ export function OrganizationCard({
 
 						<span className="flex items-center gap-2">
 							<Calendar className="size-3.5 shrink-0" />
-							{formatDate(org.createdAt, DATE_PATTERN)}
+							{fmtShortDate(org.createdAt)}
 						</span>
 						{org.agreementRenewalDate && (
 							<span className="flex items-center gap-2">
 								<Calendar className="size-3.5 shrink-0" />
-								{formatDate(org.agreementRenewalDate, DATE_PATTERN)}
+								{fmtShortDate(org.agreementRenewalDate)}
 							</span>
 						)}
 						<span className="flex items-center gap-2">

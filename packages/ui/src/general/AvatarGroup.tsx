@@ -21,7 +21,7 @@ export const AvatarGroup = ({
 	size = "8",
 	stack = true,
 	maxDisplay = 5,
-}: AvatarGroupProps) => {
+}: Readonly<AvatarGroupProps>) => {
 	let MAX_DISPLAY_USERS = maxDisplay;
 	let remainingUsers = users && Math.max(users.length - MAX_DISPLAY_USERS, 0);
 	if (remainingUsers === 1) {

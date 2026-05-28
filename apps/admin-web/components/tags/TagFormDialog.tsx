@@ -28,9 +28,10 @@ import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { Info } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { TAG_TYPE_OPTIONS } from "@/constants/tags";
+import { useDialogFormEntitySnapshot } from "@/hooks/use-dialog-form-entity-snapshot";
 import { useCreateTag, useUpdateTag } from "@/queries/tags.query";
 import {
 	type TagFormValues,
@@ -55,13 +56,18 @@ export function TagFormDialog({
 	open,
 	onOpenChange,
 	initialTag,
-}: TagFormDialogProps) {
-	const isEdit = !!initialTag;
+}: Readonly<TagFormDialogProps>) {
+	const snapshotTag =
+		useDialogFormEntitySnapshot(open, initialTag ?? null) ?? undefined;
+	const isEdit = !!snapshotTag;
+
 	const createMutation = useCreateTag();
 	const updateMutation = useUpdateTag();
 
 	const form = useForm({
-		defaultValues: initialTag ? tagToFormValues(initialTag) : defaultFormValues,
+		defaultValues: snapshotTag
+			? tagToFormValues(snapshotTag)
+			: defaultFormValues,
 		validators: { onSubmit: tagFormSchema },
 		onSubmit: ({ value }) => {
 			const payload = {
@@ -71,13 +77,13 @@ export function TagFormDialog({
 				showOnSubmission: value.showOnSubmission,
 			};
 
-			if (isEdit && initialTag) {
+			if (isEdit && snapshotTag) {
 				updateMutation.mutate(
-					{ id: initialTag.id, data: payload },
+					{ id: snapshotTag.id, data: payload },
 					{
 						onSuccess: () => {
 							toast.success("Tag updated successfully");
-							handleClose();
+							onOpenChange(false);
 						},
 						onError: (err) => {
 							toast.error(
@@ -90,7 +96,7 @@ export function TagFormDialog({
 				createMutation.mutate(payload, {
 					onSuccess: () => {
 						toast.success("Tag created successfully");
-						handleClose();
+						onOpenChange(false);
 					},
 					onError: (err) => {
 						toast.error(
@@ -107,25 +113,21 @@ export function TagFormDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
+	const wasOpenRef = useRef(false);
 	useEffect(() => {
-		if (open && initialTag) {
-			form.reset(tagToFormValues(initialTag));
-		} else if (open && !initialTag) {
-			form.reset(defaultFormValues);
+		if (open && !wasOpenRef.current) {
+			form.reset(
+				snapshotTag ? tagToFormValues(snapshotTag) : defaultFormValues,
+			);
 		}
-	}, [open, initialTag, form]);
-
-	const handleClose = () => {
-		form.reset(defaultFormValues);
-		onOpenChange(false);
-	};
+		wasOpenRef.current = open;
+	}, [open, snapshotTag, form]);
 
 	const isPending = createMutation.isPending || updateMutation.isPending;
 
 	const handleOpenChange = (nextOpen: boolean) => {
 		if (isPending) return;
-		if (!nextOpen) handleClose();
-		else onOpenChange(true);
+		onOpenChange(nextOpen);
 	};
 
 	return (

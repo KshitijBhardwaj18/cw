@@ -23,7 +23,7 @@ export class WorkforceListsService {
 			select: { id: true },
 		});
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 	}
 
@@ -107,7 +107,7 @@ export class WorkforceListsService {
 			select: { id: true },
 		});
 		if (!list) {
-			throw new NotFoundException("Workforce list not found");
+			throw new NotFoundException("Workforce list not found.");
 		}
 
 		await this.prisma.workforceList.delete({ where: { id: listId } });
@@ -128,7 +128,7 @@ export class WorkforceListsService {
 			},
 		});
 		if (!list) {
-			throw new NotFoundException("Workforce list not found");
+			throw new NotFoundException("Workforce list not found.");
 		}
 
 		return {
@@ -223,7 +223,7 @@ export class WorkforceListsService {
 			select: { id: true },
 		});
 		if (!list) {
-			throw new NotFoundException("Workforce list not found");
+			throw new NotFoundException("Workforce list not found.");
 		}
 
 		const page = query.page ?? 1;
@@ -286,7 +286,7 @@ export class WorkforceListsService {
 			select: { id: true },
 		});
 		if (!list) {
-			throw new NotFoundException("Workforce list not found");
+			throw new NotFoundException("Workforce list not found.");
 		}
 
 		const candidates = await this.prisma.candidate.findMany({
@@ -294,7 +294,7 @@ export class WorkforceListsService {
 			select: { id: true },
 		});
 		if (candidates.length !== dto.candidateIds.length) {
-			throw new NotFoundException("One or more candidates were not found");
+			throw new NotFoundException("One or more candidates were not found.");
 		}
 
 		const existing = await this.prisma.workforceListMember.findMany({
@@ -304,7 +304,7 @@ export class WorkforceListsService {
 		const existingSet = new Set(existing.map((e) => e.candidateId));
 		const toCreate = dto.candidateIds.filter((id) => !existingSet.has(id));
 		if (!toCreate.length) {
-			throw new ConflictException("Selected members are already in the list");
+			throw new ConflictException("Selected members are already in the list.");
 		}
 
 		const created = await this.prisma.workforceListMember.createMany({
@@ -332,7 +332,7 @@ export class WorkforceListsService {
 			select: { id: true },
 		});
 		if (!member) {
-			throw new NotFoundException("List member not found");
+			throw new NotFoundException("List member not found.");
 		}
 
 		await this.prisma.workforceListMember.delete({ where: { id: memberId } });
@@ -351,7 +351,7 @@ export class WorkforceListsService {
 			select: { id: true },
 		});
 		if (!list) {
-			throw new NotFoundException("Workforce list not found");
+			throw new NotFoundException("Workforce list not found.");
 		}
 
 		const page = query.page ?? 1;
@@ -455,12 +455,12 @@ export class WorkforceListsService {
 			select: { id: true },
 		});
 		if (!list) {
-			throw new NotFoundException("Workforce list not found");
+			throw new NotFoundException("Workforce list not found.");
 		}
 
 		const tagName = this.normalizeTagName(dto.tagName);
 		if (!tagName) {
-			throw new BadRequestException("Tag name is required");
+			throw new BadRequestException("Enter a tag name.");
 		}
 
 		const tag = await this.prisma.tag.upsert({
@@ -495,7 +495,7 @@ export class WorkforceListsService {
 		});
 
 		if (!members.length) {
-			throw new NotFoundException("No members found to tag");
+			throw new NotFoundException("No members found to tag.");
 		}
 
 		const candidateIds = members.map((m) => m.candidateId);
@@ -534,7 +534,7 @@ export class WorkforceListsService {
 			where: { id: listId, organizationId: orgId },
 			select: { id: true, name: true },
 		});
-		if (!list) throw new NotFoundException("Workforce list not found");
+		if (!list) throw new NotFoundException("Workforce list not found.");
 
 		const where = this.buildMembersWhere(orgId, listId, query);
 

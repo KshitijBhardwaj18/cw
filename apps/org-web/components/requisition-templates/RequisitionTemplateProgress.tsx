@@ -32,7 +32,7 @@ export function RequisitionTemplateProgress({
 	currentStep,
 	onClickStep,
 	canJumpToStep,
-}: RequisitionTemplateProgressProps) {
+}: Readonly<RequisitionTemplateProgressProps>) {
 	return (
 		<div className="flex w-full items-center py-4 px-2">
 			{REQUISITION_TEMPLATE_STEPS.map((step, index) => {

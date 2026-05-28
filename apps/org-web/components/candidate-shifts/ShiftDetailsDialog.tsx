@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate, formatUsdPerHour } from "@repo/shared";
+import { todayInOrgTimezone, zonedToUtc } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
@@ -14,6 +14,7 @@ import {
 	DialogTitle,
 } from "@repo/ui/components/dialog";
 import { Calendar as CalendarIcon, Clock, Zap } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type {
 	CandidateShiftListItem,
 	CandidateWorkerType,
@@ -38,12 +39,18 @@ export function ShiftDetailsDialog({
 	workerType,
 	onAction,
 	isActionLoading,
-}: ShiftDetailsDialogProps) {
+}: Readonly<ShiftDetailsDialogProps>) {
+	const { fmtShortDate, fmtTime, tz } = useUserTimezone();
+
 	if (!shift) return null;
 
-	const formattedDate = formatDate(shift.date, "EEE, MMM d");
+	const formattedDate = fmtShortDate(shift.date);
 
-	const isOpen_ = shift.status === "OPEN" && !shift.isClaimed;
+	const todayIsoDate = todayInOrgTimezone(tz);
+	const shiftIsoDate = shift.date.slice(0, 10);
+	const isPast = shiftIsoDate < todayIsoDate;
+	const shiftTimeLabel = `${fmtTime(zonedToUtc(shift.date, shift.startTime, tz))} – ${fmtTime(zonedToUtc(shift.date, shift.endTime, tz))}`;
+	const isOpen_ = shift.status === "OPEN" && !shift.isClaimed && !isPast;
 	const canClaim = workerType === "internal" && isOpen_;
 	const needsInterest = workerType === "vendor" && isOpen_;
 
@@ -96,6 +103,22 @@ export function ShiftDetailsDialog({
 								Completed
 							</Badge>
 						)}
+						{shift.status === "EXPIRED" && (
+							<Badge
+								variant="secondary"
+								className="rounded-lg px-3 py-1 font-semibold"
+							>
+								Expired
+							</Badge>
+						)}
+						{shift.status === "CANCELLED" && (
+							<Badge
+								variant="error"
+								className="rounded-lg px-3 py-1 font-semibold"
+							>
+								Cancelled
+							</Badge>
+						)}
 						{shift.isUrgent && (
 							<Badge
 								variant="error"
@@ -135,17 +158,17 @@ export function ShiftDetailsDialog({
 										<DetailItem
 											label="Time"
 											icon={Clock}
-											value={`${shift.startTime} – ${shift.endTime}`}
+											value={shiftTimeLabel}
 										/>
 									</div>
 									<div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 										<DetailItem
-											label="Total Hours"
-											value={`${shift.totalHours} hrs`}
+											label="Shift Type"
+											value={shift.shiftType.replace(/_/g, " ")}
 										/>
 										<DetailItem
-											label="Rate"
-											value={formatUsdPerHour(shift.ratePerHour)}
+											label="Total Hours"
+											value={`${shift.totalHours} hrs`}
 										/>
 									</div>
 									<DetailItem
@@ -160,10 +183,6 @@ export function ShiftDetailsDialog({
 												)}
 											</div>
 										}
-									/>
-									<DetailItem
-										label="Shift Type"
-										value={shift.shiftType.replace(/_/g, " ")}
 									/>
 								</div>
 							</CardContent>

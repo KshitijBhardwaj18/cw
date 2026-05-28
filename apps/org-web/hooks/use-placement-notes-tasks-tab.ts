@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import { useOrgMembersForPicker } from "@/queries/organizations.queries";
 import {
 	useCompletePlacementTask,
@@ -12,15 +11,13 @@ import {
 import type { PlacementTask } from "@/types/placement";
 
 export function usePlacementNotesTasksTab(placementId: string) {
-	const { id: orgId } = useOrgContext();
+	const notesQuery = usePlacementNotes(placementId);
+	const tasksQuery = usePlacementTasks(placementId);
+	const membersQuery = useOrgMembersForPicker();
 
-	const notesQuery = usePlacementNotes(orgId, placementId);
-	const tasksQuery = usePlacementTasks(orgId, placementId);
-	const membersQuery = useOrgMembersForPicker(orgId);
-
-	const createNote = useCreatePlacementNote(orgId, placementId);
-	const createTask = useCreatePlacementTask(orgId, placementId);
-	const completeTask = useCompletePlacementTask(orgId, placementId);
+	const createNote = useCreatePlacementNote(placementId);
+	const createTask = useCreatePlacementTask(placementId);
+	const completeTask = useCompletePlacementTask(placementId);
 
 	const [addNoteOpen, setAddNoteOpen] = useState(false);
 	const [addTaskOpen, setAddTaskOpen] = useState(false);

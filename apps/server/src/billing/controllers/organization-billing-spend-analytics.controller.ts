@@ -57,4 +57,19 @@ export class OrganizationBillingSpendAnalyticsController {
 			query,
 		);
 	}
+
+	@Get("spend-analytics/savings-by-department")
+	@ApiOperation({
+		summary: "Savings by department (explicit organization id)",
+	})
+	@Permissions({ action: Action.List, subject: "SpendAnalytics" })
+	getSavingsByDepartment(
+		@Param("organizationId", ParseUUIDPipe) organizationId: string,
+		@Query() query: QuerySpendAnalyticsDto,
+	) {
+		return this.spendAnalyticsService.getSavingsByDepartment(
+			organizationId,
+			query,
+		);
+	}
 }

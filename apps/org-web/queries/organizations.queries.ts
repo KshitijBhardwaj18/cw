@@ -11,25 +11,19 @@ import { OrganizationsService } from "@/services/organizations.service";
 import { ShiftTemplatesService } from "@/services/shift-templates.service";
 
 export const organizationsKeys = {
-	locations: (orgId: string) => ["organizations", "locations", orgId] as const,
-	members: (orgId: string) => ["organizations", "members", orgId] as const,
-	membersPicker: (orgId: string, role?: MemberRole) =>
-		[...organizationsKeys.members(orgId), "picker", role ?? "_"] as const,
-	membersList: (
-		orgId: string,
-		params: Record<string, string | number | undefined>,
-	) => [...organizationsKeys.members(orgId), "list", params] as const,
-	departments: (orgId: string) =>
-		["organizations", "departments", orgId] as const,
+	locations: () => ["organizations", "locations"] as const,
+	members: () => ["organizations", "members"] as const,
+	membersPicker: (role?: MemberRole) =>
+		[...organizationsKeys.members(), "picker", role ?? "_"] as const,
+	membersList: (params: Record<string, string | number | undefined>) =>
+		[...organizationsKeys.members(), "list", params] as const,
+	departments: () => ["organizations", "departments"] as const,
 };
 
-export function useOrganizationLocationsForOnboarding(
-	orgId: string | undefined,
-) {
+export function useOrganizationLocationsForOnboarding() {
 	return useQuery({
-		queryKey: organizationsKeys.locations(orgId ?? ""),
+		queryKey: organizationsKeys.locations(),
 		queryFn: () => OnboardingService.getLocationsForOrg(),
-		enabled: !!orgId,
 		staleTime: 60_000,
 	});
 }
@@ -45,26 +39,22 @@ export type OrgMembersListParams = {
 	role?: MemberRole;
 };
 
-export function useOrgMembersForPicker(
-	orgId: string,
-	options?: { role?: MemberRole },
-) {
+export function useOrgMembersForPicker(options?: { role?: MemberRole }) {
 	const role = options?.role;
 	return useQuery({
-		queryKey: organizationsKeys.membersPicker(orgId, role),
+		queryKey: organizationsKeys.membersPicker(role),
 		queryFn: () =>
 			OrganizationsService.listMembers({
 				limit: 100,
 				...(role ? { role } : {}),
 			}),
-		enabled: !!orgId,
 		staleTime: 60_000,
 	});
 }
 
-export function useOrgMembersList(orgId: string, params: OrgMembersListParams) {
+export function useOrgMembersList(params: OrgMembersListParams) {
 	return useQuery({
-		queryKey: organizationsKeys.membersList(orgId, {
+		queryKey: organizationsKeys.membersList({
 			search: params.search,
 			page: params.page,
 			limit: params.limit,
@@ -72,38 +62,37 @@ export function useOrgMembersList(orgId: string, params: OrgMembersListParams) {
 			role: params.role,
 		}),
 		queryFn: () => OrganizationsService.listMembers(params),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useEnrollOrgUser(orgId: string) {
+export function useEnrollOrgUser() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (payload: EnrollOrgUserPayload) =>
 			OrganizationsService.enrollOrgUser(payload),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: organizationsKeys.members(orgId),
+				queryKey: organizationsKeys.members(),
 			});
 		},
 	});
 }
 
-export function useRemoveOrgMember(orgId: string) {
+export function useRemoveOrgMember() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (memberId: string) =>
 			OrganizationsService.removeMember(memberId),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: organizationsKeys.members(orgId),
+				queryKey: organizationsKeys.members(),
 			});
 		},
 	});
 }
 
-export function useUpdateOrgMember(orgId: string) {
+export function useUpdateOrgMember() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -115,24 +104,23 @@ export function useUpdateOrgMember(orgId: string) {
 		}) => OrganizationsService.updateMember(memberId, payload),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: organizationsKeys.members(orgId),
+				queryKey: organizationsKeys.members(),
 			});
 		},
 	});
 }
 
-export function useBulkEnrollOrgUsers(_orgId: string) {
+export function useBulkEnrollOrgUsers() {
 	return useMutation({
 		mutationFn: (file: File): Promise<BulkEnrollmentSubmitResponse> =>
 			OrganizationsService.submitBulkEnrollment(file),
 	});
 }
 
-export function useOrgDepartmentsForUsers(orgId: string) {
+export function useOrgDepartmentsForUsers() {
 	return useQuery({
-		queryKey: organizationsKeys.departments(orgId),
+		queryKey: organizationsKeys.departments(),
 		queryFn: () => ShiftTemplatesService.getDepartments(),
-		enabled: !!orgId,
 		staleTime: 60_000,
 	});
 }

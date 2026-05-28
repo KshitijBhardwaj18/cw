@@ -1,9 +1,5 @@
 "use client";
 
-import {
-	CANDIDATE_PREFERRED_CONTRACT_LENGTH_OPTIONS,
-	type CandidatePreferredContractLength,
-} from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Field,
@@ -11,7 +7,6 @@ import {
 	FieldGroup,
 	FieldLabel,
 } from "@repo/ui/components/field";
-import { InputGroup, InputGroupInput } from "@repo/ui/components/input-group";
 import {
 	MultiSelect,
 	MultiSelectContent,
@@ -45,7 +40,6 @@ interface ProfessionalDetailsStepProps {
 	occupationId?: string;
 	occupationName?: string;
 	token?: string;
-	orgId?: string;
 	existingResumeKey?: string | null;
 	onRequestResumeSignedUrl?: () => Promise<string | null>;
 }
@@ -59,10 +53,9 @@ export function ProfessionalDetailsStep({
 	inviteMode,
 	occupationId,
 	occupationName,
-	orgId,
 	existingResumeKey,
 	onRequestResumeSignedUrl,
-}: ProfessionalDetailsStepProps) {
+}: Readonly<ProfessionalDetailsStepProps>) {
 	const {
 		form,
 		occupationsData,
@@ -71,8 +64,6 @@ export function ProfessionalDetailsStep({
 		specialtiesLoading,
 		canFetchSpecialties,
 		onScrollToBottomOccupations,
-		onScrollToBottomSpecialties,
-		formOccupationId,
 	} = useProfessionalDetailsStepForm({
 		defaultValues,
 		onContinue,
@@ -81,7 +72,6 @@ export function ProfessionalDetailsStep({
 		inviteMode,
 		occupationId,
 		occupationName,
-		orgId,
 	});
 
 	const submissionAttempts = useStore(
@@ -142,7 +132,7 @@ export function ProfessionalDetailsStep({
 											<MultiSelectTrigger
 												id={field.name}
 												className="w-full justify-between"
-												disabled={!orgId || occupationsLoading}
+												disabled={occupationsLoading}
 												aria-invalid={isInvalid}
 											>
 												<MultiSelectValue placeholder="Search for your occupation..." />
@@ -162,9 +152,7 @@ export function ProfessionalDetailsStep({
 															{occ.name}
 														</MultiSelectItem>
 													))}
-												{!occupationsLoading &&
-												orgId &&
-												occupationsData.length === 0 ? (
+												{!occupationsLoading && occupationsData.length === 0 ? (
 													<div className="py-6 text-center text-sm text-muted-foreground">
 														No occupations available
 													</div>
@@ -180,84 +168,10 @@ export function ProfessionalDetailsStep({
 						</form.Field>
 					)}
 
-					<form.Field name="specialtyIds">
-						{(field) => (
-							<Field>
-								<FieldLabel className="text-sm font-medium">
-									Specialties
-								</FieldLabel>
-								<MultiSelect
-									key={`specialties-${formOccupationId}-${inviteMode}`}
-									single={false}
-									values={field.state.value}
-									onValuesChange={(v) => field.handleChange(v)}
-								>
-									<MultiSelectTrigger
-										className="w-full justify-between"
-										disabled={!canFetchSpecialties || specialtiesLoading}
-									>
-										<MultiSelectValue placeholder="Search for specialties..." />
-									</MultiSelectTrigger>
-									<MultiSelectContent
-										search={{ placeholder: "Search..." }}
-										shouldFilter={false}
-										onScrollToBottom={onScrollToBottomSpecialties}
-									>
-										{specialtiesLoading ? (
-											<div className="py-6 text-center text-sm text-muted-foreground">
-												Loading specialties...
-											</div>
-										) : null}
-										{!specialtiesLoading &&
-											specialties.map((s) => (
-												<MultiSelectItem key={s.id} value={s.id}>
-													{s.label}
-												</MultiSelectItem>
-											))}
-										{!specialtiesLoading &&
-										canFetchSpecialties &&
-										specialties.length === 0 ? (
-											<div className="py-6 text-center text-sm text-muted-foreground">
-												No specialties for this occupation
-											</div>
-										) : null}
-									</MultiSelectContent>
-								</MultiSelect>
-							</Field>
-						)}
-					</form.Field>
-
-					<form.Field name="preferredContractLengths">
-						{(field) => (
-							<Field>
-								<FieldLabel className="text-sm font-medium">
-									What contract length(s) do you prefer?
-								</FieldLabel>
-								<MultiSelect
-									values={field.state.value}
-									onValuesChange={(v) =>
-										field.handleChange(v as CandidatePreferredContractLength[])
-									}
-								>
-									<MultiSelectTrigger className="w-full justify-between">
-										<MultiSelectValue placeholder="Select options..." />
-									</MultiSelectTrigger>
-									<MultiSelectContent search={{ placeholder: "Search..." }}>
-										{CANDIDATE_PREFERRED_CONTRACT_LENGTH_OPTIONS.map((opt) => (
-											<MultiSelectItem key={opt.value} value={opt.value}>
-												{opt.label}
-											</MultiSelectItem>
-										))}
-									</MultiSelectContent>
-								</MultiSelect>
-							</Field>
-						)}
-					</form.Field>
-
 					<form.Field
-						name="yearsOfExperience"
+						name="specialtyIds"
 						validators={{
-							onChange: professionalDetailsObjectSchema.shape.yearsOfExperience,
+							onChange: professionalDetailsObjectSchema.shape.specialtyIds,
 						}}
 					>
 						{(field) => {
@@ -266,33 +180,44 @@ export function ProfessionalDetailsStep({
 								field.state.meta.isValid,
 								submissionAttempts,
 							);
-							const raw = field.state.value;
-							const num = typeof raw === "number" ? raw : Number(raw);
 							return (
 								<Field data-invalid={isInvalid}>
-									<FieldLabel
-										htmlFor={field.name}
-										className="text-sm font-medium"
-									>
-										Years of Experience <RequiredStar />
+									<FieldLabel className="text-sm font-medium">
+										Specialties <RequiredStar />
 									</FieldLabel>
-									<InputGroup>
-										<InputGroupInput
-											id={field.name}
-											name={field.name}
-											type="number"
-											min={0}
-											max={50}
-											placeholder="Enter years of experience"
-											value={Number.isNaN(num) ? "" : num}
-											onBlur={field.handleBlur}
-											onChange={(e) => {
-												const v = e.target.valueAsNumber;
-												field.handleChange(v);
-											}}
+									<MultiSelect
+										single={false}
+										values={field.state.value}
+										onValuesChange={(v) => field.handleChange(v)}
+									>
+										<MultiSelectTrigger
+											className="w-full justify-between"
+											disabled={!canFetchSpecialties || specialtiesLoading}
 											aria-invalid={isInvalid}
-										/>
-									</InputGroup>
+										>
+											<MultiSelectValue placeholder="Search for specialties..." />
+										</MultiSelectTrigger>
+										<MultiSelectContent search={{ placeholder: "Search..." }}>
+											{specialtiesLoading ? (
+												<div className="py-6 text-center text-sm text-muted-foreground">
+													Loading specialties...
+												</div>
+											) : null}
+											{!specialtiesLoading &&
+												specialties.map((s) => (
+													<MultiSelectItem key={s.id} value={s.id}>
+														{s.label}
+													</MultiSelectItem>
+												))}
+											{!specialtiesLoading &&
+											canFetchSpecialties &&
+											specialties.length === 0 ? (
+												<div className="py-6 text-center text-sm text-muted-foreground">
+													No specialties for this occupation
+												</div>
+											) : null}
+										</MultiSelectContent>
+									</MultiSelect>
 									{isInvalid && <FieldError errors={field.state.meta.errors} />}
 								</Field>
 							);

@@ -15,7 +15,7 @@ export function DepartmentDeleteDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: DepartmentDeleteDialogProps) {
+}: Readonly<DepartmentDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={!!department}

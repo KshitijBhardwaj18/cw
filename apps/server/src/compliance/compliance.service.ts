@@ -61,23 +61,76 @@ export class ComplianceService {
 		limit?: number;
 	}) {
 		const where = this.buildWhereFromQuery(query);
-		const orderBy: Prisma.ComplianceListItemOrderByWithRelationInput[] =
-			query.category
-				? [{ name: "asc" }]
-				: [{ category: "asc" }, { name: "asc" }];
-
-		const usePagination =
-			!query.ids?.length &&
-			!query.all &&
-			(query.category !== undefined ||
+		return this.fetchComplianceItems(where, {
+			page: query.page,
+			limit: query.limit,
+			all: query.all,
+			usePaginationHint:
+				query.category !== undefined ||
 				query.page !== undefined ||
 				query.limit !== undefined ||
 				query.search !== undefined ||
-				query.status !== undefined);
+				query.status !== undefined,
+			hasIds: !!query.ids?.length,
+			hasCategory: query.category !== undefined,
+		});
+	}
+
+	async getWalletTemplatePickerItems(query: {
+		category?: $Enums.ComplianceListItemCategory;
+		search?: string;
+		ids?: string[];
+		all?: boolean;
+		page?: number;
+		limit?: number;
+	}) {
+		const where: Prisma.ComplianceListItemWhereInput = {
+			...this.buildWhereFromQuery({
+				category: query.category,
+				status: $Enums.ComplianceListItemStatus.ACTIVE,
+				search: query.search,
+				ids: query.ids,
+			}),
+			displayToCandidate: true,
+			responseStyle: {
+				notIn: [$Enums.ComplianceListItemResponseStyle.INTERNAL_TASK],
+			},
+		};
+		return this.fetchComplianceItems(where, {
+			page: query.page,
+			limit: query.limit,
+			all: query.all,
+			usePaginationHint:
+				query.category !== undefined ||
+				query.page !== undefined ||
+				query.limit !== undefined ||
+				query.search !== undefined,
+			hasIds: !!query.ids?.length,
+			hasCategory: query.category !== undefined,
+		});
+	}
+
+	private async fetchComplianceItems(
+		where: Prisma.ComplianceListItemWhereInput,
+		opts: {
+			page?: number;
+			limit?: number;
+			all?: boolean;
+			usePaginationHint: boolean;
+			hasIds: boolean;
+			hasCategory: boolean;
+		},
+	) {
+		const orderBy: Prisma.ComplianceListItemOrderByWithRelationInput[] =
+			opts.hasCategory
+				? [{ name: "asc" }]
+				: [{ category: "asc" }, { name: "asc" }];
+
+		const usePagination = !opts.hasIds && !opts.all && opts.usePaginationHint;
 
 		if (usePagination) {
-			const page = query.page ?? 1;
-			const limit = query.limit ?? 10;
+			const page = opts.page ?? 1;
+			const limit = opts.limit ?? 10;
 			const skip = (page - 1) * limit;
 			const [data, total] = await Promise.all([
 				this.prismaService.complianceListItem.findMany({
@@ -273,6 +326,33 @@ export class ComplianceService {
 			fileKey = await this.uploadComplianceDocument(files.complianceDocument);
 		}
 
+		const isInternalTask =
+			dto.responseStyle ===
+			$Enums.ComplianceListItemResponseStyle.INTERNAL_TASK;
+		const displayToCandidate = isInternalTask
+			? false
+			: (dto.displayToCandidate ?? true);
+
+		const isLink =
+			dto.responseStyle === $Enums.ComplianceListItemResponseStyle.LINK;
+		const isDownloadAndUpload =
+			dto.responseStyle ===
+			$Enums.ComplianceListItemResponseStyle.DOWNLOAD_AND_UPLOAD;
+		const fileValue = isLink
+			? dto.file?.trim() || null
+			: isDownloadAndUpload
+				? fileKey
+				: null;
+
+		if (isLink && !fileValue) {
+			throw new BadRequestException("Link URL is required for link items.");
+		}
+		if (isDownloadAndUpload && !fileValue) {
+			throw new BadRequestException(
+				"Attachment is required for download-and-upload items",
+			);
+		}
+
 		return this.prismaService.complianceListItem.create({
 			data: {
 				name: dto.name,
@@ -283,9 +363,9 @@ export class ComplianceService {
 				issuerRequirement: dto.issuerRequirement ?? false,
 				issuer: dto.issuer ?? null,
 				responseStyle: dto.responseStyle,
-				file: fileKey,
+				file: fileValue,
 				instructionalNotes: dto.instructionalNotes ?? null,
-				displayToCandidate: dto.displayToCandidate ?? false,
+				displayToCandidate,
 				status: dto.status ?? $Enums.ComplianceListItemStatus.ACTIVE,
 			},
 		});
@@ -301,7 +381,7 @@ export class ComplianceService {
 		});
 
 		if (!item) {
-			throw new NotFoundException(`Compliance item with id ${id} not found`);
+			throw new NotFoundException("Compliance item not found.");
 		}
 
 		const dto = plainToInstance(UpdateComplianceItemDto, data);
@@ -367,6 +447,17 @@ export class ComplianceService {
 			updateData.displayToCandidate = dto.displayToCandidate;
 		if (dto.status !== undefined) updateData.status = dto.status;
 
+		const finalResponseStyle =
+			(updateData.responseStyle as
+				| $Enums.ComplianceListItemResponseStyle
+				| undefined) ?? item.responseStyle;
+		if (
+			finalResponseStyle ===
+			$Enums.ComplianceListItemResponseStyle.INTERNAL_TASK
+		) {
+			updateData.displayToCandidate = false;
+		}
+
 		return this.prismaService.complianceListItem.update({
 			where: { id },
 			data: updateData as Prisma.ComplianceListItemUpdateInput,
@@ -379,9 +470,7 @@ export class ComplianceService {
 			select: { file: true },
 		});
 		if (!item) {
-			throw new NotFoundException(
-				`Compliance item with id ${itemId} not found`,
-			);
+			throw new NotFoundException("Compliance item not found.");
 		}
 		if (!item.file) {
 			throw new NotFoundException(
@@ -413,7 +502,7 @@ export class ComplianceService {
 		});
 
 		if (!item) {
-			throw new NotFoundException(`Compliance item with id ${id} not found`);
+			throw new NotFoundException("Compliance item not found.");
 		}
 
 		await this.prismaService.complianceListItem.delete({ where: { id } });

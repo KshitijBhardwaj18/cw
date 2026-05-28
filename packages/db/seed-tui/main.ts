@@ -9,8 +9,10 @@ import {
 } from "@clack/prompts";
 import { createPrismaClient } from "../lib/create-prisma-client";
 import { cleanupAdmin, seedAdmin } from "./admin";
+import { cleanupCandidate, seedCandidate } from "./candidate";
 import { getOrganizationDataset } from "./dataset/organization";
 import { cleanupOrganization, seedOrganization } from "./organization";
+import { cleanupVendor, seedVendor } from "./vendor";
 
 const prisma = createPrismaClient();
 
@@ -96,6 +98,8 @@ async function main() {
 
 	if (shouldCleanup) {
 		s.start(`Cleaning up existing seed data for ${targetOrgName}...`);
+		await cleanupCandidate(prisma, targetOrgId);
+		await cleanupVendor(prisma, targetOrgId);
 		await cleanupOrganization(prisma, targetOrgId);
 		await cleanupAdmin(prisma, targetOrgId);
 		s.stop("Cleanup complete.");
@@ -106,9 +110,17 @@ async function main() {
 		await seedAdmin(prisma, targetOrgId);
 		s.stop("Admin Portal seeding complete.");
 
+		s.start(`Seeding Vendor Portal data for ${targetOrgName}...`);
+		await seedVendor(prisma, targetOrgId);
+		s.stop("Vendor Portal seeding complete.");
+
 		s.start(`Seeding Organization Portal data for ${targetOrgName}...`);
 		await seedOrganization(prisma, targetOrgId);
 		s.stop("Organization Portal seeding complete.");
+
+		s.start(`Seeding Candidate Portal data for ${targetOrgName}...`);
+		await seedCandidate(prisma, targetOrgId);
+		s.stop("Candidate Portal seeding complete.");
 	}
 
 	outro("Done!");

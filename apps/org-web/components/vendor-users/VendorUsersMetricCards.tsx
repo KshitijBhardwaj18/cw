@@ -8,7 +8,9 @@ export interface VendorUsersMetricCardsProps {
 	stats: VendorUserMetricStats;
 }
 
-export function VendorUsersMetricCards({ stats }: VendorUsersMetricCardsProps) {
+export function VendorUsersMetricCards({
+	stats,
+}: Readonly<VendorUsersMetricCardsProps>) {
 	return (
 		<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 			<MetricCard

@@ -16,7 +16,7 @@ export function OccupationsTable({
 	onEdit,
 	onDelete,
 	actions,
-}: OccupationsTableProps) {
+}: Readonly<OccupationsTableProps>) {
 	const { columns } = useOccupationColumns({ onEdit, onDelete, actions });
 
 	return <CustomTable columns={columns} data={data} enableSorting={false} />;

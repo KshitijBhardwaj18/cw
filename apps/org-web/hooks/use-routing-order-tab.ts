@@ -41,14 +41,11 @@ function buildInitialTiers(serverTiers: ShiftRoutingTierType[]): TierItem[] {
 	}));
 }
 
-export function useRoutingOrderTab(
-	orgId: string,
-	serverTiers: ShiftRoutingTierType[],
-) {
+export function useRoutingOrderTab(serverTiers: ShiftRoutingTierType[]) {
 	const [localTiers, setLocalTiers] = useState<TierItem[]>([]);
 	const [isDirty, setIsDirty] = useState(false);
 
-	const syncMutation = useSyncTiers(orgId);
+	const syncMutation = useSyncTiers();
 
 	useEffect(() => {
 		setLocalTiers(buildInitialTiers(serverTiers));

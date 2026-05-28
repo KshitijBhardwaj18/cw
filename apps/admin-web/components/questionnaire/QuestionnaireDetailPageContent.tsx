@@ -27,7 +27,7 @@ export default function QuestionnaireDetailPageContent({
 	organizationId,
 	questionnaireType,
 	entityId,
-}: QuestionnaireDetailPageContentProps) {
+}: Readonly<QuestionnaireDetailPageContentProps>) {
 	const { ability } = useAuth();
 	const canUpdate = ability.can(Action.Update, "Questionnaire");
 	const canCreateQuestion = ability.can(Action.Create, "Question");

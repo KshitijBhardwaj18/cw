@@ -57,7 +57,7 @@ export class OrganizationsController {
 		try {
 			return JSON.parse(raw) as Record<string, unknown>;
 		} catch {
-			throw new BadRequestException("Invalid data JSON");
+			throw new BadRequestException("Invalid data JSON.");
 		}
 	}
 
@@ -331,7 +331,7 @@ export class OrganizationsController {
 	@ApiOperation({ summary: "Get invitation job status (single or bulk)" })
 	@ApiResponse({ status: 200, description: "Job status and result" })
 	@ApiResponse({ status: 404, description: "Job or organization not found" })
-	@Permissions({ action: Action.Read, subject: "BackGroundJob" })
+	@Permissions({ action: Action.Read, subject: "User" })
 	async getInviteJob(
 		@Param("id", ParseUUIDPipe) id: string,
 		@Param("jobId", ParseUUIDPipe) jobId: string,

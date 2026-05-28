@@ -24,7 +24,9 @@ export class OrgPortalDelegationService {
 			select: { id: true, role: true, email: true },
 		});
 		if (!actor) {
-			throw new ForbiddenException();
+			throw new ForbiddenException(
+				"You don't have permission to create a delegation link.",
+			);
 		}
 		if (
 			actor &&
@@ -35,7 +37,9 @@ export class OrgPortalDelegationService {
 				where: { userId: actor.id, organizationId: organizationId },
 			});
 			if (!membership) {
-				throw new ForbiddenException();
+				throw new ForbiddenException(
+					"You don't have access to this organization.",
+				);
 			}
 		}
 
@@ -44,10 +48,11 @@ export class OrgPortalDelegationService {
 			select: { id: true, slug: true },
 		});
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		const callbackURL = this.buildOrgPortalUrl(org.slug);
+		const consumeOrigin = this.buildOrgSubdomainOrigin(org.slug);
 
 		const result = await authOrgInternal.api.createOrgDelegation({
 			body: {
@@ -55,6 +60,11 @@ export class OrgPortalDelegationService {
 				organizationId: org.id,
 				callbackURL,
 				issuedByUserId: actor.id,
+				consumeOrigin,
+			} as Parameters<
+				typeof authOrgInternal.api.createOrgDelegation
+			>[0]["body"] & {
+				consumeOrigin: string;
 			},
 		});
 		if (!result?.url) {
@@ -74,6 +84,20 @@ export class OrgPortalDelegationService {
 			url.search = "";
 			url.hash = "";
 			return url.toString();
+		} catch {
+			return base;
+		}
+	}
+
+	private buildOrgSubdomainOrigin(slug: string): string {
+		const base = config.urls.orgPortalBaseUrl;
+		try {
+			const url = new URL(base);
+			url.hostname = `${slug}.${url.hostname}`;
+			url.pathname = "/";
+			url.search = "";
+			url.hash = "";
+			return url.origin;
 		} catch {
 			return base;
 		}

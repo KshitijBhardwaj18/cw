@@ -15,7 +15,7 @@ export function TagDeleteDialog({
 	tag,
 	open,
 	onOpenChange,
-}: TagDeleteDialogProps) {
+}: Readonly<TagDeleteDialogProps>) {
 	const deleteMutation = useDeleteTag();
 
 	const handleConfirm = () => {

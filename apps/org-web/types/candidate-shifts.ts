@@ -2,7 +2,8 @@ export type CandidateShiftStatus =
 	| "OPEN"
 	| "IN_PROGRESS"
 	| "COMPLETED"
-	| "CANCELLED";
+	| "CANCELLED"
+	| "EXPIRED";
 
 export type CandidateWorkerType = "internal" | "vendor";
 
@@ -49,6 +50,9 @@ export interface CandidateShiftsListResponse {
 export interface CandidateShiftCounts {
 	available: number;
 	myShifts: number;
+	active: number;
+	completed: number;
+	isInternal: boolean;
 }
 
 export interface CandidateShiftsCalendarResponse {

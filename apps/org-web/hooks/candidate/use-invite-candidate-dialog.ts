@@ -2,25 +2,23 @@
 
 import { CandidateWorkforceType } from "@repo/shared";
 import { useForm, useStore } from "@tanstack/react-form";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import {
-	useInviteCandidate,
-	useOrgOccupations,
-	useSpecialtiesForOccupation,
-} from "@/queries/talent-community.queries";
+	useOrgOccupationSpecialties,
+	useShiftTemplateOccupations,
+} from "@/queries/shift-templates.queries";
+import { useInviteCandidate } from "@/queries/talent-community.queries";
 import { inviteCandidateSchema } from "@/schemas/talent-community.schema";
 
 export function useInviteCandidateDialog({
 	onOpenChange,
-	orgId,
 }: {
 	onOpenChange: (open: boolean) => void;
-	orgId: string;
 }) {
-	const { data: occupationsData, isLoading: isLoadingOccupations } =
-		useOrgOccupations(orgId);
-	const inviteMutation = useInviteCandidate(orgId);
+	const { data: orgOccupations, isLoading: isLoadingOccupations } =
+		useShiftTemplateOccupations();
+	const inviteMutation = useInviteCandidate();
 
 	const form = useForm({
 		defaultValues: {
@@ -70,11 +68,28 @@ export function useInviteCandidateDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
-	const { data: specialtiesData, isLoading: isLoadingSpecialties } =
-		useSpecialtiesForOccupation(orgId, selectedOccupationId);
+	const occupationItems = useMemo(
+		() =>
+			(orgOccupations ?? []).map((o) => ({
+				occupationId: o.id,
+				occupation: { name: o.name },
+			})),
+		[orgOccupations],
+	);
 
-	const occupationItems = occupationsData?.data ?? [];
-	const specialties = specialtiesData ?? [];
+	const organizationOccupationId = useMemo(
+		() =>
+			(orgOccupations ?? []).find((o) => o.id === selectedOccupationId)
+				?.organizationOccupationId ?? null,
+		[orgOccupations, selectedOccupationId],
+	);
+	const { data: specialtyRows, isLoading: isLoadingSpecialties } =
+		useOrgOccupationSpecialties(organizationOccupationId);
+	const specialties = useMemo(
+		() =>
+			(specialtyRows ?? []).map((s) => ({ id: s.specialtyId, name: s.name })),
+		[specialtyRows],
+	);
 
 	const handleOpenChange = useCallback(
 		(next: boolean) => {

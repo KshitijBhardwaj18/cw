@@ -4,6 +4,7 @@ import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { Check } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { PlacementTask } from "@/types/placement";
 
 interface PlacementTaskCardProps {
@@ -14,8 +15,9 @@ interface PlacementTaskCardProps {
 export function PlacementTaskCard({
 	task,
 	onMarkComplete,
-}: PlacementTaskCardProps) {
+}: Readonly<PlacementTaskCardProps>) {
 	const isPending = task.status === "pending";
+	const { fmtShortDate } = useUserTimezone();
 
 	return (
 		<Card className="border">
@@ -33,7 +35,7 @@ export function PlacementTaskCard({
 							{isPending ? "Pending" : "Completed"}
 						</Badge>
 						<span className="text-muted-foreground text-sm">
-							Due: {task.dueDate}
+							Due: {fmtShortDate(task.dueDate)}
 						</span>
 					</div>
 					{isPending && onMarkComplete && (

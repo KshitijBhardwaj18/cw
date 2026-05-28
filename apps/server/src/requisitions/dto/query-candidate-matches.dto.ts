@@ -1,7 +1,9 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
+import { ShiftType } from "@repo/db";
 import { Transform, Type } from "class-transformer";
 import {
 	IsBoolean,
+	IsEnum,
 	IsInt,
 	IsOptional,
 	IsString,
@@ -27,10 +29,10 @@ export class QueryCandidateMatchesDto {
 	@IsUUID()
 	locationId?: string;
 
-	@ApiPropertyOptional()
+	@ApiPropertyOptional({ enum: ShiftType })
 	@IsOptional()
-	@IsString()
-	shiftType?: string;
+	@IsEnum(ShiftType)
+	shiftType?: ShiftType;
 
 	@ApiPropertyOptional()
 	@IsOptional()

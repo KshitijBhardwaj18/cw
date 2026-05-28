@@ -7,8 +7,8 @@ import {
 	ConfigPageErrorState,
 } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
 import LoadingScreen from "@repo/ui/general/LoadingScreen";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { AlertCircle, Briefcase, CircleCheck, Plus } from "lucide-react";
 import Link from "next/link";
@@ -30,6 +30,9 @@ export function JobsPageContent() {
 		page,
 		totalPages,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions,
 		hasActiveFilters,
 		isLoading,
 		isError,
@@ -182,10 +185,16 @@ export function JobsPageContent() {
 								/>
 							))}
 						</div>
-						<ConfigPagePagination
-							page={page}
-							totalPages={totalPages}
-							onPageChange={setPage}
+						<PaginationControls
+							currentPage={page}
+							pageCount={totalPages}
+							goToPage={setPage}
+							limit={limit}
+							setLimit={setLimit}
+							pageSizeOptions={pageSizeOptions}
+							totalItems={totalCount}
+							itemLabel="job"
+							itemLabelPlural="jobs"
 						/>
 					</>
 				)}

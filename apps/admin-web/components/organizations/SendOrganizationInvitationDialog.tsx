@@ -43,7 +43,7 @@ export function SendOrganizationInvitationDialog({
 	onOpenChange,
 	orgTimezone,
 	onSuccess,
-}: SendOrganizationInvitationDialogProps) {
+}: Readonly<SendOrganizationInvitationDialogProps>) {
 	const {
 		timing,
 		setTiming,

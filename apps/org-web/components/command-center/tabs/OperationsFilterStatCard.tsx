@@ -15,7 +15,7 @@ export const OperationsFilterStatCard = ({
 	count,
 	isActive,
 	onClick,
-}: OperationsFilterStatCardProps) => {
+}: Readonly<OperationsFilterStatCardProps>) => {
 	const Icon = card.icon;
 
 	return (

@@ -5,7 +5,10 @@ type PageProps = {
 	searchParams: Promise<{ view?: string }>;
 };
 
-export default async function Page({ params, searchParams }: PageProps) {
+export default async function Page({
+	params,
+	searchParams,
+}: Readonly<PageProps>) {
 	const { organizationId, walletId } = await params;
 	const { view } = await searchParams;
 	const readOnly = view === "true";

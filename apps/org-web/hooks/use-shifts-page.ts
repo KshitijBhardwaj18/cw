@@ -7,14 +7,17 @@ import { useQuery } from "@tanstack/react-query";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useMemo, useState } from "react";
 import type { Shift, ShiftStatus } from "@/constants/shifts";
-import { SHIFT_LIST_PAGE_SIZE, SHIFT_TYPE_OPTIONS } from "@/constants/shifts";
-import { useOrgContext } from "@/contexts/org-context";
 import {
+	PerDiemShiftStatus,
+	SHIFT_LIST_PAGE_SIZE,
+	SHIFT_TYPE_OPTIONS,
+} from "@/constants/shifts";
+import {
+	useOrgOccupationSpecialties,
 	useShiftTemplateDepartments,
 	useShiftTemplateLocations,
 	useShiftTemplateOccupations,
 } from "@/queries/shift-templates.queries";
-import { useSpecialtiesForOccupation } from "@/queries/talent-community.queries";
 import type { PerDiemShiftListResponse } from "@/services/per-diem-shifts.service";
 import { PerDiemShiftsService } from "@/services/per-diem-shifts.service";
 
@@ -27,10 +30,11 @@ const SELECT_FILTER_KEYS = [
 ] as const;
 
 const VALID_STATUSES: ShiftStatus[] = [
-	"OPEN",
-	"IN_PROGRESS",
-	"COMPLETED",
-	"CANCELLED",
+	PerDiemShiftStatus.OPEN,
+	PerDiemShiftStatus.IN_PROGRESS,
+	PerDiemShiftStatus.COMPLETED,
+	PerDiemShiftStatus.CANCELLED,
+	PerDiemShiftStatus.EXPIRED,
 ];
 
 const perDiemShiftsKeys = {
@@ -41,6 +45,7 @@ const perDiemShiftsKeys = {
 
 export const SHIFTS_PARAMS = {
 	PAGE: "pdPage",
+	LIMIT: "pdLimit",
 	SEARCH: "pdSearch",
 	STATUS: "status",
 	DATE: "date",
@@ -51,12 +56,14 @@ export const SHIFTS_PARAMS = {
 	SPECIALTY: "specialty",
 } as const;
 
-export function useShiftsPage() {
-	const { id: orgId } = useOrgContext();
+const SHIFTS_PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
-	const { page, setPage, resetPage } = usePaginationControls({
+export function useShiftsPage() {
+	const { page, setPage, resetPage, limit, setLimit } = usePaginationControls({
 		pageParamKey: SHIFTS_PARAMS.PAGE,
+		limitParamKey: SHIFTS_PARAMS.LIMIT,
 		defaultLimit: SHIFT_LIST_PAGE_SIZE,
+		pageSizeOptions: SHIFTS_PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -164,13 +171,18 @@ export function useShiftsPage() {
 	const locationsQuery = useShiftTemplateLocations();
 	const occupationsQuery = useShiftTemplateOccupations();
 
-	const activeOccupationId =
-		occupationsQuery.data?.find((o) => o.name === filters.occupation)?.id ??
-		null;
-	const { data: specialtiesForOccupation } = useSpecialtiesForOccupation(
-		orgId,
-		activeOccupationId,
+	const activeOrgOccupationId =
+		filters.occupation === "all"
+			? null
+			: (occupationsQuery.data?.find((o) => o.name === filters.occupation)
+					?.organizationOccupationId ?? null);
+	const { data: specialtyRows } = useOrgOccupationSpecialties(
+		activeOrgOccupationId,
 	);
+	const specialtiesForOccupation = (specialtyRows ?? []).map((s) => ({
+		id: s.specialtyId,
+		name: s.name,
+	}));
 
 	const queryParams = useMemo(() => {
 		const date = filters.date ? toIsoDateString(filters.date) : null;
@@ -197,9 +209,9 @@ export function useShiftsPage() {
 					? undefined
 					: filters.specialty || undefined,
 			page,
-			limit: SHIFT_LIST_PAGE_SIZE,
+			limit,
 		};
-	}, [filters, page, searchFromUrl, statusFilter]);
+	}, [filters, page, limit, searchFromUrl, statusFilter]);
 
 	const listQuery = useQuery({
 		queryKey: perDiemShiftsKeys.list(queryParams),
@@ -310,12 +322,16 @@ export function useShiftsPage() {
 		setFilter,
 		setStatusFilter,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions: SHIFTS_PAGE_SIZE_OPTIONS,
 		counts: counts ?? {
 			ALL: 0,
 			OPEN: 0,
 			IN_PROGRESS: 0,
 			COMPLETED: 0,
 			CANCELLED: 0,
+			EXPIRED: 0,
 		},
 		hasActiveFilters,
 		totalCount,

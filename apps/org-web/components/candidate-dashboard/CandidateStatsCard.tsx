@@ -24,7 +24,7 @@ export function CandidateStatsCard({
 	variant = "default",
 	href,
 	className,
-}: CandidateStatsCardProps) {
+}: Readonly<CandidateStatsCardProps>) {
 	const TrendIcon = isIncreased ? TrendingUp : TrendingDown;
 
 	return (

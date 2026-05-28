@@ -8,11 +8,13 @@ import {
 } from "@nestjs/common";
 import {
 	MissingTimeCaseStatus,
+	PerDiemShiftStatus,
 	Prisma,
 	TimeEntryDataSource,
 	TimesheetEntryStatus,
 } from "@repo/db";
 import {
+	isInternalWorkforceType,
 	type PagePaginatedResponse,
 	S3_PREFIX_BILLING_DISPUTE_DOCUMENTS,
 	S3_PREFIX_TIMEKEEPING_UPLOADS,
@@ -63,11 +65,7 @@ function addDaysIsoUtc(iso: string, deltaDays: number): string {
 
 function formatShortDate(d: Date | null | undefined): string {
 	if (!d) return "—";
-	return d.toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
+	return d.toISOString();
 }
 
 function parseTimeToMinutes(t: string): number | null {
@@ -106,7 +104,7 @@ function weekEndingDayBoundsUtc(iso: string): { start: Date; end: Date } {
 
 function parseWorkDateAtUtcNoon(iso: string): Date {
 	const [y, m, d] = iso.split("-").map(Number);
-	if (!y || !m || !d) throw new BadRequestException("Invalid workDate");
+	if (!y || !m || !d) throw new BadRequestException("Enter a valid work date.");
 	return new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0));
 }
 
@@ -230,6 +228,7 @@ export class TimekeepingService {
 		let missingCount = 0;
 		let overdueCount = 0;
 		let missingResolvedCount = 0;
+		let lastRefreshedAt: Date | null = null;
 
 		for (const s of summaries) {
 			totalEntries += s.totalEntries ?? 0;
@@ -241,6 +240,9 @@ export class TimekeepingService {
 			missingCount += s.missingTimeCasesOpen ?? 0;
 			overdueCount += s.missingTimeCasesOverdue ?? 0;
 			missingResolvedCount += s.missingTimeCasesResolved ?? 0;
+			if (!lastRefreshedAt || s.updatedAt > lastRefreshedAt) {
+				lastRefreshedAt = s.updatedAt;
+			}
 		}
 
 		return {
@@ -253,6 +255,7 @@ export class TimekeepingService {
 			missingCount,
 			overdueCount,
 			missingResolvedCount,
+			lastRefreshedAt: lastRefreshedAt ? lastRefreshedAt.toISOString() : null,
 		};
 	}
 
@@ -268,11 +271,7 @@ export class TimekeepingService {
 			this.prisma.timesheetEntry.findMany({
 				where,
 				select: ENTRY_SELECT,
-				orderBy: [
-					{ location: { name: "asc" } },
-					{ department: { name: "asc" } },
-					{ workDate: "desc" },
-				],
+				orderBy: [{ updatedAt: "desc" }, { workDate: "desc" }],
 				skip,
 				take: limit,
 			}),
@@ -492,12 +491,13 @@ export class TimekeepingService {
 				hours: true,
 				regularHours: true,
 				overtimeHours: true,
+				perDiemAssignmentId: true,
 				placement: { select: { billRate: true } },
 				payCode: { select: { multiplier: true } },
 				timesheet: { select: { weekEndingDate: true } },
 			},
 		});
-		if (!entry) throw new NotFoundException("Time entry not found");
+		if (!entry) throw new NotFoundException("Time entry not found.");
 
 		const computedHours =
 			entry.hours ?? (entry.regularHours ?? 0) + (entry.overtimeHours ?? 0);
@@ -527,10 +527,23 @@ export class TimekeepingService {
 			}),
 		};
 
-		const updated = await this.prisma.timesheetEntry.update({
-			where: { id: entryId },
-			data: updateData,
-			select: ENTRY_SELECT,
+		const updated = await this.prisma.$transaction(async (tx) => {
+			const row = await tx.timesheetEntry.update({
+				where: { id: entryId },
+				data: updateData,
+				select: ENTRY_SELECT,
+			});
+			if (
+				dto.status === TimesheetEntryStatus.APPROVED &&
+				entry.perDiemAssignmentId
+			) {
+				await this.maybeCompletePerDiemShift(
+					tx,
+					entry.perDiemAssignmentId,
+					userId,
+				);
+			}
+			return row;
 		});
 
 		const weekEndingDateIso = entry.timesheet.weekEndingDate.toISOString();
@@ -540,6 +553,74 @@ export class TimekeepingService {
 		);
 
 		return updated;
+	}
+
+	/**
+	 * If every TimesheetEntry attached to the given per-diem assignment is now
+	 * APPROVED, transition the assignment and the shift to their terminal
+	 * "completed" state. Idempotent — safe to call after every entry approval.
+	 * Only operates on per-diem entries; placement timesheets ignore this.
+	 *
+	 * Race safety: takes a row-level lock on the assignment before counting so
+	 * two concurrent approvals serialize through this section, and guards both
+	 * downstream writes with `status` predicates so only the first terminal
+	 * transition wins (no double-completion, no wrong approvedAt attribution).
+	 */
+	private async maybeCompletePerDiemShift(
+		tx: Prisma.TransactionClient,
+		perDiemAssignmentId: string,
+		userId: string,
+	): Promise<void> {
+		await tx.$queryRaw`
+			SELECT id FROM "per_diem_assignments"
+			WHERE id = ${perDiemAssignmentId}::uuid
+			FOR UPDATE
+		`;
+
+		const counts = await tx.timesheetEntry.groupBy({
+			by: ["status"],
+			where: { perDiemAssignmentId },
+			_count: { _all: true },
+		});
+		const total = counts.reduce((s, c) => s + c._count._all, 0);
+		const approved =
+			counts.find((c) => c.status === TimesheetEntryStatus.APPROVED)?._count
+				._all ?? 0;
+		if (total === 0 || approved !== total) return;
+
+		const assignment = await tx.perDiemAssignment.findUnique({
+			where: { id: perDiemAssignmentId },
+			select: {
+				id: true,
+				shiftId: true,
+				approvedAt: true,
+				status: true,
+			},
+		});
+		if (!assignment) return;
+		if (assignment.status === "completed") return;
+
+		const assignmentResult = await tx.perDiemAssignment.updateMany({
+			where: {
+				id: perDiemAssignmentId,
+				status: { not: "completed" },
+			},
+			data: {
+				status: "completed",
+				...(assignment.approvedAt
+					? {}
+					: { approvedAt: new Date(), approvedById: userId }),
+			},
+		});
+		if (assignmentResult.count === 0) return;
+
+		await tx.perDiemShift.updateMany({
+			where: {
+				id: assignment.shiftId,
+				status: { not: PerDiemShiftStatus.COMPLETED },
+			},
+			data: { status: PerDiemShiftStatus.COMPLETED },
+		});
 	}
 
 	async createDispute(
@@ -562,7 +643,7 @@ export class TimekeepingService {
 				timesheet: { select: { weekEndingDate: true } },
 			},
 		});
-		if (!entry) throw new NotFoundException("Time entry not found");
+		if (!entry) throw new NotFoundException("Time entry not found.");
 
 		const [dispute] = await this.prisma.$transaction([
 			this.prisma.timesheetDispute.create({
@@ -771,7 +852,7 @@ export class TimekeepingService {
 				timesheet: { select: { weekEndingDate: true } },
 			},
 		});
-		if (!dispute) throw new NotFoundException("Dispute not found");
+		if (!dispute) throw new NotFoundException("Dispute not found.");
 
 		await this.prisma.$transaction(async (tx) => {
 			await tx.timesheetDispute.update({
@@ -791,11 +872,12 @@ export class TimekeepingService {
 						hours: true,
 						regularHours: true,
 						overtimeHours: true,
+						perDiemAssignmentId: true,
 						placement: { select: { billRate: true } },
 						payCode: { select: { multiplier: true } },
 					},
 				});
-				if (!entry) throw new NotFoundException("Time entry not found");
+				if (!entry) throw new NotFoundException("Time entry not found.");
 				const computedHours =
 					dto.finalHours ??
 					entry.hours ??
@@ -821,6 +903,13 @@ export class TimekeepingService {
 						billAmount: computedBillAmount,
 					},
 				});
+				if (entry.perDiemAssignmentId) {
+					await this.maybeCompletePerDiemShift(
+						tx,
+						entry.perDiemAssignmentId,
+						userId,
+					);
+				}
 			}
 		});
 		const weekEndingDateIso = dispute.timesheet.weekEndingDate.toISOString();
@@ -851,7 +940,7 @@ export class TimekeepingService {
 				timesheet: { select: { weekEndingDate: true } },
 			},
 		});
-		if (!dispute) throw new NotFoundException("Dispute not found");
+		if (!dispute) throw new NotFoundException("Dispute not found.");
 
 		await this.prisma.$transaction(async (tx) => {
 			await tx.timesheetDispute.update({
@@ -1002,7 +1091,7 @@ export class TimekeepingService {
 			},
 		});
 		if (!missingCase)
-			throw new NotFoundException("Missing time case not found");
+			throw new NotFoundException("Missing time case not found.");
 
 		await this.prisma.missingTimeCase.update({
 			where: { id: caseId },
@@ -1166,7 +1255,7 @@ export class TimekeepingService {
 			where: { id: holidayId, organizationId: orgId },
 			select: { id: true },
 		});
-		if (!holiday) throw new NotFoundException("Holiday not found");
+		if (!holiday) throw new NotFoundException("Holiday not found.");
 
 		await this.prisma.organizationHoliday.delete({ where: { id: holidayId } });
 		return { success: true };
@@ -1176,7 +1265,7 @@ export class TimekeepingService {
 		const existing = await this.prisma.organizationHoliday.findFirst({
 			where: { id: holidayId, organizationId: orgId },
 		});
-		if (!existing) throw new NotFoundException("Holiday not found");
+		if (!existing) throw new NotFoundException("Holiday not found.");
 
 		return this.prisma.organizationHoliday.update({
 			where: { id: holidayId },
@@ -1266,26 +1355,39 @@ export class TimekeepingService {
 		orgId: string,
 		file: Express.Multer.File,
 		uploadedById: string,
+		vendorId?: string,
 	) {
 		const rules = await this.getBillingRules(orgId);
 		if (!rules.fileUpload) {
 			throw new ForbiddenException(
-				"File upload time entry is disabled for this organization",
+				"File upload time entry is disabled for this organization.",
 			);
 		}
-		const s3Key = `${S3_PREFIX_TIMEKEEPING_UPLOADS}/${orgId}/${Date.now()}-${file.originalname}`;
+		const prefix = vendorId
+			? `${S3_PREFIX_TIMEKEEPING_UPLOADS}/${orgId}/vendor-${vendorId}`
+			: `${S3_PREFIX_TIMEKEEPING_UPLOADS}/${orgId}`;
+		const s3Key = `${prefix}/${Date.now()}-${file.originalname}`;
 		await this.files.uploadFile(file, s3Key);
 		const job = await this.backgroundJobs.createTimesheetUploadJob(
 			orgId,
 			s3Key,
 			file.originalname,
 			uploadedById,
+			vendorId,
 		);
 		return { jobId: job.id, fileName: file.originalname, status: job.status };
 	}
 
-	async getUploadJob(orgId: string, jobId: string) {
-		return this.backgroundJobs.getJobById(jobId, orgId);
+	async getUploadJob(orgId: string, jobId: string, expectedVendorId?: string) {
+		const job = await this.backgroundJobs.getJobById(jobId, orgId);
+		if (expectedVendorId !== undefined) {
+			const payloadVendorId = (job.payload as { vendorId?: string } | null)
+				?.vendorId;
+			if (payloadVendorId !== expectedVendorId) {
+				throw new NotFoundException("Upload job not found.");
+			}
+		}
+		return job;
 	}
 
 	// ─── Candidate portal — timecard read/write ───────────────────────────────
@@ -1301,7 +1403,7 @@ export class TimekeepingService {
 			where: { userId, organizationId: orgId },
 			select: { id: true },
 		});
-		if (!candidate) throw new NotFoundException("Candidate profile not found");
+		if (!candidate) throw new NotFoundException("Candidate profile not found.");
 
 		const placement = await this.prisma.placement.findFirst({
 			where: {
@@ -1318,7 +1420,7 @@ export class TimekeepingService {
 				location: { select: { name: true } },
 			},
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 
 		const timesheets = await this.prisma.timesheet.findMany({
 			where: { placementId, organizationId: orgId, candidateId: candidate.id },
@@ -1414,7 +1516,7 @@ export class TimekeepingService {
 			where: { userId, organizationId: orgId },
 			select: { id: true },
 		});
-		if (!candidate) throw new NotFoundException("Candidate profile not found");
+		if (!candidate) throw new NotFoundException("Candidate profile not found.");
 
 		const placement = await this.prisma.placement.findFirst({
 			where: {
@@ -1431,7 +1533,7 @@ export class TimekeepingService {
 				location: { select: { name: true } },
 			},
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 
 		const ts = await this.prisma.timesheet.findFirst({
 			where: {
@@ -1451,7 +1553,7 @@ export class TimekeepingService {
 				},
 			},
 		});
-		if (!ts) throw new NotFoundException("Timecard not found");
+		if (!ts) throw new NotFoundException("Timecard not found.");
 		const payCodes = await this.listActivePayCodes(orgId);
 
 		const jobTitle =
@@ -1512,9 +1614,14 @@ export class TimekeepingService {
 
 		const candidate = await this.prisma.candidate.findFirst({
 			where: { userId, organizationId: orgId },
-			select: { id: true },
+			select: { id: true, workforceType: true },
 		});
-		if (!candidate) throw new NotFoundException("Candidate profile not found");
+		if (!candidate) throw new NotFoundException("Candidate profile not found.");
+		if (isInternalWorkforceType(candidate.workforceType)) {
+			throw new ForbiddenException(
+				"Internal candidates do not submit timecards; hours are billed directly from your schedule.",
+			);
+		}
 
 		const placement = await this.prisma.placement.findFirst({
 			where: {
@@ -1524,19 +1631,19 @@ export class TimekeepingService {
 			},
 			select: { id: true, departmentId: true, locationId: true },
 		});
-		if (!placement) throw new NotFoundException("Placement not found");
+		if (!placement) throw new NotFoundException("Placement not found.");
 
 		const weekEndIso = dto.weekEndingDate;
 		const { start: weekEndLower, end: weekEndUpper } =
 			weekEndingDayBoundsUtc(weekEndIso);
 		if (!weekEndLower.getTime())
-			throw new BadRequestException("Invalid weekEndingDate");
+			throw new BadRequestException("Enter a valid week-ending date.");
 
 		const weekStartIso = addDaysIsoUtc(weekEndIso, -6);
 		for (const row of dto.entries) {
 			if (row.workDate < weekStartIso || row.workDate > weekEndIso) {
 				throw new BadRequestException(
-					`workDate ${row.workDate} is outside the pay week`,
+					`Work date ${row.workDate} is outside the selected pay week.`,
 				);
 			}
 		}
@@ -1916,7 +2023,7 @@ export class TimekeepingService {
 			},
 		});
 		if (!existing) {
-			throw new NotFoundException("Time entry not found");
+			throw new NotFoundException("Time entry not found.");
 		}
 		if (
 			existing.status !== TimesheetEntryStatus.DRAFT &&
@@ -2043,7 +2150,7 @@ export class TimekeepingService {
 			where: { id: placementId, organizationId: orgId, candidate: { userId } },
 			select: { id: true },
 		});
-		if (!ok) throw new NotFoundException("Placement not found");
+		if (!ok) throw new NotFoundException("Placement not found.");
 	}
 
 	private buildOrgPortalUrl(slug: string): string {

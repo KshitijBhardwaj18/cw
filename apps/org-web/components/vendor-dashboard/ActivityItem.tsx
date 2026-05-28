@@ -14,7 +14,7 @@ export function ActivityItem({
 	description,
 	time,
 	dotColor,
-}: ActivityItemProps) {
+}: Readonly<ActivityItemProps>) {
 	return (
 		<div className="group relative flex gap-4 py-2.5 border-b border-border/50 last:pb-0 last:border-b-0">
 			<div className="relative shrink-0 mt-1">

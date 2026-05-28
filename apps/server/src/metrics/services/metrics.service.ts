@@ -30,7 +30,7 @@ export class MetricsService {
 		});
 
 		if (!existing) {
-			throw new NotFoundException(`Metric with id ${id} not found`);
+			throw new NotFoundException("Metric not found.");
 		}
 
 		return this.prisma.$transaction(async (tx) => {
@@ -56,9 +56,7 @@ export class MetricsService {
 			select: { id: true },
 		});
 		if (!exists) {
-			throw new NotFoundException(
-				`Organization with id ${organizationId} not found`,
-			);
+			throw new NotFoundException("Organization not found.");
 		}
 	}
 
@@ -70,17 +68,17 @@ export class MetricsService {
 		if (!periodStart && !periodEnd) return;
 		if (!periodStart || !periodEnd) {
 			throw new BadRequestException(
-				"periodStart and periodEnd must both be provided together",
+				"Start date and end date must both be provided together.",
 			);
 		}
 		const start = new Date(periodStart);
 		const end = new Date(periodEnd);
 		if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-			throw new BadRequestException("Invalid periodStart or periodEnd");
+			throw new BadRequestException("Invalid start date or end date.");
 		}
 		if (start >= end) {
 			throw new BadRequestException(
-				"periodStart must be earlier than periodEnd",
+				"Start date must be earlier than end date.",
 			);
 		}
 		const isUtcMidnight =
@@ -94,7 +92,7 @@ export class MetricsService {
 			end.getUTCMilliseconds() === 0;
 		if (!isUtcMidnight) {
 			throw new BadRequestException(
-				"periodStart and periodEnd must be UTC day boundaries (00:00:00.000Z)",
+				"Start and end dates must align to a UTC day boundary.",
 			);
 		}
 		if (periodType === MetricSnapshotPeriodType.DAILY) {
@@ -102,7 +100,7 @@ export class MetricsService {
 			nextDay.setUTCDate(nextDay.getUTCDate() + 1);
 			if (end.getTime() !== nextDay.getTime()) {
 				throw new BadRequestException(
-					"DAILY range must be exactly one day [start, start+1d)",
+					"Daily range must cover exactly one day.",
 				);
 			}
 			return;
@@ -110,29 +108,27 @@ export class MetricsService {
 		if (periodType === MetricSnapshotPeriodType.WEEKLY) {
 			// Monday-based week to match processor default.
 			if (start.getUTCDay() !== 1) {
-				throw new BadRequestException(
-					"WEEKLY periodStart must be a Monday (UTC)",
-				);
+				throw new BadRequestException("Weekly range must start on a Monday.");
 			}
 			const nextWeek = new Date(start);
 			nextWeek.setUTCDate(nextWeek.getUTCDate() + 7);
 			if (end.getTime() !== nextWeek.getTime()) {
 				throw new BadRequestException(
-					"WEEKLY range must be exactly seven days [start, start+7d)",
+					"Weekly range must cover exactly seven days.",
 				);
 			}
 			return;
 		}
 		if (start.getUTCDate() !== 1 || end.getUTCDate() !== 1) {
 			throw new BadRequestException(
-				"MONTHLY periodStart/periodEnd must be first day of month (UTC)",
+				"Monthly range must start on the first day of a month.",
 			);
 		}
 		const nextMonth = new Date(start);
 		nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
 		if (end.getTime() !== nextMonth.getTime()) {
 			throw new BadRequestException(
-				"MONTHLY range must be exactly one month [start, next month start)",
+				"Monthly range must cover exactly one month.",
 			);
 		}
 	}
@@ -230,7 +226,7 @@ export class MetricsService {
 			select: { id: true, status: true },
 		});
 		if (!metric) {
-			throw new NotFoundException(`Metric with id ${dto.metricId} not found`);
+			throw new NotFoundException("Metric not found.");
 		}
 		const nextIsActive = dto.isActive ?? true;
 		if (!metric.status && nextIsActive) {
@@ -278,7 +274,7 @@ export class MetricsService {
 				select: { status: true },
 			});
 			if (!metric) {
-				throw new NotFoundException(`Metric with id ${metricId} not found`);
+				throw new NotFoundException("Metric not found.");
 			}
 			if (!metric.status) {
 				throw new BadRequestException(
@@ -296,9 +292,7 @@ export class MetricsService {
 			select: { id: true },
 		});
 		if (!existing) {
-			throw new NotFoundException(
-				`Organization metric not found for organizationId=${organizationId} metricId=${metricId}`,
-			);
+			throw new NotFoundException("Organization metric not found.");
 		}
 		const row = await this.prisma.organizationMetric.update({
 			where: {

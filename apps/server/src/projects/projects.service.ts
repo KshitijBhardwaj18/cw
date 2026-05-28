@@ -4,12 +4,7 @@ import {
 	Logger,
 	NotFoundException,
 } from "@nestjs/common";
-import {
-	Prisma,
-	ProjectStatus,
-	RequisitionStatus,
-	SubmissionStage,
-} from "@repo/db";
+import { Prisma, ProjectStatus, RequisitionStatus } from "@repo/db";
 import { PrismaService } from "src/prisma/prisma.service";
 import type { AddProjectRequisitionsDto } from "./dto/add-project-requisitions.dto";
 import type { CreateProjectDto } from "./dto/create-project.dto";
@@ -24,13 +19,12 @@ const PROJECT_REQUISITION_INCLUDE = {
 	organizationOccupation: {
 		select: { occupation: { select: { name: true } } },
 	},
-	organizationSpecialty: {
-		select: { specialty: { select: { name: true } } },
-	},
-	submissions: {
-		where: { stage: SubmissionStage.ACCEPTED },
-		take: 1,
-		select: { id: true },
+	requisitionSpecialties: {
+		select: {
+			organizationSpecialty: {
+				select: { specialty: { select: { name: true } } },
+			},
+		},
 	},
 } as const;
 
@@ -38,22 +32,7 @@ type ProjectRequisitionRow = Prisma.RequisitionGetPayload<{
 	include: typeof PROJECT_REQUISITION_INCLUDE;
 }>;
 
-function computeJobDisplayStatus(
-	row: ProjectRequisitionRow,
-): "OPEN" | "OFFER_ACCEPTED" | "FILLED" | "DRAFT" {
-	if (row.status === RequisitionStatus.FILLED) return "FILLED";
-	if (row.status === RequisitionStatus.DRAFT) return "DRAFT";
-	if (row.submissions.length > 0) return "OFFER_ACCEPTED";
-	return "OPEN";
-}
-
-function mapDisplayToProjectRequisitionStatus(
-	d: "OPEN" | "OFFER_ACCEPTED" | "FILLED" | "DRAFT",
-): "Open" | "Closed" | "On Hold" {
-	if (d === "FILLED") return "Closed";
-	if (d === "DRAFT") return "On Hold";
-	return "Open";
-}
+const ACTIVE_REQUISITION_STATUSES = [RequisitionStatus.PUBLISHED] as const;
 
 function formatLocation(loc: ProjectRequisitionRow["location"]): string {
 	if (!loc) return "—";
@@ -61,16 +40,12 @@ function formatLocation(loc: ProjectRequisitionRow["location"]): string {
 }
 
 function mapRequisitionRowToApi(row: ProjectRequisitionRow) {
-	const display = computeJobDisplayStatus(row);
 	const billRate = row.billRate != null ? Math.round(row.billRate) : null;
 	const rateLabel = billRate != null ? `$${billRate}/hr` : "—";
-	const startDateLabel = row.startDate
-		? row.startDate.toLocaleDateString("en-US", {
-				month: "short",
-				day: "numeric",
-				year: "numeric",
-			})
-		: "—";
+	const startDateLabel = row.startDate ? row.startDate.toISOString() : "—";
+	const isActive = (
+		ACTIVE_REQUISITION_STATUSES as readonly RequisitionStatus[]
+	).includes(row.status);
 
 	return {
 		id: row.id,
@@ -78,10 +53,17 @@ function mapRequisitionRowToApi(row: ProjectRequisitionRow) {
 		occupation: row.organizationOccupation?.occupation.name ?? "—",
 		location: formatLocation(row.location),
 		rateLabel,
-		openPositions: row.numberOfPositions,
-		specialty: row.organizationSpecialty?.specialty.name ?? "—",
+		openPositions: isActive ? row.numberOfPositions : 0,
+		specialty: (() => {
+			const names = row.requisitionSpecialties
+				.map((s) => s.organizationSpecialty.specialty.name)
+				.filter(Boolean);
+			if (names.length === 0) return "—";
+			if (names.length === 1) return names[0];
+			return `${names[0]} (+${names.length - 1})`;
+		})(),
 		startDateLabel,
-		status: mapDisplayToProjectRequisitionStatus(display),
+		status: row.status,
 	};
 }
 
@@ -100,7 +82,7 @@ export class ProjectsService {
 			where: { id: orgId },
 			select: { id: true },
 		});
-		if (!org) throw new NotFoundException("Organization not found");
+		if (!org) throw new NotFoundException("Organization not found.");
 	}
 
 	private mapProjectStatusToLabel(
@@ -124,13 +106,7 @@ export class ProjectsService {
 		st: QueryProjectRequisitionsDto["requisitionStatus"],
 	): Prisma.RequisitionWhereInput | undefined {
 		if (!st || st === "all") return undefined;
-		if (st === "Closed") return { status: RequisitionStatus.FILLED };
-		if (st === "On Hold") return { status: RequisitionStatus.DRAFT };
-		return {
-			NOT: {
-				status: { in: [RequisitionStatus.FILLED, RequisitionStatus.DRAFT] },
-			},
-		};
+		return { status: st };
 	}
 
 	private requisitionSearchWhere(
@@ -248,7 +224,7 @@ export class ProjectsService {
 				updatedAt: true,
 			},
 		});
-		if (!row) throw new NotFoundException("Project not found");
+		if (!row) throw new NotFoundException("Project not found.");
 
 		return {
 			id: row.id,
@@ -265,24 +241,22 @@ export class ProjectsService {
 			where: { id: projectId, organizationId: orgId },
 			select: { id: true },
 		});
-		if (!exists) throw new NotFoundException("Project not found");
+		if (!exists) throw new NotFoundException("Project not found.");
 
 		const base = { projectId, organizationId: orgId };
+
+		const activeWhere: Prisma.RequisitionWhereInput = {
+			...base,
+			status: { in: [...ACTIVE_REQUISITION_STATUSES] },
+		};
 
 		const [requisitionCount, agg, activeRequisitions] = await Promise.all([
 			this.prisma.requisition.count({ where: base }),
 			this.prisma.requisition.aggregate({
-				where: base,
+				where: activeWhere,
 				_sum: { numberOfPositions: true },
 			}),
-			this.prisma.requisition.count({
-				where: {
-					...base,
-					status: {
-						notIn: [RequisitionStatus.FILLED, RequisitionStatus.DRAFT],
-					},
-				},
-			}),
+			this.prisma.requisition.count({ where: activeWhere }),
 		]);
 
 		return {
@@ -300,7 +274,7 @@ export class ProjectsService {
 		await this.ensureOrgExists(orgId);
 		if (query.all) {
 			throw new BadRequestException(
-				"Unpaginated project requisition lists are not supported; use page and limit.",
+				"Use page and limit to paginate project requisitions.",
 			);
 		}
 
@@ -308,7 +282,7 @@ export class ProjectsService {
 			where: { id: projectId, organizationId: orgId },
 			select: { id: true },
 		});
-		if (!exists) throw new NotFoundException("Project not found");
+		if (!exists) throw new NotFoundException("Project not found.");
 
 		const base: Prisma.RequisitionWhereInput = {
 			projectId,
@@ -362,7 +336,7 @@ export class ProjectsService {
 			where: { id, organizationId: orgId },
 			select: { id: true },
 		});
-		if (!existing) throw new NotFoundException("Project not found");
+		if (!existing) throw new NotFoundException("Project not found.");
 
 		const updated = await this.prisma.project.update({
 			where: { id },
@@ -385,7 +359,7 @@ export class ProjectsService {
 			where: { id, organizationId: orgId },
 			select: { id: true },
 		});
-		if (!existing) throw new NotFoundException("Project not found");
+		if (!existing) throw new NotFoundException("Project not found.");
 
 		await this.prisma.project.delete({ where: { id } });
 		this.logger.log(`Deleted project ${id} for organization ${orgId}`);
@@ -399,7 +373,7 @@ export class ProjectsService {
 		await this.ensureOrgExists(orgId);
 
 		if (dto.requisitionIds.length === 0) {
-			throw new BadRequestException("Select at least one requisition");
+			throw new BadRequestException("Select at least one requisition.");
 		}
 
 		await this.prisma.$transaction(async (tx) => {
@@ -407,7 +381,7 @@ export class ProjectsService {
 				where: { id: projectId, organizationId: orgId },
 				select: { id: true },
 			});
-			if (!project) throw new NotFoundException("Project not found");
+			if (!project) throw new NotFoundException("Project not found.");
 
 			const uniqueIds = [...new Set(dto.requisitionIds)];
 			const count = await tx.requisition.count({
@@ -444,7 +418,7 @@ export class ProjectsService {
 				where: { id: projectId, organizationId: orgId },
 				select: { id: true },
 			});
-			if (!project) throw new NotFoundException("Project not found");
+			if (!project) throw new NotFoundException("Project not found.");
 
 			const updated = await tx.requisition.updateMany({
 				where: {
@@ -455,7 +429,7 @@ export class ProjectsService {
 				data: { projectId: null },
 			});
 			if (updated.count === 0) {
-				throw new NotFoundException("Requisition not found on this project");
+				throw new NotFoundException("Requisition not found on this project.");
 			}
 		});
 	}

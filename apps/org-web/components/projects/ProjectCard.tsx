@@ -1,3 +1,6 @@
+"use client";
+
+import { coerceYmdOrIsoToUtcInstant } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -9,6 +12,7 @@ import {
 } from "@repo/ui/components/card";
 import { Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { ProjectItem } from "@/types/project";
 
 type ProjectCardProps = {
@@ -17,8 +21,17 @@ type ProjectCardProps = {
 	onDelete: () => void;
 };
 
-export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
+export function ProjectCard({
+	project,
+	onEdit,
+	onDelete,
+}: Readonly<ProjectCardProps>) {
 	const router = useRouter();
+	const { fmtShortDate } = useUserTimezone();
+	const updatedInstant = coerceYmdOrIsoToUtcInstant(project.updatedAt);
+	const updatedLabel = updatedInstant
+		? fmtShortDate(updatedInstant)
+		: project.updatedAt || "—";
 
 	return (
 		<Card
@@ -87,7 +100,7 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
 						{project.requisitionCount} requisition
 						{project.requisitionCount === 1 ? "" : "s"}
 					</span>
-					<span>Updated {project.updatedAt}</span>
+					<span>Updated {updatedLabel}</span>
 				</div>
 			</CardFooter>
 		</Card>

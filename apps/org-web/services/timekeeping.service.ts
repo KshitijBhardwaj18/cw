@@ -1,4 +1,4 @@
-import type { PagePaginatedResponse } from "@repo/shared";
+import type { PagePaginatedResponse, TimesheetEntryStatus } from "@repo/shared";
 import { ApiClient } from "@/lib/api-client";
 
 export type TimekeepingStats = {
@@ -9,6 +9,7 @@ export type TimekeepingStats = {
 	openDisputes: number;
 	missingCount: number;
 	overdueCount: number;
+	lastRefreshedAt: string | null;
 };
 
 export type EntryStatusCounts = Record<string, number>;
@@ -24,7 +25,7 @@ export type TimeEntryLog = {
 	breakMinutes: number;
 	notes: string | null;
 	disputes?: { id: string; description: string }[];
-	status: "PENDING" | "APPROVED" | "REJECTED" | "DISPUTED";
+	status: TimesheetEntryStatus;
 	dataSource: "FILE_UPLOAD" | "MOBILE_APP" | "MANUAL" | "INTEGRATION";
 	approvalSource: string | null;
 	approvedAt: string | null;

@@ -20,6 +20,7 @@ export interface JobPostingTemplateListItem {
 	type: JobPostingTypeSelectionValues["type"];
 	occupation: string;
 	specialty: string;
+	specialties?: string[];
 	location: string;
 	departmentLabel: string;
 	shiftSummary: string;

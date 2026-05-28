@@ -17,7 +17,7 @@ type OrganizationVendorsPageContentProps = {
 
 export function OrganizationVendorsPageContent({
 	organizationId,
-}: OrganizationVendorsPageContentProps) {
+}: Readonly<OrganizationVendorsPageContentProps>) {
 	const { page, setPage } = usePaginationControls({
 		pageParamKey: VND_PARAMS.PAGE,
 	});

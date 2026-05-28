@@ -36,7 +36,7 @@ export function UpdateOccupationsDialog({
 	onOpenChange,
 	organizationId,
 	linkedOccupationIds,
-}: UpdateOccupationsDialogProps) {
+}: Readonly<UpdateOccupationsDialogProps>) {
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
 	const {
 		search,

@@ -1,3 +1,4 @@
+import type { TimesheetEntryStatus } from "@repo/shared";
 import type { LucideIcon } from "lucide-react";
 import type { MetricCardVariant } from "../../MetricCard";
 
@@ -22,7 +23,7 @@ export type PayCode =
 	| "Jury Duty"
 	| "On-Call";
 
-export type TimeEntryStatus = "PENDING" | "APPROVED" | "DISPUTED" | "REJECTED";
+export type TimeEntryStatus = TimesheetEntryStatus;
 export type TimekeepingDataSource = "FILE_UPLOAD" | "MOBILE_APP";
 
 export interface TimeApprovalEntry {

@@ -4,7 +4,15 @@ export const PLACEMENT_LIST_INCLUDE = {
 	submission: {
 		select: {
 			vendorId: true,
-			candidate: { select: { user: { select: { name: true } } } },
+			candidate: {
+				select: {
+					user: { select: { name: true } },
+					workforceListMembers: {
+						orderBy: { addedAt: "asc" },
+						select: { list: { select: { id: true, name: true } } },
+					},
+				},
+			},
 			vendor: { select: { name: true } },
 			requisition: { select: { jobTitle: true, jobSummary: true } },
 		},

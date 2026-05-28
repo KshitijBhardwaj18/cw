@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 
 export default async function CandidateOnboardingPage({
 	searchParams,
-}: {
+}: Readonly<{
 	searchParams: Promise<{ token?: string }>;
-}) {
+}>) {
 	const { token } = await searchParams;
 	if (token) {
 		redirect(`/candidate/sign-up?token=${encodeURIComponent(token)}`);

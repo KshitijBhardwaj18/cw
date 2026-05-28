@@ -8,7 +8,9 @@ export interface PlacementsMetricCardsProps {
 	stats: PlacementMetricStats;
 }
 
-export function PlacementsMetricCards({ stats }: PlacementsMetricCardsProps) {
+export function PlacementsMetricCards({
+	stats,
+}: Readonly<PlacementsMetricCardsProps>) {
 	return (
 		<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 			<MetricCard

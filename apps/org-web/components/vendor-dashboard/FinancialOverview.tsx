@@ -30,7 +30,7 @@ export function FinancialOverview({
 	netInvoiceValue,
 	period,
 	onPeriodChange,
-}: FinancialOverviewProps) {
+}: Readonly<FinancialOverviewProps>) {
 	return (
 		<Card>
 			<CardHeader>

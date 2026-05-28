@@ -3,14 +3,15 @@
 import { Action, useAbility } from "@repo/casl";
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/tabs";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
 import { MetricCard } from "@repo/ui/general/MetricCard";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
 import { ApproveTimeLogDialog } from "@repo/ui/general/timekeeping/dialogs/ApproveTimeLogDialog";
 import { DisputeDialog } from "@repo/ui/general/timekeeping/dialogs/DisputeDialog";
 import { LocationAccordionRow } from "@repo/ui/general/timekeeping/LocationAccordionRow";
 import { cn } from "@repo/ui/lib/utils";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
+import { formatDistanceToNow } from "date-fns";
 import { AlertTriangle, FileUp, Smartphone, Timer } from "lucide-react";
 import { TIMEKEEPING_STATUS_FILTER_OPTIONS } from "@/constants/timekeeping";
 import { useTimekeepingContext } from "@/contexts/timekeeping-context";
@@ -29,6 +30,10 @@ export function TimekeepingTabContent() {
 		setGroupedStatusFilter,
 		groupedPage,
 		setGroupedPage,
+		groupedLimit,
+		setGroupedLimit,
+		groupedPageSizeOptions,
+		groupedTotalCount,
 		groupedTotalPages,
 		isDisputeDialogOpen,
 		setIsDisputeDialogOpen,
@@ -48,8 +53,16 @@ export function TimekeepingTabContent() {
 		filterConfigs,
 	} = useTimekeepingContext();
 
+	const lastRefreshedLabel = timekeepingStats.lastRefreshedAt
+		? `Stats last refreshed ${formatDistanceToNow(
+				new Date(timekeepingStats.lastRefreshedAt),
+				{ addSuffix: true },
+			)}`
+		: "Stats awaiting first refresh";
+
 	return (
 		<div className="space-y-6">
+			<p className="text-muted-foreground text-xs">{lastRefreshedLabel}</p>
 			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
 				<MetricCard
 					title="Total Entries"
@@ -155,10 +168,16 @@ export function TimekeepingTabContent() {
 							approvalActionsEnabled={canMutateTimesheet}
 						/>
 					))}
-					<ConfigPagePagination
-						page={groupedPage}
-						totalPages={groupedTotalPages}
-						onPageChange={setGroupedPage}
+					<PaginationControls
+						currentPage={groupedPage}
+						pageCount={groupedTotalPages}
+						goToPage={setGroupedPage}
+						limit={groupedLimit}
+						setLimit={setGroupedLimit}
+						pageSizeOptions={groupedPageSizeOptions}
+						totalItems={groupedTotalCount}
+						itemLabel="location"
+						itemLabelPlural="locations"
 					/>
 				</div>
 			)}

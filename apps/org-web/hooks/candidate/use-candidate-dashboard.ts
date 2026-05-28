@@ -1,10 +1,10 @@
 "use client";
 
-import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import {
 	PRIORITY_READY_APPROVED_PCT,
 	SUBMISSION_READY_APPROVED_PCT,
 } from "@/constants/candidate/dashboard";
+import { candidateProfileFixHref } from "@/constants/candidate/profile-edit-deep-link";
 import { useCandidateDocumentWalletSummary } from "@/queries/candidate-document-wallet.queries";
 import { useCandidateMatches } from "@/queries/candidate-matches.queries";
 import { useCandidatePlacementsCounts } from "@/queries/candidate-placements.queries";
@@ -36,23 +36,38 @@ export function getCandidateTier1MissingItems(
 	if (missingContact) {
 		items.push({
 			label: "Complete contact information (phone, address, city, state, zip)",
-			href: "/profile",
+			href: candidateProfileFixHref.contact,
 		});
 	}
 	if (!profile.occupationId?.trim()) {
-		items.push({ label: "Select your occupation", href: "/profile" });
+		items.push({
+			label: "Select your occupation",
+			href: candidateProfileFixHref.professional("occupation"),
+		});
 	}
 	if ((profile.specialtyIds?.length ?? 0) === 0) {
-		items.push({ label: "Add at least one specialty", href: "/profile" });
+		items.push({
+			label: "Add at least one specialty",
+			href: candidateProfileFixHref.professional("specialties"),
+		});
 	}
 	if ((profile.locationIds?.length ?? 0) === 0) {
-		items.push({ label: "Add preferred locations", href: "/profile" });
+		items.push({
+			label: "Add preferred locations",
+			href: candidateProfileFixHref.professional("locations"),
+		});
 	}
 	if ((profile.preferredShiftTypes?.length ?? 0) === 0) {
-		items.push({ label: "Add preferred shift types", href: "/profile" });
+		items.push({
+			label: "Add preferred shift types",
+			href: candidateProfileFixHref.professional("shifts"),
+		});
 	}
 	if (!profile.resumeUrl) {
-		items.push({ label: "Upload your resume", href: "/profile" });
+		items.push({
+			label: "Upload your resume",
+			href: candidateProfileFixHref.resume,
+		});
 	}
 
 	return items;
@@ -76,20 +91,12 @@ export function isCandidateDocumentsPriorityReady(
 	);
 }
 
-export function useCandidateDashboard(matchesLimit = 5) {
+export function useCandidateDashboard(matchesLimit = 4) {
 	const profileQuery = useCandidateMeProfile();
 	const organizationId = profileQuery.data?.organizationId?.trim() || null;
 
-	const { page: matchesPage, setPage: setMatchesPage } = usePaginationControls({
-		pageParamKey: "matchesPage",
-		defaultLimit: matchesLimit,
-	});
-
 	const matchesQuery = useCandidateMatches(
-		{
-			page: Math.max(matchesPage, 1),
-			limit: matchesLimit,
-		},
+		{ page: 1, limit: matchesLimit },
 		{ enabled: Boolean(organizationId) },
 	);
 	const statsQuery = useCandidateSubmissionTabStats({
@@ -119,8 +126,6 @@ export function useCandidateDashboard(matchesLimit = 5) {
 		profileQuery,
 		organizationId,
 		profile,
-		matchesPage,
-		setMatchesPage,
 		matchesQuery,
 		statsQuery,
 		placementCountsQuery,

@@ -6,7 +6,9 @@ export const metadata: Metadata = {
 	title: "Profile",
 };
 
-const ProfileLayout = ({ children }: { children: React.ReactNode }) => {
+const ProfileLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.Read, subject: "Member" }]}

@@ -14,7 +14,7 @@ type SubmissionTimeInStageCellProps = {
 export function SubmissionTimeInStageCell({
 	stageEnteredAt,
 	agingDeadlineAt,
-}: SubmissionTimeInStageCellProps) {
+}: Readonly<SubmissionTimeInStageCellProps>) {
 	const [lines, setLines] = useState<{
 		inStage: string;
 		remaining: string;

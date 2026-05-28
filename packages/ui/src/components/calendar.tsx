@@ -23,9 +23,11 @@ function Calendar({
 	formatters,
 	components,
 	...props
-}: React.ComponentProps<typeof DayPicker> & {
-	buttonVariant?: React.ComponentProps<typeof Button>["variant"];
-}) {
+}: Readonly<
+	React.ComponentProps<typeof DayPicker> & {
+		buttonVariant?: React.ComponentProps<typeof Button>["variant"];
+	}
+>) {
 	const defaultClassNames = getDefaultClassNames();
 
 	return (
@@ -85,12 +87,12 @@ function Calendar({
 					defaultClassNames.caption_label,
 				),
 				table: "w-full border-collapse",
-				weekdays: cn("flex", defaultClassNames.weekdays),
+				weekdays: cn("grid grid-cols-7", defaultClassNames.weekdays),
 				weekday: cn(
-					"text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] select-none",
+					"text-muted-foreground rounded-md font-normal text-[0.8rem] select-none",
 					defaultClassNames.weekday,
 				),
-				week: cn("flex w-full mt-2", defaultClassNames.week),
+				week: cn("grid grid-cols-7 w-full mt-2", defaultClassNames.week),
 				week_number_header: cn(
 					"select-none w-(--cell-size)",
 					defaultClassNames.week_number_header,
@@ -100,7 +102,7 @@ function Calendar({
 					defaultClassNames.week_number,
 				),
 				day: cn(
-					"relative w-full h-full p-0 text-center [&:first-child[data-selected=true]_button]:rounded-l-md [&:last-child[data-selected=true]_button]:rounded-r-md group/day aspect-square select-none",
+					"relative p-0 text-center [&:first-child[data-selected=true]_button]:rounded-l-md [&:last-child[data-selected=true]_button]:rounded-r-md group/day aspect-square select-none",
 					defaultClassNames.day,
 				),
 				range_start: cn(
@@ -177,7 +179,7 @@ function CalendarDayButton({
 	day,
 	modifiers,
 	...props
-}: React.ComponentProps<typeof DayButton>) {
+}: Readonly<React.ComponentProps<typeof DayButton>>) {
 	const defaultClassNames = getDefaultClassNames();
 
 	return (

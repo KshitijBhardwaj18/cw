@@ -71,6 +71,20 @@ export function clockStringToHHmmForPicker(raw: string): string {
 	return normalizeTimeForInput(t);
 }
 
+/**
+ * Shift clock-in/out strings from APIs: plain `HH:mm` / `HH:mm:ss`,
+ * or legacy ISO datetimes whose wall-clock (`T`/` ` + time) should be shown
+ * without calendar timezone shifting.
+ */
+export function formatVendorShiftBoundaryTime(raw: string): string {
+	const s = String(raw ?? "").trim();
+	if (!s || s === "—") return "—";
+	if (s === "TBD") return "TBD";
+	const m = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/.exec(s);
+	if (m) return formatHHmmForDisplay(`${m[2]}:${m[3]}`);
+	return formatHHmmForDisplay(normalizeTimeForInput(s));
+}
+
 /** Format `HH:mm` for tables (matches TimePicker trigger: `h:mm a`). */
 export function formatHHmmForDisplay(raw: string): string {
 	const t = String(raw ?? "").trim();

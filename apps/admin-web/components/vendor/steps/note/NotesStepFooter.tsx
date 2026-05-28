@@ -8,7 +8,10 @@ interface NotesStepFooterProps {
 	onFinish: () => void;
 }
 
-export function NotesStepFooter({ onBack, onFinish }: NotesStepFooterProps) {
+export function NotesStepFooter({
+	onBack,
+	onFinish,
+}: Readonly<NotesStepFooterProps>) {
 	const router = useRouter();
 
 	return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { Action, useAbility } from "@repo/casl";
+import { formatUsdLedgerNullable, shortId } from "@repo/shared";
 import {
 	Tabs,
 	TabsContent,
@@ -18,15 +19,16 @@ import {
 	type ConfigPageAction,
 	ConfigPageHeader,
 } from "@repo/ui/general/ConfigPageHeader";
+import { CustomAlertDialog } from "@repo/ui/general/CustomAlertDialog";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
 import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
-import { FileText, Pencil, Settings } from "lucide-react";
+import { FileText, PlayCircle, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useBillingConfig,
 	useInvoiceHistory,
@@ -36,8 +38,6 @@ import {
 } from "@/queries/billing.queries";
 import { useHolidays } from "@/queries/timekeeping.queries";
 import { BillingService } from "@/services/billing.service";
-import { fmtCurrency, fmtPeriod, fmtShortDate } from "@/utils/format";
-import { EditBillingSettingsDialog } from "./EditBillingSettingsDialog";
 
 const PAGE_SIZE = 10;
 const PENDING_ATTENTION_LIMIT = 50;
@@ -47,12 +47,19 @@ const BILLING_PARAMS = {
 	STATUS: "bStatus",
 } as const;
 
-function toHistoryItem(inv: ApiInvoiceListItem): InvoiceHistoryItem {
+function toHistoryItem(
+	inv: ApiInvoiceListItem,
+	fmtPeriod: (
+		s: string | null | undefined,
+		e: string | null | undefined,
+	) => string,
+	fmtShortDate: (iso: string | null | undefined) => string,
+): InvoiceHistoryItem {
 	return {
 		id: inv.invoiceNumber,
 		_id: inv.id,
 		period: fmtPeriod(inv.periodStartDate, inv.periodEndDate),
-		amount: fmtCurrency(inv.totalAmount),
+		amount: formatUsdLedgerNullable(inv.totalAmount),
 		dueDate: fmtShortDate(inv.dueDate),
 		status: statusMap[inv.status] ?? "Draft",
 		lineItems: inv.lineItemCount,
@@ -62,22 +69,20 @@ function toHistoryItem(inv: ApiInvoiceListItem): InvoiceHistoryItem {
 function BillingPageContent() {
 	const ability = useAbility();
 	const canEditBillingSettings = ability.can(Action.Update, "Billing");
-	const isDev = process.env.NODE_ENV === "development";
 
 	const router = useRouter();
-	const { id: orgId } = useOrgContext();
-	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+	const { fmtPeriod, fmtShortDate } = useUserTimezone();
+	const [isRunBillingConfirmOpen, setIsRunBillingConfirmOpen] = useState(false);
 	const triggerBillingRun = useTriggerBillingCycleRun();
 
-	const { data: config, isLoading: configLoading } = useBillingConfig(orgId);
-	const { data: payCodesData, isLoading: payCodesLoading } = usePayCodes(
-		orgId,
-		{ limit: 100 },
-	);
-	const { data: holidaysData, isLoading: holidaysLoading } = useHolidays(
-		orgId,
-		{ year: new Date().getFullYear(), limit: 50 },
-	);
+	const { data: config, isLoading: configLoading } = useBillingConfig();
+	const { data: payCodesData, isLoading: payCodesLoading } = usePayCodes({
+		limit: 100,
+	});
+	const { data: holidaysData, isLoading: holidaysLoading } = useHolidays({
+		year: new Date().getFullYear(),
+		limit: 50,
+	});
 
 	const [activeTab, setActiveTab] = useTabSwitch(
 		["billing-configuration", "invoice-history"],
@@ -118,9 +123,9 @@ function BillingPageContent() {
 	});
 
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
-	const { data: pendingCount = 0 } = useInvoiceHistoryPendingCount(orgId);
+	const { data: pendingCount = 0 } = useInvoiceHistoryPendingCount();
 
-	const { data: invoicesData } = useInvoiceHistory(orgId, {
+	const { data: invoicesData } = useInvoiceHistory({
 		search: searchFromUrl.trim() || undefined,
 		status:
 			values[BILLING_PARAMS.STATUS] === "all"
@@ -131,20 +136,26 @@ function BillingPageContent() {
 	});
 
 	const { data: pendingListData, isLoading: pendingListLoading } =
-		useInvoiceHistory(orgId, {
+		useInvoiceHistory({
 			status: "PENDING",
 			page: 1,
 			limit: PENDING_ATTENTION_LIMIT,
 		});
 
 	const allInvoices = useMemo(
-		() => (invoicesData?.data ?? []).map(toHistoryItem),
-		[invoicesData?.data],
+		() =>
+			(invoicesData?.data ?? []).map((inv) =>
+				toHistoryItem(inv, fmtPeriod, fmtShortDate),
+			),
+		[invoicesData?.data, fmtPeriod, fmtShortDate],
 	);
 
 	const pendingInvoices = useMemo(
-		() => (pendingListData?.data ?? []).map(toHistoryItem),
-		[pendingListData?.data],
+		() =>
+			(pendingListData?.data ?? []).map((inv) =>
+				toHistoryItem(inv, fmtPeriod, fmtShortDate),
+			),
+		[pendingListData?.data, fmtPeriod, fmtShortDate],
 	);
 
 	const handleViewInvoice = (invoice: InvoiceHistoryItem) => {
@@ -164,16 +175,15 @@ function BillingPageContent() {
 		URL.revokeObjectURL(url);
 	};
 
-	const handleDevTriggerBilling = () => {
-		triggerBillingRun.mutate(2, {
+	const handleRunBillingNow = () => {
+		triggerBillingRun.mutate(0, {
 			onSuccess: (res) => {
-				toast.success(
-					`Billing run queued (job ${res.jobId}) for ${res.scheduledFor}`,
-				);
+				toast.success(`Billing run queued (job ${shortId(res.jobId)})`);
+				setIsRunBillingConfirmOpen(false);
 			},
 			onError: (e) => {
 				toast.error(
-					e instanceof Error ? e.message : "Failed to queue billing cycle run",
+					e instanceof Error ? e.message : "Failed to queue billing run",
 				);
 			},
 		});
@@ -183,24 +193,11 @@ function BillingPageContent() {
 		...(canEditBillingSettings
 			? [
 					{
-						key: "edit-settings",
-						icon: <Pencil className="mr-2 h-4 w-4" />,
-						label: "Edit Settings",
+						key: "run-billing-now",
+						icon: <PlayCircle className="mr-2 h-4 w-4" />,
+						label: "Run Billing Now",
 						variant: "outline" as const,
-						onClick: () => setIsEditDialogOpen(true),
-					},
-				]
-			: []),
-		...(isDev && canEditBillingSettings
-			? [
-					{
-						key: "dev-run-billing-2m",
-						label: triggerBillingRun.isPending
-							? "Queueing…"
-							: "Dev: Run Billing in 2m",
-						variant: "outline" as const,
-						onClick: handleDevTriggerBilling,
-						disabled: triggerBillingRun.isPending,
+						onClick: () => setIsRunBillingConfirmOpen(true),
 					},
 				]
 			: []),
@@ -309,9 +306,20 @@ function BillingPageContent() {
 					</TabsContent>
 				</Tabs>
 			</div>
-			<EditBillingSettingsDialog
-				isOpen={isEditDialogOpen}
-				onClose={() => setIsEditDialogOpen(false)}
+			<CustomAlertDialog
+				isOpen={isRunBillingConfirmOpen}
+				onClose={() =>
+					!triggerBillingRun.isPending && setIsRunBillingConfirmOpen(false)
+				}
+				onConfirm={handleRunBillingNow}
+				isLoading={triggerBillingRun.isPending}
+				title="Run billing now?"
+				description="This queues an on-demand billing cycle for this organization. Invoices for the current period will be generated and any matching pending work will be billed."
+				cancelText="Cancel"
+				confirmText="Run Billing"
+				icon={<PlayCircle className="size-8 text-primary" />}
+				iconContainerClassName="bg-primary/10"
+				confirmButtonClassName=""
 			/>
 		</>
 	);

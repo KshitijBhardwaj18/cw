@@ -16,7 +16,7 @@ export function NoteDeleteDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: NoteDeleteDialogProps) {
+}: Readonly<NoteDeleteDialogProps>) {
 	const notePreview = note
 		? `${getLabel(NOTE_TYPE_OPTIONS, note.type)} - ${note.notes.slice(0, 50)}${note.notes.length > 50 ? "..." : ""}`
 		: "";

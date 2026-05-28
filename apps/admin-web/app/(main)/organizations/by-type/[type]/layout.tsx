@@ -11,7 +11,7 @@ type OrganizationsByTypePageLayoutProps = {
 
 function OrganizationsByTypePageLayout({
 	children,
-}: OrganizationsByTypePageLayoutProps) {
+}: Readonly<OrganizationsByTypePageLayoutProps>) {
 	return <PageContainer>{children}</PageContainer>;
 }
 

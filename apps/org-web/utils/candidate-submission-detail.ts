@@ -1,4 +1,8 @@
-import { formatDateOrPlaceholder, formatUsdPerHour } from "@repo/shared";
+import {
+	formatDateOrPlaceholder,
+	formatUsdPerHour,
+	SubmissionStage,
+} from "@repo/shared";
 import {
 	CANDIDATE_PORTAL_LABELS,
 	type CandidatePortalLabels,
@@ -19,40 +23,43 @@ function submissionStatusFromStage(
 	stage: SubmissionStageKey,
 ): SubmissionStatus {
 	switch (stage) {
-		case "SUBMITTED":
+		case SubmissionStage.SUBMITTED:
 			return "Submitted";
-		case "QUALIFIED":
-		case "SHORTLISTED":
+		case SubmissionStage.QUALIFIED:
+		case SubmissionStage.SHORTLISTED:
 			return "In Review";
-		case "INTERVIEW_SCHEDULED":
-		case "INTERVIEW_COMPLETED":
+		case SubmissionStage.INTERVIEW_SCHEDULED:
+		case SubmissionStage.INTERVIEW_COMPLETED:
 			return "Interview";
-		case "OFFERED":
+		case SubmissionStage.OFFERED:
 			return "Offer";
-		case "ACCEPTED":
+		case SubmissionStage.ACCEPTED:
 			return "Accepted";
-		case "REJECTED":
+		case SubmissionStage.REJECTED:
 			return "Rejected";
-		case "WITHDRAWN":
+		case SubmissionStage.WITHDRAWN:
 			return "Withdrawn";
+		default: {
+			const _unexpected: SubmissionStageKey = stage;
+			throw new Error(`Unexpected submission stage: ${_unexpected}`);
+		}
 	}
 }
 
-export function complianceDbStatusToUi(
+const COMPLIANCE_STATUS_VALUES = new Set<CandidateComplianceItemStatus>([
+	"APPROVED",
+	"PENDING_REVIEW",
+	"MISSING",
+	"REJECTED",
+	"EXPIRED",
+]);
+
+function narrowComplianceStatus(
 	s: string | undefined,
 ): CandidateComplianceItemStatus {
-	switch (s) {
-		case "APPROVED":
-			return "Approved";
-		case "PENDING":
-			return "Pending Verification";
-		case "MISSING":
-			return "Requested";
-		case "EXPIRED":
-			return "Expired";
-		default:
-			return "Pending Verification";
-	}
+	return COMPLIANCE_STATUS_VALUES.has(s as CandidateComplianceItemStatus)
+		? (s as CandidateComplianceItemStatus)
+		: "MISSING";
 }
 
 export function buildComplianceStatusFromApi(
@@ -60,14 +67,15 @@ export function buildComplianceStatusFromApi(
 ): CandidateSubmissionDetail["complianceStatus"] {
 	const items = compliance.items.map((i) => ({
 		label: i.title,
-		status: complianceDbStatusToUi(i.status),
+		status: narrowComplianceStatus(i.status),
 	}));
-	const approved = items.filter((x) => x.status === "Approved").length;
-	const pending = items.filter(
-		(x) => x.status === "Pending Verification",
-	).length;
+	const approved = items.filter((x) => x.status === "APPROVED").length;
+	const pending = items.filter((x) => x.status === "PENDING_REVIEW").length;
 	const missing = items.filter(
-		(x) => x.status === "Requested" || x.status === "Expired",
+		(x) =>
+			x.status === "MISSING" ||
+			x.status === "EXPIRED" ||
+			x.status === "REJECTED",
 	).length;
 	return { approved, pending, missing, items };
 }
@@ -81,10 +89,29 @@ export type CandidateSubmissionDetailView = CandidateSubmissionDetail & {
 	};
 };
 
+export type CandidateSubmissionDetailViewOptions = {
+	formatDateLabel: (value: Date | string | null | undefined) => string;
+	formatDateRangeLabel: (
+		start: Date | string | null | undefined,
+		end: Date | string | null | undefined,
+	) => string;
+};
+
 export function mapCandidateSubmissionDetailResponseToView(
 	api: CandidateSubmissionDetailResponse,
+	options?: CandidateSubmissionDetailViewOptions,
 ): CandidateSubmissionDetailView {
-	const submittedLabel = formatDateOrPlaceholder(api.submittedAt);
+	const formatDateLabel =
+		options?.formatDateLabel ??
+		((v: Date | string | null | undefined) => formatDateOrPlaceholder(v));
+	const formatDateRangeLabel =
+		options?.formatDateRangeLabel ??
+		((
+			a: Date | string | null | undefined,
+			b: Date | string | null | undefined,
+		) => `${formatDateOrPlaceholder(a)} – ${formatDateOrPlaceholder(b)}`);
+
+	const submittedLabel = formatDateLabel(api.submittedAt);
 	const billRateLabel = formatUsdPerHour(api.billRate);
 
 	const questionnaire: CandidateSubmissionDetail["questionnaire"] = [
@@ -98,9 +125,8 @@ export function mapCandidateSubmissionDetailResponseToView(
 		})),
 	];
 
-	const requestedTimeOff = api.rtos.map(
-		(r) =>
-			`${formatDateOrPlaceholder(r.start)} – ${formatDateOrPlaceholder(r.end)}`,
+	const requestedTimeOff = api.rtos.map((r) =>
+		formatDateRangeLabel(r.start, r.end),
 	);
 
 	const status = submissionStatusFromStage(api.stage);
@@ -110,11 +136,11 @@ export function mapCandidateSubmissionDetailResponseToView(
 		jobTitle: api.jobTitle,
 		location: api.facilityName,
 		appliedDate: submittedLabel,
-		updatedDate: formatDateOrPlaceholder(api.stageEnteredAt),
+		updatedDate: formatDateLabel(api.stageEnteredAt),
 		status,
 		summary: {
 			submitted: submittedLabel,
-			lastUpdate: formatDateOrPlaceholder(api.stageEnteredAt),
+			lastUpdate: formatDateLabel(api.stageEnteredAt),
 			payRate: billRateLabel,
 		},
 		candidateInfo: {

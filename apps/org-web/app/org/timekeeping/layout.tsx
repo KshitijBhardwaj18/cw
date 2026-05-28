@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	title: "Timekeeping",
 };
 
-const TimekeepingLayout = ({ children }: { children: React.ReactNode }) => {
+const TimekeepingLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.List, subject: "Timekeeping" }]}

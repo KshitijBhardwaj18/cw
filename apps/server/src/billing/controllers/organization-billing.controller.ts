@@ -100,10 +100,9 @@ export class OrganizationBillingController {
 		return this.billingService.updateConfig(organizationId, dto);
 	}
 
-	@Post("config/test/run-cycle-now")
+	@Post("run-now")
 	@ApiOperation({
-		summary:
-			"Test: enqueue billing cycle run immediately (explicit organization id)",
+		summary: "Queue an on-demand billing cycle run (explicit organization id)",
 	})
 	@Permissions({ action: Action.Update, subject: "Billing" })
 	triggerBillingCycleRunNow(

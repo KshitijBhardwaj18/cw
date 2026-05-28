@@ -1,13 +1,24 @@
-name: CI/CD
+name: PR Checks
 
 on:
   pull_request:
-    branches: [main, master, dev, staging, prod]
+    branches: [main, uat, staging]
+
+concurrency:
+  group: pr-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_OPTIONS: "--max-old-space-size=3072"
+  TURBO_CONCURRENCY: "1"
+  TURBO_TELEMETRY_DISABLED: "1"
+  HUSKY: "0"
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
-
+    name: Lint + type-check
+    runs-on: self-hosted
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -16,11 +27,16 @@ jobs:
         with:
           bun-version: "latest"
 
-      - name: Install dependencies
-        run: bun install
+      - name: Cache bun store
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
 
-      - name: Run linting
-        run: bun lint
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
       - name: Generate Prisma client
         run: bun db:generate
@@ -30,5 +46,13 @@ jobs:
       - name: Build packages
         run: bun run package
 
+      - name: Run linting
+        run: bun lint
+
       - name: Check types
         run: bun typecheck
+
+      - name: Cleanup workspace caches
+        if: always()
+        run: |
+          rm -rf .turbo node_modules/.cache apps/*/.next apps/*/.turbo packages/*/.turbo || true

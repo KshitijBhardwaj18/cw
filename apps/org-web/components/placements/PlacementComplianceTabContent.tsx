@@ -11,7 +11,23 @@ import {
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { AlertCircle, Plus } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { buildPlaceholderWalletItem } from "@/components/document-wallet/build-placeholder-wallet-item";
+import { ComplianceRejectDialog } from "@/components/document-wallet/ComplianceRejectDialog";
+import { DocumentWalletUploadDialog } from "@/components/document-wallet/DocumentWalletUploadDialog";
 import { usePlacementComplianceTab } from "@/hooks/use-placement-compliance-tab";
+import {
+	useMarkCandidateComplianceLinkSubmitted,
+	useUpdateCandidateComplianceStatus,
+	useUploadCandidateComplianceDocument,
+} from "@/queries/placements.queries";
+import {
+	useVendorMarkPlacementComplianceLinkSubmitted,
+	useVendorUpdatePlacementComplianceStatus,
+	useVendorUploadPlacementComplianceDocument,
+} from "@/queries/vendor-placement-compliance.queries";
+import type { PlacementComplianceItemRow } from "@/types/placement-compliance";
 import { AddComplianceItemDialog } from "./AddComplianceItemDialog";
 import { ComplianceCategorySection } from "./ComplianceCategorySection";
 import { ComplianceStatusCard } from "./ComplianceStatusCard";
@@ -22,17 +38,17 @@ interface PlacementComplianceTabContentProps {
 }
 
 export function PlacementComplianceTabContent({
-	placementId: _placementId,
+	placementId,
 	mode = "org",
-}: PlacementComplianceTabContentProps) {
+}: Readonly<PlacementComplianceTabContentProps>) {
 	const ability = useAbility();
 	const canAddPlacementComplianceItems =
 		mode === "org" && ability.can(Action.Update, "PlacementComplianceItem");
 	const canRemovePlacementExtras =
 		mode === "org" && ability.can(Action.Delete, "PlacementComplianceItem");
+	const canReview = ability.can(Action.Update, "Credentials");
 
 	const {
-		orgId,
 		isLoading,
 		error,
 		total,
@@ -48,7 +64,83 @@ export function PlacementComplianceTabContent({
 		handleRemove,
 		handleAddSelected,
 		isAddPending,
-	} = usePlacementComplianceTab(_placementId);
+	} = usePlacementComplianceTab(placementId);
+
+	const orgUpdate = useUpdateCandidateComplianceStatus(placementId);
+	const orgUpload = useUploadCandidateComplianceDocument(placementId);
+	const orgMarkLink = useMarkCandidateComplianceLinkSubmitted(placementId);
+	const vendorUpdate = useVendorUpdatePlacementComplianceStatus(placementId);
+	const vendorUpload = useVendorUploadPlacementComplianceDocument(placementId);
+	const vendorMarkLink =
+		useVendorMarkPlacementComplianceLinkSubmitted(placementId);
+
+	const updateMutation = mode === "vendor" ? vendorUpdate : orgUpdate;
+	const uploadMutation = mode === "vendor" ? vendorUpload : orgUpload;
+	const markLinkMutation = mode === "vendor" ? vendorMarkLink : orgMarkLink;
+
+	const [rejectItem, setRejectItem] =
+		useState<PlacementComplianceItemRow | null>(null);
+	const [uploadItem, setUploadItem] =
+		useState<PlacementComplianceItemRow | null>(null);
+
+	const onMarkLinkSubmitted = (item: PlacementComplianceItemRow) => {
+		markLinkMutation.mutate(item.complianceListItemId, {
+			onSuccess: () => toast.success("Marked as submitted"),
+			onError: (e) =>
+				toast.error(
+					e instanceof Error ? e.message : "Could not mark as submitted",
+				),
+		});
+	};
+
+	const onApprove = (item: PlacementComplianceItemRow) => {
+		updateMutation.mutate(
+			{
+				complianceListItemId: item.complianceListItemId,
+				body: { status: "APPROVED" },
+			},
+			{
+				onSuccess: () => toast.success("Item approved"),
+				onError: (e) =>
+					toast.error(
+						e instanceof Error ? e.message : "Failed to update status",
+					),
+			},
+		);
+	};
+
+	const confirmReject = (reason: string) => {
+		if (!rejectItem) return;
+		updateMutation.mutate(
+			{
+				complianceListItemId: rejectItem.complianceListItemId,
+				body: { status: "REJECTED", notes: reason || undefined },
+			},
+			{
+				onSuccess: () => {
+					toast.success("Item rejected");
+					setRejectItem(null);
+				},
+				onError: (e) =>
+					toast.error(
+						e instanceof Error ? e.message : "Failed to update status",
+					),
+			},
+		);
+	};
+
+	const dialogItem = uploadItem
+		? buildPlaceholderWalletItem({
+				id: uploadItem.complianceListItemId,
+				name: uploadItem.name,
+				instructionalNotes: null,
+				expirationType: uploadItem.expirationType,
+				expirationRuleValue: uploadItem.expirationRuleValue,
+				expirationRuleUnit: uploadItem.expirationRuleUnit,
+				responseStyle: uploadItem.responseStyle,
+				link: uploadItem.link,
+			})
+		: null;
 
 	if (isLoading) {
 		return (
@@ -82,6 +174,13 @@ export function PlacementComplianceTabContent({
 			</Empty>
 		);
 	}
+
+	const pendingActionItemId = updateMutation.isPending
+		? (updateMutation.variables?.complianceListItemId ?? null)
+		: null;
+	const markingLinkItemId = markLinkMutation.isPending
+		? (markLinkMutation.variables ?? null)
+		: null;
 
 	return (
 		<div className="space-y-6">
@@ -133,6 +232,13 @@ export function PlacementComplianceTabContent({
 							onRemoveItem={handleRemove}
 							onToggleAudit={toggleAuditLog}
 							canRemovePlacementExtras={canRemovePlacementExtras}
+							canReview={canReview}
+							onApprove={onApprove}
+							onReject={(item) => setRejectItem(item)}
+							onUpload={(item) => setUploadItem(item)}
+							onMarkLinkSubmitted={onMarkLinkSubmitted}
+							pendingActionItemId={pendingActionItemId}
+							markingLinkItemId={markingLinkItemId}
 						/>
 					))}
 				</div>
@@ -141,10 +247,24 @@ export function PlacementComplianceTabContent({
 			<AddComplianceItemDialog
 				open={addDialogOpen}
 				onOpenChange={setAddDialogOpen}
-				orgId={orgId}
-				placementId={_placementId}
+				placementId={placementId}
 				onAddSelected={handleAddSelected}
 				isPending={isAddPending}
+			/>
+
+			<DocumentWalletUploadDialog
+				open={!!uploadItem}
+				onOpenChange={(o) => !o && setUploadItem(null)}
+				item={dialogItem}
+				uploadMutation={uploadMutation}
+			/>
+
+			<ComplianceRejectDialog
+				open={!!rejectItem}
+				onOpenChange={(o) => !o && setRejectItem(null)}
+				itemName={rejectItem?.name ?? null}
+				onConfirm={confirmReject}
+				isSubmitting={updateMutation.isPending}
 			/>
 		</div>
 	);

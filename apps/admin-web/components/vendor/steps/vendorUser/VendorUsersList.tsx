@@ -15,7 +15,7 @@ interface VendorUsersListProps {
 	vendorId: string;
 }
 
-export function VendorUsersList({ vendorId }: VendorUsersListProps) {
+export function VendorUsersList({ vendorId }: Readonly<VendorUsersListProps>) {
 	const {
 		search: searchValue,
 		debouncedSearch,

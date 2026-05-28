@@ -6,7 +6,7 @@ type PlacementDetailPageProps = {
 
 export default async function PlacementDetailPage({
 	params,
-}: PlacementDetailPageProps) {
+}: Readonly<PlacementDetailPageProps>) {
 	const { placementId } = await params;
 	return (
 		<PlacementDetailsPageContent

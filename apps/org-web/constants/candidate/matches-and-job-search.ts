@@ -1,24 +1,26 @@
-export const CANDIDATE_JOB_SEARCH_PAGE_SIZE = 12;
+import { getLabel } from "@repo/shared";
+import { SHIFT_TYPE_OPTIONS, SHIFT_TYPE_VALUES } from "@/constants/shifts";
+
+export const CANDIDATE_JOB_SEARCH_DEFAULT_LIMIT = 12;
+export const CANDIDATE_JOB_SEARCH_PAGE_SIZE_OPTIONS = [6, 12, 18, 24];
 
 /** URL query keys for matches / job search (candidate portal). Namespace avoids clashes with org routes. */
 export const CANDIDATE_MATCHES_URL_KEYS = {
 	search: "mjSearch",
 	page: "mjPage",
+	limit: "mjLimit",
 	specialty: "mjSpecialty",
 	location: "mjLocation",
 	shiftType: "mjShift",
 	contractType: "mjContract",
+	tab: "mjTab",
 } as const;
 
-export const SHIFT_TYPE_LABELS: Record<string, string> = {
-	DAYS: "Days",
-	EVENINGS: "Evenings",
-	NIGHTS: "Nights",
-	SWING: "Swing",
-	ROTATING: "Rotating",
-	WEEKENDS_ONLY: "Weekends Only",
-	ON_CALL: "On Call",
-};
+export const CANDIDATE_MATCHES_TABS = ["all", "saved"] as const;
+export type CandidateMatchesTab = (typeof CANDIDATE_MATCHES_TABS)[number];
+
+/** All Prisma `ShiftType` values — for filters and option keys. */
+export const CANDIDATE_MATCHES_SHIFT_TYPE_ORDER = [...SHIFT_TYPE_VALUES];
 
 export const CONTRACT_TYPE_LABELS: Record<string, string> = {
 	LONG_TERM_ORDER: "Long-term",
@@ -29,7 +31,7 @@ export const CONTRACT_TYPE_LABELS: Record<string, string> = {
 
 export function getShiftTypeLabel(shiftType: string | null): string {
 	if (!shiftType) return "—";
-	return SHIFT_TYPE_LABELS[shiftType] ?? shiftType;
+	return getLabel(SHIFT_TYPE_OPTIONS, shiftType);
 }
 
 export function getContractTypeLabel(contractType: string | null): string {
@@ -40,7 +42,7 @@ export function getContractTypeLabel(contractType: string | null): string {
 export function buildShiftTypeOptions(shiftTypes: string[]) {
 	return shiftTypes.map((s) => ({
 		value: s,
-		label: SHIFT_TYPE_LABELS[s] ?? s,
+		label: getLabel(SHIFT_TYPE_OPTIONS, s),
 	}));
 }
 

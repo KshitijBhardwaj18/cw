@@ -1,6 +1,5 @@
 import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { useMemo } from "react";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	PLACEMENT_PARAMS,
 	usePlacementFilters,
@@ -16,6 +15,9 @@ import type { PlacementTab } from "@/types/placement";
 const CARDS_PER_PAGE = 6;
 export const PAGE_SIZE_OPTIONS = [6, 12, 18, 24];
 
+const TABLE_DEFAULT_LIMIT = 10;
+const TABLE_PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
+
 export const PLACEMENT_TAB_ORDER = [
 	"upcoming",
 	"active",
@@ -26,10 +28,12 @@ export interface UsePlacementsPageOptions {
 	fixedVendorId?: string;
 	/** Defaults to all tabs (vendor dashboard). Org UI passes CASL-filtered tabs. */
 	allowedTabs?: PlacementTab[];
+	/** Override default page size + selector options (e.g. table view uses 10/[5,10,20,50]). */
+	defaultLimit?: number;
+	pageSizeOptions?: number[];
 }
 
 export function usePlacementsPage(options: UsePlacementsPageOptions) {
-	const { id: orgId } = useOrgContext();
 	const allowedTabs = options.allowedTabs ?? [...PLACEMENT_TAB_ORDER];
 
 	const [activeTab, handleTabChange] = useTabSwitch<PlacementTab>(
@@ -39,7 +43,6 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 				PLACEMENT_PARAMS.SEARCH,
 				PLACEMENT_PARAMS.PAGE,
 				PLACEMENT_PARAMS.LIMIT,
-				PLACEMENT_PARAMS.WORKFORCE_TYPE,
 				PLACEMENT_PARAMS.COMPLIANCE,
 				PLACEMENT_PARAMS.VENDOR,
 			],
@@ -48,6 +51,9 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 
 	const queryEnabled =
 		allowedTabs.length > 0 && allowedTabs.includes(activeTab);
+
+	const effectiveDefaultLimit = options.defaultLimit ?? CARDS_PER_PAGE;
+	const effectivePageSizeOptions = options.pageSizeOptions ?? PAGE_SIZE_OPTIONS;
 
 	const {
 		search,
@@ -58,12 +64,14 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 		setPage,
 		limit,
 		setLimit,
-		workforceTypeFilter,
 		complianceFilter,
 		vendorFilter,
 		query,
 		filterConfigs: baseFilterConfigs,
-	} = usePlacementFilters({ defaultLimit: CARDS_PER_PAGE });
+	} = usePlacementFilters({
+		defaultLimit: effectiveDefaultLimit,
+		pageSizeOptions: effectivePageSizeOptions,
+	});
 
 	const effectiveQuery = options.fixedVendorId
 		? { ...query, vendorId: options.fixedVendorId }
@@ -74,7 +82,6 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 		isLoading: isPlacementsLoading,
 		isError,
 	} = usePlacements(
-		orgId,
 		{
 			tab: activeTab,
 			...effectiveQuery,
@@ -82,11 +89,10 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 		{ enabled: queryEnabled },
 	);
 
-	const { data: countsData, isLoading: isCountsLoading } = usePlacementCounts(
-		orgId,
-		{ enabled: allowedTabs.length > 0 },
-	);
-	const vendorsQuery = useOrgVendors(orgId);
+	const { data: countsData, isLoading: isCountsLoading } = usePlacementCounts({
+		enabled: allowedTabs.length > 0,
+	});
+	const vendorsQuery = useOrgVendors();
 	const vendorOptions = useMemo(() => {
 		const items = vendorsQuery.data ?? [];
 		return [
@@ -114,10 +120,7 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 	};
 
 	const hasActiveFilters = Boolean(
-		search.trim() ||
-			workforceTypeFilter !== "all" ||
-			complianceFilter !== "all" ||
-			vendorFilter !== "all",
+		search.trim() || complianceFilter !== "all" || vendorFilter !== "all",
 	);
 
 	const filterConfigs = useMemo(() => {
@@ -136,7 +139,6 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 	}, [baseFilterConfigs, options.fixedVendorId, vendorOptions]);
 
 	return {
-		orgId,
 		activeTab,
 		handleTabChange,
 		placementCounts,
@@ -151,7 +153,6 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 		setSearch,
 		filtersExpanded,
 		setFiltersExpanded,
-		workforceTypeFilter,
 		complianceFilter,
 		vendorFilter,
 		vendorOptions,
@@ -160,6 +161,9 @@ export function usePlacementsPage(options: UsePlacementsPageOptions) {
 		setPage,
 		limit,
 		setLimit,
+		pageSizeOptions: effectivePageSizeOptions,
 		filterConfigs,
 	};
 }
+
+export { TABLE_DEFAULT_LIMIT, TABLE_PAGE_SIZE_OPTIONS };

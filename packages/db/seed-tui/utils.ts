@@ -13,6 +13,19 @@ export const getDeterministicId = (key: string) => {
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 };
 
+export const calculateEndTime = (
+	startTime: string,
+	durationHours: number,
+): string => {
+	if (startTime === "Rotating") return "Rotating";
+	const [hours, minutes] = startTime.split(":").map(Number);
+	const endTotalMinutes =
+		(hours * 60 + minutes + durationHours * 60) % (24 * 60);
+	const endHours = Math.floor(endTotalMinutes / 60);
+	const endMinutes = endTotalMinutes % 60;
+	return `${endHours.toString().padStart(2, "0")}:${endMinutes.toString().padStart(2, "0")}`;
+};
+
 export const SEED_PREFIX = "test-";
 export const SEED_EMAIL_DOMAIN = "test.com";
 export const SAMPLE_PDF_URL =

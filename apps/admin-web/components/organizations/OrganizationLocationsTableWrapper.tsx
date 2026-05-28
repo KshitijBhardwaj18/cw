@@ -18,7 +18,7 @@ interface OrganizationLocationsTableWrapperProps {
 export function OrganizationLocationsTableWrapper({
 	organizationId,
 	data,
-}: OrganizationLocationsTableWrapperProps) {
+}: Readonly<OrganizationLocationsTableWrapperProps>) {
 	const { ability } = useAuth();
 	const canUpdateLocation = ability.can(Action.Update, "Organization");
 	const canDeleteLocation = ability.can(Action.Delete, "Organization");

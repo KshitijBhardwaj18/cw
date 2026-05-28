@@ -12,7 +12,9 @@ export async function generateMetadata(_props: PageProps): Promise<Metadata> {
 	};
 }
 
-export default async function PlacementDetailPage({ params }: PageProps) {
+export default async function PlacementDetailPage({
+	params,
+}: Readonly<PageProps>) {
 	const { placementId } = await params;
 	return <CandidatePlacementDetailPageContent placementId={placementId} />;
 }

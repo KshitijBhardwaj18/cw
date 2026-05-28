@@ -28,20 +28,18 @@ import {
 import type { FinalInvoiceListRow } from "@/services/billing.service";
 
 export type RouteInvoiceDialogProps = {
-	orgId: string;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	invoice: FinalInvoiceListRow | null;
 };
 
 export function RouteInvoiceDialog({
-	orgId,
 	open,
 	onOpenChange,
 	invoice,
-}: RouteInvoiceDialogProps) {
-	const approversQuery = useInvoiceApprovers(orgId);
-	const routeMutation = useRouteInvoiceForApproval(orgId);
+}: Readonly<RouteInvoiceDialogProps>) {
+	const approversQuery = useInvoiceApprovers();
+	const routeMutation = useRouteInvoiceForApproval();
 	const [approverId, setApproverId] = useState("");
 
 	function handleOpenChange(next: boolean) {

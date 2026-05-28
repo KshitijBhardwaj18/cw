@@ -4,11 +4,11 @@ import { cn } from "@repo/ui/lib/utils";
 export function CandidatePortalContentSkeleton({
 	className,
 	variant = "default",
-}: {
+}: Readonly<{
 	className?: string;
 	/** default: back link + main block; compact: title + block */
 	variant?: "default" | "compact";
-}) {
+}>) {
 	return (
 		<div className={cn("space-y-6", className)}>
 			{variant === "default" ? (

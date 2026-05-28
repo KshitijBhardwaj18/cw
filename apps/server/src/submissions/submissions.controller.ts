@@ -128,6 +128,7 @@ export class SubmissionsController {
 				page: query.page,
 				limit: query.limit,
 				tab: query.tab,
+				search: query.search,
 			},
 		);
 	}
@@ -220,6 +221,29 @@ export class SubmissionsController {
 		return this.submissionsService.getOrgSubmission(orgId, submissionId);
 	}
 
+	@Get(":submissionId/compliance/:complianceListItemId/signed-url")
+	@ApiOperation({
+		summary: "Short-lived signed URL for a submission compliance document",
+	})
+	@ApiResponse({ status: 200, description: "{ signedUrl: string }" })
+	@ApiResponse({
+		status: 404,
+		description: "Submission or document not found",
+	})
+	@Permissions({ action: Action.Read, subject: "Submission" })
+	getDocumentSignedUrl(
+		@Session() session: UserSession,
+		@Param("submissionId", ParseUUIDPipe) submissionId: string,
+		@Param("complianceListItemId", ParseUUIDPipe) complianceListItemId: string,
+	) {
+		const orgId = requireActiveOrganizationId(session);
+		return this.submissionsService.getOrgSubmissionDocumentSignedUrl(
+			orgId,
+			submissionId,
+			complianceListItemId,
+		);
+	}
+
 	@Patch(":submissionId")
 	@ApiOperation({ summary: "Update submission hiring stage" })
 	@ApiResponse({
@@ -246,6 +270,9 @@ export class SubmissionsController {
 				startDate: dto.startDate,
 				endDate: dto.endDate,
 				billRate: dto.billRate,
+				interviewDate: dto.interviewDate,
+				interviewLocation: dto.interviewLocation,
+				interviewNotes: dto.interviewNotes,
 			},
 		);
 	}

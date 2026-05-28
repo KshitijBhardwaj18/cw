@@ -1,17 +1,17 @@
 "use client";
 
-import { formatUsdPerHour } from "@repo/shared";
+import { formatUsdPerHour, todayInOrgTimezone, zonedToUtc } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
 	Card,
+	CardAction,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
 } from "@repo/ui/components/card";
 import { cn } from "@repo/ui/lib/utils";
-import { format, parseISO } from "date-fns";
 import {
 	Briefcase,
 	Building2,
@@ -21,6 +21,7 @@ import {
 	MapPin,
 	Zap,
 } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type {
 	CandidateShiftListItem,
 	CandidateWorkerType,
@@ -29,6 +30,7 @@ import type {
 interface ShiftCardProps {
 	shift: CandidateShiftListItem;
 	workerType: CandidateWorkerType;
+	isInternalWorkforce?: boolean;
 	onAction?: (
 		shiftId: string,
 		action: "claim" | "mark-interest" | "submit-timecard",
@@ -40,11 +42,18 @@ interface ShiftCardProps {
 export function ShiftCard({
 	shift,
 	workerType,
+	isInternalWorkforce = false,
 	onAction,
 	onClick,
 	isActionLoading,
-}: ShiftCardProps) {
-	const isMine = shift.isClaimed || shift.status !== "OPEN";
+}: Readonly<ShiftCardProps>) {
+	const { fmtShortDate, fmtTime, tz } = useUserTimezone();
+	const isMine = shift.isClaimed || shift.status === "IN_PROGRESS";
+	const todayIsoDate = todayInOrgTimezone(tz);
+	const shiftIsoDate = shift.date.slice(0, 10);
+	const isPast = shiftIsoDate < todayIsoDate;
+	const shiftTimeLabel = `${fmtTime(zonedToUtc(shift.date, shift.startTime, tz))} – ${fmtTime(zonedToUtc(shift.date, shift.endTime, tz))}`;
+	const isExpired = shift.status === "EXPIRED";
 
 	const handleAction = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -79,61 +88,67 @@ export function ShiftCard({
 			onClick={() => onClick?.(shift)}
 		>
 			<CardHeader className="space-y-3">
-				<div className="flex flex-wrap items-center gap-2">
-					<CardTitle className="min-w-0 text-base font-semibold leading-snug sm:text-lg">
-						{shift.title}
-					</CardTitle>
-					{shift.status === "IN_PROGRESS" && isMine && (
-						<Badge variant="success">Claimed</Badge>
-					)}
-					{shift.status === "COMPLETED" && (
-						<Badge variant="secondary">Completed</Badge>
-					)}
-					{shift.status === "OPEN" && !isMine && (
-						<Badge variant="info">Open</Badge>
-					)}
-					{shift.isUrgent && (
-						<Badge variant="error">
-							<Zap className="size-3" />
-							Urgent
+				<div className="min-w-0 space-y-3">
+					<div className="flex flex-wrap items-center gap-2">
+						<CardTitle className="min-w-0 text-base font-semibold leading-snug sm:text-lg">
+							{shift.title}
+						</CardTitle>
+						{shift.status === "IN_PROGRESS" && isMine && (
+							<Badge variant="success">Claimed</Badge>
+						)}
+						{shift.status === "COMPLETED" && (
+							<Badge variant="secondary">Completed</Badge>
+						)}
+						{shift.status === "OPEN" && !isMine && (
+							<Badge variant="info">Open</Badge>
+						)}
+						{isExpired && <Badge variant="secondary">Expired</Badge>}
+						{shift.isUrgent && (
+							<Badge variant="error">
+								<Zap className="size-3" />
+								Urgent
+							</Badge>
+						)}
+					</div>
+					<CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-2 py-0 font-medium">
+						<div className="flex items-center gap-1.5">
+							<Calendar className="size-4 shrink-0" />
+							{fmtShortDate(shift.date)}
+						</div>
+						<div className="flex items-center gap-1.5">
+							<Clock className="size-4 shrink-0" />
+							{shiftTimeLabel}
+						</div>
+						<Badge variant="success" className="shrink-0">
+							{formatUsdPerHour(shift.ratePerHour)}
 						</Badge>
-					)}
+					</CardDescription>
 				</div>
-				<CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-2 py-0 font-medium">
-					<div className="flex items-center gap-1.5">
-						<Calendar className="size-4 shrink-0" />
-						{format(parseISO(shift.date), "EEE, MMM d, yyyy")}
-					</div>
-					<div className="flex items-center gap-1.5">
-						<Clock className="size-4 shrink-0" />
-						{shift.startTime} – {shift.endTime}
-					</div>
-					<Badge variant="success" className="shrink-0">
-						{formatUsdPerHour(shift.ratePerHour)}
-					</Badge>
-				</CardDescription>
 
-				{shift.status !== "CANCELLED" && shift.status !== "COMPLETED" && (
-					<div className="pt-1">
-						<Button
-							size="sm"
-							variant={actionVariant}
-							className="w-full sm:w-auto sm:self-end"
-							disabled={isActionLoading}
-							aria-busy={Boolean(isActionLoading)}
-							onClick={handleAction}
-						>
-							{isActionLoading ? (
-								<>
-									<Loader2 className="size-4 animate-spin" aria-hidden />
-									{actionLoadingLabel}
-								</>
-							) : (
-								actionLabel
-							)}
-						</Button>
-					</div>
-				)}
+				{shift.status !== "CANCELLED" &&
+					shift.status !== "COMPLETED" &&
+					!isExpired &&
+					!(isMine && isInternalWorkforce) && (
+						<CardAction>
+							<Button
+								size="sm"
+								variant={actionVariant}
+								className="w-full min-w-0 sm:w-auto"
+								disabled={isActionLoading || (!isMine && isPast)}
+								aria-busy={Boolean(isActionLoading)}
+								onClick={handleAction}
+							>
+								{isActionLoading ? (
+									<>
+										<Loader2 className="size-4 animate-spin" aria-hidden />
+										{actionLoadingLabel}
+									</>
+								) : (
+									actionLabel
+								)}
+							</Button>
+						</CardAction>
+					)}
 			</CardHeader>
 
 			<CardContent className="space-y-4">

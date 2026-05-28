@@ -20,7 +20,7 @@ type OrganizationDetailsPageContentProps = {
 
 export function OrganizationDetailsPageContent({
 	organizationId,
-}: OrganizationDetailsPageContentProps) {
+}: Readonly<OrganizationDetailsPageContentProps>) {
 	const [tab, setTab] = useTabSwitch(["profile", "documents", "notes"], {
 		alsoClearParamKeys: LIST_FILTER_KEYS,
 	});

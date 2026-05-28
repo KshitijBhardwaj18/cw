@@ -24,7 +24,7 @@ export function JobCandidateSubmissionsStageTabs({
 	visibleTabs,
 	stageCounts,
 	onStageChange,
-}: JobCandidateSubmissionsStageTabsProps) {
+}: Readonly<JobCandidateSubmissionsStageTabsProps>) {
 	return (
 		<Tabs
 			value={activeStage}

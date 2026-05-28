@@ -2,6 +2,7 @@
 
 import { Action, useAbility } from "@repo/casl";
 import { formatUsdPerHour } from "@repo/shared";
+import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/tabs";
 import {
 	ConfigPageEmptyState,
 	ConfigPageErrorState,
@@ -9,16 +10,21 @@ import {
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { MetricCard } from "@repo/ui/general/MetricCard";
 import PaginationControls from "@repo/ui/general/PaginationControls";
+import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import {
+	Bookmark,
 	Briefcase,
 	CircleDollarSign,
 	Loader2,
 	Send,
 	Users,
 } from "lucide-react";
-import { useMemo } from "react";
-import { useVendorJobsBoard } from "@/hooks/vendor/use-vendor-jobs-board";
+import {
+	useVendorJobsBoard,
+	VENDOR_JOBS_BOARD_TABS,
+	type VendorJobsBoardTab,
+} from "@/hooks/vendor/use-vendor-jobs-board";
 import { useVendorCandidatesMetrics } from "@/queries/vendor-candidates.queries";
 import { CandidateDetailDialog } from "./CandidateDetailDialog";
 import { CandidateSelectionDialog } from "./CandidateSelectionDialog";
@@ -30,6 +36,9 @@ function VendorJobBoardPageContent() {
 	const {
 		searchValue,
 		setSearchValue,
+		filterConfigs,
+		filtersExpanded,
+		setFiltersExpanded,
 		selectedRequisition,
 		isJobDialogOpen,
 		setIsJobDialogOpen,
@@ -49,13 +58,34 @@ function VendorJobBoardPageContent() {
 		handleViewJobDetails,
 		handleViewCandidate,
 		handleSubmitCandidate,
+		handleDetailSubmitCandidate,
 		handleSelectSubmitCandidate,
 		handleBackToSelection,
 		pageCount,
 		paginatedRequisitions,
 		totalRequisitions,
+		totalOpenings,
+		averageBillRate,
+		tab,
+		setTab,
+		allCount,
+		savedCount,
 		listQuery,
 	} = useVendorJobsBoard();
+
+	const isSavedTab = tab === "saved";
+	const tabCounts: Record<VendorJobsBoardTab, number> = {
+		all: allCount,
+		saved: savedCount,
+	};
+	const tabLabels: Record<VendorJobsBoardTab, string> = {
+		all: "All Jobs",
+		saved: "Saved",
+	};
+	const tabIcons: Record<VendorJobsBoardTab, typeof Briefcase> = {
+		all: Briefcase,
+		saved: Bookmark,
+	};
 
 	const ability = useAbility();
 	const canSubmitCandidates = ability.can(Action.Create, "Submission");
@@ -63,24 +93,10 @@ function VendorJobBoardPageContent() {
 
 	const metricsQuery = useVendorCandidatesMetrics();
 
-	const pageMetrics = useMemo(() => {
-		const rows = listQuery.data?.data ?? [];
-		let openings = 0;
-		let billSum = 0;
-		let billN = 0;
-		for (const r of rows) {
-			openings += Math.max(0, r.numberOfPositions - r.positionsFilled);
-			if (r.billRate != null && !Number.isNaN(r.billRate)) {
-				billSum += r.billRate;
-				billN += 1;
-			}
-		}
-		const avgBill = billN > 0 ? formatUsdPerHour(billSum / billN) : "—";
-		return { openings, avgBill };
-	}, [listQuery.data?.data]);
-
 	const isLoading = listQuery.isLoading;
 	const isError = listQuery.isError;
+	const avgBillLabel =
+		averageBillRate != null ? formatUsdPerHour(averageBillRate) : "—";
 
 	return (
 		<div className="space-y-10">
@@ -100,14 +116,14 @@ function VendorJobBoardPageContent() {
 					variant="primary"
 				/>
 				<MetricCard
-					title="Openings (this page)"
-					value={isLoading ? "…" : String(pageMetrics.openings)}
+					title="Open Positions"
+					value={isLoading ? "…" : String(totalOpenings)}
 					icon={Send}
 					variant="success"
 				/>
 				<MetricCard
-					title="Avg bill rate (this page)"
-					value={isLoading ? "…" : pageMetrics.avgBill}
+					title="Avg Bill Rate"
+					value={isLoading ? "…" : avgBillLabel}
 					icon={CircleDollarSign}
 					variant="warning"
 				/>
@@ -123,13 +139,40 @@ function VendorJobBoardPageContent() {
 				/>
 			</div>
 
+			<Tabs
+				value={tab}
+				onValueChange={(value) => setTab(value as VendorJobsBoardTab)}
+				className="w-full flex-col space-y-6"
+			>
+				<ScrollableLineTabsRow>
+					<TabsList
+						variant="line"
+						className="inline-flex h-auto w-max min-w-full flex-nowrap justify-start gap-0 rounded-none border-0 bg-transparent p-0"
+					>
+						{VENDOR_JOBS_BOARD_TABS.map((id) => {
+							const Icon = tabIcons[id];
+							return (
+								<TabsTrigger
+									key={id}
+									value={id}
+									className="flex-none gap-2 px-4 py-3"
+								>
+									<Icon className="size-4" />
+									{tabLabels[id]} ({tabCounts[id]})
+								</TabsTrigger>
+							);
+						})}
+					</TabsList>
+				</ScrollableLineTabsRow>
+			</Tabs>
+
 			<SearchWithFilters
 				searchPlaceholder="Search jobs by title, organization, location, or summary..."
 				searchValue={searchValue}
 				onSearchChange={setSearchValue}
-				filtersExpanded={false}
-				onFiltersExpandedChange={() => {}}
-				filterConfigs={[]}
+				filtersExpanded={filtersExpanded}
+				onFiltersExpandedChange={setFiltersExpanded}
+				filterConfigs={filterConfigs}
 			/>
 
 			<div className="space-y-6">
@@ -153,12 +196,16 @@ function VendorJobBoardPageContent() {
 
 				{!isLoading && !isError && paginatedRequisitions.length === 0 && (
 					<ConfigPageEmptyState
-						hasSearch={searchValue.trim() !== ""}
+						hasSearch={searchValue.trim() !== "" && !isSavedTab}
 						searchEmptyTitle="No jobs match your search"
-						emptyTitle="No jobs yet"
+						emptyTitle={isSavedTab ? "No saved jobs yet" : "No jobs yet"}
 						searchEmptyMessage="Try adjusting keywords or clear the search to see all assigned requisitions."
-						emptyMessage="You have no assigned requisitions yet. When a client posts jobs, they will appear here."
-						icon={Briefcase}
+						emptyMessage={
+							isSavedTab
+								? "Save jobs from the detail view and they will appear here for quick access."
+								: "You have no assigned requisitions yet. When a client posts jobs, they will appear here."
+						}
+						icon={isSavedTab ? Bookmark : Briefcase}
 					/>
 				)}
 
@@ -186,7 +233,10 @@ function VendorJobBoardPageContent() {
 					goToPage={setCurrentPage}
 					limit={limit}
 					setLimit={setLimit}
-					pageSizeOptions={[5, 10, 15, 20]}
+					pageSizeOptions={[5, 10, 20, 50]}
+					totalItems={totalRequisitions}
+					itemLabel="job"
+					itemLabelPlural="jobs"
 				/>
 			</div>
 
@@ -207,7 +257,10 @@ function VendorJobBoardPageContent() {
 				requisition={selectedSubmitRequisition}
 				open={isCandidateDialogOpen}
 				onOpenChange={setIsCandidateDialogOpen}
-				onSubmitCandidate={handleSubmitCandidate}
+				onSubmitCandidate={(requisition) =>
+					selectedCandidate &&
+					handleDetailSubmitCandidate(requisition, selectedCandidate)
+				}
 				showSubmitCandidate={canSubmitCandidates}
 			/>
 

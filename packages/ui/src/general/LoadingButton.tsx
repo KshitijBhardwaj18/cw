@@ -13,7 +13,7 @@ const LoadingButton = ({
 	className,
 	showChildren = true,
 	...props
-}: LoadingButtonProps) => {
+}: Readonly<LoadingButtonProps>) => {
 	return (
 		<Button className={cn(className)} disabled={isLoading} {...props}>
 			{isLoading ? (

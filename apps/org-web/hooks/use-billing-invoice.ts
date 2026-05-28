@@ -13,7 +13,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	billingKeys,
 	useInvoice,
@@ -25,12 +24,11 @@ import { TimekeepingService } from "@/services/timekeeping.service";
 export function useBillingInvoice() {
 	const params = useParams();
 	const invoiceId = params.id as string;
-	const { id: orgId } = useOrgContext();
 	const qc = useQueryClient();
 
-	const { data: invoice, isLoading } = useInvoice(orgId, invoiceId);
-	const updateStatusMutation = useUpdateInvoiceStatus(orgId);
-	const createDisputeMutation = useCreateDispute(orgId);
+	const { data: invoice, isLoading } = useInvoice(invoiceId);
+	const updateStatusMutation = useUpdateInvoiceStatus();
+	const createDisputeMutation = useCreateDispute();
 
 	const uiStatus = invoice
 		? (DB_TO_UI_STATUS[invoice.status as DbInvoiceStatus] ?? "Draft")

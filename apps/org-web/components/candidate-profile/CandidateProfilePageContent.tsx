@@ -10,7 +10,19 @@ import {
 } from "@repo/ui/components/empty";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { AlertCircle, Pencil } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
+import { toast } from "sonner";
+import {
+	type CandidateProfileEditIntent,
+	parseProfileEditIntent,
+} from "@/constants/candidate/profile-edit-deep-link";
 import { useCandidateMeProfile } from "@/queries/candidate-profile.queries";
 import { AssignmentActivityCard } from "./AssignmentActivityCard";
 import { DocumentWalletCard } from "./DocumentWalletCard";
@@ -26,9 +38,42 @@ type ProfileSectionProps = {
 	user: ProfileUser;
 };
 
-function CandidateProfilePageContent({ user }: ProfileSectionProps) {
+function CandidateProfilePageContent({ user }: Readonly<ProfileSectionProps>) {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const profileQuery = useCandidateMeProfile();
+	const [editIntent, setEditIntent] =
+		useState<CandidateProfileEditIntent | null>(null);
+	const resumeAnchorRef = useRef<HTMLDivElement>(null);
+
+	useLayoutEffect(() => {
+		const parsed = parseProfileEditIntent(searchParams);
+		if (parsed) {
+			setEditIntent(parsed);
+			router.replace("/profile", { scroll: false });
+		}
+	}, [searchParams, router]);
+
+	const dismissIntent = useCallback(
+		(kind: CandidateProfileEditIntent["edit"]) => {
+			setEditIntent((prev) => (prev?.edit === kind ? null : prev));
+		},
+		[],
+	);
+
+	useEffect(() => {
+		if (editIntent?.edit !== "resume") return;
+		if (!profileQuery.isSuccess) return;
+		const t = window.setTimeout(() => {
+			resumeAnchorRef.current?.scrollIntoView({
+				behavior: "smooth",
+				block: "center",
+			});
+			toast.info("Upload your resume using the section below.");
+			setEditIntent(null);
+		}, 150);
+		return () => clearTimeout(t);
+	}, [editIntent, profileQuery.isSuccess]);
 
 	if (profileQuery.isPending) {
 		return (
@@ -65,6 +110,27 @@ function CandidateProfilePageContent({ user }: ProfileSectionProps) {
 		router.refresh();
 	};
 
+	const contactDeepLink =
+		editIntent?.edit === "contact"
+			? {
+					open: true as const,
+					onOpenChange: (open: boolean) => {
+						if (!open) dismissIntent("contact");
+					},
+				}
+			: {};
+
+	const professionalDeepLink =
+		editIntent?.edit === "professional"
+			? {
+					open: true as const,
+					onOpenChange: (open: boolean) => {
+						if (!open) dismissIntent("professional");
+					},
+					focusSection: editIntent.focus,
+				}
+			: {};
+
 	return (
 		<div className="space-y-6">
 			<ProfileCard
@@ -75,6 +141,7 @@ function CandidateProfilePageContent({ user }: ProfileSectionProps) {
 						user={user}
 						profile={profile ?? null}
 						onSuccess={handleRefresh}
+						{...contactDeepLink}
 						trigger={
 							<Button variant="outline" size="sm" className="gap-2">
 								<Pencil className="size-3.5" />
@@ -92,6 +159,7 @@ function CandidateProfilePageContent({ user }: ProfileSectionProps) {
 						<EditProfessionalInformationDialog
 							profile={profile}
 							onSuccess={handleRefresh}
+							{...professionalDeepLink}
 							trigger={
 								<Button variant="outline" size="sm" className="gap-2">
 									<Pencil className="size-3.5" />
@@ -103,7 +171,9 @@ function CandidateProfilePageContent({ user }: ProfileSectionProps) {
 				}
 			/>
 
-			<ResumeCard existingResumeKey={profile?.resumeUrl ?? null} />
+			<div ref={resumeAnchorRef} className="scroll-mt-24">
+				<ResumeCard existingResumeKey={profile?.resumeUrl ?? null} />
+			</div>
 
 			<DocumentWalletCard organizationId={profile?.organizationId ?? null} />
 			<SavedJobsCard organizationId={profile?.organizationId ?? null} />

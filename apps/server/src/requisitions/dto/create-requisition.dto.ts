@@ -53,10 +53,17 @@ export class CreateRequisitionDto {
 	@IsUUID()
 	organizationOccupationId: string;
 
-	@ApiPropertyOptional()
+	@ApiPropertyOptional({
+		type: [String],
+		description:
+			"Organization specialty link ids. Optional. Empty array or omit when no specialties apply.",
+	})
 	@IsOptional()
-	@IsUUID()
-	organizationSpecialtyId?: string;
+	@IsArray()
+	@ArrayUnique()
+	@ArrayMaxSize(50)
+	@IsUUID("all", { each: true })
+	organizationSpecialtyIds?: string[];
 
 	@ApiProperty()
 	@IsUUID()
@@ -149,7 +156,7 @@ export class CreateRequisitionDto {
 	@ApiProperty()
 	@Type(() => Number)
 	@IsInt()
-	@Min(1)
+	@Min(0)
 	numberOfPositions: number;
 
 	@ApiPropertyOptional()

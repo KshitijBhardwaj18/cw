@@ -28,7 +28,7 @@ export function SendReminderDialog({
 	open,
 	onOpenChange,
 	onConfirm,
-}: SendReminderDialogProps) {
+}: Readonly<SendReminderDialogProps>) {
 	const [message, setMessage] = useState("");
 
 	useEffect(() => {

@@ -13,14 +13,16 @@ import {
 	EmptyTitle,
 } from "@repo/ui/components/empty";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { FolderOpen } from "lucide-react";
 import { useState } from "react";
+import { ComplianceRejectDialog } from "@/components/document-wallet/ComplianceRejectDialog";
 import { DocumentWalletCategoryCollapsible } from "@/components/document-wallet/DocumentWalletCategoryCollapsible";
 import { DocumentWalletSummaryCard } from "@/components/document-wallet/DocumentWalletSummaryCard";
 import { useAuth } from "@/contexts/auth.context";
 import { useVendorDocumentWalletDetailPage } from "@/hooks/vendor/use-vendor-document-wallet-detail-page";
+import type { CandidateDocumentWalletItem } from "@/types/candidate-document-wallet";
 import {
 	DocumentWalletSkeleton,
 	ItemsSkeleton,
@@ -33,7 +35,7 @@ export interface VendorDocumentWalletDetailPageContentProps {
 
 export function VendorDocumentWalletDetailPageContent({
 	candidateId,
-}: VendorDocumentWalletDetailPageContentProps) {
+}: Readonly<VendorDocumentWalletDetailPageContentProps>) {
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
 	const { session } = useAuth();
@@ -41,7 +43,11 @@ export function VendorDocumentWalletDetailPageContent({
 		session.user.subRole === VendorUserRole.VENDOR_VIEW_ONLY;
 
 	const {
+		page,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions,
 		search,
 		setSearch,
 		categoryKey,
@@ -49,9 +55,20 @@ export function VendorDocumentWalletDetailPageContent({
 		summaryQuery,
 		itemsQuery,
 		openDocument,
-		runComplianceReview,
+		approveCompliance,
+		rejectCompliance,
+		isReviewSubmitting,
 		reviewActionItemId,
 	} = useVendorDocumentWalletDetailPage(candidateId);
+
+	const [rejectItem, setRejectItem] =
+		useState<CandidateDocumentWalletItem | null>(null);
+
+	const handleRejectConfirm = (reason: string) => {
+		if (!rejectItem) return;
+		rejectCompliance(rejectItem, reason);
+		setRejectItem(null);
+	};
 
 	if (summaryQuery.isError) {
 		return (
@@ -155,7 +172,6 @@ export function VendorDocumentWalletDetailPageContent({
 								key={category.categoryKey}
 								category={category}
 								vendorMode
-								onCategoryUploadClick={() => undefined}
 								onUploadItem={() => undefined}
 								onReplaceItem={() => undefined}
 								onViewItem={(item) => {
@@ -164,28 +180,36 @@ export function VendorDocumentWalletDetailPageContent({
 								onDownloadItem={(item) => {
 									void openDocument(item.complianceListItemId);
 								}}
-								onApproveItem={
-									isVendorViewOnly
-										? undefined
-										: (item) => runComplianceReview(item, "APPROVED")
-								}
+								onApproveItem={isVendorViewOnly ? undefined : approveCompliance}
 								onRejectItem={
-									isVendorViewOnly
-										? undefined
-										: (item) => runComplianceReview(item, "PENDING")
+									isVendorViewOnly ? undefined : (item) => setRejectItem(item)
 								}
 								reviewActionPendingForId={reviewActionItemId}
 							/>
 						))}
 					</div>
 
-					<ConfigPagePagination
-						page={items.page}
-						totalPages={items.totalPages}
-						onPageChange={setPage}
+					<PaginationControls
+						currentPage={page}
+						pageCount={items.totalPages}
+						goToPage={setPage}
+						limit={limit}
+						setLimit={setLimit}
+						pageSizeOptions={pageSizeOptions}
+						totalItems={items.total}
+						itemLabel="requirement"
+						itemLabelPlural="requirements"
 					/>
 				</>
 			)}
+
+			<ComplianceRejectDialog
+				open={!!rejectItem}
+				onOpenChange={(o) => !o && setRejectItem(null)}
+				itemName={rejectItem?.title ?? null}
+				onConfirm={handleRejectConfirm}
+				isSubmitting={isReviewSubmitting}
+			/>
 		</div>
 	);
 }

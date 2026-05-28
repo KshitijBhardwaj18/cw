@@ -26,20 +26,14 @@ const SidebarLogo = () => {
 		: "";
 
 	return (
-		<SidebarHeader className={cn(open && "p-0 mb-2")}>
+		<SidebarHeader className="h-14 justify-center border-b p-0 px-2">
 			<SidebarMenu>
 				<SidebarMenuItem>
 					<SidebarMenuButton
 						size="lg"
 						className={cn(
-							!open && "h-12 text-sm group-data-[collapsible=icon]:p-0!",
-							open &&
-								cn(
-									"group-data-[collapsible=icon]:my-4 hover:bg-transparent border-b flex w-full",
-									org && orgName
-										? "h-auto min-h-14 items-start py-3"
-										: "h-14 items-center",
-								),
+							"h-10 items-center hover:bg-transparent flex w-full",
+							!open && "text-sm group-data-[collapsible=icon]:p-0!",
 						)}
 					>
 						{expanded ? (

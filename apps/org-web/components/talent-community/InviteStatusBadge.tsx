@@ -2,7 +2,9 @@ type InviteStatusBadgeProps = {
 	inviteStatus: string | null;
 };
 
-export function InviteStatusBadge({ inviteStatus }: InviteStatusBadgeProps) {
+export function InviteStatusBadge({
+	inviteStatus,
+}: Readonly<InviteStatusBadgeProps>) {
 	if (!inviteStatus) return null;
 
 	const variants: Record<string, string> = {

@@ -24,7 +24,7 @@ interface EmailFormProps {
 	onSendOTP: (email: string) => Promise<boolean>;
 }
 
-export function EmailForm({ onSendOTP }: EmailFormProps) {
+export function EmailForm({ onSendOTP }: Readonly<EmailFormProps>) {
 	const [error, setError] = useState<string | null>(null);
 
 	const defaultValues: EmailFormValues = {

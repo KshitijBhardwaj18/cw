@@ -29,7 +29,7 @@ interface PageContentProps {
 
 export default function OrganizationTimekeepingPageContent({
 	organizationId,
-}: PageContentProps) {
+}: Readonly<PageContentProps>) {
 	const page = useOrganizationTimekeepingPage(organizationId);
 
 	return (

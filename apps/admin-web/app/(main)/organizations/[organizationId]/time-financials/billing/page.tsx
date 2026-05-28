@@ -2,7 +2,7 @@ import BillingPageContent from "@/components/organization-billing/BillingPageCon
 
 type PageProps = { params: Promise<{ organizationId: string }> };
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params }: Readonly<PageProps>) {
 	const { organizationId } = await params;
 	return <BillingPageContent organizationId={organizationId} />;
 }

@@ -29,7 +29,7 @@ export function ProfileCard({
 	user,
 	profile,
 	editProfileSlot,
-}: ProfileCardProps) {
+}: Readonly<ProfileCardProps>) {
 	const location = buildLocationString(profile);
 
 	return (

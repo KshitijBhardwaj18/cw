@@ -49,7 +49,8 @@ const ROLE_SELECT_OPTIONS: { value: VendorUserRole; label: string }[] = [
 ];
 
 const EMPTY_FORM_VALUES: AddVendorUserFormValues = {
-	fullName: "",
+	firstName: "",
+	lastName: "",
 	email: "",
 	phone: "",
 	role: VendorUserRole.VENDOR_USER,
@@ -75,7 +76,8 @@ function vendorUserRowToFormValues(
 ): AddVendorUserFormValues {
 	const departmentId = resolveDepartmentIdFromRow(row, departments);
 	return {
-		fullName: row.fullName,
+		firstName: row.firstName,
+		lastName: row.lastName,
 		email: row.email,
 		phone: row.phone === "—" ? "" : row.phone,
 		role: row.role,
@@ -99,7 +101,7 @@ export function AddVendorUserDialog({
 	organizationId,
 	onCreate,
 	onUpdate,
-}: AddVendorUserDialogProps) {
+}: Readonly<AddVendorUserDialogProps>) {
 	const isEditMode = editingUser !== null;
 	const editingUserRef = useRef(editingUser);
 	editingUserRef.current = editingUser;
@@ -182,33 +184,63 @@ export function AddVendorUserDialog({
 					}}
 					className="space-y-4"
 				>
-					<form.Field
-						name="fullName"
-						validators={{ onBlur: addVendorUserSchema.shape.fullName }}
-					>
-						{(field) => (
-							<Field
-								data-invalid={formFieldShowInvalid(
-									field.state.meta.isTouched,
-									field.state.meta.isValid,
-									submissionAttempts,
-								)}
-							>
-								<FieldLabel htmlFor={field.name}>
-									Full Name <RequiredStar />
-								</FieldLabel>
-								<Input
-									id={field.name}
-									value={field.state.value}
-									onChange={(event) => field.handleChange(event.target.value)}
-									onBlur={field.handleBlur}
-									placeholder="Enter full name"
-									autoComplete="name"
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</Field>
-						)}
-					</form.Field>
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<form.Field
+							name="firstName"
+							validators={{ onBlur: addVendorUserSchema.shape.firstName }}
+						>
+							{(field) => (
+								<Field
+									data-invalid={formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									)}
+								>
+									<FieldLabel htmlFor={field.name}>
+										First Name <RequiredStar />
+									</FieldLabel>
+									<Input
+										id={field.name}
+										value={field.state.value}
+										onChange={(event) => field.handleChange(event.target.value)}
+										onBlur={field.handleBlur}
+										placeholder="First name"
+										autoComplete="given-name"
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</Field>
+							)}
+						</form.Field>
+
+						<form.Field
+							name="lastName"
+							validators={{ onBlur: addVendorUserSchema.shape.lastName }}
+						>
+							{(field) => (
+								<Field
+									data-invalid={formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									)}
+								>
+									<FieldLabel htmlFor={field.name}>
+										Last Name <RequiredStar />
+									</FieldLabel>
+									<Input
+										id={field.name}
+										value={field.state.value}
+										onChange={(event) => field.handleChange(event.target.value)}
+										onBlur={field.handleBlur}
+										placeholder="Last name"
+										autoComplete="family-name"
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</Field>
+							)}
+						</form.Field>
+					</div>
 
 					<form.Field
 						name="email"

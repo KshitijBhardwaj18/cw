@@ -14,7 +14,9 @@ import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
 import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { useDialogFormEntitySnapshot } from "@/hooks/use-dialog-form-entity-snapshot";
 import { type ProjectFormValues, projectFormSchema } from "@/schemas";
 
 type ProjectFormDialogProps = {
@@ -43,9 +45,15 @@ export function ProjectFormDialog({
 	defaultValues,
 	onSubmit,
 	isPending = false,
-}: ProjectFormDialogProps) {
+}: Readonly<ProjectFormDialogProps>) {
+	const snapshotValues = useDialogFormEntitySnapshot(
+		open,
+		defaultValues ?? null,
+	);
+	const resolvedDefaults = snapshotValues ?? INITIAL_VALUES;
+
 	const form = useForm({
-		defaultValues: defaultValues ?? INITIAL_VALUES,
+		defaultValues: resolvedDefaults,
 		validators: { onSubmit: projectFormSchema },
 		onSubmitInvalid: () => {
 			toast.error("Please complete required project fields.");
@@ -60,10 +68,15 @@ export function ProjectFormDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
-	const handleOpenChange = (next: boolean) => {
-		if (!next) {
-			form.reset();
+	const wasOpenRef = useRef(false);
+	useEffect(() => {
+		if (open && !wasOpenRef.current) {
+			form.reset(snapshotValues ?? INITIAL_VALUES);
 		}
+		wasOpenRef.current = open;
+	}, [open, snapshotValues, form]);
+
+	const handleOpenChange = (next: boolean) => {
 		onOpenChange(next);
 	};
 

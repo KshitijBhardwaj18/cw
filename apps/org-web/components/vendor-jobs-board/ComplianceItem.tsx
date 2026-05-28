@@ -22,7 +22,7 @@ export function ComplianceItem({
 	isUploaded,
 	errors = [],
 	onUpload,
-}: ComplianceItemProps) {
+}: Readonly<ComplianceItemProps>) {
 	const isVerified = status === "verified";
 	const isExpired = status === "expired";
 	const fileInputRef = useRef<HTMLInputElement>(null);

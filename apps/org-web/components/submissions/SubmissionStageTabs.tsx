@@ -23,7 +23,7 @@ export function SubmissionStageTabs({
 	allowedStages,
 	stageCounts,
 	onStageChange,
-}: SubmissionStageTabsProps) {
+}: Readonly<SubmissionStageTabsProps>) {
 	const visibleTabs = useMemo(
 		() => SUBMISSION_STAGE_TABS.filter((t) => allowedStages.includes(t.stage)),
 		[allowedStages],

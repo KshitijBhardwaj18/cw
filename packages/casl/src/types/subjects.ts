@@ -3,6 +3,7 @@ import type {
 	Account,
 	ActivityLogOrg,
 	Address,
+	AgingRule,
 	BackGroundJob,
 	BillingConfig,
 	Candidate,
@@ -60,6 +61,7 @@ import type {
 	Questionnaire,
 	Requisition,
 	RequisitionAcceptanceCriterion,
+	RequisitionAttentionRule,
 	RequisitionTemplate,
 	RequisitionTemplateVendor,
 	RequisitionVendor,
@@ -67,7 +69,6 @@ import type {
 	ShiftRoutingTier,
 	ShiftTemplate,
 	Specialty,
-	SpendAnalytics,
 	Submission,
 	SubmissionInterviewer,
 	Tag,
@@ -92,6 +93,7 @@ export type AppSubjects =
 			Account: Account;
 			ActivityLogOrg: ActivityLogOrg;
 			Address: Address;
+			AgingRule: AgingRule;
 			BackGroundJob: BackGroundJob;
 			BillingConfig: BillingConfig;
 			Candidate: Candidate;
@@ -149,6 +151,7 @@ export type AppSubjects =
 			Questionnaire: Questionnaire;
 			Requisition: Requisition;
 			RequisitionAcceptanceCriterion: RequisitionAcceptanceCriterion;
+			RequisitionAttentionRule: RequisitionAttentionRule;
 			RequisitionTemplate: RequisitionTemplate;
 			RequisitionTemplateVendor: RequisitionTemplateVendor;
 			RequisitionVendor: RequisitionVendor;
@@ -156,7 +159,6 @@ export type AppSubjects =
 			ShiftRoutingTier: ShiftRoutingTier;
 			ShiftTemplate: ShiftTemplate;
 			Specialty: Specialty;
-			SpendAnalytics: SpendAnalytics;
 			Submission: Submission;
 			SubmissionInterviewer: SubmissionInterviewer;
 			Tag: Tag;
@@ -184,5 +186,6 @@ export type AppSubjects =
 	| "Timekeeping"
 	| "RequisitionApprovals"
 	| "Dashboard"
+	| "SpendAnalytics"
 	| "Billing"
 	| "all";

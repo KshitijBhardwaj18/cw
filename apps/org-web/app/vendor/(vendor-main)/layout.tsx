@@ -23,9 +23,9 @@ export const metadata: Metadata = {
 
 export default async function VendorMainLayout({
 	children,
-}: {
+}: Readonly<{
 	children: React.ReactNode;
-}) {
+}>) {
 	const headersList = await headers();
 
 	const session = await authClient.getSession({

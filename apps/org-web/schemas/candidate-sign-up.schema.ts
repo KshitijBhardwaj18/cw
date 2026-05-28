@@ -1,6 +1,10 @@
 import {
+	CANDIDATE_EXPERIENCE_BAND_OPTIONS,
+	CandidateExperienceBand,
 	CandidatePreferredContractLength,
 	requiredPhoneSchema,
+	SHIFT_TYPE_OPTIONS,
+	ShiftType,
 	zipCodeSchema,
 } from "@repo/shared";
 import { z } from "zod";
@@ -42,15 +46,8 @@ export const contactInformationPostalAutosuggestValidators = {
 
 export const professionalDetailsObjectSchema = z.object({
 	occupationId: z.string().min(1, "Occupation is required"),
-	yearsOfExperience: z
-		.number({ invalid_type_error: "Enter a valid number" })
-		.min(0, "Must be 0 or more")
-		.max(50, "Must be 50 or less"),
-	specialtyIds: z.array(z.string()),
+	specialtyIds: z.array(z.string()).min(1, "Select at least one specialty"),
 	resumeFile: z.union([z.instanceof(File), z.null()]),
-	preferredContractLengths: z.array(
-		z.nativeEnum(CandidatePreferredContractLength),
-	),
 });
 
 export const professionalDetailsSchema = professionalDetailsObjectSchema;
@@ -75,68 +72,40 @@ export type LocationPreferencesFormValues = z.infer<
 	typeof locationPreferencesSchema
 >;
 
-export const QUESTIONNAIRE_SHIFT_TYPE_OPTIONS = [
-	{ value: "DAY", label: "Day" },
-	{ value: "EVENING", label: "Evening" },
-	{ value: "NIGHT", label: "Night" },
-	{ value: "ROTATING", label: "Rotating" },
-	{ value: "WEEKEND_ONLY", label: "Weekend only" },
-] as const;
+export const QUESTIONNAIRE_SHIFT_TYPE_OPTIONS = SHIFT_TYPE_OPTIONS;
 
-export type QuestionnaireShiftTypeValue =
-	(typeof QUESTIONNAIRE_SHIFT_TYPE_OPTIONS)[number]["value"];
+export type QuestionnaireShiftTypeValue = ShiftType;
 
-export const TOTAL_PROFESSIONAL_EXPERIENCE_BANDS = [
-	"LT_1",
-	"Y1_2",
-	"Y3_5",
-	"Y6_9",
-	"Y10_PLUS",
-] as const;
+export const TOTAL_PROFESSIONAL_EXPERIENCE_BAND_LABELS = Object.fromEntries(
+	CANDIDATE_EXPERIENCE_BAND_OPTIONS.map((o) => [o.value, o.label]),
+) as Record<CandidateExperienceBand, string>;
 
-export type TotalProfessionalExperienceBand =
-	(typeof TOTAL_PROFESSIONAL_EXPERIENCE_BANDS)[number];
+/** Kept as `CandidateExperienceBand[]` for UI loops (ordering matches options). */
+export const TOTAL_PROFESSIONAL_EXPERIENCE_BANDS =
+	CANDIDATE_EXPERIENCE_BAND_OPTIONS.map((o) => o.value);
 
-export const TOTAL_PROFESSIONAL_EXPERIENCE_BAND_LABELS: Record<
-	TotalProfessionalExperienceBand,
-	string
-> = {
-	LT_1: "Less than 1 year",
-	Y1_2: "1–2 years",
-	Y3_5: "3–5 years",
-	Y6_9: "6–9 years",
-	Y10_PLUS: "10+ years",
-};
+export type TotalProfessionalExperienceBand = CandidateExperienceBand;
 
-const questionnaireShiftTypeEnum = z.enum([
-	"DAY",
-	"EVENING",
-	"NIGHT",
-	"ROTATING",
-	"WEEKEND_ONLY",
-]);
+const questionnaireShiftTypeEnum = z.nativeEnum(ShiftType);
 
-const totalProfessionalExperienceBandEnum = z.enum([
-	"LT_1",
-	"Y1_2",
-	"Y3_5",
-	"Y6_9",
-	"Y10_PLUS",
-]);
+const totalProfessionalExperienceBandEnum = z.nativeEnum(
+	CandidateExperienceBand,
+);
 
 export const preferencesQuestionnairesSchema = z.object({
-	preferredContractLengths: z.array(
-		z.nativeEnum(CandidatePreferredContractLength),
-	),
-	preferredShiftTypes: z.array(questionnaireShiftTypeEnum),
+	preferredContractLengths: z
+		.array(z.nativeEnum(CandidatePreferredContractLength))
+		.min(1, "Select at least one preferred contract length"),
+	preferredShiftTypes: z
+		.array(questionnaireShiftTypeEnum)
+		.min(1, "Select at least one preferred shift type"),
 	earliestStartDate: z.string().optional(),
 	recentJobTitle: z.string().optional(),
 	occupationEhrSystems: z.array(z.string()),
 	occupationCertifications: z.array(z.string()),
 	/** Set when user skips or saves the occupation questionnaire dialog (UI state). */
 	occupationQuestionnaireCompleted: z.boolean().optional(),
-	totalProfessionalExperienceBand:
-		totalProfessionalExperienceBandEnum.optional(),
+	totalProfessionalExperienceBand: totalProfessionalExperienceBandEnum,
 });
 
 export type PreferencesQuestionnairesFormValues = z.infer<
@@ -178,24 +147,20 @@ export function emptyProfessionalReference(): ProfessionalReferenceFormValues {
 }
 
 export const submissionReadinessBaseSchema = z.object({
-	skillsChecklistCompleted: z.boolean().optional(),
 	dateOfBirth: z.string().trim().min(1, "Date of birth is required"),
 	lastFourSsn: z.string().regex(/^\d{4}$/, "Enter exactly 4 digits"),
-	certificationFiles: z
-		.array(z.instanceof(File))
-		.min(1, "Upload at least one certification (PDF, JPG, or PNG)"),
-	references: z
-		.array(professionalReferenceSchema)
-		.min(2, "Add at least two professional references"),
+	skillsChecklistFile: z.instanceof(File).nullable(),
+	skillsChecklistFileKey: z.string().nullable(),
+	references: z.array(professionalReferenceSchema),
 });
 
 export const submissionReadinessSchema =
 	submissionReadinessBaseSchema.superRefine((data, ctx) => {
-		if (data.skillsChecklistCompleted !== true) {
+		if (!data.skillsChecklistFile && !data.skillsChecklistFileKey) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
-				message: "Complete the skills checklist",
-				path: ["skillsChecklistCompleted"],
+				message: "Upload your skills checklist",
+				path: ["skillsChecklistFile"],
 			});
 		}
 	});
@@ -203,14 +168,3 @@ export const submissionReadinessSchema =
 export type SubmissionReadinessFormValues = z.infer<
 	typeof submissionReadinessBaseSchema
 >;
-
-export function yearsOfExperienceToProfessionalBand(
-	years: number | undefined,
-): TotalProfessionalExperienceBand | undefined {
-	if (years === undefined || Number.isNaN(years)) return undefined;
-	if (years < 1) return "LT_1";
-	if (years <= 2) return "Y1_2";
-	if (years <= 5) return "Y3_5";
-	if (years <= 9) return "Y6_9";
-	return "Y10_PLUS";
-}

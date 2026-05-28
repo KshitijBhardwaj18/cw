@@ -30,7 +30,7 @@ export function ScrollableLineTabsRow({
 	underline = true,
 	prevTabsAriaLabel = "Show previous tabs",
 	nextTabsAriaLabel = "Show more tabs",
-}: ScrollableLineTabsRowProps) {
+}: Readonly<ScrollableLineTabsRowProps>) {
 	const {
 		scrollRef,
 		overflowing,

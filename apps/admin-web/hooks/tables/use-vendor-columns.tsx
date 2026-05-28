@@ -1,7 +1,6 @@
 "use client";
 
 import {
-	formatDate,
 	formatLabelsFromOptions,
 	ORGANIZATION_INDUSTRY_OPTIONS,
 } from "@repo/shared";
@@ -13,6 +12,7 @@ import {
 	VENDOR_COLUMN_HEADERS,
 	VENDOR_COLUMN_KEYS,
 } from "@/constants/tables/vendors";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type {
 	VendorColumnsCallbacks,
 	VendorTableRowType,
@@ -23,6 +23,7 @@ export const useVendorColumns = ({
 	onDelete,
 	actions,
 }: VendorColumnsCallbacks) => {
+	const { fmtShortDate } = useUserTimezone();
 	const columns = useMemo<ColumnDef<VendorTableRowType>[]>(
 		() => [
 			{
@@ -50,9 +51,7 @@ export const useVendorColumns = ({
 				accessorKey: VENDOR_COLUMN_KEYS.activationDate,
 				header: VENDOR_COLUMN_HEADERS.activationDate,
 				cell: ({ row }) => (
-					<div className="text-sm">
-						{row.original.createdAt ? formatDate(row.original.createdAt) : "—"}
-					</div>
+					<div className="text-sm">{fmtShortDate(row.original.createdAt)}</div>
 				),
 			},
 			{
@@ -106,7 +105,7 @@ export const useVendorColumns = ({
 				),
 			},
 		],
-		[onEdit, onDelete, actions],
+		[onEdit, onDelete, actions, fmtShortDate],
 	);
 
 	return { columns };

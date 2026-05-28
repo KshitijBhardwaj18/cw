@@ -4,13 +4,14 @@ export type VendorUserUiStatus = "active" | "inactive";
 
 export interface VendorPortalUserRow {
 	id: string;
-	fullName: string;
+	firstName: string;
+	lastName: string;
 	email: string;
 	phone: string;
 	department: string;
 	role: VendorUserRole;
 	status: VendorUserUiStatus;
-	lastActiveLabel: string;
+	lastActiveAt: string;
 }
 
 export interface VendorUserMetricStats {

@@ -111,7 +111,7 @@ export class DocumentsService {
 		file: Express.Multer.File | undefined,
 	) {
 		if (!file?.buffer) {
-			throw new BadRequestException("Document file is required");
+			throw new BadRequestException("Document file is required.");
 		}
 		const err = validatePdfDocument(file, "Document");
 		if (err) throw new BadRequestException(err);
@@ -147,7 +147,7 @@ export class DocumentsService {
 			where: { id: documentId },
 		});
 		if (!doc) {
-			throw new NotFoundException("Document not found");
+			throw new NotFoundException("Document not found.");
 		}
 		return this.filesService.getSignedUrl(
 			doc.url,
@@ -160,7 +160,7 @@ export class DocumentsService {
 			where: { id },
 		});
 		if (!doc) {
-			throw new NotFoundException("Document not found");
+			throw new NotFoundException("Document not found.");
 		}
 		await this.prisma.document.delete({ where: { id } });
 		this.logger.log(`Deleted document "${doc.name}" (${id})`);
@@ -205,7 +205,7 @@ export class DocumentsService {
 		file: Express.Multer.File | undefined,
 	) {
 		if (!file?.buffer) {
-			throw new BadRequestException("Document file is required");
+			throw new BadRequestException("Document file is required.");
 		}
 		const err = validatePdfDocument(file, "Document");
 		if (err) throw new BadRequestException(err);
@@ -300,7 +300,7 @@ export class DocumentsService {
 		file: Express.Multer.File | undefined,
 	) {
 		if (!file?.buffer) {
-			throw new BadRequestException("Document file is required");
+			throw new BadRequestException("Document file is required.");
 		}
 		const err = validatePdfDocument(file, "Document");
 		if (err) throw new BadRequestException(err);

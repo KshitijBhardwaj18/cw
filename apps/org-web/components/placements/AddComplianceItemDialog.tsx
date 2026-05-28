@@ -1,5 +1,6 @@
 "use client";
 
+import { getComplianceListItemCategoryLabel } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -18,7 +19,6 @@ import { useAvailableComplianceItems } from "@/queries/placements.queries";
 export interface AddComplianceItemDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	orgId: string;
 	placementId: string;
 	onAddSelected: (complianceListItemIds: string[]) => void;
 	isPending?: boolean;
@@ -27,16 +27,14 @@ export interface AddComplianceItemDialogProps {
 export function AddComplianceItemDialog({
 	open,
 	onOpenChange,
-	orgId,
 	placementId,
 	onAddSelected,
 	isPending = false,
-}: AddComplianceItemDialogProps) {
+}: Readonly<AddComplianceItemDialogProps>) {
 	const { search, debouncedSearch, setSearch } = useLocalDebouncedSearch("");
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
 	const { data, isFetching } = useAvailableComplianceItems(
-		orgId,
 		placementId,
 		debouncedSearch.trim(),
 		open,
@@ -126,7 +124,7 @@ export function AddComplianceItemDialog({
 											<div className="min-w-0 flex-1">
 												<p className="text-sm font-medium">{item.name}</p>
 												<p className="text-muted-foreground text-xs">
-													{item.category}
+													{getComplianceListItemCategoryLabel(item.category)}
 												</p>
 											</div>
 											{isSelected && (

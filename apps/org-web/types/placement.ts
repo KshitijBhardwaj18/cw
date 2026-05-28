@@ -1,13 +1,10 @@
 /** Placement card row from `GET /api/org/placements` (session active org). */
 export type PlacementStatus =
 	| "UPCOMING"
-	| "PENDING"
 	| "ACTIVE"
-	| "INACTIVE"
+	| "ON_HOLD"
 	| "COMPLETED"
-	| "ENDING_SOON"
-	| "TERMINATED"
-	| "ON_HOLD";
+	| "TERMINATED";
 
 export type PlacementTab = "upcoming" | "active" | "completed";
 
@@ -24,7 +21,7 @@ export interface PlacementCardItem {
 	locationName: string | null;
 	departmentName: string | null;
 	hiringManagerName: string | null;
-	workforceGroup: string | null;
+	workforceListLabel: string | null;
 	vendorName: string | null;
 	/** Bill rate (USD/hr) when present — list API includes for vendor dashboard. */
 	billRate: number | null;
@@ -56,7 +53,7 @@ export interface PlacementDetailItem {
 	currentStatus: string;
 	// Location & Role
 	departmentUnit: string;
-	workforceGroup: string;
+	workforceListLabel: string;
 	// Schedule & Shift
 	shiftType: string;
 	shiftSchedule: string;

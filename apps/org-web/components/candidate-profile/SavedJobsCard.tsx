@@ -26,7 +26,9 @@ type SavedJobsCardProps = {
 	organizationId: string | null;
 };
 
-export function SavedJobsCard({ organizationId }: SavedJobsCardProps) {
+export function SavedJobsCard({
+	organizationId,
+}: Readonly<SavedJobsCardProps>) {
 	const savedJobsQuery = useCandidateSavedJobs(3, {
 		enabled: !!organizationId,
 	});

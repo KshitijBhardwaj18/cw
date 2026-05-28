@@ -9,5 +9,5 @@ export async function assertPlacementInOrganization(
 	const n = await prisma.placement.count({
 		where: { id: placementId, organizationId: orgId },
 	});
-	if (n === 0) throw new NotFoundException("Placement not found");
+	if (n === 0) throw new NotFoundException("Placement not found.");
 }

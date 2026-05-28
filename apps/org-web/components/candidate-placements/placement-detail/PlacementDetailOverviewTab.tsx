@@ -19,7 +19,7 @@ export interface PlacementDetailOverviewTabProps {
 
 export function PlacementDetailOverviewTab({
 	detail,
-}: PlacementDetailOverviewTabProps) {
+}: Readonly<PlacementDetailOverviewTabProps>) {
 	return (
 		<div className="space-y-6">
 			<Card className="shadow-none py-5">
@@ -40,7 +40,6 @@ export function PlacementDetailOverviewTab({
 								label="Unit / Department"
 								value={detail.requisition.unitDepartment}
 							/>
-							<DetailItem label="Pay Rate" value={detail.requisition.payRate} />
 						</div>
 						<div className="space-y-4">
 							<DetailItem

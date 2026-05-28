@@ -32,7 +32,7 @@ export function DisputeDialog({
 	onSubmit,
 	log,
 	worker,
-}: DisputeDialogProps) {
+}: Readonly<DisputeDialogProps>) {
 	const [reason, setReason] = useState("");
 	const isValid = reason.trim().length >= MIN_REASON_LENGTH;
 

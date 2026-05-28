@@ -1,6 +1,14 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
-import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from "class-validator";
+import {
+	IsBoolean,
+	IsInt,
+	IsOptional,
+	IsString,
+	IsUUID,
+	Max,
+	Min,
+} from "class-validator";
 
 export class QueryVendorRequisitionsDto {
 	@ApiPropertyOptional()
@@ -33,4 +41,10 @@ export class QueryVendorRequisitionsDto {
 	@Min(1)
 	@Max(50)
 	limit?: number = 10;
+
+	@ApiPropertyOptional({ description: "Filter to only saved jobs" })
+	@IsOptional()
+	@Transform(({ value }) => value === "true" || value === true)
+	@IsBoolean()
+	savedOnly?: boolean;
 }

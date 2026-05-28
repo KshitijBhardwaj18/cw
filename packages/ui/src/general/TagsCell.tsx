@@ -8,7 +8,7 @@ interface TagsCellProps {
 	className?: string;
 }
 
-export function TagsCell({ tags, className }: TagsCellProps) {
+export function TagsCell({ tags, className }: Readonly<TagsCellProps>) {
 	if (tags.length === 0) {
 		return <span className="text-muted-foreground text-sm">No tags</span>;
 	}

@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
-	DOCUMENT_WALLET_LIST_PAGE_SIZE,
+	DOCUMENT_WALLET_DEFAULT_LIMIT,
+	DOCUMENT_WALLET_PAGE_SIZE_OPTIONS,
 	DOCUMENT_WALLET_SEARCH_DEBOUNCE_MS,
 	DOCUMENT_WALLET_URL_KEYS as U,
 } from "@/constants/document-wallet";
@@ -21,12 +22,11 @@ import { useCandidateOrganizationId } from "./use-candidate-organization-id";
 
 export function useDocumentWalletPage() {
 	const {
-		organizationId: orgId,
+		organizationId,
 		isLoading: onboardingLoading,
 		isReady,
 	} = useCandidateOrganizationId();
 
-	const organizationId = orgId ?? "";
 	const hasOrg = Boolean(organizationId);
 
 	const {
@@ -50,9 +50,11 @@ export function useDocumentWalletPage() {
 		],
 	});
 
-	const { page, setPage } = usePaginationControls({
+	const { page, limit, setPage, setLimit } = usePaginationControls({
 		pageParamKey: U.page,
-		defaultLimit: DOCUMENT_WALLET_LIST_PAGE_SIZE,
+		limitParamKey: U.limit,
+		defaultLimit: DOCUMENT_WALLET_DEFAULT_LIMIT,
+		pageSizeOptions: DOCUMENT_WALLET_PAGE_SIZE_OPTIONS,
 	});
 
 	const categoryRaw = values[U.category];
@@ -81,7 +83,7 @@ export function useDocumentWalletPage() {
 		queryKey: listEnabled
 			? candidateDocumentWalletKeys.items({
 					page,
-					limit: DOCUMENT_WALLET_LIST_PAGE_SIZE,
+					limit,
 					search: searchFromUrl.trim() || undefined,
 					categoryKey,
 				})
@@ -90,14 +92,14 @@ export function useDocumentWalletPage() {
 					"items",
 					"pending",
 					page,
-					DOCUMENT_WALLET_LIST_PAGE_SIZE,
+					limit,
 					searchFromUrl,
 					categoryKey ?? "",
 				] as const),
 		queryFn: () =>
 			CandidateDocumentWalletService.getItems({
 				page,
-				limit: DOCUMENT_WALLET_LIST_PAGE_SIZE,
+				limit,
 				search: searchFromUrl.trim() || undefined,
 				categoryKey,
 			}),
@@ -146,11 +148,16 @@ export function useDocumentWalletPage() {
 	return {
 		onboardingLoading,
 		organizationId: hasOrg ? organizationId : null,
+
 		summary: summaryQuery.data,
 		isSummaryLoading: summaryQuery.isLoading,
 		items: itemsQuery.data,
 		isItemsLoading: itemsQuery.isLoading,
+		page,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions: DOCUMENT_WALLET_PAGE_SIZE_OPTIONS,
 		search: localSearch,
 		setSearch: handleSearchChange,
 		categoryKey,

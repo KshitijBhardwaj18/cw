@@ -17,7 +17,7 @@ export function WorkforceListDeleteDialog({
 	onOpenChange,
 	onConfirm,
 	isPending = false,
-}: WorkforceListDeleteDialogProps) {
+}: Readonly<WorkforceListDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={open && !!list}

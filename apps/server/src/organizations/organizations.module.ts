@@ -3,11 +3,13 @@ import { BackgroundJobsModule } from "src/background-jobs/background-jobs.module
 import { FilesModule } from "../files/files.module";
 import { MatchingLogicModule } from "../matching-logic/matchinglogic.module";
 import { TaggingRulesModule } from "../tagging-rules/tagging-rules.module";
+import { OrganizationCandidatesController } from "./controllers/organization-candidates.controller";
 import { OrganizationDepartmentsController } from "./controllers/organization-departments.controller";
 import { OrganizationLocationsController } from "./controllers/organization-locations.controller";
 import { OrganizationsController } from "./controllers/organizations.controller";
 import { OrgDepartmentsService } from "./services/org-departments.service";
 import { OrgLocationsService } from "./services/org-locations.service";
+import { OrganizationCandidatesService } from "./services/organization-candidates.service";
 import { OrganizationsService } from "./services/organizations.service";
 
 @Module({
@@ -21,8 +23,14 @@ import { OrganizationsService } from "./services/organizations.service";
 		OrganizationsController,
 		OrganizationLocationsController,
 		OrganizationDepartmentsController,
+		OrganizationCandidatesController,
 	],
-	providers: [OrganizationsService, OrgLocationsService, OrgDepartmentsService],
+	providers: [
+		OrganizationsService,
+		OrgLocationsService,
+		OrgDepartmentsService,
+		OrganizationCandidatesService,
+	],
 	exports: [OrganizationsService],
 })
 export class OrganizationsModule {}

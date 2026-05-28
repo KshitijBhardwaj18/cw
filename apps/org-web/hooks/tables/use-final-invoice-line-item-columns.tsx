@@ -5,8 +5,10 @@ import type { InvoiceLineItem } from "@repo/ui/general/billing/types";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Briefcase, MapPin, User } from "lucide-react";
 import { useMemo } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 export function useFinalInvoiceLineItemColumns() {
+	const { fmtShortDate } = useUserTimezone();
 	return useMemo<ColumnDef<InvoiceLineItem>[]>(
 		() => [
 			{
@@ -65,7 +67,7 @@ export function useFinalInvoiceLineItemColumns() {
 					<div className="w-[7.5rem] px-2 tabular-nums">
 						<span className="text-sm">
 							{row.original.workDate
-								? new Date(row.original.workDate).toLocaleDateString()
+								? fmtShortDate(row.original.workDate)
 								: "—"}
 						</span>
 					</div>
@@ -112,6 +114,6 @@ export function useFinalInvoiceLineItemColumns() {
 				),
 			},
 		],
-		[],
+		[fmtShortDate],
 	);
 }

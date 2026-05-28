@@ -14,7 +14,7 @@ export const StatusStatCard = <T extends string = string>({
 	count,
 	isActive = false,
 	onClick,
-}: StatusStatCardProps<T>) => {
+}: Readonly<StatusStatCardProps<T>>) => {
 	const Icon = card.icon;
 
 	return (

@@ -1,3 +1,4 @@
+import { formatUtcShortDate } from "@repo/shared";
 import type { ProjectFormValues } from "@/schemas";
 import type { ProjectItem, ProjectRequisitionItem } from "@/types/project";
 
@@ -32,15 +33,6 @@ export type ProjectRequisitionsListApi = {
 	totalPages: number;
 };
 
-export function formatProjectUpdatedLabel(iso: string): string {
-	const d = new Date(iso);
-	if (Number.isNaN(d.getTime())) return "—";
-	return new Intl.DateTimeFormat("en-US", {
-		month: "short",
-		day: "numeric",
-	}).format(d);
-}
-
 export function projectFormStatusToApi(
 	status: ProjectFormValues["status"],
 ): "ACTIVE" | "INACTIVE" {
@@ -54,7 +46,7 @@ export function apiListRowToProjectItem(row: ProjectListRowApi): ProjectItem {
 		description: row.description,
 		status: row.status,
 		requisitionCount: row.requisitionCount,
-		updatedAt: formatProjectUpdatedLabel(row.updatedAt),
+		updatedAt: formatUtcShortDate(row.updatedAt) || "—",
 		linkedRequisitionIds: [],
 		requisitions: [],
 	};

@@ -1,19 +1,21 @@
 "use client";
 
 import { Action, useAbility } from "@repo/casl";
+import type { ComplianceChecklistItemPhase } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import PaginationControls from "@repo/ui/general/PaginationControls";
 import { ClipboardList, Plus } from "lucide-react";
 import { useRequisitionComplianceChecklistPage } from "@/hooks/use-requisition-compliance-checklist-page";
-import type { ChecklistItemPhase } from "@/types/requisition-compliance-checklist";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { ChecklistTemplateDeleteDialog } from "./ChecklistTemplateDeleteDialog";
 import { CreateChecklistTemplateDialog } from "./CreateChecklistTemplateDialog";
 import { RequisitionComplianceChecklistCard } from "./RequisitionComplianceChecklistCard";
 
 export function RequisitionComplianceChecklistPageContent() {
 	const ability = useAbility();
+	const { fmtShortDate } = useUserTimezone();
 	const canCreateChecklist = ability.can(Action.Create, "ComplianceChecklist");
 	const canUpdateChecklist = ability.can(Action.Update, "ComplianceChecklist");
 	const canDeleteChecklist = ability.can(Action.Delete, "ComplianceChecklist");
@@ -124,19 +126,13 @@ export function RequisitionComplianceChecklistPageContent() {
 									linkedRequisitionCount:
 										(checklist._count?.requisitions ?? 0) +
 										(checklist._count?.requisitionTemplates ?? 0),
-									lastModified: new Date(
-										checklist.updatedAt,
-									).toLocaleDateString("en-US", {
-										month: "short",
-										day: "numeric",
-										year: "numeric",
-									}),
+									lastModified: fmtShortDate(checklist.updatedAt),
 									complianceItemIds: checklist.items.map(
 										(i) => i.complianceListItemId,
 									),
 									checklistItems: checklist.items.map((i) => ({
 										complianceListItemId: i.complianceListItemId,
-										phase: i.phase as ChecklistItemPhase,
+										phase: i.phase as ComplianceChecklistItemPhase,
 									})),
 								}}
 								onView={(id) => setViewId(id)}

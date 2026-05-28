@@ -23,7 +23,7 @@ const statusStyles = {
 
 export const PerformanceMetricCard = ({
 	metric,
-}: PerformanceMetricCardProps) => {
+}: Readonly<PerformanceMetricCardProps>) => {
 	const status = statusStyles[metric.status];
 
 	return (

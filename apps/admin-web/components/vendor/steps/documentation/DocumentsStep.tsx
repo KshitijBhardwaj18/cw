@@ -15,7 +15,7 @@ interface DocumentsStepProps {
 	vendorId: string;
 }
 
-export function DocumentsStep({ vendorId }: DocumentsStepProps) {
+export function DocumentsStep({ vendorId }: Readonly<DocumentsStepProps>) {
 	const router = useRouter();
 	const filters = useListFilters();
 

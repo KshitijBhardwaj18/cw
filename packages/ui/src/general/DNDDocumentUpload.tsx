@@ -32,12 +32,17 @@ export function DNDDocumentUpload({
 	allowedTypes = ["pdf", "png", "jpg", "csv"],
 	hint = "PDF, PNG, JPG, or CSV up to 10MB",
 	required = false,
-}: DNDDocumentUploadProps) {
+}: Readonly<DNDDocumentUploadProps>) {
 	const onDrop = useCallback(
 		(acceptedFiles: File[]) => {
-			onFilesChange([...files, ...acceptedFiles]);
+			if (maxFiles === 1) {
+				onFilesChange(acceptedFiles.slice(0, 1));
+				return;
+			}
+			const merged = [...files, ...acceptedFiles];
+			onFilesChange(maxFiles != null ? merged.slice(0, maxFiles) : merged);
 		},
-		[files, onFilesChange],
+		[files, maxFiles, onFilesChange],
 	);
 
 	const onDropRejected = useCallback(

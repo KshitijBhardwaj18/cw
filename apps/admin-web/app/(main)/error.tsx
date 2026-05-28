@@ -15,10 +15,10 @@ import { useEffect } from "react";
 export default function AdminError({
 	error,
 	reset,
-}: {
+}: Readonly<{
 	error: Error & { digest?: string };
 	reset: () => void;
-}) {
+}>) {
 	useEffect(() => {
 		console.error("Admin Error Boundary (main) caught:", error);
 	}, [error]);

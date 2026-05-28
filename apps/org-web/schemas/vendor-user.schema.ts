@@ -4,10 +4,15 @@ import { z } from "zod";
 export const vendorUserRoleSchema = z.nativeEnum(VendorUserRole);
 
 export const addVendorUserSchema = z.object({
-	fullName: z
+	firstName: z
 		.string()
-		.min(1, "Full name is required")
-		.max(120, "Full name must be 120 characters or less")
+		.min(1, "First name is required")
+		.max(60, "First name must be 60 characters or less")
+		.trim(),
+	lastName: z
+		.string()
+		.min(1, "Last name is required")
+		.max(60, "Last name must be 60 characters or less")
 		.trim(),
 	email: z.string().min(1, "Email is required").email("Enter a valid email"),
 	phone: requiredPhoneSchema,

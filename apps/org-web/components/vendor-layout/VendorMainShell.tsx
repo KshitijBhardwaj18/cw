@@ -7,7 +7,10 @@ export type VendorMainShellProps = {
 	children: React.ReactNode;
 };
 
-const VendorMainShell = ({ title, children }: VendorMainShellProps) => {
+const VendorMainShell = ({
+	title,
+	children,
+}: Readonly<VendorMainShellProps>) => {
 	return (
 		<MainLayoutShell
 			sidebar={<VendorAppSidebar />}

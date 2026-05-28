@@ -10,6 +10,7 @@ import type {
 } from "@/services/talent-community.service";
 
 const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 export interface UseTalentCommunityFiltersOptions {
 	pageSize?: number;
@@ -35,6 +36,7 @@ export function useTalentCommunityFilters(
 		pageParamKey: TALENT_COMMUNITY_PARAMS.PAGE,
 		limitParamKey: TALENT_COMMUNITY_PARAMS.LIMIT,
 		defaultLimit: pageSize,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const talentCommunityFilters = useMemo(
@@ -145,6 +147,7 @@ export function useTalentCommunityFilters(
 		setPage,
 		pageSize: limit,
 		setLimit,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 		workforceTypeFilter,
 		setWorkforceTypeFilter,
 		placementStatusFilter,

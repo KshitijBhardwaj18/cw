@@ -1,38 +1,4 @@
 import { formatUsdPerHour } from "@repo/shared";
-export function formatIsoDateOnly(iso: string | null | undefined): string {
-	if (!iso || iso === "—") {
-		return "—";
-	}
-	try {
-		const d = new Date(iso);
-		if (Number.isNaN(d.getTime())) {
-			return "—";
-		}
-		const y = d.getUTCFullYear();
-		const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-		const day = String(d.getUTCDate()).padStart(2, "0");
-		return `${y}-${m}-${day}`;
-	} catch {
-		return "—";
-	}
-}
-
-export function formatSubmissionDetailDate(
-	iso: string | null | undefined,
-): string {
-	if (!iso || iso === "—") {
-		return "—";
-	}
-	try {
-		return new Intl.DateTimeFormat("en-US", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		}).format(new Date(iso));
-	} catch {
-		return iso;
-	}
-}
 
 export function formatBillRateDisplay(rate: number | null | undefined): string {
 	return formatUsdPerHour(rate, { round: true, fractionDigits: 0 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { TimesheetEntryStatus } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { CustomTable } from "@repo/ui/general/CustomTable";
@@ -18,20 +19,22 @@ interface WorkerAccordionRowProps {
 }
 
 const STATUS_BADGE_VARIANT: Record<
-	string,
+	TimesheetEntryStatus,
 	"warning" | "success" | "error" | "secondary"
 > = {
-	PENDING: "warning",
-	APPROVED: "success",
-	DISPUTED: "error",
-	REJECTED: "secondary",
-} as const;
+	[TimesheetEntryStatus.PENDING]: "warning",
+	[TimesheetEntryStatus.APPROVED]: "success",
+	[TimesheetEntryStatus.DISPUTED]: "error",
+	[TimesheetEntryStatus.REJECTED]: "secondary",
+	[TimesheetEntryStatus.DRAFT]: "secondary",
+};
 
-const STATUS_LABEL: Record<string, string> = {
-	PENDING: "Pending Approval",
-	APPROVED: "Approved",
-	DISPUTED: "Disputed",
-	REJECTED: "Rejected",
+const STATUS_LABEL: Record<TimesheetEntryStatus, string> = {
+	[TimesheetEntryStatus.PENDING]: "Pending Approval",
+	[TimesheetEntryStatus.APPROVED]: "Approved",
+	[TimesheetEntryStatus.DISPUTED]: "Disputed",
+	[TimesheetEntryStatus.REJECTED]: "Rejected",
+	[TimesheetEntryStatus.DRAFT]: "Draft",
 };
 
 export function WorkerAccordionRow({
@@ -39,7 +42,7 @@ export function WorkerAccordionRow({
 	onApproveLog,
 	onDisputeLog,
 	approvalActionsEnabled = true,
-}: WorkerAccordionRowProps) {
+}: Readonly<WorkerAccordionRowProps>) {
 	const [isOpen, setIsOpen] = useState(false);
 
 	const { columns } = useWorkerTimeLogColumns({

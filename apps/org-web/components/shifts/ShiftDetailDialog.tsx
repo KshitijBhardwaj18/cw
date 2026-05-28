@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate, formatUsdPerHour } from "@repo/shared";
+import { formatUsdPerHour } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -11,9 +11,18 @@ import {
 	DialogTitle,
 } from "@repo/ui/components/dialog";
 import { Separator } from "@repo/ui/components/separator";
-import { Briefcase, Building2, Calendar, Clock, MapPin } from "lucide-react";
+import {
+	Briefcase,
+	Building2,
+	Calendar,
+	Clock,
+	MapPin,
+	Pencil,
+} from "lucide-react";
+import Link from "next/link";
 import type { Shift } from "@/constants/shifts";
 import { STATUS_BADGE_CLASS, STATUS_LABEL } from "@/constants/shifts";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { DetailSection } from "./DetailSection";
 
 interface ShiftDetailDialogProps {
@@ -28,13 +37,16 @@ export function ShiftDetailDialog({
 	open,
 	onOpenChange,
 	onCancelShift,
-}: ShiftDetailDialogProps) {
+}: Readonly<ShiftDetailDialogProps>) {
+	const { fmtCalendarDate, fmtDateTime } = useUserTimezone();
+
 	if (!shift) return null;
 
 	const statusClass = STATUS_BADGE_CLASS[shift.status];
 	const statusLabel = STATUS_LABEL[shift.status];
 	const isCancellable =
 		shift.status !== "COMPLETED" && shift.status !== "CANCELLED";
+	const isEditable = shift.status === "OPEN" && !shift.claimedBy;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -52,7 +64,7 @@ export function ShiftDetailDialog({
 							<p className="font-medium text-sm">
 								<span className="flex items-center gap-1.5">
 									<Calendar className="text-muted-foreground size-4 shrink-0" />
-									{formatDate(shift.date, "EEE, MMM d")}
+									{fmtCalendarDate(shift.date, "long")}
 								</span>
 							</p>
 							<p className="mt-0.5 flex items-center gap-1.5 text-sm font-medium">
@@ -98,10 +110,18 @@ export function ShiftDetailDialog({
 				<Separator />
 
 				<p className="text-muted-foreground text-xs">
-					Created by {shift.createdBy} on {shift.createdAt}
+					Created by {shift.createdBy} on {fmtDateTime(shift.createdAt)}
 				</p>
 
 				<DialogFooter className="flex-col gap-2 sm:flex-row">
+					{isEditable && (
+						<Button variant="outline" asChild>
+							<Link href={`/org/shifts/${shift.id}/edit`}>
+								<Pencil className="size-4" />
+								Edit Shift
+							</Link>
+						</Button>
+					)}
 					{isCancellable && (
 						<Button
 							variant="outline"

@@ -6,7 +6,10 @@ import {
 	CollapsibleTrigger,
 } from "@repo/ui/components/collapsible";
 import { ChevronRight, Shield } from "lucide-react";
-import type { PlacementComplianceCategory } from "@/types/placement-compliance";
+import type {
+	PlacementComplianceCategory,
+	PlacementComplianceItemRow,
+} from "@/types/placement-compliance";
 import { ComplianceItemRow } from "./ComplianceItemRow";
 
 interface ComplianceCategorySectionProps {
@@ -14,8 +17,16 @@ interface ComplianceCategorySectionProps {
 	expandedAuditItemId: string | null;
 	onRemoveItem: (itemId: string) => void;
 	onToggleAudit: (itemId: string) => void;
-	mode: "org" | "vendor";
+	mode: "org" | "vendor" | "candidate";
 	canRemovePlacementExtras?: boolean;
+	canReview?: boolean;
+	canSubmit?: boolean;
+	onApprove?: (item: PlacementComplianceItemRow) => void;
+	onReject?: (item: PlacementComplianceItemRow) => void;
+	onUpload?: (item: PlacementComplianceItemRow) => void;
+	onMarkLinkSubmitted?: (item: PlacementComplianceItemRow) => void;
+	pendingActionItemId?: string | null;
+	markingLinkItemId?: string | null;
 }
 
 export function ComplianceCategorySection({
@@ -25,7 +36,15 @@ export function ComplianceCategorySection({
 	onToggleAudit,
 	mode = "org",
 	canRemovePlacementExtras = false,
-}: ComplianceCategorySectionProps) {
+	canReview = false,
+	canSubmit = false,
+	onApprove,
+	onReject,
+	onUpload,
+	onMarkLinkSubmitted,
+	pendingActionItemId,
+	markingLinkItemId,
+}: Readonly<ComplianceCategorySectionProps>) {
 	return (
 		<Collapsible defaultOpen>
 			<div className="rounded-lg border bg-card">
@@ -50,6 +69,14 @@ export function ComplianceCategorySection({
 								onRemove={onRemoveItem}
 								onToggleAudit={onToggleAudit}
 								canRemovePlacementExtras={canRemovePlacementExtras}
+								canReview={canReview}
+								canSubmit={canSubmit}
+								onApprove={onApprove}
+								onReject={onReject}
+								onUpload={onUpload}
+								onMarkLinkSubmitted={onMarkLinkSubmitted}
+								pendingActionItemId={pendingActionItemId}
+								markingLinkItemId={markingLinkItemId}
 							/>
 						))}
 					</div>

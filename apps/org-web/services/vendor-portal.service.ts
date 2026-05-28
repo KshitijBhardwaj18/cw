@@ -15,7 +15,8 @@ export type VendorPortalUsersQueryParams = {
 };
 
 export type VendorPortalCreateUserInput = {
-	fullName: string;
+	firstName: string;
+	lastName: string;
 	email: string;
 	phone?: string;
 	role: VendorUserRole;
@@ -23,7 +24,8 @@ export type VendorPortalCreateUserInput = {
 };
 
 export type VendorPortalUpdateUserInput = {
-	fullName: string;
+	firstName: string;
+	lastName: string;
 	phone?: string;
 	role: VendorUserRole;
 	departmentId: string;

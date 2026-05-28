@@ -144,7 +144,7 @@ export class OrganizationsService {
 			},
 		});
 		if (!org?.isActive) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 		return org;
 	}
@@ -324,7 +324,7 @@ export class OrganizationsService {
 			const hasOrgUpdates = Object.keys(updateData).length > 0;
 			if (!hasOrgUpdates) {
 				throw new BadRequestException(
-					"At least one field is required for update",
+					"At least one field is required to update.",
 				);
 			}
 
@@ -375,7 +375,7 @@ export class OrganizationsService {
 
 	async findOne(id: string, session: UserSession) {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id },
@@ -385,7 +385,7 @@ export class OrganizationsService {
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 		return org;
 	}
@@ -395,7 +395,7 @@ export class OrganizationsService {
 		session: UserSession,
 	): Promise<string> {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id },
@@ -403,7 +403,7 @@ export class OrganizationsService {
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 		if (!org.serviceAgreement) {
 			throw new NotFoundException(
@@ -425,7 +425,7 @@ export class OrganizationsService {
 		search?: string,
 	) {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const roles = [UserRole.SUPER_ADMIN, UserRole.GENERAL_ADMIN];
 		const memberFilter = this.buildMemberFilter(session, roles);
@@ -481,13 +481,13 @@ export class OrganizationsService {
 			select: { id: true },
 		});
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 	}
 
 	async findGrouped(limitPerGroup: number, session: UserSession) {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const roles = [UserRole.SUPER_ADMIN, UserRole.GENERAL_ADMIN];
 		const memberFilter = this.buildMemberFilter(session, roles);
@@ -521,14 +521,14 @@ export class OrganizationsService {
 
 	async delete(id: string, session: UserSession): Promise<void> {
 		if (!session) {
-			throw new UnauthorizedException("Unauthorized");
+			throw new UnauthorizedException("Sign in required.");
 		}
 		const org = await this.prisma.organization.findUnique({
 			where: { id },
 		});
 
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 
 		await this.prisma.organization.delete({ where: { id } });
@@ -540,11 +540,13 @@ export class OrganizationsService {
 			where: { id: dto.memberId, organizationId },
 		});
 		if (!member) {
-			throw new NotFoundException("Member not found in this organization");
+			throw new NotFoundException("Member not found in this organization.");
 		}
 		const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : undefined;
 		if (scheduledAt != null && scheduledAt.getTime() <= Date.now()) {
-			throw new BadRequestException("scheduledAt must be in the future");
+			throw new BadRequestException(
+				"Scheduled send time must be in the future.",
+			);
 		}
 
 		const job = await this.backgroundJobsService.createInviteSingleJob(
@@ -570,11 +572,11 @@ export class OrganizationsService {
 	async submitBulkInvite(organizationId: string, dto: SendBulkInviteDto) {
 		await this.ensureOrgExists(organizationId);
 		if (dto.memberIds.length === 0) {
-			throw new BadRequestException("memberIds must not be empty");
+			throw new BadRequestException("Select at least one member to invite.");
 		}
 		if (dto.memberIds.length > BULK_INVITE_MAX_RECIPIENTS) {
 			throw new BadRequestException(
-				`memberIds must not exceed ${BULK_INVITE_MAX_RECIPIENTS} per job`,
+				`You can invite at most ${BULK_INVITE_MAX_RECIPIENTS} members at a time.`,
 			);
 		}
 		const members = await this.prisma.member.findMany({
@@ -585,12 +587,14 @@ export class OrganizationsService {
 		const missing = dto.memberIds.filter((id) => !foundIds.has(id));
 		if (missing.length > 0) {
 			throw new BadRequestException(
-				`Members not found in this organization: ${missing.join(", ")}`,
+				"One or more selected members were not found in this organization.",
 			);
 		}
 		const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : undefined;
 		if (scheduledAt != null && scheduledAt.getTime() <= Date.now()) {
-			throw new BadRequestException("scheduledAt must be in the future");
+			throw new BadRequestException(
+				"Scheduled send time must be in the future.",
+			);
 		}
 
 		const job = await this.backgroundJobsService.createInviteBulkJob(

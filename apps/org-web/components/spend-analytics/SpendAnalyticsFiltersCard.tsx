@@ -18,7 +18,7 @@ export function SpendAnalyticsFiltersCard({
 	fields,
 	values,
 	onChange,
-}: SpendAnalyticsFiltersCardProps) {
+}: Readonly<SpendAnalyticsFiltersCardProps>) {
 	return (
 		<Card className="gap-0 py-4 shadow-sm">
 			<CardHeader className="flex flex-row items-center gap-2 pb-0">

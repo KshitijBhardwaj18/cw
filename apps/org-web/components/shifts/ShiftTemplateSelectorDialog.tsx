@@ -37,7 +37,7 @@ export function ShiftTemplateSelectorDialog({
 	open,
 	onOpenChange,
 	onSelect,
-}: ShiftTemplateSelectorDialogProps) {
+}: Readonly<ShiftTemplateSelectorDialogProps>) {
 	const {
 		search,
 		debouncedSearch,

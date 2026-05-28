@@ -32,7 +32,7 @@ export function ReviewConfirmStep({
 	onCancel,
 	onSubmit,
 	isSubmitting = false,
-}: ReviewConfirmStepProps) {
+}: Readonly<ReviewConfirmStepProps>) {
 	const {
 		complianceOpen,
 		setComplianceOpen,
@@ -178,10 +178,13 @@ export function ReviewConfirmStep({
 						<h3 className="mb-3 font-semibold">Submission Settings</h3>
 						<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 							<DetailItem label="Workflow Type" value={submissionTypeLabel} />
-							<DetailItem
-								label="Vendor Submission Rule"
-								value={vendorAccessLabel}
-							/>
+							{values.submissionSettings.submissionType !==
+								"CANDIDATE_ONLY" && (
+								<DetailItem
+									label="Vendor Submission Rule"
+									value={vendorAccessLabel}
+								/>
+							)}
 							<DetailItem
 								label="Acceptance Criteria"
 								value={

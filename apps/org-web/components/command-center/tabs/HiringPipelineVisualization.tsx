@@ -51,7 +51,7 @@ type HiringPipelineVisualizationProps = {
 
 export function HiringPipelineVisualization({
 	summaryByKey,
-}: HiringPipelineVisualizationProps) {
+}: Readonly<HiringPipelineVisualizationProps>) {
 	const { chartData, yAxisMax } = useMemo(() => {
 		const submitted = summaryByKey.submitted.value;
 		const rows = PIPELINE_ORDER.map(({ key, label }) => {

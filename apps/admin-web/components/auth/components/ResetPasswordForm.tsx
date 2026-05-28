@@ -30,7 +30,9 @@ const resetPasswordSchema = z.object({
 
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
-const ResetPasswordForm = ({ onResetPassword }: ResetPasswordFormProps) => {
+const ResetPasswordForm = ({
+	onResetPassword,
+}: Readonly<ResetPasswordFormProps>) => {
 	const [error, setError] = useState<string | null>(null);
 	const [showPassword, setShowPassword] = useState(false);
 	const router = useRouter();

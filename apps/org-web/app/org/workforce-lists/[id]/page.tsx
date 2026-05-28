@@ -6,7 +6,7 @@ type WorkforceListDetailPageProps = {
 
 export default async function WorkforceListDetailPage({
 	params,
-}: WorkforceListDetailPageProps) {
+}: Readonly<WorkforceListDetailPageProps>) {
 	const { id } = await params;
 	return <WorkforceListDetailsPageContent listId={id} />;
 }

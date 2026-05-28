@@ -46,6 +46,21 @@ export class ComplianceService {
 		});
 	}
 
+	static async getWalletTemplatePickerItems(
+		page = 1,
+		limit = 10,
+		search?: string,
+	) {
+		return ApiClient.get<PaginatedComplianceResponse>(
+			"/api/compliance/wallet-template-picker",
+			{
+				page,
+				limit,
+				...(search?.trim() && { search: search.trim() }),
+			},
+		);
+	}
+
 	static async getComplianceItemsByIds(ids: string[]) {
 		if (ids.length === 0)
 			return { data: [], total: 0, page: 1, limit: 0, totalPages: 0 };

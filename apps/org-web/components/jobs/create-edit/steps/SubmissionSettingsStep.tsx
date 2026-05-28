@@ -49,10 +49,11 @@ export function SubmissionSettingsStep({
 	onCancel,
 	onSubmit,
 	isPending = false,
-}: SubmissionSettingsStepProps) {
+}: Readonly<SubmissionSettingsStepProps>) {
 	const {
 		form,
 		lockFields,
+		submissionType,
 		vendorAccess,
 		vendorsQuery,
 		acceptanceCriteriaColumns,
@@ -73,6 +74,8 @@ export function SubmissionSettingsStep({
 		form.store,
 		(s) => s.submissionAttempts ?? 0,
 	);
+
+	const isCandidateOnly = submissionType === "CANDIDATE_ONLY";
 
 	return (
 		<Card>
@@ -127,130 +130,136 @@ export function SubmissionSettingsStep({
 						}}
 					</form.Field>
 
-					<Separator />
-					<h3 className="font-semibold">Vendor Submission Rules</h3>
+					{!isCandidateOnly && (
+						<>
+							<Separator />
+							<h3 className="font-semibold">Vendor Submission Rules</h3>
 
-					<form.Field name="vendorAccess">
-						{(field) => {
-							const isInvalid = formFieldShowInvalid(
-								field.state.meta.isTouched,
-								field.state.meta.isValid,
-								submissionAttempts,
-							);
-							return (
-								<Field data-invalid={isInvalid}>
-									<FieldLabel>
-										Vendor Access <RequiredStar />
-									</FieldLabel>
-									<RadioGroup
-										value={field.state.value}
-										onBlur={field.handleBlur}
-										onValueChange={(value) => {
-											const v =
-												value as JobPostingSubmissionValues["vendorAccess"];
-											field.handleChange(v);
-											if (v === "ALL_VENDORS") {
-												form.setFieldValue("selectedVendorIds", []);
-											}
-										}}
-										aria-invalid={isInvalid}
-										disabled={lockFields}
-									>
-										{JOB_POSTING_VENDOR_ACCESS_OPTIONS.map((option) => (
-											<RadioOptionCard
-												key={option.id}
-												id={option.id}
-												value={option.value}
-												label={option.label}
-												description={option.description}
-												selected={field.state.value === option.value}
-												disabled={lockFields}
-											/>
-										))}
-									</RadioGroup>
-									{isInvalid && <FieldError errors={field.state.meta.errors} />}
-								</Field>
-							);
-						}}
-					</form.Field>
-
-					{vendorAccess === "SELECTED_VENDORS" && (
-						<form.Field
-							name="selectedVendorIds"
-							validators={{
-								onSubmit: ({ value }) => {
-									if (!value || value.length === 0) {
-										return "Select at least one vendor";
-									}
-								},
-							}}
-						>
-							{(field) => {
-								const isInvalid = formFieldShowInvalid(
-									field.state.meta.isTouched,
-									field.state.meta.isValid,
-									submissionAttempts,
-								);
-								return (
-									<Field data-invalid={isInvalid}>
-										<FieldLabel>Select Vendors</FieldLabel>
-										<MultiSelect
-											values={field.state.value ?? []}
-											onValuesChange={(v) => field.handleChange(v)}
-										>
-											<MultiSelectTrigger
-												className={cn(
-													"h-auto min-h-10 w-full justify-between py-2 whitespace-normal",
-													lockFields && "pointer-events-none opacity-60",
-												)}
+							<form.Field name="vendorAccess">
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel>
+												Vendor Access <RequiredStar />
+											</FieldLabel>
+											<RadioGroup
+												value={field.state.value}
+												onBlur={field.handleBlur}
+												onValueChange={(value) =>
+													field.handleChange(
+														value as JobPostingSubmissionValues["vendorAccess"],
+													)
+												}
 												aria-invalid={isInvalid}
 												disabled={lockFields}
 											>
-												<MultiSelectValue placeholder="Choose vendors…" />
-											</MultiSelectTrigger>
-											<MultiSelectContent>
-												{(vendorsQuery.data ?? []).map((v) => (
-													<MultiSelectItem key={v.id} value={v.id}>
-														{v.name}
-													</MultiSelectItem>
+												{JOB_POSTING_VENDOR_ACCESS_OPTIONS.map((option) => (
+													<RadioOptionCard
+														key={option.id}
+														id={option.id}
+														value={option.value}
+														label={option.label}
+														description={option.description}
+														selected={field.state.value === option.value}
+														disabled={lockFields}
+													/>
 												))}
-											</MultiSelectContent>
-										</MultiSelect>
-										{isInvalid && (
-											<FieldError errors={field.state.meta.errors} />
-										)}
-									</Field>
-								);
-							}}
-						</form.Field>
+											</RadioGroup>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
+							</form.Field>
+
+							{vendorAccess === "SELECTED_VENDORS" && (
+								<form.Field
+									name="selectedVendorIds"
+									validators={{
+										onSubmit: ({ value }) => {
+											if (!value || value.length === 0) {
+												return "Select at least one vendor";
+											}
+										},
+									}}
+								>
+									{(field) => {
+										const isInvalid = formFieldShowInvalid(
+											field.state.meta.isTouched,
+											field.state.meta.isValid,
+											submissionAttempts,
+										);
+										return (
+											<Field data-invalid={isInvalid}>
+												<FieldLabel>Select Vendors</FieldLabel>
+												<MultiSelect
+													values={field.state.value ?? []}
+													onValuesChange={(v) => field.handleChange(v)}
+												>
+													<MultiSelectTrigger
+														className={cn(
+															"h-auto min-h-10 w-full justify-between py-2 whitespace-normal",
+															lockFields && "pointer-events-none opacity-60",
+														)}
+														aria-invalid={isInvalid}
+														disabled={lockFields}
+													>
+														<MultiSelectValue placeholder="Choose vendors…" />
+													</MultiSelectTrigger>
+													<MultiSelectContent>
+														{(vendorsQuery.data ?? []).map((v) => (
+															<MultiSelectItem key={v.id} value={v.id}>
+																{v.name}
+															</MultiSelectItem>
+														))}
+													</MultiSelectContent>
+												</MultiSelect>
+												{isInvalid && (
+													<FieldError errors={field.state.meta.errors} />
+												)}
+											</Field>
+										);
+									}}
+								</form.Field>
+							)}
+
+							<Separator />
+
+							<form.Field name="notesForVendors">
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel>Notes for Vendors (Optional)</FieldLabel>
+											<Textarea
+												rows={3}
+												placeholder="Add any special instructions for vendors..."
+												value={field.state.value ?? ""}
+												onBlur={field.handleBlur}
+												onChange={(e) => field.handleChange(e.target.value)}
+												aria-invalid={isInvalid}
+												disabled={lockFields}
+											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
+							</form.Field>
+						</>
 					)}
 
-					<Separator />
-
-					<form.Field name="notesForVendors">
-						{(field) => {
-							const isInvalid = formFieldShowInvalid(
-								field.state.meta.isTouched,
-								field.state.meta.isValid,
-								submissionAttempts,
-							);
-							return (
-								<Field data-invalid={isInvalid}>
-									<FieldLabel>Notes for Vendors (Optional)</FieldLabel>
-									<Textarea
-										rows={3}
-										placeholder="Add any special instructions for vendors..."
-										value={field.state.value ?? ""}
-										onBlur={field.handleBlur}
-										onChange={(e) => field.handleChange(e.target.value)}
-										aria-invalid={isInvalid}
-										disabled={lockFields}
-									/>
-									{isInvalid && <FieldError errors={field.state.meta.errors} />}
-								</Field>
-							);
-						}}
-					</form.Field>
 					<Separator />
 					<Field>
 						<FieldLabel>Acceptance Criteria</FieldLabel>
@@ -350,13 +359,8 @@ export function SubmissionSettingsStep({
 						>
 							Cancel
 						</Button>
-						<Button
-							type="submit"
-							disabled={form.state.isSubmitting || isPending}
-						>
-							{form.state.isSubmitting || isPending
-								? "Saving..."
-								: "Next \u2192"}
+						<Button type="submit" disabled={isPending}>
+							{isPending ? "Saving..." : "Next \u2192"}
 						</Button>
 					</div>
 				</form>

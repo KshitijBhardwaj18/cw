@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDateRange, formatUsdLedger } from "@repo/shared";
+import { formatUsdLedger } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -17,13 +17,18 @@ import { Separator } from "@repo/ui/components/separator";
 import type { InvoiceListItem } from "@repo/ui/general/billing/types";
 import { Calendar, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 interface InvoiceCardProps {
 	invoice: InvoiceListItem;
 	organizationId: string;
 }
 
-export function InvoiceCard({ invoice, organizationId }: InvoiceCardProps) {
+export function InvoiceCard({
+	invoice,
+	organizationId,
+}: Readonly<InvoiceCardProps>) {
+	const { fmtDateRange } = useUserTimezone();
 	const status =
 		invoice.status === "DISPUTED"
 			? "disputed"
@@ -42,7 +47,7 @@ export function InvoiceCard({ invoice, organizationId }: InvoiceCardProps) {
 					<div className="flex items-center gap-2 font-medium">
 						<Calendar className="size-3.5" />
 						{invoice.periodStartDate && invoice.periodEndDate
-							? formatDateRange(invoice.periodStartDate, invoice.periodEndDate)
+							? fmtDateRange(invoice.periodStartDate, invoice.periodEndDate)
 							: "N/A"}
 					</div>
 				</CardDescription>

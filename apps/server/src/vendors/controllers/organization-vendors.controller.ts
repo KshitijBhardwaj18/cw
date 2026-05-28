@@ -278,12 +278,12 @@ export class OrganizationVendorsController {
 				typeof parsed !== "object" ||
 				Array.isArray(parsed)
 			) {
-				throw new BadRequestException("Invalid JSON in multipart data field");
+				throw new BadRequestException("Invalid JSON in multipart data field.");
 			}
 			return parsed as Record<string, unknown>;
 		} catch (e) {
 			if (e instanceof BadRequestException) throw e;
-			throw new BadRequestException("Invalid JSON in multipart data field");
+			throw new BadRequestException("Invalid JSON in multipart data field.");
 		}
 	}
 

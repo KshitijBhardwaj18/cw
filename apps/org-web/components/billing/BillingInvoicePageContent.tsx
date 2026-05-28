@@ -1,6 +1,7 @@
 "use client";
 
 import { Action, useAbility } from "@repo/casl";
+import { formatUsdLedgerNullable } from "@repo/shared";
 import { BillingInvoiceView } from "@repo/ui/general/billing/BillingInvoiceView";
 import type {
 	InvoiceDetail,
@@ -11,11 +12,12 @@ import { Download, FileText } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useBillingInvoice } from "@/hooks/use-billing-invoice";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { BillingService } from "@/services/billing.service";
-import { fmtCurrency, fmtPeriod } from "@/utils/format";
 
 export default function BillingInvoicePageContent() {
 	const ability = useAbility();
+	const { fmtPeriod } = useUserTimezone();
 	const canMutateInvoice = ability.can(Action.Update, "Invoice");
 
 	const {
@@ -126,7 +128,7 @@ export default function BillingInvoicePageContent() {
 			onSubmitDisputeLineItem={submitLineItemDispute}
 			onSubmitDisputeInvoice={submitInvoiceDispute}
 			isSubmittingDispute={isSubmittingDispute}
-			formatCurrency={fmtCurrency}
+			formatCurrency={formatUsdLedgerNullable}
 			formatPeriod={fmtPeriod}
 		/>
 	);

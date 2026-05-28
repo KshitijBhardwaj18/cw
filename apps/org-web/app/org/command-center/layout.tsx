@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	title: "Command Center",
 };
 
-const CommandCenterLayout = ({ children }: { children: React.ReactNode }) => {
+const CommandCenterLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.List, subject: "CommandCenter" }]}

@@ -1,5 +1,9 @@
 "use client";
 
+import {
+	getRequisitionStatusLabel,
+	getRequisitionStatusVariant,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Building2, MapPin } from "lucide-react";
@@ -10,11 +14,11 @@ function MetricCell({
 	count,
 	conversionRate,
 	variant,
-}: {
+}: Readonly<{
 	count: number;
 	conversionRate: number;
 	variant: "success" | "warning" | "lime" | "error" | "violet";
-}) {
+}>) {
 	return (
 		<div className="space-y-0.5">
 			<Badge variant={variant} className="rounded-none">
@@ -35,10 +39,10 @@ export const useHiringFunnelJobListingColumns = () => {
 					<div className="space-y-1">
 						<p className="font-medium">{row.original.jobTitle}</p>
 						<Badge
-							variant={row.original.status === "open" ? "success" : "inactive"}
+							variant={getRequisitionStatusVariant(row.original.status)}
 							className="rounded-none"
 						>
-							{row.original.status === "open" ? "Open" : "Closed"}
+							{getRequisitionStatusLabel(row.original.status)}
 						</Badge>
 					</div>
 				),

@@ -1,5 +1,6 @@
 "use client";
 
+import { QuestionType } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
 import {
@@ -29,12 +30,13 @@ import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { Plus, X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
 	QUESTION_TYPE_OPTIONS,
 	QUESTION_TYPE_REQUIRES_OPTIONS,
 } from "@/constants/questionnaire";
+import { useDialogFormEntitySnapshot } from "@/hooks/use-dialog-form-entity-snapshot";
 import {
 	type QuestionFormValues,
 	questionFormBaseSchema,
@@ -72,7 +74,7 @@ function getDefaultValues(
 	}
 	return {
 		questionText: "",
-		type: "TEXT",
+		type: QuestionType.TEXT,
 		options: [],
 		required: false,
 		includeInSubmission: false,
@@ -86,20 +88,18 @@ export function AddQuestionDialog({
 	onCreate,
 	onUpdate,
 	initialQuestion,
-}: AddQuestionDialogProps) {
-	const isEditMode = !!initialQuestion;
+}: Readonly<AddQuestionDialogProps>) {
+	const snapshotQuestion =
+		useDialogFormEntitySnapshot(open, initialQuestion ?? null) ?? undefined;
+	const isEditMode = !!snapshotQuestion;
 
 	const form = useForm({
-		defaultValues: getDefaultValues(initialQuestion),
+		defaultValues: getDefaultValues(snapshotQuestion),
 		validators: {
 			onSubmit: questionFormBaseSchema,
 		},
 		onSubmit: async ({ value }) => {
-			if (
-				QUESTION_TYPE_REQUIRES_OPTIONS.includes(
-					value.type as "CHECKBOX" | "SELECT" | "RADIO_BUTTON",
-				)
-			) {
+			if (QUESTION_TYPE_REQUIRES_OPTIONS.includes(value.type)) {
 				const validOptions = value.options.filter((o) => o.trim().length > 0);
 				if (validOptions.length === 0) {
 					toast.error("At least one option is required for this question type");
@@ -109,16 +109,14 @@ export function AddQuestionDialog({
 
 			const payload: QuestionFormValues = {
 				...value,
-				options: QUESTION_TYPE_REQUIRES_OPTIONS.includes(
-					value.type as "CHECKBOX" | "SELECT" | "RADIO_BUTTON",
-				)
+				options: QUESTION_TYPE_REQUIRES_OPTIONS.includes(value.type)
 					? value.options.filter((o) => o.trim().length > 0)
 					: [],
 			};
 
 			try {
-				if (isEditMode && initialQuestion && onUpdate) {
-					await onUpdate(initialQuestion.id, payload);
+				if (isEditMode && snapshotQuestion && onUpdate) {
+					await onUpdate(snapshotQuestion.id, payload);
 					toast.success("Question updated successfully");
 				} else {
 					await onCreate(payload);
@@ -139,11 +137,13 @@ export function AddQuestionDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
+	const wasOpenRef = useRef(false);
 	useEffect(() => {
-		if (open) {
-			form.reset(getDefaultValues(initialQuestion));
+		if (open && !wasOpenRef.current) {
+			form.reset(getDefaultValues(snapshotQuestion));
 		}
-	}, [open, initialQuestion, form]);
+		wasOpenRef.current = open;
+	}, [open, snapshotQuestion, form]);
 
 	const handleAddOption = () => {
 		form.setFieldValue("options", [...form.state.values.options, ""]);
@@ -161,7 +161,6 @@ export function AddQuestionDialog({
 	};
 
 	const closeForm = () => {
-		form.reset();
 		onOpenChange(false);
 	};
 
@@ -228,11 +227,7 @@ export function AddQuestionDialog({
 										onValueChange={(v) => {
 											const newType = v as QuestionFormValues["type"];
 											field.handleChange(newType);
-											if (
-												QUESTION_TYPE_REQUIRES_OPTIONS.includes(
-													newType as "CHECKBOX" | "SELECT" | "RADIO_BUTTON",
-												)
-											) {
+											if (QUESTION_TYPE_REQUIRES_OPTIONS.includes(newType)) {
 												const opts = form.state.values.options;
 												if (opts.filter((o) => o.trim()).length === 0) {
 													form.setFieldValue("options", [""]);
@@ -259,9 +254,7 @@ export function AddQuestionDialog({
 
 						<form.Subscribe selector={(s) => s.values.type}>
 							{(typeValue) =>
-								QUESTION_TYPE_REQUIRES_OPTIONS.includes(
-									typeValue as "CHECKBOX" | "SELECT" | "RADIO_BUTTON",
-								) ? (
+								QUESTION_TYPE_REQUIRES_OPTIONS.includes(typeValue) ? (
 									<form.Field name="options">
 										{(field) => (
 											<Field>

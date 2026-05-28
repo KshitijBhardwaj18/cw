@@ -17,7 +17,8 @@ const TEMPLATE_SELECT = {
 	baseBillRate: true,
 	vendorRateMarkupPercent: true,
 	limitShiftVisibility: true,
-	visibilityUnlockHours: true,
+	visibilityUnlockDuration: true,
+	visibilityUnlockUnit: true,
 	offerIncentive: true,
 	incentiveByHour: true,
 	incentiveByShift: true,
@@ -71,7 +72,7 @@ export class ShiftTemplatesService {
 			where: { id, organizationId: orgId },
 			select: TEMPLATE_SELECT,
 		});
-		if (!template) throw new NotFoundException("Shift template not found");
+		if (!template) throw new NotFoundException("Shift template not found.");
 		return template;
 	}
 
@@ -89,7 +90,8 @@ export class ShiftTemplatesService {
 				baseBillRate: dto.baseBillRate,
 				vendorRateMarkupPercent: dto.vendorRateMarkupPercent,
 				limitShiftVisibility: dto.limitShiftVisibility,
-				visibilityUnlockHours: dto.visibilityUnlockHours,
+				visibilityUnlockDuration: dto.visibilityUnlockDuration,
+				visibilityUnlockUnit: dto.visibilityUnlockUnit,
 				offerIncentive: dto.offerIncentive,
 				incentiveByHour: dto.incentiveByHour,
 				incentiveByShift: dto.incentiveByShift,

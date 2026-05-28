@@ -38,9 +38,10 @@ import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { INDUSTRY_OPTIONS } from "@/constants/occupations";
+import { useDialogFormEntitySnapshot } from "@/hooks/use-dialog-form-entity-snapshot";
 import {
 	useCreateOccupation,
 	useUpdateOccupation,
@@ -78,8 +79,10 @@ export function OccupationFormDialog({
 	open,
 	onOpenChange,
 	occupation,
-}: OccupationFormDialogProps) {
-	const isEditMode = !!occupation;
+}: Readonly<OccupationFormDialogProps>) {
+	const snapshotOccupation =
+		useDialogFormEntitySnapshot(open, occupation ?? null) ?? undefined;
+	const isEditMode = !!snapshotOccupation;
 
 	const createMutation = useCreateOccupation();
 	const updateMutation = useUpdateOccupation();
@@ -88,14 +91,14 @@ export function OccupationFormDialog({
 	const isPending = createMutation.isPending || updateMutation.isPending;
 
 	const form = useForm({
-		defaultValues: getOccupationDefaultValues(occupation),
+		defaultValues: getOccupationDefaultValues(snapshotOccupation),
 		validators: {
 			onSubmit: OccupationFormSchema,
 		},
 		onSubmit: ({ value }) => {
-			if (isEditMode) {
+			if (isEditMode && snapshotOccupation) {
 				updateMutation.mutate(
-					{ id: occupation.id, data: value },
+					{ id: snapshotOccupation.id, data: value },
 					{
 						onSuccess: () => {
 							toast.success("Occupation updated successfully");
@@ -129,23 +132,20 @@ export function OccupationFormDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
+	const wasOpenRef = useRef(false);
 	useEffect(() => {
-		if (!open) return;
-		form.reset(getOccupationDefaultValues(occupation));
-	}, [open, occupation, form]);
+		if (open && !wasOpenRef.current) {
+			form.reset(getOccupationDefaultValues(snapshotOccupation));
+		}
+		wasOpenRef.current = open;
+	}, [open, snapshotOccupation, form]);
 
 	const closeForm = () => {
-		form.reset();
 		onOpenChange(false);
 	};
 
 	const handleOpenChange = (nextOpen: boolean) => {
 		if (isPending) return;
-
-		if (!nextOpen) {
-			form.reset();
-		}
-
 		onOpenChange(nextOpen);
 	};
 

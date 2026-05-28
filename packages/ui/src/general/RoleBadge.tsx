@@ -8,7 +8,7 @@ interface RoleBadgeProps {
 	className?: string;
 }
 
-export const RoleBadge = ({ role, className }: RoleBadgeProps) => {
+export const RoleBadge = ({ role, className }: Readonly<RoleBadgeProps>) => {
 	const getRoleVariant = (role: string) => {
 		const normalizedRole = role.toLowerCase().trim();
 

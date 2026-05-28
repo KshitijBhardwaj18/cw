@@ -1,15 +1,17 @@
 "use client";
 
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
 import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
 	SUBMISSION_TABS,
 	type SubmissionTabValue,
 	CANDIDATE_SUBMISSIONS_URL_KEYS as U,
 } from "@/constants/candidate/submissions";
 import { CANDIDATE_LIST_PORTAL_COPY } from "@/constants/candidate/submissions-portal";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	CANDIDATE_SUBMISSIONS_PAGE_SIZE,
 	candidateSubmissionsKeys,
@@ -27,6 +29,8 @@ export function useCandidateSubmissionsPage() {
 		isReady,
 	} = useCandidateOrganizationId();
 
+	const { fmtShortDate } = useUserTimezone();
+
 	const [activeTab, setActiveTab] = useTabSwitch<SubmissionTabValue>(
 		SUBMISSION_TABS.map((t) => t.value),
 		{
@@ -39,6 +43,15 @@ export function useCandidateSubmissionsPage() {
 		pageParamKey: U.page,
 		limitParamKey: U.limit,
 		defaultLimit: CANDIDATE_SUBMISSIONS_PAGE_SIZE,
+	});
+
+	const {
+		localSearch: searchValue,
+		searchFromUrl,
+		handleSearchChange,
+	} = useDebouncedSearch({
+		paramKey: U.search,
+		pageParamKey: U.page,
 	});
 
 	const prevOrgIdRef = useRef<string | null>(null);
@@ -62,9 +75,10 @@ export function useCandidateSubmissionsPage() {
 		enabled: Boolean(organizationId) && isReady,
 	});
 
+	const trimmedSearch = searchFromUrl.trim();
 	const listQuery = useQuery({
 		queryKey: organizationId
-			? candidateSubmissionsKeys.list(activeTab, page, limit)
+			? candidateSubmissionsKeys.list(activeTab, page, limit, trimmedSearch)
 			: [
 					...candidateSubmissionsKeys.all,
 					"list",
@@ -72,6 +86,7 @@ export function useCandidateSubmissionsPage() {
 					activeTab,
 					page,
 					limit,
+					trimmedSearch,
 				],
 		queryFn: () => {
 			if (!organizationId) {
@@ -81,6 +96,7 @@ export function useCandidateSubmissionsPage() {
 				page,
 				limit,
 				tab: activeTab,
+				search: trimmedSearch || undefined,
 			});
 		},
 		enabled: Boolean(organizationId) && isReady,
@@ -90,13 +106,28 @@ export function useCandidateSubmissionsPage() {
 	const withdrawMutation = useWithdrawCandidateSubmission();
 	const acceptMutation = useAcceptCandidateOffer();
 
+	const listQueryWithFormattedDates = useMemo(() => {
+		if (!listQuery.data) return listQuery;
+		return {
+			...listQuery,
+			data: {
+				...listQuery.data,
+				data: listQuery.data.data.map((s) => ({
+					...s,
+					appliedDate: fmtShortDate(s.appliedDate),
+					updatedDate: fmtShortDate(s.updatedDate),
+				})),
+			},
+		};
+	}, [listQuery, fmtShortDate]);
+
 	return {
 		organizationId,
 		tabStats: statsQuery.data,
 		isLoading: orgLoading || (Boolean(organizationId) && listQuery.isPending),
 		activeTab,
 		setActiveTab,
-		listQuery,
+		listQuery: listQueryWithFormattedDates,
 		page,
 		setPage,
 		limit,
@@ -104,5 +135,8 @@ export function useCandidateSubmissionsPage() {
 		portalCopy: CANDIDATE_LIST_PORTAL_COPY,
 		withdrawMutation,
 		acceptMutation,
+		searchValue,
+		setSearchValue: handleSearchChange,
+		hasActiveSearch: trimmedSearch.length > 0,
 	};
 }

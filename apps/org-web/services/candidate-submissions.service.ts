@@ -9,6 +9,7 @@ export type CandidateSubmissionsListParams = {
 	page?: number;
 	limit?: number;
 	tab?: string;
+	search?: string;
 };
 
 export type CandidateSubmissionsListResponse = {
@@ -33,6 +34,7 @@ export class CandidateSubmissionsService {
 			page: params.page,
 			limit: params.limit,
 			tab: params.tab,
+			search: params.search,
 		});
 	}
 

@@ -17,6 +17,8 @@ interface TypeSelectionStepProps {
 	onSubmit: (values: JobPostingTypeSelectionValues) => void;
 	onCancel: () => void;
 	isPending?: boolean;
+	/** Edit mode pins the requisition type \u2014 selection cards stay visible but read-only. */
+	locked?: boolean;
 }
 
 export function TypeSelectionStep({
@@ -24,13 +26,16 @@ export function TypeSelectionStep({
 	onSubmit,
 	onCancel,
 	isPending = false,
-}: TypeSelectionStepProps) {
+	locked = false,
+}: Readonly<TypeSelectionStepProps>) {
 	const { form, lockFields, handleFormSubmit } =
 		useJobPostingTypeSelectionStepForm({
 			initialValues,
 			onSubmit,
 			isPending,
 		});
+
+	const fieldsDisabled = lockFields || locked;
 
 	return (
 		<Card>
@@ -46,8 +51,8 @@ export function TypeSelectionStep({
 						{(field) => (
 							<RequisitionTypeSelectionCards
 								selectedType={field.state.value}
-								onSelectType={field.handleChange}
-								disabled={lockFields}
+								onSelectType={(type) => field.handleChange(type)}
+								disabled={fieldsDisabled}
 							/>
 						)}
 					</form.Field>
@@ -61,13 +66,8 @@ export function TypeSelectionStep({
 						>
 							Cancel
 						</Button>
-						<Button
-							type="submit"
-							disabled={form.state.isSubmitting || isPending}
-						>
-							{form.state.isSubmitting || isPending
-								? "Saving..."
-								: "Next \u2192"}
+						<Button type="submit" disabled={isPending}>
+							{isPending ? "Saving..." : "Next \u2192"}
 						</Button>
 					</div>
 				</form>

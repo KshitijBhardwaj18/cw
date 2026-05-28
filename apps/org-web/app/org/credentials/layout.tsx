@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	title: "Credentials",
 };
 
-const CredentialsLayout = ({ children }: { children: React.ReactNode }) => {
+const CredentialsLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.List, subject: "Credentials" }]}

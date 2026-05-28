@@ -94,7 +94,7 @@ export class TaggingRulesService {
 			select: { id: true },
 		});
 		if (!org) {
-			throw new NotFoundException(`Organization ${organizationId} not found`);
+			throw new NotFoundException("Organization not found.");
 		}
 	}
 
@@ -203,7 +203,7 @@ export class TaggingRulesService {
 			where: { id: dto.tagId },
 		});
 		if (!tag) {
-			throw new NotFoundException(`Tag ${dto.tagId} not found`);
+			throw new NotFoundException("Tag not found.");
 		}
 
 		const rule = await this.prisma.taggingRule.create({
@@ -244,7 +244,7 @@ export class TaggingRulesService {
 	): Promise<TaggingRuleWithDetails> {
 		const existing = await this.findOne(organizationId, taggingRuleId);
 		if (!existing) {
-			throw new NotFoundException(`Tagging rule ${taggingRuleId} not found`);
+			throw new NotFoundException("Tagging rule not found.");
 		}
 
 		const updateData: {
@@ -297,7 +297,7 @@ export class TaggingRulesService {
 	async delete(organizationId: string, taggingRuleId: string): Promise<void> {
 		const existing = await this.findOne(organizationId, taggingRuleId);
 		if (!existing) {
-			throw new NotFoundException(`Tagging rule ${taggingRuleId} not found`);
+			throw new NotFoundException("Tagging rule not found.");
 		}
 		await this.prisma.taggingRule.delete({
 			where: { id: taggingRuleId },
@@ -393,7 +393,7 @@ export class TaggingRulesService {
 			select: { id: true },
 		});
 		if (!q) {
-			throw new NotFoundException("No questionnaire found for this specialty");
+			throw new NotFoundException("No questionnaire found for this specialty.");
 		}
 		return q.id;
 	}

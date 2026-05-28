@@ -43,7 +43,7 @@ function niceYAxisMax(maxVal: number): { domainMax: number; step: number } {
 export function SpendTrendComparisonCard({
 	data,
 	isLoading = false,
-}: SpendTrendComparisonCardProps) {
+}: Readonly<SpendTrendComparisonCardProps>) {
 	const { domainMax, yTicks } = useMemo(() => {
 		const maxVal = Math.max(
 			0,

@@ -17,8 +17,8 @@ export const metadata: Metadata = {
 
 export default function CandidatePortalRouteGroupLayout({
 	children,
-}: {
+}: Readonly<{
 	children: React.ReactNode;
-}) {
+}>) {
 	return children;
 }

@@ -13,11 +13,23 @@ import {
 import { Field, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { useForm } from "@tanstack/react-form";
+import { useEffect, useRef } from "react";
+import { useDialogFormEntitySnapshot } from "@/hooks/use-dialog-form-entity-snapshot";
 
 export interface OfferAdjustmentValues {
 	startDate?: string;
 	endDate?: string;
 	billRate?: number;
+}
+
+function getOfferAdjustmentFormValues(
+	v: OfferAdjustmentValues | undefined | null,
+) {
+	return {
+		startDate: v?.startDate ?? "",
+		endDate: v?.endDate ?? "",
+		billRate: v?.billRate != null ? String(v.billRate) : "",
+	};
 }
 
 interface OfferAdjustmentDialogProps {
@@ -34,14 +46,14 @@ export function OfferAdjustmentDialog({
 	defaultValues,
 	onSubmit,
 	isPending = false,
-}: OfferAdjustmentDialogProps) {
+}: Readonly<OfferAdjustmentDialogProps>) {
+	const snapshotDefaults = useDialogFormEntitySnapshot(
+		open,
+		defaultValues ?? null,
+	);
+
 	const form = useForm({
-		defaultValues: {
-			startDate: defaultValues?.startDate ?? "",
-			endDate: defaultValues?.endDate ?? "",
-			billRate:
-				defaultValues?.billRate != null ? String(defaultValues.billRate) : "",
-		},
+		defaultValues: getOfferAdjustmentFormValues(snapshotDefaults),
 		onSubmit: async ({ value }) => {
 			try {
 				await onSubmit({
@@ -55,8 +67,15 @@ export function OfferAdjustmentDialog({
 		},
 	});
 
+	const wasOpenRef = useRef(false);
+	useEffect(() => {
+		if (open && !wasOpenRef.current) {
+			form.reset(getOfferAdjustmentFormValues(snapshotDefaults));
+		}
+		wasOpenRef.current = open;
+	}, [open, snapshotDefaults, form]);
+
 	const handleOpenChange = (next: boolean) => {
-		if (!next) form.reset();
 		onOpenChange(next);
 	};
 

@@ -14,135 +14,124 @@ import type { EndPlacementInput } from "@/types/placement";
 
 export const placementsKeys = {
 	all: ["placements"] as const,
-	counts: (orgId: string) => [...placementsKeys.all, "counts", orgId] as const,
+	counts: () => [...placementsKeys.all, "counts"] as const,
 	credentialCounts: (
-		orgId: string,
 		query: Omit<CredentialsQuery, "status" | "page" | "limit">,
-	) => [...placementsKeys.all, "credentialCounts", orgId, query] as const,
-	credentials: (orgId: string, query: CredentialsQuery) =>
-		[...placementsKeys.all, "credentials", orgId, query] as const,
+	) => [...placementsKeys.all, "credentialCounts", query] as const,
+	credentials: (query: CredentialsQuery) =>
+		[...placementsKeys.all, "credentials", query] as const,
 	upcomingComplianceCounts: (
-		orgId: string,
 		query: Omit<UpcomingComplianceQuery, "complianceStatus" | "page" | "limit">,
-	) =>
-		[...placementsKeys.all, "upcomingComplianceCounts", orgId, query] as const,
-	upcomingCompliance: (orgId: string, query: UpcomingComplianceQuery) =>
-		[...placementsKeys.all, "upcomingCompliance", orgId, query] as const,
-	credentialDetail: (orgId: string, placementId: string) =>
-		[...placementsKeys.all, "credentialDetail", orgId, placementId] as const,
-	list: (orgId: string, query: PlacementsQuery) =>
-		[...placementsKeys.all, "list", orgId, query] as const,
-	detail: (orgId: string, placementId: string) =>
-		[...placementsKeys.all, "detail", orgId, placementId] as const,
-	offerHistory: (orgId: string, placementId: string) =>
-		[...placementsKeys.all, "offerHistory", orgId, placementId] as const,
-	notes: (orgId: string, placementId: string) =>
-		[...placementsKeys.all, "notes", orgId, placementId] as const,
-	tasks: (orgId: string, placementId: string) =>
-		[...placementsKeys.all, "tasks", orgId, placementId] as const,
-	compliance: (orgId: string, placementId: string) =>
-		[...placementsKeys.all, "compliance", orgId, placementId] as const,
-	availableCompliance: (orgId: string, placementId: string, search: string) =>
+	) => [...placementsKeys.all, "upcomingComplianceCounts", query] as const,
+	upcomingCompliance: (query: UpcomingComplianceQuery) =>
+		[...placementsKeys.all, "upcomingCompliance", query] as const,
+	credentialDetail: (placementId: string) =>
+		[...placementsKeys.all, "credentialDetail", placementId] as const,
+	list: (query: PlacementsQuery) =>
+		[...placementsKeys.all, "list", query] as const,
+	detail: (placementId: string) =>
+		[...placementsKeys.all, "detail", placementId] as const,
+	offerHistory: (placementId: string) =>
+		[...placementsKeys.all, "offerHistory", placementId] as const,
+	notes: (placementId: string) =>
+		[...placementsKeys.all, "notes", placementId] as const,
+	tasks: (placementId: string) =>
+		[...placementsKeys.all, "tasks", placementId] as const,
+	compliance: (placementId: string) =>
+		[...placementsKeys.all, "compliance", placementId] as const,
+	availableCompliance: (placementId: string, search: string) =>
 		[
 			...placementsKeys.all,
 			"availableCompliance",
-			orgId,
 			placementId,
 			search,
 		] as const,
 };
 
-export function usePlacementCounts(
-	orgId: string,
-	options?: { enabled?: boolean },
-) {
+export function usePlacementCounts(options?: { enabled?: boolean }) {
 	return useQuery({
-		queryKey: placementsKeys.counts(orgId),
+		queryKey: placementsKeys.counts(),
 		queryFn: () => PlacementsService.getPlacementCounts(),
 		staleTime: 30_000,
 		refetchOnMount: "always",
-		enabled: (options?.enabled ?? true) && Boolean(orgId),
+		enabled: options?.enabled ?? true,
 	});
 }
 
 export function usePlacements(
-	orgId: string,
 	query: PlacementsQuery,
 	options?: { enabled?: boolean },
 ) {
 	return useQuery({
-		queryKey: placementsKeys.list(orgId, query),
+		queryKey: placementsKeys.list(query),
 		queryFn: () => PlacementsService.getPlacements(query),
 		refetchOnMount: "always",
-		enabled: (options?.enabled ?? true) && Boolean(orgId),
+		enabled: options?.enabled ?? true,
 	});
 }
 
-export function usePlacementDetail(orgId: string, placementId: string) {
+export function usePlacementDetail(placementId: string) {
 	return useQuery({
-		queryKey: placementsKeys.detail(orgId, placementId),
+		queryKey: placementsKeys.detail(placementId),
 		queryFn: () => PlacementsService.getPlacementDetail(placementId),
 		refetchOnMount: "always",
 	});
 }
 
-export function usePlacementDetailSuspense(orgId: string, placementId: string) {
+export function usePlacementDetailSuspense(placementId: string) {
 	return useSuspenseQuery({
-		queryKey: placementsKeys.detail(orgId, placementId),
+		queryKey: placementsKeys.detail(placementId),
 		queryFn: () => PlacementsService.getPlacementDetail(placementId),
 		refetchOnMount: "always",
 	});
 }
 
-export function usePlacementOfferHistory(orgId: string, placementId: string) {
+export function usePlacementOfferHistory(placementId: string) {
 	return useQuery({
-		queryKey: placementsKeys.offerHistory(orgId, placementId),
+		queryKey: placementsKeys.offerHistory(placementId),
 		queryFn: () => PlacementsService.getPlacementOfferHistory(placementId),
 		refetchOnMount: "always",
 	});
 }
 
-export function usePlacementOfferHistorySuspense(
-	orgId: string,
-	placementId: string,
-) {
+export function usePlacementOfferHistorySuspense(placementId: string) {
 	return useSuspenseQuery({
-		queryKey: placementsKeys.offerHistory(orgId, placementId),
+		queryKey: placementsKeys.offerHistory(placementId),
 		queryFn: () => PlacementsService.getPlacementOfferHistory(placementId),
 		refetchOnMount: "always",
 	});
 }
 
-export function usePlacementNotes(orgId: string, placementId: string) {
+export function usePlacementNotes(placementId: string) {
 	return useQuery({
-		queryKey: placementsKeys.notes(orgId, placementId),
+		queryKey: placementsKeys.notes(placementId),
 		queryFn: () => PlacementsService.getPlacementNotes(placementId),
 		refetchOnMount: "always",
 	});
 }
 
-export function usePlacementTasks(orgId: string, placementId: string) {
+export function usePlacementTasks(placementId: string) {
 	return useQuery({
-		queryKey: placementsKeys.tasks(orgId, placementId),
+		queryKey: placementsKeys.tasks(placementId),
 		queryFn: () => PlacementsService.getPlacementTasks(placementId),
 		refetchOnMount: "always",
 	});
 }
 
-export function useCreatePlacementNote(orgId: string, placementId: string) {
+export function useCreatePlacementNote(placementId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (body: { content: string; createdByRole?: string }) =>
 			PlacementsService.createPlacementNote(placementId, body),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: placementsKeys.notes(orgId, placementId),
+				queryKey: placementsKeys.notes(placementId),
 			});
 		},
 	});
 }
 
-export function useCreatePlacementTask(orgId: string, placementId: string) {
+export function useCreatePlacementTask(placementId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (body: {
@@ -153,52 +142,48 @@ export function useCreatePlacementTask(orgId: string, placementId: string) {
 		}) => PlacementsService.createPlacementTask(placementId, body),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: placementsKeys.tasks(orgId, placementId),
+				queryKey: placementsKeys.tasks(placementId),
 			});
 		},
 	});
 }
 
-export function useCompletePlacementTask(orgId: string, placementId: string) {
+export function useCompletePlacementTask(placementId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (taskId: string) =>
 			PlacementsService.completePlacementTask(placementId, taskId),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: placementsKeys.tasks(orgId, placementId),
+				queryKey: placementsKeys.tasks(placementId),
 			});
 		},
 	});
 }
 
-export function usePlacementCompliance(orgId: string, placementId: string) {
+export function usePlacementCompliance(placementId: string) {
 	return useQuery({
-		queryKey: placementsKeys.compliance(orgId, placementId),
+		queryKey: placementsKeys.compliance(placementId),
 		queryFn: () => PlacementsService.getPlacementCompliance(placementId),
 		refetchOnMount: "always",
 	});
 }
 
 export function useAvailableComplianceItems(
-	orgId: string,
 	placementId: string,
 	search: string,
 	enabled: boolean,
 ) {
 	return useQuery({
-		queryKey: placementsKeys.availableCompliance(orgId, placementId, search),
+		queryKey: placementsKeys.availableCompliance(placementId, search),
 		queryFn: () =>
 			PlacementsService.getAvailableComplianceItems(placementId, search),
-		enabled: enabled && !!orgId && !!placementId,
+		enabled: enabled && !!placementId,
 		staleTime: 30_000,
 	});
 }
 
-export function useAddPlacementComplianceItems(
-	orgId: string,
-	placementId: string,
-) {
+export function useAddPlacementComplianceItems(placementId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (complianceListItemIds: string[]) =>
@@ -207,7 +192,7 @@ export function useAddPlacementComplianceItems(
 			}),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: placementsKeys.compliance(orgId, placementId),
+				queryKey: placementsKeys.compliance(placementId),
 			});
 			void queryClient.invalidateQueries({
 				queryKey: placementsKeys.all,
@@ -216,10 +201,7 @@ export function useAddPlacementComplianceItems(
 	});
 }
 
-export function useRemovePlacementComplianceItem(
-	orgId: string,
-	placementId: string,
-) {
+export function useRemovePlacementComplianceItem(placementId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (placementComplianceItemId: string) =>
@@ -229,7 +211,7 @@ export function useRemovePlacementComplianceItem(
 			),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: placementsKeys.compliance(orgId, placementId),
+				queryKey: placementsKeys.compliance(placementId),
 			});
 			void queryClient.invalidateQueries({
 				queryKey: placementsKeys.all,
@@ -238,7 +220,7 @@ export function useRemovePlacementComplianceItem(
 	});
 }
 
-export function useEndPlacement(_orgId: string) {
+export function useEndPlacement() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -255,68 +237,50 @@ export function useEndPlacement(_orgId: string) {
 }
 
 export function usePlacementCredentialCounts(
-	orgId: string,
 	query: Omit<CredentialsQuery, "status" | "page" | "limit">,
 ) {
 	return useQuery({
-		queryKey: placementsKeys.credentialCounts(orgId, query),
+		queryKey: placementsKeys.credentialCounts(query),
 		queryFn: () => PlacementsService.getCredentialCounts(query),
-		enabled: !!orgId,
 		staleTime: 30_000,
 	});
 }
 
-export function usePlacementCredentials(
-	orgId: string,
-	query: CredentialsQuery,
-) {
+export function usePlacementCredentials(query: CredentialsQuery) {
 	return useQuery({
-		queryKey: placementsKeys.credentials(orgId, query),
+		queryKey: placementsKeys.credentials(query),
 		queryFn: () => PlacementsService.getCredentialsList(query),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
 export function usePlacementUpcomingComplianceCounts(
-	orgId: string,
 	query: Omit<UpcomingComplianceQuery, "complianceStatus" | "page" | "limit">,
 ) {
 	return useQuery({
-		queryKey: placementsKeys.upcomingComplianceCounts(orgId, query),
+		queryKey: placementsKeys.upcomingComplianceCounts(query),
 		queryFn: () => PlacementsService.getUpcomingComplianceCounts(query),
-		enabled: !!orgId,
 		staleTime: 30_000,
 	});
 }
 
-export function usePlacementUpcomingCompliance(
-	orgId: string,
-	query: UpcomingComplianceQuery,
-) {
+export function usePlacementUpcomingCompliance(query: UpcomingComplianceQuery) {
 	return useQuery({
-		queryKey: placementsKeys.upcomingCompliance(orgId, query),
+		queryKey: placementsKeys.upcomingCompliance(query),
 		queryFn: () => PlacementsService.getUpcomingCompliance(query),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function usePlacementCredentialDetail(
-	orgId: string,
-	placementId: string,
-) {
+export function usePlacementCredentialDetail(placementId: string) {
 	return useQuery({
-		queryKey: placementsKeys.credentialDetail(orgId, placementId),
+		queryKey: placementsKeys.credentialDetail(placementId),
 		queryFn: () => PlacementsService.getPlacementCredentialDetail(placementId),
-		enabled: !!orgId && !!placementId,
+		enabled: !!placementId,
 	});
 }
 
-export function useUpdateCandidateComplianceStatus(
-	orgId: string,
-	placementId: string,
-) {
+export function useUpdateCandidateComplianceStatus(placementId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -333,54 +297,73 @@ export function useUpdateCandidateComplianceStatus(
 			),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: placementsKeys.credentialDetail(orgId, placementId),
+				queryKey: placementsKeys.credentialDetail(placementId),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: [...placementsKeys.all, "credentials", orgId],
+				queryKey: [...placementsKeys.all, "credentials"],
 			});
 			void queryClient.invalidateQueries({
-				queryKey: [...placementsKeys.all, "credentialCounts", orgId],
+				queryKey: [...placementsKeys.all, "credentialCounts"],
 			});
 			void queryClient.invalidateQueries({
-				queryKey: placementsKeys.compliance(orgId, placementId),
+				queryKey: placementsKeys.compliance(placementId),
 			});
 		},
 	});
 }
 
-export function useUploadCandidateComplianceDocument(
-	orgId: string,
-	placementId: string,
-) {
+export function useUploadCandidateComplianceDocument(placementId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: ({
 			complianceListItemId,
 			file,
 			expiryDate,
+			issueDate,
 		}: {
 			complianceListItemId: string;
 			file: File;
 			expiryDate?: string;
+			issueDate?: string;
 		}) =>
 			PlacementsService.uploadCandidateComplianceDocument(
 				placementId,
 				complianceListItemId,
 				file,
 				expiryDate,
+				issueDate,
 			),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: placementsKeys.credentialDetail(orgId, placementId),
+				queryKey: placementsKeys.credentialDetail(placementId),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: [...placementsKeys.all, "credentials", orgId],
+				queryKey: [...placementsKeys.all, "credentials"],
 			});
 			void queryClient.invalidateQueries({
-				queryKey: [...placementsKeys.all, "credentialCounts", orgId],
+				queryKey: [...placementsKeys.all, "credentialCounts"],
 			});
 			void queryClient.invalidateQueries({
-				queryKey: placementsKeys.compliance(orgId, placementId),
+				queryKey: placementsKeys.compliance(placementId),
+			});
+		},
+	});
+}
+
+export function useMarkCandidateComplianceLinkSubmitted(placementId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (complianceListItemId: string) =>
+			PlacementsService.markComplianceLinkSubmitted(
+				placementId,
+				complianceListItemId,
+			),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: placementsKeys.credentialDetail(placementId),
+			});
+			void queryClient.invalidateQueries({
+				queryKey: placementsKeys.compliance(placementId),
 			});
 		},
 	});

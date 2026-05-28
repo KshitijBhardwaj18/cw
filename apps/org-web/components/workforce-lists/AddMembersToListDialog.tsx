@@ -9,11 +9,11 @@ import {
 } from "@repo/ui/components/dialog";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import { FormDialogFooter } from "@repo/ui/general/FormDialogFooter";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { useForm } from "@tanstack/react-form";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-import { useOrgContext } from "@/contexts/org-context";
 import { useAddMembersToListColumns } from "@/hooks/tables/use-add-members-to-list-columns";
 import { useAddMembersToListFilters } from "@/hooks/use-add-members-to-list-filters";
 import { useAvailableCandidates } from "@/queries/workforce-lists.queries";
@@ -33,8 +33,7 @@ export function AddMembersToListDialog({
 	listName,
 	listId,
 	onAdd,
-}: AddMembersToListDialogProps) {
-	const { id: orgId } = useOrgContext();
+}: Readonly<AddMembersToListDialogProps>) {
 	const {
 		search,
 		setSearch,
@@ -52,7 +51,7 @@ export function AddMembersToListDialog({
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const columns = useAddMembersToListColumns();
 
-	const availableQuery = useAvailableCandidates(orgId, listId, query);
+	const availableQuery = useAvailableCandidates(listId, query);
 
 	const form = useForm({
 		defaultValues: {
@@ -93,6 +92,7 @@ export function AddMembersToListDialog({
 	).length;
 
 	const total = availableQuery.data?.total ?? 0;
+	const pageCount = Math.ceil(total / pageSize) || 1;
 
 	const filterConfigs = useMemo(
 		() => [
@@ -149,17 +149,19 @@ export function AddMembersToListDialog({
 								getRowId={(row) => row.id}
 								rowSelection={rowSelection}
 								onRowSelectionChange={setRowSelection}
-								enablePagination
-								paginationMode="server"
-								totalCount={total}
-								currentPage={page}
-								pageSize={pageSize}
-								pageSizeOptions={[10, 20, 50, 100]}
-								onPaginationChange={(newPage, newPageSize) => {
-									setPage(newPage);
-									setPageSize(newPageSize);
-								}}
+								enablePagination={false}
 								className="text-sm"
+							/>
+							<PaginationControls
+								currentPage={page}
+								pageCount={pageCount}
+								goToPage={setPage}
+								limit={pageSize}
+								setLimit={setPageSize}
+								pageSizeOptions={[5, 10, 20, 50]}
+								totalItems={total}
+								itemLabel="member"
+								itemLabelPlural="members"
 							/>
 						</div>
 					</div>

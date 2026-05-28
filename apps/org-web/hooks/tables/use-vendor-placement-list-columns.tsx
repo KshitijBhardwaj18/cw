@@ -7,6 +7,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Calendar, Eye, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { PlacementListMockRow } from "@/types/placements";
 
 function headerClass() {
@@ -14,6 +15,8 @@ function headerClass() {
 }
 
 export function useVendorPlacementListColumns(detailBasePath: string) {
+	const { fmtShortDate } = useUserTimezone();
+
 	return useMemo<ColumnDef<PlacementListMockRow>[]>(
 		() => [
 			{
@@ -74,7 +77,7 @@ export function useVendorPlacementListColumns(detailBasePath: string) {
 				cell: ({ row }) => (
 					<div className="text-muted-foreground flex items-center gap-2 text-sm w-32">
 						<Calendar className="size-4 shrink-0" aria-hidden />
-						<span>{row.original.startDate}</span>
+						<span>{fmtShortDate(row.original.startDate)}</span>
 					</div>
 				),
 			},
@@ -88,7 +91,7 @@ export function useVendorPlacementListColumns(detailBasePath: string) {
 						<div className="space-y-0.5">
 							<div className="text-muted-foreground flex items-center gap-2  w-32 text-sm">
 								<Calendar className="size-4 shrink-0" aria-hidden />
-								<span>{row.original.endDate}</span>
+								<span>{fmtShortDate(row.original.endDate)}</span>
 							</div>
 							{days != null && days > 0 ? (
 								<p className="text-xs font-medium text-amber-600 dark:text-amber-500">
@@ -143,6 +146,6 @@ export function useVendorPlacementListColumns(detailBasePath: string) {
 				),
 			},
 		],
-		[detailBasePath],
+		[detailBasePath, fmtShortDate],
 	);
 }

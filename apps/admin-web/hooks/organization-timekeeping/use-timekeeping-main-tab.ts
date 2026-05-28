@@ -1,5 +1,6 @@
 "use client";
 
+import { TimesheetEntryStatus } from "@repo/shared";
 import type { DataSourceFilter } from "@repo/ui/general/timekeeping/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DATA_SOURCE_OPTIONS } from "@/constants/timekeeping";
@@ -81,15 +82,16 @@ export function useTimekeepingMainTab(
 		Record<ApprovalStatusFilter, number>
 	>(() => {
 		const c = entryCountsQuery.data ?? {};
-		const p = c.PENDING ?? 0;
-		const a = c.APPROVED ?? 0;
-		const d = c.DISPUTED ?? 0;
+		const p = c[TimesheetEntryStatus.PENDING] ?? 0;
+		const a = c[TimesheetEntryStatus.APPROVED] ?? 0;
+		const d = c[TimesheetEntryStatus.DISPUTED] ?? 0;
 		return {
 			ALL: p + a + d,
-			PENDING: p,
-			APPROVED: a,
-			DISPUTED: d,
-			REJECTED: c.REJECTED ?? 0,
+			[TimesheetEntryStatus.PENDING]: p,
+			[TimesheetEntryStatus.APPROVED]: a,
+			[TimesheetEntryStatus.DISPUTED]: d,
+			[TimesheetEntryStatus.REJECTED]: c[TimesheetEntryStatus.REJECTED] ?? 0,
+			[TimesheetEntryStatus.DRAFT]: c[TimesheetEntryStatus.DRAFT] ?? 0,
 		};
 	}, [entryCountsQuery.data]);
 

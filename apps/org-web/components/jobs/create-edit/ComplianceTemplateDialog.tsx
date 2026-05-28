@@ -1,5 +1,6 @@
 "use client";
 
+import { getComplianceListItemCategoryLabel } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { DetailItem } from "@repo/ui/components/detail-item";
@@ -13,7 +14,6 @@ import {
 import { ScrollArea } from "@repo/ui/components/scroll-area";
 import { ShieldCheck } from "lucide-react";
 import { useMemo } from "react";
-import { useOrgContext } from "@/contexts/org-context";
 import { useComplianceChecklist } from "@/queries/compliance-checklist.queries";
 import { complianceChecklistToItemOptions } from "@/utils/compliance-checklist-display";
 
@@ -29,9 +29,8 @@ export function ComplianceTemplateDialog({
 	onOpenChange,
 	complianceTemplateId,
 	showInheritedDescription = false,
-}: ComplianceTemplateDialogProps) {
-	const { id: orgId } = useOrgContext();
-	const checklistQuery = useComplianceChecklist(orgId, complianceTemplateId);
+}: Readonly<ComplianceTemplateDialogProps>) {
+	const checklistQuery = useComplianceChecklist(complianceTemplateId);
 
 	const checklistItems = useMemo(
 		() => complianceChecklistToItemOptions(checklistQuery.data),
@@ -97,7 +96,7 @@ export function ComplianceTemplateDialog({
 											<div className="min-w-0">
 												<p className="font-medium text-sm">{item.name}</p>
 												<p className="text-muted-foreground text-xs">
-													{item.category}
+													{getComplianceListItemCategoryLabel(item.category)}
 													{item.tracksExpiration
 														? " • Expiration tracking enabled"
 														: " • No expiration tracking"}

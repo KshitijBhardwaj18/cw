@@ -22,7 +22,7 @@ function SearchBar({
 	onChange,
 	className,
 	disabled,
-}: SearchBarProps) {
+}: Readonly<SearchBarProps>) {
 	return (
 		<InputGroup className={cn("h-10", className)}>
 			<InputGroupAddon align="inline-start">

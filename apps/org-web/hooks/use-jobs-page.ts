@@ -10,7 +10,6 @@ import {
 	ORG_JOBS_SHIFT_FILTER_TO_SHIFT_TYPE,
 	ORG_JOBS_STATUS_FILTER_OPTIONS,
 } from "@/constants/jobs";
-import { useOrgContext } from "@/contexts/org-context";
 import { useRequisitionsList } from "@/queries/requisitions.queries";
 import {
 	useShiftTemplateDepartments,
@@ -18,11 +17,13 @@ import {
 	useShiftTemplateOccupations,
 } from "@/queries/shift-templates.queries";
 
-const JOBS_PAGE_SIZE = 9;
+const DEFAULT_LIMIT = 9;
+const PAGE_SIZE_OPTIONS = [9, 18, 27, 36];
 
 const JOBS_PARAMS = {
 	SEARCH: "jobSearch",
 	PAGE: "pdPage",
+	LIMIT: "pdLimit",
 	DATE: "date",
 	STATUS: "status",
 	SHIFT_TYPE: "shiftType",
@@ -36,11 +37,11 @@ export function useJobsPage() {
 	const router = useRouter();
 	const ability = useAbility();
 	const canListJobs = ability.can(Action.Read, "Requisition");
-	const { id: orgId } = useOrgContext();
-
-	const { page, setPage } = usePaginationControls({
+	const { page, limit, setPage, setLimit } = usePaginationControls({
 		pageParamKey: JOBS_PARAMS.PAGE,
-		defaultLimit: JOBS_PAGE_SIZE,
+		limitParamKey: JOBS_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -126,7 +127,6 @@ export function useJobsPage() {
 			: ORG_JOBS_SHIFT_FILTER_TO_SHIFT_TYPE[filters.shiftType];
 
 	const listQuery = useRequisitionsList(
-		orgId,
 		{
 			search: searchFromUrl.trim() || undefined,
 			cardStatus: filters.status === "all" ? undefined : filters.status,
@@ -141,7 +141,7 @@ export function useJobsPage() {
 				filters.specialty === "all" ? undefined : filters.specialty,
 			expectedStartDate: filters.date || undefined,
 			page,
-			limit: JOBS_PAGE_SIZE,
+			limit,
 		},
 		{ enabled: canListJobs },
 	);
@@ -291,6 +291,9 @@ export function useJobsPage() {
 		page,
 		totalPages,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 		hasActiveFilters,
 		isLoading: listQuery.isLoading,
 		isError: listQuery.isError,

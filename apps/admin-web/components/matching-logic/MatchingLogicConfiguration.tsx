@@ -35,7 +35,7 @@ function MatchingLogicContent({
 	onReset,
 	onSave,
 	onRetrySave,
-}: MatchingLogicContentProps) {
+}: Readonly<MatchingLogicContentProps>) {
 	const pathname = usePathname();
 	const navGuard = useNavigationGuard({
 		enabled: (info) => isDirty && info.to !== pathname,
@@ -121,7 +121,7 @@ type MatchingLogicConfigurationProps = {
 
 const MatchingLogicConfiguration = ({
 	organizationId,
-}: MatchingLogicConfigurationProps) => {
+}: Readonly<MatchingLogicConfigurationProps>) => {
 	const {
 		form,
 		saveError,

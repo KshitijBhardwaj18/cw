@@ -1,3 +1,10 @@
+import type {
+	ComplianceChecklistItemPhase,
+	InterviewType,
+	WorkflowType,
+} from "@repo/shared";
+
+import type { ShiftTypeKey } from "@/constants/shifts";
 import { ApiClient } from "@/lib/api-client";
 import type {
 	RequisitionTemplateStatus,
@@ -12,6 +19,7 @@ export type RequisitionTemplateListItem = {
 	templateName: string;
 	occupation: string;
 	specialty: string;
+	specialties: string[];
 	location: string;
 	departmentLabel: string;
 	shiftSummary: string;
@@ -38,9 +46,9 @@ export type RequisitionTemplateDetail = {
 	templateName: string;
 	locationId: string;
 	organizationOccupationId: string;
-	organizationSpecialtyId: string | null;
+	organizationSpecialtyIds: string[];
 	occupationId: string;
-	specialtyId: string | null;
+	specialtyIds: string[];
 	departmentId: string;
 	unitName: string | null;
 	jobDescription: string | null;
@@ -51,13 +59,7 @@ export type RequisitionTemplateDetail = {
 	lengthWeeks: number | null;
 	startTime: string | null;
 	endTime: string | null;
-	shiftType:
-		| "DAYS"
-		| "EVENINGS"
-		| "NIGHTS"
-		| "ROTATING"
-		| "WEEKENDS_ONLY"
-		| null;
+	shiftType: ShiftTypeKey | null;
 	shiftHours: number | null;
 	shiftsPerWeek: number | null;
 	hoursPerWeek: number | null;
@@ -65,11 +67,7 @@ export type RequisitionTemplateDetail = {
 	numberOfPositions: number | null;
 	incentiveType: string | null;
 	incentiveAmount: number | null;
-	interviewRequired:
-		| "NO_INTERVIEW"
-		| "CLIENT_INTERVIEW"
-		| "INTERNAL_INTERVIEW"
-		| null;
+	interviewRequired: InterviewType | null;
 	hiringManagerId: string | null;
 	complianceChecklistId: string | null;
 	requiresApproval: boolean;
@@ -82,13 +80,13 @@ export type RequisitionTemplateDetail = {
 		| "TECHNICAL_MANAGER"
 		| "COMPLIANCE_MANAGER"
 		| null;
-	workflowType: "VENDOR_CANDIDATE" | "VENDOR_ONLY" | "CANDIDATE_ONLY" | null;
+	workflowType: WorkflowType | null;
 	whoCanSubmit: "all_vendors" | "selected_vendors";
 	internalNotes: string | null;
 	templateVendors: { vendorId: string }[];
 	complianceChecklistItemPhases: Array<{
 		complianceListItemId: string;
-		phase: "SUBMISSION" | "PLACEMENT";
+		phase: ComplianceChecklistItemPhase;
 	}> | null;
 };
 
@@ -96,18 +94,17 @@ export type CreateRequisitionTemplateInput = {
 	type: RequisitionTemplateType;
 	templateName: string;
 	occupationId: string;
-	specialtyId?: string;
+	specialtyIds?: string[];
+	locationId: string;
 	departmentId: string;
 	unitName?: string;
 	jobDescription: string;
 	benefitsPerks?: string[];
 	status: RequisitionTemplateStatus;
-	startDate: string;
-	endDate?: string;
 	lengthWeeks: number;
 	startTime: string;
 	endTime: string;
-	shiftType: "DAYS" | "EVENINGS" | "NIGHTS" | "ROTATING" | "WEEKENDS_ONLY";
+	shiftType: ShiftTypeKey;
 	shiftHours: number;
 	shiftsPerWeek: number;
 	hoursPerWeek?: number;
@@ -115,10 +112,7 @@ export type CreateRequisitionTemplateInput = {
 	numberOfPositions: number;
 	incentiveType?: string;
 	incentiveAmount?: number;
-	interviewRequired?:
-		| "NO_INTERVIEW"
-		| "CLIENT_INTERVIEW"
-		| "INTERNAL_INTERVIEW";
+	interviewRequired?: InterviewType;
 	hiringManagerId?: string;
 	complianceChecklistId: string;
 	requiresApproval: boolean;
@@ -130,13 +124,13 @@ export type CreateRequisitionTemplateInput = {
 		| "PROGRAM_MANAGER"
 		| "TECHNICAL_MANAGER"
 		| "COMPLIANCE_MANAGER";
-	workflowType: "VENDOR_CANDIDATE" | "VENDOR_ONLY" | "CANDIDATE_ONLY";
+	workflowType: WorkflowType;
 	selectedVendorsOnly: boolean;
 	selectedVendorIds?: string[];
 	internalNotes?: string;
 	complianceChecklistItemPhases?: Array<{
 		complianceListItemId: string;
-		phase: "SUBMISSION" | "PLACEMENT";
+		phase: ComplianceChecklistItemPhase;
 	}>;
 };
 

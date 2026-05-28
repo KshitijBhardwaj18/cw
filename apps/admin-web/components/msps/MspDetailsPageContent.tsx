@@ -32,6 +32,7 @@ import { DocumentsList } from "@/components/documents/DocumentsList";
 import { NoteForm } from "@/components/notes/NoteForm";
 import { NotesList } from "@/components/notes/NotesList";
 import { MSP_ORGANIZATION_TYPE_OPTIONS } from "@/constants/msp";
+import { useMspAbilities } from "@/hooks/use-msp-abilities";
 import {
 	useAddMspDocumentMutation,
 	useAddMspNoteMutation,
@@ -46,7 +47,10 @@ type MspDetailsPageContentProps = {
 	mspId: string;
 };
 
-export function MspDetailsPageContent({ mspId }: MspDetailsPageContentProps) {
+export function MspDetailsPageContent({
+	mspId,
+}: Readonly<MspDetailsPageContentProps>) {
+	const { canUpdateMsp } = useMspAbilities();
 	const [editOpen, setEditOpen] = useState(false);
 	const [activeTab, setActiveTab] = useTabSwitch(
 		["profile", "documents", "notes"],
@@ -160,10 +164,12 @@ export function MspDetailsPageContent({ mspId }: MspDetailsPageContentProps) {
 						</div>
 					</div>
 				</div>
-				<Button onClick={() => setEditOpen(true)}>
-					<Pencil className="size-4" data-icon="inline-start" />
-					Edit
-				</Button>
+				{canUpdateMsp && (
+					<Button onClick={() => setEditOpen(true)}>
+						<Pencil className="size-4" data-icon="inline-start" />
+						Edit
+					</Button>
+				)}
 			</div>
 
 			<Tabs
@@ -192,10 +198,12 @@ export function MspDetailsPageContent({ mspId }: MspDetailsPageContentProps) {
 				</TabsContent>
 				<TabsContent value="documents">
 					<div className="space-y-6">
-						<DocumentForm
-							onSubmit={handleDocumentSubmit}
-							isPending={addDocumentMutation.isPending}
-						/>
+						{canUpdateMsp && (
+							<DocumentForm
+								onSubmit={handleDocumentSubmit}
+								isPending={addDocumentMutation.isPending}
+							/>
+						)}
 						<DocumentsList
 							documents={documents}
 							search={documentsFilters.search}
@@ -206,10 +214,12 @@ export function MspDetailsPageContent({ mspId }: MspDetailsPageContentProps) {
 				</TabsContent>
 				<TabsContent value="notes">
 					<div className="space-y-6">
-						<NoteForm
-							onSubmit={handleNoteSubmit}
-							isPending={addNoteMutation.isPending}
-						/>
+						{canUpdateMsp && (
+							<NoteForm
+								onSubmit={handleNoteSubmit}
+								isPending={addNoteMutation.isPending}
+							/>
+						)}
 						<NotesList
 							notes={notes}
 							search={notesFilters.search}

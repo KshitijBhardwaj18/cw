@@ -21,8 +21,10 @@ import {
 	PostalStreetSearchInput,
 	PostalZipSearchInput,
 } from "@repo/ui/general/PostalAddressSearchFields";
+import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useStore } from "@tanstack/react-form";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { VendorProfileApi } from "@/hooks/use-vendor-profile";
 import { vendorAddressPostalValidators } from "@/schemas/vendor.schema";
 
@@ -54,7 +56,8 @@ interface VendorProfileBusinessSectionProps {
 
 export function VendorProfileBusinessSection({
 	form,
-}: VendorProfileBusinessSectionProps) {
+}: Readonly<VendorProfileBusinessSectionProps>) {
+	const { fmtShortDate } = useUserTimezone();
 	const submissionAttempts = useStore(
 		form.store,
 		(s) => s.submissionAttempts ?? 0,
@@ -150,7 +153,9 @@ export function VendorProfileBusinessSection({
 								);
 								return (
 									<Field data-invalid={isInvalid}>
-										<FieldLabel htmlFor={field.name}>Street Address</FieldLabel>
+										<FieldLabel htmlFor={field.name}>
+											Street Address <RequiredStar />
+										</FieldLabel>
 										<PostalStreetSearchInput
 											inputId={field.name}
 											postalContext={postal}
@@ -185,7 +190,9 @@ export function VendorProfileBusinessSection({
 									);
 									return (
 										<Field data-invalid={isInvalid}>
-											<FieldLabel htmlFor={field.name}>City</FieldLabel>
+											<FieldLabel htmlFor={field.name}>
+												City <RequiredStar />
+											</FieldLabel>
 											<PostalCitySearchInput
 												inputId={field.name}
 												postalContext={postal}
@@ -219,7 +226,9 @@ export function VendorProfileBusinessSection({
 									);
 									return (
 										<Field data-invalid={isInvalid}>
-											<FieldLabel htmlFor={field.name}>State</FieldLabel>
+											<FieldLabel htmlFor={field.name}>
+												State <RequiredStar />
+											</FieldLabel>
 											<PostalStateSearchInput
 												inputId={field.name}
 												postalContext={postal}
@@ -253,7 +262,9 @@ export function VendorProfileBusinessSection({
 									);
 									return (
 										<Field data-invalid={isInvalid}>
-											<FieldLabel htmlFor={field.name}>ZIP Code</FieldLabel>
+											<FieldLabel htmlFor={field.name}>
+												ZIP Code <RequiredStar />
+											</FieldLabel>
 											<PostalZipSearchInput
 												inputId={field.name}
 												postalContext={postal}
@@ -312,10 +323,7 @@ export function VendorProfileBusinessSection({
 				{(field) => (
 					<Field>
 						<FieldLabel>Created Date</FieldLabel>
-						<Input
-							value={new Date(field.state.value).toLocaleDateString("en-US")}
-							readOnly
-						/>
+						<Input value={fmtShortDate(field.state.value)} readOnly />
 					</Field>
 				)}
 			</form.Field>

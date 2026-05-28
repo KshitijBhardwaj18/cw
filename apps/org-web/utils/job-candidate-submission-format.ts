@@ -1,12 +1,18 @@
-import { format, parseISO } from "date-fns";
+import {
+	DEFAULT_TIMEZONE,
+	formatTzDateTime,
+	type OrganizationTimezone,
+} from "@repo/shared";
 
-/** Formats `stageEnteredAt` for job details candidate rows. */
-export function formatJobSubmissionStageAt(iso: string): string {
-	try {
-		return `${format(parseISO(iso), "MM/dd/yyyy")} at ${format(parseISO(iso), "h:mm a")} UTC`;
-	} catch {
-		return "—";
-	}
+/**
+ * Formats `stageEnteredAt` for job details candidate rows in the user's timezone.
+ */
+export function formatJobSubmissionStageAt(
+	iso: string,
+	tz?: OrganizationTimezone,
+): string {
+	if (!iso) return "—";
+	return formatTzDateTime(iso, tz ?? DEFAULT_TIMEZONE);
 }
 
 export function candidateInitialsFromName(name: string): string {

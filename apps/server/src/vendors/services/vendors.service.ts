@@ -114,7 +114,7 @@ export class VendorsService {
 		if (!user) {
 			user = await this.prisma.user.create({
 				data: {
-					name: `${dto.firstName} ${dto.lastName}`,
+					name: `${dto.firstName} ${dto.lastName}`.trim(),
 					email: dto.email,
 					title: dto.title,
 					officePhone: dto.officePhone ?? null,
@@ -124,14 +124,12 @@ export class VendorsService {
 				},
 			});
 		} else if (user.role !== UserRole.VENDOR_USER) {
-			throw new ConflictException(
-				`Email ${dto.email} is already associated with a ${user.role} account`,
-			);
+			throw new ConflictException("An account already exists with this email.");
 		}
 
 		const existingLink = await this.prisma.vendorUser.findUnique({
 			where: { userId: user.id },
-			include: { vendor: true },
+			select: { vendorId: true },
 		});
 
 		if (existingLink) {
@@ -141,7 +139,7 @@ export class VendorsService {
 				);
 			}
 			throw new ConflictException(
-				`This user is already associated with another vendor (${existingLink.vendor.name}). A user can only be linked to one vendor.`,
+				"This user is already associated with another vendor. A user can only be linked to one vendor.",
 			);
 		}
 
@@ -171,7 +169,7 @@ export class VendorsService {
 			this.prisma.user.update({
 				where: { id: vendorUser.userId },
 				data: {
-					name: `${dto.firstName} ${dto.lastName}`,
+					name: `${dto.firstName} ${dto.lastName}`.trim(),
 					title: dto.title,
 					officePhone: dto.officePhone ?? null,
 					phoneNumber: dto.phoneNumber ?? null,
@@ -201,7 +199,7 @@ export class VendorsService {
 		});
 
 		if (!vendorUser) {
-			throw new NotFoundException("Vendor user not found");
+			throw new NotFoundException("Vendor user not found.");
 		}
 		if (vendorUser.user.role !== UserRole.VENDOR_USER) {
 			throw new BadRequestException(

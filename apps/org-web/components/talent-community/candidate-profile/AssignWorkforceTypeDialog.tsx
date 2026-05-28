@@ -2,8 +2,10 @@
 
 import {
 	CANDIDATE_WORKFORCE_TYPE_OPTIONS,
-	CandidateWorkforceType,
+	type CandidateWorkforceType,
+	EXTERNAL_WORKFORCE_TYPES,
 	INTERNAL_WORKFORCE_TYPES,
+	isInternalWorkforceType,
 } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -33,22 +35,29 @@ export function AssignWorkforceTypeDialog({
 	onOpenChange,
 	candidateName,
 	vendors,
+	initialWorkforceType = null,
+	initialVendorId = null,
 	isSubmitting = false,
 	onAssign,
-}: {
+}: Readonly<{
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	candidateName: string;
 	vendors: OrgVendorOption[];
+	initialWorkforceType?: string | null;
+	initialVendorId?: string | null;
 	isSubmitting?: boolean;
 	onAssign: (payload: {
 		workforceType: CandidateWorkforceType;
 		vendorId?: string;
 	}) => void;
-}) {
+}>) {
 	const [mode, setMode] = useState<"organization" | "vendor">("organization");
 	const [vendorId, setVendorId] = useState<string>("");
 	const [internalWorkforceType, setInternalWorkforceType] = useState<
+		CandidateWorkforceType | ""
+	>("");
+	const [externalWorkforceType, setExternalWorkforceType] = useState<
 		CandidateWorkforceType | ""
 	>("");
 	const isVendor = mode === "vendor";
@@ -61,18 +70,45 @@ export function AssignWorkforceTypeDialog({
 			),
 		[],
 	);
+	const externalWorkforceTypeOptions = useMemo(
+		() =>
+			CANDIDATE_WORKFORCE_TYPE_OPTIONS.filter((opt) =>
+				(
+					EXTERNAL_WORKFORCE_TYPES as readonly CandidateWorkforceType[]
+				).includes(opt.value),
+			),
+		[],
+	);
 	const canSubmit = isVendor
-		? Boolean(vendorId)
+		? Boolean(vendorId && externalWorkforceType)
 		: Boolean(internalWorkforceType);
 
 	useEffect(() => {
 		if (!open) {
 			return;
 		}
-		setMode("organization");
-		setVendorId("");
+
+		if (!initialWorkforceType) {
+			setMode("organization");
+			setVendorId("");
+			setInternalWorkforceType("");
+			setExternalWorkforceType("");
+			return;
+		}
+
+		if (isInternalWorkforceType(initialWorkforceType)) {
+			setMode("organization");
+			setInternalWorkforceType(initialWorkforceType as CandidateWorkforceType);
+			setExternalWorkforceType("");
+			setVendorId("");
+			return;
+		}
+
+		setMode("vendor");
+		setExternalWorkforceType(initialWorkforceType as CandidateWorkforceType);
 		setInternalWorkforceType("");
-	}, [open]);
+		setVendorId(initialVendorId ?? "");
+	}, [open, initialWorkforceType, initialVendorId]);
 
 	return (
 		<Dialog
@@ -174,32 +210,56 @@ export function AssignWorkforceTypeDialog({
 							</div>
 						)}
 						{isVendor && (
-							<div className="space-y-2 border-l-2 border-primary/50 pl-4">
-								<Label className="text-sm font-medium">
-									Select Vendor <span className="text-destructive">*</span>
-								</Label>
-								<Select value={vendorId} onValueChange={setVendorId}>
-									<SelectTrigger>
-										<SelectValue placeholder="Select a vendor..." />
-									</SelectTrigger>
-									<SelectContent>
-										{vendors.map((vendor) => (
-											<SelectItem key={vendor.id} value={vendor.id}>
-												{vendor.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								<p className="text-muted-foreground text-xs">
-									The candidate will be associated with the selected vendor.
-								</p>
+							<div className="space-y-4 border-l-2 border-primary/50 pl-4">
+								<div className="space-y-2">
+									<Label className="text-sm font-medium">
+										Select Vendor <span className="text-destructive">*</span>
+									</Label>
+									<Select value={vendorId} onValueChange={setVendorId}>
+										<SelectTrigger>
+											<SelectValue placeholder="Select a vendor..." />
+										</SelectTrigger>
+										<SelectContent>
+											{vendors.map((vendor) => (
+												<SelectItem key={vendor.id} value={vendor.id}>
+													{vendor.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									<p className="text-muted-foreground text-xs">
+										The candidate will be associated with the selected vendor.
+									</p>
+								</div>
+								<div className="space-y-2">
+									<Label className="text-sm font-medium">
+										Select External Workforce Type{" "}
+										<span className="text-destructive">*</span>
+									</Label>
+									<Select
+										value={externalWorkforceType}
+										onValueChange={(value) =>
+											setExternalWorkforceType(value as CandidateWorkforceType)
+										}
+									>
+										<SelectTrigger>
+											<SelectValue placeholder="Select a type..." />
+										</SelectTrigger>
+										<SelectContent>
+											{externalWorkforceTypeOptions.map((opt) => (
+												<SelectItem key={opt.value} value={opt.value}>
+													{opt.label}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									<p className="text-muted-foreground text-xs">
+										The candidate will be classified under the selected external
+										workforce type.
+									</p>
+								</div>
 							</div>
 						)}
-						{/* <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-100">
-							<strong>Note:</strong> Assigning a workforce type will
-							automatically update the candidate&apos;s permissions and role in
-							the system.
-						</div> */}
 					</div>
 				</div>
 				<DialogFooter className="border-border shrink-0 border-t bg-background px-6 py-4">
@@ -216,7 +276,7 @@ export function AssignWorkforceTypeDialog({
 						onClick={() => {
 							void onAssign({
 								workforceType: isVendor
-									? CandidateWorkforceType.EXTERNAL_VENDOR_PER_DIEM
+									? (externalWorkforceType as CandidateWorkforceType)
 									: (internalWorkforceType as CandidateWorkforceType),
 								...(isVendor ? { vendorId } : {}),
 							});

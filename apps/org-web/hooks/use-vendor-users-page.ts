@@ -24,7 +24,8 @@ import type { AddVendorUserFormValues } from "@/schemas/vendor-user.schema";
 import type { VendorPortalUsersQueryParams } from "@/services/vendor-portal.service";
 import type { VendorPortalUserRow } from "@/types/vendor-users";
 
-const PAGE_SIZE = 20;
+const DEFAULT_LIMIT = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 function statusFilterToApi(status: string): "ACTIVE" | "INACTIVE" | undefined {
 	if (status === "active") return "ACTIVE";
@@ -34,6 +35,7 @@ function statusFilterToApi(status: string): "ACTIVE" | "INACTIVE" | undefined {
 
 export const V_USERS_PARAMS = {
 	PAGE: "vuPage",
+	LIMIT: "vuLimit",
 	SEARCH: "vuSearch",
 	ROLE: "vuRole",
 	STATUS: "vuStatus",
@@ -42,9 +44,11 @@ export const V_USERS_PARAMS = {
 export function useVendorUsersPage() {
 	const queryClient = useQueryClient();
 
-	const { page, setPage } = usePaginationControls({
+	const { page, setPage, limit, setLimit } = usePaginationControls({
 		pageParamKey: V_USERS_PARAMS.PAGE,
-		defaultLimit: PAGE_SIZE,
+		limitParamKey: V_USERS_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -80,7 +84,7 @@ export function useVendorUsersPage() {
 	const roleFilter = values[V_USERS_PARAMS.ROLE] || "all";
 	const statusFilter = values[V_USERS_PARAMS.STATUS] || "all";
 
-	const [filtersExpanded, setFiltersExpanded] = useState(true);
+	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
 	const [userDialogOpen, setUserDialogOpen] = useState(false);
 	const [editingUser, setEditingUser] = useState<VendorPortalUserRow | null>(
@@ -107,12 +111,12 @@ export function useVendorUsersPage() {
 	const listParams = useMemo((): VendorPortalUsersQueryParams => {
 		return {
 			page,
-			limit: PAGE_SIZE,
+			limit,
 			search: searchFromUrl.trim() || undefined,
 			role: roleFilter === "all" ? undefined : (roleFilter as VendorUserRole),
 			status: statusFilterToApi(statusFilter),
 		};
-	}, [page, searchFromUrl, roleFilter, statusFilter]);
+	}, [page, limit, searchFromUrl, roleFilter, statusFilter]);
 
 	const {
 		data: usersList,
@@ -143,10 +147,13 @@ export function useVendorUsersPage() {
 	const organizationId = usersList?.viewer.organizationId ?? null;
 
 	const handlePaginationChange = useCallback(
-		(nextPage: number, _pageSize: number) => {
+		(nextPage: number, nextPageSize: number) => {
+			if (nextPageSize !== limit) {
+				setLimit(nextPageSize);
+			}
 			setPage(nextPage);
 		},
-		[setPage],
+		[setPage, setLimit, limit],
 	);
 
 	const handleDeleteRequest = useCallback((row: VendorPortalUserRow) => {
@@ -211,7 +218,8 @@ export function useVendorUsersPage() {
 			new Promise<void>((resolve, reject) => {
 				createUserMutation.mutate(
 					{
-						fullName: values.fullName,
+						firstName: values.firstName,
+						lastName: values.lastName,
 						email: values.email,
 						phone: values.phone?.trim() || undefined,
 						role: values.role,
@@ -242,7 +250,8 @@ export function useVendorUsersPage() {
 					{
 						vendorUserId: userId,
 						body: {
-							fullName: values.fullName,
+							firstName: values.firstName,
+							lastName: values.lastName,
 							phone: values.phone?.trim() || undefined,
 							role: values.role,
 							departmentId: values.department,
@@ -285,7 +294,7 @@ export function useVendorUsersPage() {
 		totalFiltered: usersList?.total ?? 0,
 		totalPages: usersList?.totalPages ?? 1,
 		currentPage: page,
-		pageSize: PAGE_SIZE,
+		pageSize: limit,
 		handlePaginationChange,
 		isUsersLoading,
 		isMetricsLoading: metricsQuery.isLoading,

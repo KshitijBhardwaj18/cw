@@ -24,7 +24,7 @@ type ResumeCardProps = {
 	existingResumeKey: string | null;
 };
 
-export function ResumeCard({ existingResumeKey }: ResumeCardProps) {
+export function ResumeCard({ existingResumeKey }: Readonly<ResumeCardProps>) {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [existingLoading, setExistingLoading] = useState(false);
 	const [existingError, setExistingError] = useState<string | null>(null);

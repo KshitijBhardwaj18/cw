@@ -34,4 +34,20 @@ export class PaginatedDepartmentsQueryDto {
 	@IsOptional()
 	@IsUUID()
 	locationId?: string;
+
+	@ApiPropertyOptional({
+		description:
+			"Filter departments that include the given organization occupation",
+	})
+	@IsOptional()
+	@IsUUID()
+	organizationOccupationId?: string;
+
+	@ApiPropertyOptional({
+		description:
+			"Filter departments that include the given organization specialty",
+	})
+	@IsOptional()
+	@IsUUID()
+	organizationSpecialtyId?: string;
 }

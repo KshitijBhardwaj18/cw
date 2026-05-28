@@ -27,7 +27,7 @@ export function RejectDisputeDialog({
 	onClose,
 	onConfirm,
 	dispute,
-}: RejectDisputeDialogProps) {
+}: Readonly<RejectDisputeDialogProps>) {
 	const [reason, setReason] = useState("");
 
 	useEffect(() => {

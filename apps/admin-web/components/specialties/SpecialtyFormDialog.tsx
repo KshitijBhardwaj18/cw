@@ -32,8 +32,9 @@ import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { useDialogFormEntitySnapshot } from "@/hooks/use-dialog-form-entity-snapshot";
 import { useOccupations } from "@/queries/occupations.query";
 import {
 	useCreateSpecialty,
@@ -68,8 +69,10 @@ export function SpecialtyFormDialog({
 	open,
 	onOpenChange,
 	specialty,
-}: SpecialtyFormDialogProps) {
-	const isEditMode = !!specialty;
+}: Readonly<SpecialtyFormDialogProps>) {
+	const snapshotSpecialty =
+		useDialogFormEntitySnapshot(open, specialty ?? null) ?? undefined;
+	const isEditMode = !!snapshotSpecialty;
 
 	const createMutation = useCreateSpecialty();
 	const updateMutation = useUpdateSpecialty();
@@ -78,14 +81,14 @@ export function SpecialtyFormDialog({
 	const isPending = createMutation.isPending || updateMutation.isPending;
 
 	const form = useForm({
-		defaultValues: getSpecialtyDefaultValues(specialty),
+		defaultValues: getSpecialtyDefaultValues(snapshotSpecialty),
 		validators: {
 			onSubmit: SpecialtyFormSchema,
 		},
 		onSubmit: ({ value }) => {
-			if (isEditMode) {
+			if (isEditMode && snapshotSpecialty) {
 				updateMutation.mutate(
-					{ id: specialty.id, data: value },
+					{ id: snapshotSpecialty.id, data: value },
 					{
 						onSuccess: () => {
 							toast.success("Specialty updated successfully");
@@ -119,26 +122,25 @@ export function SpecialtyFormDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
+	const wasOpenRef = useRef(false);
 	useEffect(() => {
-		if (!open) return;
-		form.reset(getSpecialtyDefaultValues(specialty));
-	}, [open, specialty, form]);
+		if (open && !wasOpenRef.current) {
+			form.reset(getSpecialtyDefaultValues(snapshotSpecialty));
+		}
+		wasOpenRef.current = open;
+	}, [open, snapshotSpecialty, form]);
 
 	const closeForm = () => {
-		form.reset();
 		onOpenChange(false);
 	};
 
 	const handleOpenChange = (nextOpen: boolean) => {
 		if (isPending) return;
-		if (!nextOpen) form.reset();
 		onOpenChange(nextOpen);
 	};
 
 	const handleClose = () => {
-		if (isPending) return;
-		form.reset();
-		onOpenChange(false);
+		handleOpenChange(false);
 	};
 
 	return (

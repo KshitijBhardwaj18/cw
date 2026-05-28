@@ -6,12 +6,12 @@ import { useVendorContextQuery } from "@/queries/vendor-portal.queries";
 
 export default function VendorMainShellWithContext({
 	children,
-}: {
+}: Readonly<{
 	children: ReactNode;
-}) {
+}>) {
 	const { data } = useVendorContextQuery();
 	const name = data?.vendorName?.trim();
-	const title = name ? `${name} · Vendor Portal` : "Vendor Portal";
+	const title = name ? `${name}` : "Vendor Portal";
 
 	return <VendorMainShell title={title}>{children}</VendorMainShell>;
 }

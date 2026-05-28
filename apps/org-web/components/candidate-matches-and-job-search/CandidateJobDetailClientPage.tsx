@@ -34,9 +34,9 @@ function DetailSkeleton() {
 
 export function CandidateJobDetailClientPage({
 	requisitionId,
-}: {
+}: Readonly<{
 	requisitionId: string;
-}) {
+}>) {
 	const { organizationId } = useCandidateOrganizationId();
 	const { data, isPending, isError } = useCandidateMatchDetail(requisitionId, {
 		enabled: Boolean(organizationId),

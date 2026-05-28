@@ -1,6 +1,7 @@
 "use client";
 
 import { Calendar, Clock, DollarSign, MapPin, Users } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { PlacementDetailItem } from "@/types/placement";
 import { PlacementDetailSection } from "./PlacementDetailSection";
 
@@ -10,15 +11,17 @@ interface PlacementDetailsTabContentProps {
 
 export function PlacementDetailsTabContent({
 	placement,
-}: PlacementDetailsTabContentProps) {
+}: Readonly<PlacementDetailsTabContentProps>) {
+	const { fmtShortDate } = useUserTimezone();
+
 	return (
 		<div className="space-y-8">
 			<PlacementDetailSection
 				icon={<Calendar className="text-primary size-4" />}
 				title="Assignment Period"
 				items={[
-					{ label: "Start Date", value: placement.startDate },
-					{ label: "End Date", value: placement.endDate },
+					{ label: "Start Date", value: fmtShortDate(placement.startDate) },
+					{ label: "End Date", value: fmtShortDate(placement.endDate) },
 					{ label: "Current Status", value: placement.currentStatus },
 				]}
 				gridCols={3}
@@ -31,7 +34,7 @@ export function PlacementDetailsTabContent({
 				items={[
 					{ label: "Location", value: placement.location },
 					{ label: "Department / Unit", value: placement.departmentUnit },
-					{ label: "Workforce Group", value: placement.workforceGroup },
+					{ label: "Workforce List", value: placement.workforceListLabel },
 				]}
 				gridCols={3}
 				className="border-b pb-8"

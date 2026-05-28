@@ -12,18 +12,20 @@ import { CandidatePortalContentSkeleton } from "@/components/candidate-placement
 import { SubmitTimecardDialog } from "@/components/candidate-placements/SubmitTimecardDialog";
 import { CANDIDATE_PORTAL_COPY } from "@/constants/candidate-portal";
 import { useCandidateTimecardDetailPage } from "@/hooks/candidate/use-candidate-timecard-detail-page";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { sumTimecardEntryHours } from "@/utils/candidate-timecard-aggregate";
 
 export function CandidateTimecardDetailPageContent({
 	placementId,
 	timecardId,
-}: {
+}: Readonly<{
 	placementId: string;
 	timecardId: string;
-}) {
+}>) {
 	const { organizationId, orgLoading, isReady, detailQuery } =
 		useCandidateTimecardDetailPage(placementId, timecardId);
 	const [editOpen, setEditOpen] = useState(false);
+	const { fmtCalendarDate } = useUserTimezone();
 
 	const totalHours = useMemo(() => {
 		const entries = detailQuery.data?.entries;
@@ -59,6 +61,8 @@ export function CandidateTimecardDetailPageContent({
 
 	const d = detailQuery.data;
 
+	const weekEndingLabel = fmtCalendarDate(d.weekEndingDate);
+
 	return (
 		<div className="space-y-6">
 			{d.canEdit ? (
@@ -81,7 +85,7 @@ export function CandidateTimecardDetailPageContent({
 						{d.assignmentTitle}
 					</h1>
 					<p className="text-muted-foreground mt-1 text-sm">
-						Week ending {d.weekEndingDate} · {totalHours} hours
+						Week ending {weekEndingLabel} · {totalHours} hours
 					</p>
 				</div>
 				{d.canEdit ? (
@@ -129,7 +133,7 @@ export function CandidateTimecardDetailPageContent({
 								{d.entries.map((e) => (
 									<tr key={e.id} className="border-b border-border/60">
 										<td className="py-2 pr-3 font-mono tabular-nums">
-											{e.workDate}
+											{fmtCalendarDate(e.workDate)}
 										</td>
 										<td className="py-2 pr-3">{e.clockIn ?? "—"}</td>
 										<td className="py-2 pr-3">{e.clockOut ?? "—"}</td>

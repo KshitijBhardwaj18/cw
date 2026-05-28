@@ -10,9 +10,12 @@ import {
 	PlacementTaskStatus,
 } from "@repo/db";
 import { getDeterministicId, SEED_PREFIX } from "../utils";
-import { CANDIDATE_ID } from "./candidates";
+import { CANDIDATE_ID, getCandidatesDataset } from "./candidates";
 import { COMPLIANCE_ITEM_ID } from "./compliance";
+import { getComplianceWalletsDataset } from "./compliance-wallets";
+import { OCCUPATION_ID, type OccupationAcronym } from "./occupations";
 import { getPlacementsDataset, PLACEMENT_ID } from "./placements";
+import { SPECIALTY_ID, type SpecialtyAcronym } from "./specialties";
 import { USER_ID } from "./users";
 
 interface PlacementCandidateMapping {
@@ -58,8 +61,14 @@ export const PLACEMENT_CANDIDATE_MAP: PlacementCandidateMapping[] = [
 	},
 	{
 		pid: PLACEMENT_ID.JAMES,
-		candidateId: CANDIDATE_ID.JAMES_W_TALENT,
-		userId: USER_ID.JAMES_W_TALENT,
+		candidateId: CANDIDATE_ID.JAMES,
+		userId: USER_ID.JAMES,
+		complianceOverride: {
+			[COMPLIANCE_ITEM_ID.RN_LICENSE]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.BLS]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.ACLS]: CandidateComplianceStatus.PENDING_REVIEW,
+			[COMPLIANCE_ITEM_ID.BACKGROUND_CHECK]: CandidateComplianceStatus.MISSING,
+		},
 	},
 	{
 		pid: PLACEMENT_ID.EMILY,
@@ -76,13 +85,16 @@ export const PLACEMENT_CANDIDATE_MAP: PlacementCandidateMapping[] = [
 		candidateId: CANDIDATE_ID.CHRIS_L_TALENT,
 		userId: USER_ID.CHRIS_L_TALENT,
 		complianceOverride: {
-			[COMPLIANCE_ITEM_ID.RN_LICENSE]: CandidateComplianceStatus.MISSING,
+			[COMPLIANCE_ITEM_ID.RN_LICENSE]: CandidateComplianceStatus.APPROVED,
 			[COMPLIANCE_ITEM_ID.BLS]: CandidateComplianceStatus.MISSING,
 			[COMPLIANCE_ITEM_ID.ACLS]: CandidateComplianceStatus.MISSING,
 			[COMPLIANCE_ITEM_ID.PALS]: CandidateComplianceStatus.MISSING,
 			[COMPLIANCE_ITEM_ID.TB_TEST]: CandidateComplianceStatus.MISSING,
 			[COMPLIANCE_ITEM_ID.DRUG_SCREENING]: CandidateComplianceStatus.MISSING,
 			[COMPLIANCE_ITEM_ID.BACKGROUND_CHECK]: CandidateComplianceStatus.MISSING,
+			[COMPLIANCE_ITEM_ID.FLU_VACCINE]: CandidateComplianceStatus.MISSING,
+			[COMPLIANCE_ITEM_ID.REFERENCE_CHECK]: CandidateComplianceStatus.MISSING,
+			[COMPLIANCE_ITEM_ID.ICU_COMPETENCY]: CandidateComplianceStatus.MISSING,
 		},
 	},
 	{
@@ -90,33 +102,73 @@ export const PLACEMENT_CANDIDATE_MAP: PlacementCandidateMapping[] = [
 		candidateId: CANDIDATE_ID.ROBERT_T_INVITED,
 		userId: USER_ID.ROBERT_T_INVITED,
 		complianceOverride: {
-			[COMPLIANCE_ITEM_ID.TB_TEST]: CandidateComplianceStatus.MISSING,
+			[COMPLIANCE_ITEM_ID.RN_LICENSE]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.BLS]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.ACLS]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.PALS]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.TB_TEST]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.DRUG_SCREENING]: CandidateComplianceStatus.MISSING,
+			[COMPLIANCE_ITEM_ID.BACKGROUND_CHECK]: CandidateComplianceStatus.MISSING,
 			[COMPLIANCE_ITEM_ID.FLU_VACCINE]: CandidateComplianceStatus.MISSING,
 			[COMPLIANCE_ITEM_ID.REFERENCE_CHECK]: CandidateComplianceStatus.MISSING,
+			[COMPLIANCE_ITEM_ID.ICU_COMPETENCY]: CandidateComplianceStatus.MISSING,
 		},
 	},
 	{
 		pid: PLACEMENT_ID.AMANDA_FOSTER,
 		candidateId: CANDIDATE_ID.AMANDA_B_TALENT,
 		userId: USER_ID.AMANDA_B_TALENT,
+		complianceOverride: {
+			[COMPLIANCE_ITEM_ID.RN_LICENSE]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.BLS]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.ACLS]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.PALS]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.TB_TEST]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.DRUG_SCREENING]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.BACKGROUND_CHECK]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.FLU_VACCINE]: CandidateComplianceStatus.APPROVED,
+			[COMPLIANCE_ITEM_ID.REFERENCE_CHECK]: CandidateComplianceStatus.MISSING,
+			[COMPLIANCE_ITEM_ID.ICU_COMPETENCY]: CandidateComplianceStatus.MISSING,
+		},
 	},
-];
-
-export const COMPLIANCE_REQUIREMENTS = [
-	COMPLIANCE_ITEM_ID.RN_LICENSE,
-	COMPLIANCE_ITEM_ID.BLS,
-	COMPLIANCE_ITEM_ID.ACLS,
-	COMPLIANCE_ITEM_ID.PALS,
-	COMPLIANCE_ITEM_ID.TB_TEST,
-	COMPLIANCE_ITEM_ID.DRUG_SCREENING,
-	COMPLIANCE_ITEM_ID.BACKGROUND_CHECK,
-	COMPLIANCE_ITEM_ID.FLU_VACCINE,
-	COMPLIANCE_ITEM_ID.REFERENCE_CHECK,
-	COMPLIANCE_ITEM_ID.ICU_COMPETENCY,
+	{
+		pid: PLACEMENT_ID.LISA_D,
+		candidateId: CANDIDATE_ID.LISA_D_NEW,
+		userId: USER_ID.LISA_D_NEW,
+	},
+	{
+		pid: PLACEMENT_ID.QUINN_MARCUS_V,
+		candidateId: CANDIDATE_ID.MARCUS_V,
+		userId: USER_ID.QUINN_MARCUS_V,
+		complianceOverride: {
+			[COMPLIANCE_ITEM_ID.BLS]: CandidateComplianceStatus.PENDING_REVIEW,
+		},
+	},
+	{
+		pid: PLACEMENT_ID.QUINN_SARAH_P,
+		candidateId: CANDIDATE_ID.SARAH_P,
+		userId: USER_ID.QUINN_SARAH_P,
+		complianceOverride: {
+			[COMPLIANCE_ITEM_ID.RN_LICENSE]: CandidateComplianceStatus.PENDING_REVIEW,
+			[COMPLIANCE_ITEM_ID.BLS]: CandidateComplianceStatus.MISSING,
+		},
+	},
+	{
+		pid: PLACEMENT_ID.QUINN_DAVID_L,
+		candidateId: CANDIDATE_ID.DAVID_L,
+		userId: USER_ID.QUINN_DAVID_L,
+		complianceOverride: {
+			[COMPLIANCE_ITEM_ID.LPN_LICENSE]: CandidateComplianceStatus.EXPIRED,
+			[COMPLIANCE_ITEM_ID.BACKGROUND_CHECK]: CandidateComplianceStatus.MISSING,
+			[COMPLIANCE_ITEM_ID.DRIVERS_LICENSE]: CandidateComplianceStatus.MISSING,
+		},
+	},
 ];
 
 export const getPlacementExtrasDataset = (organizationId: string) => {
 	const placements = getPlacementsDataset(organizationId);
+	const candidates = getCandidatesDataset();
+	const wallets = getComplianceWalletsDataset();
 	const notes: Omit<PlacementNote, "updatedAt">[] = [];
 	const tasks: Omit<PlacementTask, "updatedAt">[] = [];
 	const offerHistory: Omit<PlacementOfferHistory, "updatedAt">[] = [];
@@ -126,13 +178,45 @@ export const getPlacementExtrasDataset = (organizationId: string) => {
 	>[] = [];
 
 	for (const entry of PLACEMENT_CANDIDATE_MAP) {
-		const { pid, userId } = entry;
+		const { pid, userId, candidateId } = entry;
 		const placement = placements.find((p: { id: string }) => p.id === pid);
+		const candidate = candidates.find((c) => c.id === candidateId);
 
-		if (!placement)
-			throw new Error(
-				`Placement with ID ${pid} not found in placements dataset`,
-			);
+		if (!placement || !candidate)
+			throw new Error(`Placement ${pid} or Candidate ${candidateId} not found`);
+
+		let occAcronym: OccupationAcronym | null = null;
+		for (const [key, val] of Object.entries(OCCUPATION_ID)) {
+			if (val === candidate.occupationId) {
+				occAcronym = key as OccupationAcronym;
+				break;
+			}
+		}
+
+		const candidateSpecAcronyms = new Set<SpecialtyAcronym>();
+		if (candidate.specialtyIds) {
+			for (const sid of candidate.specialtyIds) {
+				for (const [key, val] of Object.entries(SPECIALTY_ID)) {
+					if (val === sid) {
+						candidateSpecAcronyms.add(key as SpecialtyAcronym);
+					}
+				}
+			}
+		}
+
+		const requiredItemIds = new Set<string>();
+		for (const wallet of wallets) {
+			if (wallet.occupationAcronym === occAcronym) {
+				if (
+					wallet.specialtyAcronym === null ||
+					candidateSpecAcronyms.has(wallet.specialtyAcronym)
+				) {
+					for (const itemId of wallet.itemIds) {
+						requiredItemIds.add(itemId);
+					}
+				}
+			}
+		}
 
 		const suffix = pid.split("-").pop();
 
@@ -253,7 +337,7 @@ export const getPlacementExtrasDataset = (organizationId: string) => {
 
 		offerHistory.push(...historyBase);
 
-		for (const itemId of COMPLIANCE_REQUIREMENTS) {
+		for (const itemId of requiredItemIds) {
 			complianceItems.push({
 				id: getDeterministicId(`${SEED_PREFIX}p-comp-${suffix}-${itemId}`),
 				placementId: pid,

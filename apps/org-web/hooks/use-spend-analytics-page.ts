@@ -7,11 +7,11 @@ import { useCallback, useMemo } from "react";
 import type { FilterFieldConfig } from "@/components/general/FilterBar";
 import type { SpendTrendChartPoint } from "@/components/spend-analytics/SpendTrendComparisonCard";
 import { SPEND_ANALYTICS_FILTER_FIELDS } from "@/constants/spend-analytics";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useSpendAnalyticsList,
 	useSpendAnalyticsSummary,
 	useSpendOpenCommittedBreakdown,
+	useSpendSavingsByDepartment,
 } from "@/queries/billing.queries";
 import { useOrgDepartmentsForUsers } from "@/queries/organizations.queries";
 import {
@@ -54,8 +54,6 @@ export const SPEND_ANALYTICS_PARAMS = {
 } as const;
 
 export function useSpendAnalyticsPage() {
-	const { id: orgId } = useOrgContext();
-
 	const [activeTab, setActiveTab] = useTabSwitch(
 		["open-committed", "savings"],
 		{
@@ -89,7 +87,7 @@ export function useSpendAnalyticsPage() {
 			parseAsString.withDefault("all"),
 	});
 
-	const { data: departments = [] } = useOrgDepartmentsForUsers(orgId);
+	const { data: departments = [] } = useOrgDepartmentsForUsers();
 
 	const dateFilterInput = useMemo(
 		() => ({
@@ -239,20 +237,18 @@ export function useSpendAnalyticsPage() {
 	}, [dateFilterInput, scope]);
 
 	const { data: summary, isLoading: summaryLoading } = useSpendAnalyticsSummary(
-		orgId,
 		summaryQuery,
 		{ enabled: spendRangeReady },
 	);
 
 	const { data: trendCurrentList, isLoading: trendCurrentLoading } =
-		useSpendAnalyticsList(orgId, trendCurrentQuery);
+		useSpendAnalyticsList(trendCurrentQuery);
 	const { data: trendLastList, isLoading: trendLastLoading } =
-		useSpendAnalyticsList(orgId, trendLastQuery);
+		useSpendAnalyticsList(trendLastQuery);
 
 	const trendLoading = trendCurrentLoading || trendLastLoading;
 
 	const { data: detailList, isLoading: detailLoading } = useSpendAnalyticsList(
-		orgId,
 		detailQuery,
 		{ enabled: spendRangeReady },
 	);
@@ -268,7 +264,20 @@ export function useSpendAnalyticsPage() {
 	}, [dateFilterInput, scope, breakdownPage, breakdownLimit]);
 
 	const { data: breakdown, isLoading: breakdownLoading } =
-		useSpendOpenCommittedBreakdown(orgId, breakdownQuery, {
+		useSpendOpenCommittedBreakdown(breakdownQuery, {
+			enabled: spendRangeReady,
+		});
+
+	const savingsQuery = useMemo(() => {
+		const period = spendAnalyticsQueryFromFilters(dateFilterInput);
+		return {
+			...period,
+			...scope,
+		};
+	}, [dateFilterInput, scope]);
+
+	const { data: savingsByDept, isLoading: savingsLoading } =
+		useSpendSavingsByDepartment(savingsQuery, {
 			enabled: spendRangeReady,
 		});
 
@@ -318,7 +327,17 @@ export function useSpendAnalyticsPage() {
 		return ((trendTotals.current - trendTotals.last) / trendTotals.last) * 100;
 	}, [trendTotals.current, trendTotals.last]);
 
-	const totalSavings = summary?.totalSpend ?? 0;
+	const totalSavings =
+		savingsByDept?.totalSavings ?? summary?.totalSavings ?? 0;
+
+	const periodDays = useMemo(() => {
+		const period = spendAnalyticsQueryFromFilters(dateFilterInput);
+		if (!period.periodFrom || !period.periodTo) return 0;
+		const from = new Date(period.periodFrom).getTime();
+		const to = new Date(period.periodTo).getTime();
+		if (Number.isNaN(from) || Number.isNaN(to) || to < from) return 0;
+		return Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1;
+	}, [dateFilterInput]);
 
 	const filterValues = useMemo(() => {
 		const { [SPEND_ANALYTICS_PARAMS.SAVINGS_COST_CENTER]: sc, ...rest } =
@@ -327,7 +346,6 @@ export function useSpendAnalyticsPage() {
 	}, [params]);
 
 	return {
-		orgId,
 		filterFields,
 		filterValues,
 		onFilterChange,
@@ -343,14 +361,17 @@ export function useSpendAnalyticsPage() {
 		openCommittedTotals,
 		spendDeltaPct,
 		totalSavings,
+		savingsByDept,
+		savingsLoading,
+		periodDays,
 		activeTab,
 		setActiveTab,
 		breakdownPage,
 		setBreakdownPage,
 		breakdownLimit,
 		setBreakdownLimit,
-		savingsCostCenter: params[SPEND_ANALYTICS_PARAMS.SAVINGS_COST_CENTER],
-		setSavingsCostCenter: (sc: string) =>
-			setParams({ [SPEND_ANALYTICS_PARAMS.SAVINGS_COST_CENTER]: sc }),
+		savingsDepartment: params[SPEND_ANALYTICS_PARAMS.SAVINGS_COST_CENTER],
+		setSavingsDepartment: (id: string) =>
+			setParams({ [SPEND_ANALYTICS_PARAMS.SAVINGS_COST_CENTER]: id }),
 	};
 }

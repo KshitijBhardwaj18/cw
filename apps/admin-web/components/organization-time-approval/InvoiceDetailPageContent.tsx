@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate, formatDateRange, formatUsdLedger } from "@repo/shared";
+import { formatUsdLedger } from "@repo/shared";
 import {
 	Accordion,
 	AccordionContent,
@@ -24,6 +24,7 @@ import { MetricCard } from "@repo/ui/general/MetricCard";
 import { PageSubheading } from "@repo/ui/general/PageSubheading";
 import { Clock, FileText } from "lucide-react";
 import { useInvoiceApprovalColumns } from "@/hooks/tables/use-invoice-approval-columns";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { useInvoice } from "@/queries/organization-billing.queries";
 
 interface PageContentProps {
@@ -34,9 +35,10 @@ interface PageContentProps {
 export default function InvoiceDetailPageContent({
 	invoiceId,
 	organizationId,
-}: PageContentProps) {
+}: Readonly<PageContentProps>) {
 	const { data: invoice } = useInvoice(organizationId, invoiceId);
 	const columns = useInvoiceApprovalColumns();
+	const { fmtShortDate, fmtDateRange } = useUserTimezone();
 
 	if (!invoice) {
 		return (
@@ -60,7 +62,7 @@ export default function InvoiceDetailPageContent({
 		invoice.departmentDetails ?? [];
 	const periodLabel =
 		invoice.periodStartDate && invoice.periodEndDate
-			? formatDateRange(invoice.periodStartDate, invoice.periodEndDate)
+			? fmtDateRange(invoice.periodStartDate, invoice.periodEndDate)
 			: "N/A";
 
 	return (
@@ -107,7 +109,7 @@ export default function InvoiceDetailPageContent({
 				/>
 				<MetricCard
 					title="SUBMITTED"
-					value={formatDate(invoice.invoiceDate, "MMM d")}
+					value={fmtShortDate(invoice.invoiceDate)}
 				/>
 			</div>
 

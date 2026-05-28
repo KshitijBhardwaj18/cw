@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 
 export default function VendorsLayout({
 	children,
-}: {
+}: Readonly<{
 	children: React.ReactNode;
-}) {
+}>) {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.Read, subject: "Vendor" }]}

@@ -6,8 +6,8 @@ export const metadata: Metadata = {
 
 export default function OrgDocumentWalletDetailLayout({
 	children,
-}: {
+}: Readonly<{
 	children: React.ReactNode;
-}) {
+}>) {
 	return children;
 }

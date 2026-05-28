@@ -1,12 +1,13 @@
 "use client";
 
-import { exportAsCSV, formatDateRange } from "@repo/shared";
+import { exportAsCSV } from "@repo/shared";
 import type { TimeReportGroupByOption } from "@repo/ui/general/timekeeping/types";
 import {
 	flattenReportEntries,
 	groupReportEntries,
 } from "@repo/ui/general/timekeeping/utils";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { useEntriesGrouped } from "@/queries/organization-timekeeping.queries";
 import type { TimekeepingUrlState } from "./use-timekeeping-url-state";
 import { REPORT_PAGE_SIZE, toLocationTimekeeping } from "./utils";
@@ -17,6 +18,7 @@ export function useTimeReportsTab(
 ) {
 	const orgId = organizationId;
 	const { searchFromUrl, dataSourceFilter } = urlState;
+	const { fmtDateRange } = useUserTimezone();
 
 	const [reportPage, setReportPage] = useState(1);
 	const [groupBy, setGroupBy] = useState<TimeReportGroupByOption>("department");
@@ -60,14 +62,14 @@ export function useTimeReportsTab(
 			Worker: e.workerName,
 			Location: e.location,
 			Department: e.department,
-			Date: formatDateRange(e.startDate, e.endDate),
+			Date: fmtDateRange(e.startDate, e.endDate),
 			"Pay Code": e.payCode,
 			Hours: e.hours,
 			Source: e.source === "MOBILE_APP" ? "Mobile App" : "File Upload",
 			Notes: e.notes || "",
 		}));
 		exportAsCSV(data, `time_reports_${new Date().toISOString().split("T")[0]}`);
-	}, [reportEntries]);
+	}, [reportEntries, fmtDateRange]);
 
 	return {
 		groupBy,

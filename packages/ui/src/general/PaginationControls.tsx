@@ -24,6 +24,10 @@ export interface PaginationData {
 	limit: number;
 	setLimit: (limit: number) => void;
 	pageSizeOptions?: number[];
+	totalItems?: number;
+	itemLabel?: string;
+	itemLabelPlural?: string;
+	hidePageSize?: boolean;
 }
 
 const PaginationControls = ({
@@ -33,7 +37,11 @@ const PaginationControls = ({
 	limit,
 	setLimit,
 	pageSizeOptions = [10, 20, 30, 40],
-}: PaginationData) => {
+	totalItems,
+	itemLabel = "item",
+	itemLabelPlural = "items",
+	hidePageSize = false,
+}: Readonly<PaginationData>) => {
 	useEffect(() => {
 		if (pageCount > 0 && currentPage > pageCount) {
 			goToPage(pageCount);
@@ -78,15 +86,22 @@ const PaginationControls = ({
 		return null;
 	}
 
+	const showRange = typeof totalItems === "number" && totalItems > 0;
+	const rangeStart = showRange ? (currentPage - 1) * limit + 1 : 0;
+	const rangeEnd = showRange
+		? Math.min(currentPage * limit, totalItems as number)
+		: 0;
+	const noun = (totalItems ?? 0) === 1 ? itemLabel : itemLabelPlural;
+
 	return (
-		<Pagination className="mt-4 flex flex-1 justify-between">
-			<PaginationContent className="flex items-center gap-1">
+		<Pagination className="mt-4 flex flex-col gap-4 sm:mt-4 sm:flex-row sm:flex-1 sm:items-center sm:justify-between">
+			<PaginationContent className="flex flex-wrap items-center justify-center gap-1 sm:flex-1 sm:justify-start">
 				<ChevronLeft
 					onClick={() => currentPage > 1 && goToPage(currentPage - 1)}
 					className={cn(
 						"cursor-pointer",
-						currentPage === 1 &&
-							"text-muted-foreground hover:text-muted-foreground",
+						currentPage <= 1 &&
+							"text-muted-foreground hover:text-muted-foreground cursor-not-allowed",
 					)}
 				/>
 
@@ -117,31 +132,42 @@ const PaginationControls = ({
 					onClick={() => currentPage < pageCount && goToPage(currentPage + 1)}
 					className={cn(
 						"cursor-pointer",
-						currentPage === pageCount &&
-							"text-muted-foreground hover:text-muted-foreground",
+						currentPage >= pageCount &&
+							"text-muted-foreground hover:text-muted-foreground cursor-not-allowed",
 					)}
 				/>
 			</PaginationContent>
-			<PaginationContent className="flex items-center gap-1">
-				<div className="flex items-center gap-4">
-					<p className="text-muted-foreground text-sm">Items per page</p>
-					<Select
-						value={`${limit}`}
-						onValueChange={(value) => setLimit(Number(value))}
-					>
-						<SelectTrigger className="w-20">
-							<SelectValue placeholder="Select an item" />
-						</SelectTrigger>
-						<SelectContent>
-							{pageSizeOptions.map((option) => (
-								<SelectItem key={option} value={`${option}`}>
-									{option}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-			</PaginationContent>
+			{showRange && (
+				<p className="text-muted-foreground order-last text-center text-sm whitespace-nowrap sm:order-none sm:flex-1 sm:text-center">
+					Showing {rangeStart}
+					{rangeStart === rangeEnd ? "" : `–${rangeEnd}`} of {totalItems} {noun}
+				</p>
+			)}
+
+			{!hidePageSize && (
+				<PaginationContent className="flex items-center justify-center gap-1 sm:flex-1 sm:justify-end">
+					<div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-4">
+						<p className="text-muted-foreground text-sm whitespace-nowrap">
+							Items per page
+						</p>
+						<Select
+							value={`${limit}`}
+							onValueChange={(value) => setLimit(Number(value))}
+						>
+							<SelectTrigger className="w-full sm:w-20">
+								<SelectValue placeholder="Select an item" />
+							</SelectTrigger>
+							<SelectContent>
+								{pageSizeOptions.map((option) => (
+									<SelectItem key={option} value={`${option}`}>
+										{option}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				</PaginationContent>
+			)}
 		</Pagination>
 	);
 };

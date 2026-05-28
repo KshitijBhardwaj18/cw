@@ -13,7 +13,7 @@ export function VendorOnboardingCandidateSection({
 	group,
 	onSendReminder,
 	isReminderPending,
-}: VendorOnboardingCandidateSectionProps) {
+}: Readonly<VendorOnboardingCandidateSectionProps>) {
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center gap-3">

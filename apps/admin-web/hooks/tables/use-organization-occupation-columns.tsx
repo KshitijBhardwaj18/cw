@@ -20,7 +20,7 @@ import type { OrganizationOccupationTableRowType } from "@/types/organization-oc
 
 const MAX_VISIBLE_SPECIALTIES = 2;
 
-function SpecialtiesCell({ acronyms }: { acronyms: string[] }) {
+function SpecialtiesCell({ acronyms }: Readonly<{ acronyms: string[] }>) {
 	if (acronyms.length === 0) {
 		return (
 			<span className="text-muted-foreground text-sm">No specialties</span>

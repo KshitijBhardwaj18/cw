@@ -4,7 +4,9 @@ type MspDetailPageProps = {
 	params: Promise<{ mspId: string }>;
 };
 
-export default async function MspDetailPage({ params }: MspDetailPageProps) {
+export default async function MspDetailPage({
+	params,
+}: Readonly<MspDetailPageProps>) {
 	const { mspId } = await params;
 	return <MspDetailsPageContent mspId={mspId} />;
 }

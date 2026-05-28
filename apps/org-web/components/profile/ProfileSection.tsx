@@ -17,7 +17,7 @@ type ProfileSectionProps = {
 export function ProfileSection({
 	user,
 	currentSessionToken,
-}: ProfileSectionProps) {
+}: Readonly<ProfileSectionProps>) {
 	const router = useRouter();
 
 	return (

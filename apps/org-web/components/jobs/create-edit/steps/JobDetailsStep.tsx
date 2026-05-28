@@ -23,6 +23,13 @@ import {
 	InputGroupInput,
 } from "@repo/ui/components/input-group";
 import {
+	MultiSelect,
+	MultiSelectContent,
+	MultiSelectItem,
+	MultiSelectTrigger,
+	MultiSelectValue,
+} from "@repo/ui/components/multi-select";
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -35,7 +42,9 @@ import { TimePicker } from "@repo/ui/components/time-picker";
 import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useStore } from "@tanstack/react-form";
+import { addHours, format, parse } from "date-fns";
 import { Plus, X } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import {
 	REQUISITION_TEMPLATE_INTERVIEW_TYPE_OPTIONS,
 	REQUISITION_TEMPLATE_SHIFT_TYPE_OPTIONS,
@@ -43,7 +52,8 @@ import {
 import { useJobPostingDetailsStepForm } from "@/hooks/job-posting/use-job-posting-details-step-form";
 import {
 	type JobPostingDetailsValues,
-	jobPostingDetailsSchema,
+	jobPostingDetailsFieldsSchema,
+	todayIsoDate,
 } from "@/schemas/job-posting-details.schema";
 import { ComplianceTemplateDialog } from "../ComplianceTemplateDialog";
 
@@ -64,7 +74,7 @@ export function JobDetailsStep({
 	onCancel,
 	onSubmit,
 	isPending = false,
-}: JobDetailsStepProps) {
+}: Readonly<JobDetailsStepProps>) {
 	const {
 		form,
 		lockFields,
@@ -89,10 +99,42 @@ export function JobDetailsStep({
 		isPending,
 	});
 
+	const values = useStore(form.store, (s) => s.values);
+
+	useEffect(() => {
+		if (values.startTime && values.shiftHours > 0) {
+			try {
+				const start = parse(values.startTime, "HH:mm", new Date());
+				const end = addHours(start, values.shiftHours);
+				const formattedEnd = format(end, "HH:mm");
+				if (formattedEnd !== values.endTime) {
+					form.setFieldValue("endTime", formattedEnd);
+				}
+			} catch {
+				form.setFieldValue("endTime", "");
+			}
+		}
+	}, [values.startTime, values.shiftHours, values.endTime, form]);
+
 	const submissionAttempts = useStore(
 		form.store,
 		(s) => s.submissionAttempts ?? 0,
 	);
+
+	const minEndDate = useMemo(() => {
+		if (!values.startDate) return undefined;
+		try {
+			const start = parse(values.startDate, "yyyy-MM-dd", new Date());
+			return format(start, "yyyy-MM-dd");
+		} catch {
+			return undefined;
+		}
+	}, [values.startDate]);
+
+	const isSubmitting = useStore(form.store, (s) => s.isSubmitting);
+
+	const now = new Date();
+	const currentTime = now.toTimeString().slice(0, 5);
 
 	return (
 		<Card>
@@ -113,7 +155,7 @@ export function JobDetailsStep({
 						<form.Field
 							name="requisitionName"
 							validators={{
-								onChange: jobPostingDetailsSchema.shape.requisitionName,
+								onChange: jobPostingDetailsFieldsSchema.shape.requisitionName,
 							}}
 						>
 							{(field) => {
@@ -148,7 +190,7 @@ export function JobDetailsStep({
 							<form.Field
 								name="location"
 								validators={{
-									onChange: jobPostingDetailsSchema.shape.location,
+									onChange: jobPostingDetailsFieldsSchema.shape.location,
 								}}
 							>
 								{(field) => {
@@ -204,7 +246,7 @@ export function JobDetailsStep({
 							<form.Field
 								name="occupation"
 								validators={{
-									onChange: jobPostingDetailsSchema.shape.occupation,
+									onChange: jobPostingDetailsFieldsSchema.shape.occupation,
 								}}
 							>
 								{(field) => {
@@ -223,7 +265,8 @@ export function JobDetailsStep({
 												value={field.state.value}
 												onValueChange={(v) => {
 													field.handleChange(v);
-													form.setFieldValue("specialty", "");
+													form.setFieldValue("specialty", []);
+													form.setFieldValue("department", "");
 												}}
 												disabled={lockFields}
 											>
@@ -248,55 +291,55 @@ export function JobDetailsStep({
 									);
 								}}
 							</form.Field>
-							<form.Field
-								name="specialty"
-								validators={{
-									onChange: jobPostingDetailsSchema.shape.specialty,
-								}}
-							>
+							<form.Field name="specialty">
 								{(field) => {
-									const isInvalid = formFieldShowInvalid(
-										field.state.meta.isTouched,
-										field.state.meta.isValid,
-										submissionAttempts,
-									);
+									const multiSelectDisabled =
+										lockFields ||
+										!selectedOrganizationOccupationId ||
+										organizationSpecialtyOptions.length === 0;
 									return (
-										<Field data-invalid={isInvalid}>
+										<Field>
 											<FieldLabel htmlFor={field.name}>
-												Required Specialty <RequiredStar />{" "}
-												<InheritedIndicator />
+												Specialties <InheritedIndicator />
 											</FieldLabel>
-											<Select
-												value={field.state.value}
-												onValueChange={(v) => field.handleChange(v)}
-												disabled={
-													lockFields ||
-													!selectedOrganizationOccupationId ||
-													organizationSpecialtyOptions.length === 0
-												}
+											<MultiSelect
+												values={field.state.value}
+												onValuesChange={(vals) => field.handleChange(vals)}
 											>
-												<SelectTrigger id={field.name} aria-invalid={isInvalid}>
-													<SelectValue placeholder="Select specialty" />
-												</SelectTrigger>
-												<SelectContent>
+												<MultiSelectTrigger
+													id={field.name}
+													className="w-full"
+													disabled={multiSelectDisabled}
+												>
+													<MultiSelectValue
+														placeholder={
+															!selectedOrganizationOccupationId
+																? "Select an occupation first"
+																: organizationSpecialtyOptions.length === 0
+																	? "No specialties linked for this occupation"
+																	: "Any specialty (optional)"
+														}
+													/>
+												</MultiSelectTrigger>
+												<MultiSelectContent
+													search={{
+														placeholder: "Search specialties…",
+														emptyMessage: "No specialties match your search.",
+													}}
+												>
 													{organizationSpecialtyOptions.length === 0 ? (
-														<SelectItem value="__empty__" disabled>
-															{selectedOrganizationOccupationId
-																? "No specialties linked for this occupation"
-																: "Select an occupation first"}
-														</SelectItem>
+														<p className="text-muted-foreground px-2 py-6 text-center text-sm">
+															No specialties found for this occupation.
+														</p>
 													) : (
 														organizationSpecialtyOptions.map((o) => (
-															<SelectItem key={o.id} value={o.id}>
+															<MultiSelectItem key={o.id} value={o.id}>
 																{o.name}
-															</SelectItem>
+															</MultiSelectItem>
 														))
 													)}
-												</SelectContent>
-											</Select>
-											{isInvalid && (
-												<FieldError errors={field.state.meta.errors} />
-											)}
+												</MultiSelectContent>
+											</MultiSelect>
 										</Field>
 									);
 								}}
@@ -304,7 +347,7 @@ export function JobDetailsStep({
 							<form.Field
 								name="department"
 								validators={{
-									onChange: jobPostingDetailsSchema.shape.department,
+									onChange: jobPostingDetailsFieldsSchema.shape.department,
 								}}
 							>
 								{(field) => {
@@ -327,11 +370,19 @@ export function JobDetailsStep({
 													<SelectValue placeholder="Select department" />
 												</SelectTrigger>
 												<SelectContent>
-													{(departmentsQuery.data ?? []).map((d) => (
-														<SelectItem key={d.id} value={d.id}>
-															{d.name}
+													{(departmentsQuery.data ?? []).length === 0 ? (
+														<SelectItem value="__empty__" disabled>
+															{selectedOrganizationOccupationId
+																? "No departments linked for this occupation"
+																: "Select an occupation first"}
 														</SelectItem>
-													))}
+													) : (
+														(departmentsQuery.data ?? []).map((d) => (
+															<SelectItem key={d.id} value={d.id}>
+																{d.name}
+															</SelectItem>
+														))
+													)}
 												</SelectContent>
 											</Select>
 											{isInvalid && (
@@ -344,7 +395,7 @@ export function JobDetailsStep({
 							<form.Field
 								name="shiftType"
 								validators={{
-									onChange: jobPostingDetailsSchema.shape.shiftType,
+									onChange: jobPostingDetailsFieldsSchema.shape.shiftType,
 								}}
 							>
 								{(field) => {
@@ -389,120 +440,245 @@ export function JobDetailsStep({
 						<Separator />
 						<h3 className="font-semibold">Shift & Schedule</h3>
 						<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-							<form.Field name="startDate">
-								{(field) => (
-									<Field>
-										<FieldLabel>
-											Start Date <InheritedIndicator />
-										</FieldLabel>
-										<DatePicker
-											value={field.state.value}
-											onChange={field.handleChange}
-										/>
-									</Field>
-								)}
+							<form.Field
+								name="startDate"
+								validators={{
+									onChange: jobPostingDetailsFieldsSchema.shape.startDate,
+								}}
+							>
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel>
+												Start Date <RequiredStar />
+											</FieldLabel>
+											<DatePicker
+												value={field.state.value}
+												onChange={field.handleChange}
+												aria-invalid={isInvalid}
+												disabled={lockFields}
+												min={todayIsoDate()}
+											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
 							</form.Field>
 							<form.Field name="endDate">
-								{(field) => (
-									<Field>
-										<FieldLabel>
-											End Date <InheritedIndicator />
-										</FieldLabel>
-										<DatePicker
-											value={field.state.value ?? ""}
-											onChange={(v) => field.handleChange(v || "")}
-										/>
-									</Field>
-								)}
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel>End Date</FieldLabel>
+											<DatePicker
+												value={field.state.value ?? ""}
+												onChange={(v) => field.handleChange(v || "")}
+												aria-invalid={isInvalid}
+												disabled={lockFields}
+												min={minEndDate}
+											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
 							</form.Field>
-							<form.Field name="lengthWeeks">
-								{(field) => (
-									<Field>
-										<FieldLabel>
-											Length (Weeks) <InheritedIndicator />
-										</FieldLabel>
-										<Input
-											type="number"
-											value={
-												Number.isNaN(field.state.value)
-													? ""
-													: String(field.state.value)
-											}
-											disabled={lockFields}
-											onBlur={field.handleBlur}
-											onChange={(e) => {
-												const v = e.target.value;
-												field.handleChange(
-													v ? Number.parseInt(v, 10) : Number.NaN,
-												);
-											}}
-										/>
-									</Field>
-								)}
+							<form.Field
+								name="lengthWeeks"
+								validators={{
+									onChange: jobPostingDetailsFieldsSchema.shape.lengthWeeks,
+								}}
+							>
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel>
+												Length (Weeks) <InheritedIndicator />
+											</FieldLabel>
+											<Input
+												type="number"
+												value={
+													Number.isNaN(field.state.value)
+														? ""
+														: String(field.state.value)
+												}
+												disabled={lockFields}
+												onBlur={field.handleBlur}
+												onChange={(e) => {
+													const v = e.target.value;
+													field.handleChange(
+														v ? Number.parseInt(v, 10) : Number.NaN,
+													);
+												}}
+												aria-invalid={isInvalid}
+											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
 							</form.Field>
-							<form.Field name="startTime">
-								{(field) => (
-									<Field>
-										<FieldLabel>
-											Start Time <InheritedIndicator />
-										</FieldLabel>
-										<TimePicker
-											value={field.state.value}
-											onChange={field.handleChange}
-										/>
-									</Field>
-								)}
+							<form.Field
+								name="startTime"
+								validators={{
+									onChange: jobPostingDetailsFieldsSchema.shape.startTime,
+								}}
+							>
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel>
+												Start Time <InheritedIndicator />
+											</FieldLabel>
+											<TimePicker
+												value={field.state.value}
+												onChange={field.handleChange}
+												min={
+													values.startDate === todayIsoDate()
+														? currentTime
+														: undefined
+												}
+											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
 							</form.Field>
-							<form.Field name="endTime">
-								{(field) => (
-									<Field>
-										<FieldLabel>
-											End Time <InheritedIndicator />
-										</FieldLabel>
-										<TimePicker
-											value={field.state.value}
-											onChange={field.handleChange}
-										/>
-									</Field>
-								)}
+							<form.Field
+								name="endTime"
+								validators={{
+									onChange: jobPostingDetailsFieldsSchema.shape.endTime,
+								}}
+							>
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel>
+												End Time <InheritedIndicator />
+												{values.startTime &&
+													values.endTime &&
+													values.endTime < values.startTime && (
+														<Badge variant="secondary" className="text-[10px]">
+															Next Day
+														</Badge>
+													)}
+											</FieldLabel>
+											<Input
+												type="time"
+												value={field.state.value}
+												readOnly
+												className="pointer-events-none bg-muted"
+												tabIndex={-1}
+											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
 							</form.Field>
-							<form.Field name="shiftHours">
-								{(field) => (
-									<Field>
-										<FieldLabel>
-											Shift Hours <InheritedIndicator />
-										</FieldLabel>
-										<Input
-											type="number"
-											value={String(field.state.value)}
-											disabled={lockFields}
-											onBlur={field.handleBlur}
-											onChange={(e) => {
-												const v = e.target.value;
-												field.handleChange(v ? Number.parseFloat(v) : 0);
-											}}
-										/>
-									</Field>
-								)}
+							<form.Field
+								name="shiftHours"
+								validators={{
+									onChange: jobPostingDetailsFieldsSchema.shape.shiftHours,
+								}}
+							>
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel>
+												Shift Hours <InheritedIndicator />
+											</FieldLabel>
+											<Input
+												type="number"
+												value={String(field.state.value)}
+												disabled={lockFields}
+												min={0.5}
+												step={0.5}
+												onBlur={field.handleBlur}
+												onChange={(e) => {
+													const v = e.target.value;
+													field.handleChange(v ? Number.parseFloat(v) : 0);
+												}}
+												aria-invalid={isInvalid}
+											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
 							</form.Field>
-							<form.Field name="shiftsPerWeek">
-								{(field) => (
-									<Field>
-										<FieldLabel>
-											Shifts Per Week <InheritedIndicator />
-										</FieldLabel>
-										<Input
-											type="number"
-											value={String(field.state.value)}
-											disabled={lockFields}
-											onBlur={field.handleBlur}
-											onChange={(e) => {
-												const v = e.target.value;
-												field.handleChange(v ? Number.parseInt(v, 10) : 0);
-											}}
-										/>
-									</Field>
-								)}
+							<form.Field
+								name="shiftsPerWeek"
+								validators={{
+									onChange: jobPostingDetailsFieldsSchema.shape.shiftsPerWeek,
+								}}
+							>
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel>
+												Shifts Per Week <InheritedIndicator />
+											</FieldLabel>
+											<Input
+												type="number"
+												value={String(field.state.value)}
+												disabled={lockFields}
+												onBlur={field.handleBlur}
+												onChange={(e) => {
+													const v = e.target.value;
+													field.handleChange(v ? Number.parseInt(v, 10) : 0);
+												}}
+												aria-invalid={isInvalid}
+											/>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
 							</form.Field>
 							<Field>
 								<FieldLabel>
@@ -519,16 +695,68 @@ export function JobDetailsStep({
 						<Separator />
 						<h3 className="font-semibold">Compensation & Hiring</h3>
 						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-							<form.Field name="billRate">
-								{(field) => (
-									<Field>
-										<FieldLabel>
-											Bill Rate <InheritedIndicator />
-										</FieldLabel>
-										<InputGroup>
-											<InputGroupAddon>$</InputGroupAddon>
-											<InputGroupInput
+							<form.Field
+								name="billRate"
+								validators={{
+									onChange: jobPostingDetailsFieldsSchema.shape.billRate,
+								}}
+							>
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel>
+												Bill Rate <InheritedIndicator />
+											</FieldLabel>
+											<InputGroup>
+												<InputGroupAddon>$</InputGroupAddon>
+												<InputGroupInput
+													type="number"
+													value={String(field.state.value)}
+													disabled={lockFields}
+													onBlur={field.handleBlur}
+													onChange={(e) => {
+														const v = e.target.value;
+														field.handleChange(v ? Number.parseInt(v, 10) : 0);
+													}}
+													aria-invalid={isInvalid}
+												/>
+												<InputGroupAddon align="inline-end">
+													/hr
+												</InputGroupAddon>
+											</InputGroup>
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
+							</form.Field>
+							<form.Field
+								name="numberOfPositions"
+								validators={{
+									onChange:
+										jobPostingDetailsFieldsSchema.shape.numberOfPositions,
+								}}
+							>
+								{(field) => {
+									const isInvalid = formFieldShowInvalid(
+										field.state.meta.isTouched,
+										field.state.meta.isValid,
+										submissionAttempts,
+									);
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel>
+												# of Open Positions <InheritedIndicator />
+											</FieldLabel>
+											<Input
 												type="number"
+												min={0}
 												value={String(field.state.value)}
 												disabled={lockFields}
 												onBlur={field.handleBlur}
@@ -536,30 +764,14 @@ export function JobDetailsStep({
 													const v = e.target.value;
 													field.handleChange(v ? Number.parseInt(v, 10) : 0);
 												}}
+												aria-invalid={isInvalid}
 											/>
-											<InputGroupAddon align="inline-end">/hr</InputGroupAddon>
-										</InputGroup>
-									</Field>
-								)}
-							</form.Field>
-							<form.Field name="numberOfPositions">
-								{(field) => (
-									<Field>
-										<FieldLabel>
-											# of Open Positions <InheritedIndicator />
-										</FieldLabel>
-										<Input
-											type="number"
-											value={String(field.state.value)}
-											disabled={lockFields}
-											onBlur={field.handleBlur}
-											onChange={(e) => {
-												const v = e.target.value;
-												field.handleChange(v ? Number.parseInt(v, 10) : 0);
-											}}
-										/>
-									</Field>
-								)}
+											{isInvalid && (
+												<FieldError errors={field.state.meta.errors} />
+											)}
+										</Field>
+									);
+								}}
 							</form.Field>
 							<form.Field name="incentiveType">
 								{(field) => (
@@ -636,7 +848,7 @@ export function JobDetailsStep({
 							<form.Field
 								name="hiringManagerId"
 								validators={{
-									onChange: jobPostingDetailsSchema.shape.hiringManagerId,
+									onChange: jobPostingDetailsFieldsSchema.shape.hiringManagerId,
 								}}
 							>
 								{(field) => {
@@ -648,7 +860,7 @@ export function JobDetailsStep({
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
-												Hiring Manager <RequiredStar /> <InheritedIndicator />
+												Hiring Manager <RequiredStar />
 											</FieldLabel>
 											<Select
 												value={field.state.value}
@@ -676,21 +888,38 @@ export function JobDetailsStep({
 						</div>
 						<Separator />
 						<h3 className="font-semibold">Job Description</h3>
-						<form.Field name="description">
-							{(field) => (
-								<Field>
-									<FieldLabel>
-										Description <InheritedIndicator />
-									</FieldLabel>
-									<Textarea
-										rows={4}
-										value={field.state.value}
-										disabled={lockFields}
-										onBlur={field.handleBlur}
-										onChange={(e) => field.handleChange(e.target.value)}
-									/>
-								</Field>
-							)}
+						<form.Field
+							name="description"
+							validators={{
+								onChange: jobPostingDetailsFieldsSchema.shape.description,
+							}}
+						>
+							{(field) => {
+								const isInvalid = formFieldShowInvalid(
+									field.state.meta.isTouched,
+									field.state.meta.isValid,
+									submissionAttempts,
+								);
+								return (
+									<Field data-invalid={isInvalid}>
+										<FieldLabel htmlFor={field.name}>
+											Description <RequiredStar /> <InheritedIndicator />
+										</FieldLabel>
+										<Textarea
+											id={field.name}
+											rows={4}
+											value={field.state.value}
+											disabled={lockFields}
+											onBlur={field.handleBlur}
+											onChange={(e) => field.handleChange(e.target.value)}
+											aria-invalid={isInvalid}
+										/>
+										{isInvalid && (
+											<FieldError errors={field.state.meta.errors} />
+										)}
+									</Field>
+								);
+							}}
 						</form.Field>
 
 						<Separator />
@@ -754,7 +983,8 @@ export function JobDetailsStep({
 						<form.Field
 							name="complianceTemplateId"
 							validators={{
-								onChange: jobPostingDetailsSchema.shape.complianceTemplateId,
+								onChange:
+									jobPostingDetailsFieldsSchema.shape.complianceTemplateId,
 							}}
 						>
 							{(field) => {
@@ -828,13 +1058,8 @@ export function JobDetailsStep({
 						>
 							Cancel
 						</Button>
-						<Button
-							type="submit"
-							disabled={form.state.isSubmitting || isPending}
-						>
-							{form.state.isSubmitting || isPending
-								? "Saving..."
-								: "Next \u2192"}
+						<Button type="submit" disabled={isSubmitting || isPending}>
+							{isSubmitting || isPending ? "Saving..." : "Next \u2192"}
 						</Button>
 					</div>
 				</form>

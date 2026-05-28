@@ -1,8 +1,10 @@
 "use client";
 
+import { DelayUnit, ShiftType } from "@repo/shared";
 import { useForm } from "@tanstack/react-form";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
+import { useShiftRoutingSettings } from "@/queries/shift-routing.queries";
 import type { ShiftTemplateFormValues } from "@/schemas/shift-template.schema";
 import { shiftTemplateFormSchema } from "@/schemas/shift-template.schema";
 
@@ -11,10 +13,12 @@ const defaultValues: ShiftTemplateFormValues = {
 	occupationId: "",
 	departmentId: "",
 	locationId: "",
-	shiftType: "DAYS",
+	shiftType: ShiftType.DAY,
 	durationHours: 8,
 	baseRate: 0,
 	limitShiftVisibility: false,
+	visibilityUnlockDuration: undefined,
+	visibilityUnlockUnit: undefined,
 	baseBillRate: undefined,
 	vendorRateMarkupPercent: undefined,
 	offerIncentive: false,
@@ -35,12 +39,28 @@ export function useShiftTemplateFormDialog({
 	initialValues,
 	onSubmit,
 }: UseShiftTemplateFormDialogProps) {
+	const { data: routingData } = useShiftRoutingSettings();
+	const routingSettings = routingData?.settings;
+
 	const isEdit = Boolean(initialValues?.templateName);
 
+	const defaults = useMemo((): ShiftTemplateFormValues => {
+		return {
+			...defaultValues,
+			limitShiftVisibility: routingSettings?.enableRoutingDelay ?? false,
+			visibilityUnlockDuration: routingSettings?.delayDuration ?? undefined,
+			visibilityUnlockUnit:
+				(routingSettings?.delayUnit as DelayUnit | undefined) ??
+				DelayUnit.HOURS,
+		};
+	}, [routingSettings]);
+
 	const mergedDefaults: ShiftTemplateFormValues = {
-		...defaultValues,
+		...defaults,
 		...Object.fromEntries(
-			Object.entries(initialValues ?? {}).filter(([, v]) => v !== undefined),
+			Object.entries(initialValues ?? {}).filter(
+				([, v]) => v !== undefined && v !== null,
+			),
 		),
 	};
 
@@ -60,19 +80,19 @@ export function useShiftTemplateFormDialog({
 	useEffect(() => {
 		if (open) {
 			reset({
-				...defaultValues,
+				...defaults,
 				...Object.fromEntries(
 					Object.entries(initialValues ?? {}).filter(
-						([, v]) => v !== undefined,
+						([, v]) => v !== undefined && v !== null,
 					),
 				),
 			});
 		}
-	}, [open, initialValues, reset]);
+	}, [open, initialValues, reset, defaults]);
 
 	const handleOpenChange = (nextOpen: boolean) => {
 		if (!nextOpen) {
-			reset(defaultValues);
+			reset(defaults);
 		}
 		onOpenChange(nextOpen);
 	};

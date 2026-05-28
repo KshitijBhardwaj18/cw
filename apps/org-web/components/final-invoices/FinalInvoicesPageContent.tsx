@@ -11,12 +11,12 @@ import {
 import { ConfigPageEmptyState } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { CustomTable } from "@repo/ui/general/CustomTable";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import { useFinalInvoiceListColumns } from "@/hooks/tables/use-final-invoice-list-columns";
 import { useFinalInvoicesPage } from "@/hooks/use-final-invoices-page";
 import type { FinalInvoiceListRow } from "@/services/billing.service";
@@ -25,7 +25,6 @@ import { FinalInvoicesMetricCards } from "./FinalInvoicesMetricCards";
 import { RouteInvoiceDialog } from "./RouteInvoiceDialog";
 
 export function FinalInvoicesPageContent() {
-	const { id: orgId } = useOrgContext();
 	const ability = useAbility();
 	const canRouteInvoice = ability.can(Action.Update, "Invoice");
 	const router = useRouter();
@@ -39,10 +38,11 @@ export function FinalInvoicesPageContent() {
 		setPage,
 		limit,
 		setLimit,
+		pageSizeOptions,
 		listQuery,
 		summaryQuery,
 		filterConfigs,
-	} = useFinalInvoicesPage(orgId);
+	} = useFinalInvoicesPage();
 
 	const [routeOpen, setRouteOpen] = useState(false);
 	const [routeInvoice, setRouteInvoice] = useState<FinalInvoiceListRow | null>(
@@ -51,6 +51,7 @@ export function FinalInvoicesPageContent() {
 
 	const rows = listQuery.data?.data ?? [];
 	const totalFiltered = listQuery.data?.total ?? 0;
+	const pageCount = Math.ceil(totalFiltered / limit) || 1;
 
 	const onView = useCallback(
 		(row: (typeof rows)[number]) => {
@@ -135,25 +136,27 @@ export function FinalInvoicesPageContent() {
 							data={rows}
 							columns={columns}
 							enableSorting
-							enablePagination
-							paginationMode="server"
-							totalCount={totalFiltered}
-							pageSize={limit}
-							currentPage={page}
-							onPaginationChange={(nextPage, nextLimit) => {
-								setPage(nextPage);
-								setLimit(nextLimit);
-							}}
+							enablePagination={false}
 							isLoading={listQuery.isLoading}
 							loadingLabel="Loading final invoices..."
 							className="rounded-none border-0 border-b-0"
+						/>
+						<PaginationControls
+							currentPage={page}
+							pageCount={pageCount}
+							goToPage={setPage}
+							limit={limit}
+							setLimit={setLimit}
+							pageSizeOptions={pageSizeOptions}
+							totalItems={totalFiltered}
+							itemLabel="invoice"
+							itemLabelPlural="invoices"
 						/>
 					</CardContent>
 				</Card>
 			)}
 
 			<RouteInvoiceDialog
-				orgId={orgId}
 				open={routeOpen}
 				onOpenChange={setRouteOpen}
 				invoice={routeInvoice}

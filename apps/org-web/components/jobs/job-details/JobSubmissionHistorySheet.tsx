@@ -1,5 +1,10 @@
 "use client";
 
+import {
+	DEFAULT_TIMEZONE,
+	formatTzDateTime,
+	type OrganizationTimezone,
+} from "@repo/shared";
 import { Avatar, AvatarFallback } from "@repo/ui/components/avatar";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
@@ -12,107 +17,65 @@ import {
 	SheetTitle,
 } from "@repo/ui/components/sheet";
 import { cn } from "@repo/ui/lib/utils";
-import { format, parseISO } from "date-fns";
 import {
+	Ban,
 	Building2,
+	CalendarCheck,
 	CheckCircle2,
-	FileText,
+	HandCoins,
 	StickyNote,
 	UserPlus,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { useOrgSubmissionDetail } from "@/queries/submissions.queries";
-import type { OrgSubmissionDetail } from "@/types/submission-detail";
-import { getSubmissionStageLabel } from "@/utils/submission-stage-label";
+import type { SubmissionHistoryEventType } from "@/types/submission-detail";
 
-type HistoryEntryType =
-	| "STATUS_CHANGE"
-	| "VENDOR_NOTE"
-	| "INTERNAL_NOTE"
-	| "DOCUMENTS"
-	| "SUBMISSION_CREATED"
-	| "PROFILE_REVIEWED";
-
-type SubmissionHistoryEntry = {
-	id: string;
-	type: HistoryEntryType;
-	title: string;
-	at: string;
-	actorLabel: string;
-	actorKind: "user" | "vendor";
-	body?: string;
-	fromLabel?: string;
-	toLabel?: string;
-};
-
-function buildHistoryEntries(
-	detail: OrgSubmissionDetail,
-): SubmissionHistoryEntry[] {
-	const out: SubmissionHistoryEntry[] = [
-		{
-			id: `${detail.id}-submitted`,
-			type: "SUBMISSION_CREATED",
-			title: "Application submitted",
-			at: detail.submittedAt,
-			actorLabel: detail.vendorName,
-			actorKind: "vendor",
-			...(detail.summaryNote?.trim()
-				? { body: detail.summaryNote.trim() }
-				: {}),
-		},
-		{
-			id: `${detail.id}-stage`,
-			type: "STATUS_CHANGE",
-			title: "Current pipeline stage",
-			at: detail.stageEnteredAt,
-			actorLabel: detail.hiringManagerName,
-			actorKind: "user",
-			toLabel: getSubmissionStageLabel(detail.stage),
-		},
-	];
-	return out.sort(
-		(a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
-	);
-}
-
-function historyNodeStyles(type: HistoryEntryType): string {
+function historyNodeStyles(type: SubmissionHistoryEventType): string {
 	switch (type) {
-		case "STATUS_CHANGE":
-			return "bg-emerald-100 text-emerald-800 ring-emerald-200/80 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-800/50";
-		case "VENDOR_NOTE":
-		case "INTERNAL_NOTE":
-			return "bg-violet-100 text-violet-800 ring-violet-200/80 dark:bg-violet-900/30 dark:text-violet-300 dark:ring-violet-800/50";
-		case "DOCUMENTS":
-			return "bg-amber-100 text-amber-800 ring-amber-200/80 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-800/50";
-		case "SUBMISSION_CREATED":
-		case "PROFILE_REVIEWED":
+		case "SUBMITTED":
 			return "bg-primary/15 text-primary ring-primary/20";
+		case "QUALIFIED":
+		case "SHORTLISTED":
+			return "bg-emerald-100 text-emerald-800 ring-emerald-200/80 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-800/50";
+		case "INTERVIEW_SCHEDULED":
+		case "INTERVIEW_COMPLETED":
+			return "bg-violet-100 text-violet-800 ring-violet-200/80 dark:bg-violet-900/30 dark:text-violet-300 dark:ring-violet-800/50";
+		case "OFFER_EXTENDED":
+		case "ACCEPTED":
+			return "bg-amber-100 text-amber-800 ring-amber-200/80 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-800/50";
+		case "WITHDRAWN":
+		case "REJECTED":
+			return "bg-destructive/10 text-destructive ring-destructive/20";
 		default:
 			return "bg-muted text-muted-foreground ring-border";
 	}
 }
 
-function historyIconEl(type: HistoryEntryType) {
+function historyIconEl(type: Readonly<SubmissionHistoryEventType>) {
 	const cls = "size-3.5 shrink-0";
 	switch (type) {
-		case "STATUS_CHANGE":
+		case "SUBMITTED":
 			return <UserPlus className={cls} />;
-		case "VENDOR_NOTE":
-		case "INTERNAL_NOTE":
-			return <StickyNote className={cls} />;
-		case "DOCUMENTS":
-			return <FileText className={cls} />;
-		case "SUBMISSION_CREATED":
-		case "PROFILE_REVIEWED":
+		case "QUALIFIED":
+		case "SHORTLISTED":
 			return <CheckCircle2 className={cls} />;
+		case "INTERVIEW_SCHEDULED":
+		case "INTERVIEW_COMPLETED":
+			return <CalendarCheck className={cls} />;
+		case "OFFER_EXTENDED":
+		case "ACCEPTED":
+			return <HandCoins className={cls} />;
+		case "WITHDRAWN":
+		case "REJECTED":
+			return <Ban className={cls} />;
 		default:
-			return <FileText className={cls} />;
+			return <StickyNote className={cls} />;
 	}
 }
 
-function formatHistoryAt(iso: string): string {
+function formatHistoryAt(iso: string, tz?: OrganizationTimezone): string {
 	try {
-		return `${format(parseISO(iso), "MMM d, yyyy")} · ${format(parseISO(iso), "h:mm a")} UTC`;
+		return formatTzDateTime(iso, tz ?? DEFAULT_TIMEZONE);
 	} catch {
 		return iso;
 	}
@@ -121,7 +84,6 @@ function formatHistoryAt(iso: string): string {
 export interface JobSubmissionHistorySheetProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	orgId: string;
 	submissionId: string;
 	candidateName: string;
 	occupationLabel: string;
@@ -132,24 +94,21 @@ export interface JobSubmissionHistorySheetProps {
 export function JobSubmissionHistorySheet({
 	open,
 	onOpenChange,
-	orgId,
 	submissionId,
 	candidateName,
 	occupationLabel,
 	departmentName,
 	stageLabel,
-}: JobSubmissionHistorySheetProps) {
+}: Readonly<JobSubmissionHistorySheetProps>) {
+	const { tz } = useUserTimezone();
 	const {
 		data: detail,
 		isLoading,
 		isError,
 		error,
-	} = useOrgSubmissionDetail(orgId, submissionId);
+	} = useOrgSubmissionDetail(submissionId);
 
-	const entries = useMemo(
-		() => (detail ? buildHistoryEntries(detail) : []),
-		[detail],
-	);
+	const entries = detail?.historyEntries ?? [];
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
@@ -224,16 +183,10 @@ export function JobSubmissionHistorySheet({
 									<Card className="min-w-0 flex-1 border-muted shadow-none">
 										<CardContent className="space-y-2 p-3">
 											<p className="text-sm font-semibold leading-tight">
-												{entry.type === "STATUS_CHANGE" &&
-												entry.fromLabel &&
-												entry.toLabel
-													? `${entry.title}: ${entry.fromLabel} → ${entry.toLabel}`
-													: entry.type === "STATUS_CHANGE" && entry.toLabel
-														? `${entry.title}: ${entry.toLabel}`
-														: entry.title}
+												{entry.title}
 											</p>
 											<p className="text-muted-foreground text-xs">
-												{formatHistoryAt(entry.at)}
+												{formatHistoryAt(entry.at, tz)}
 											</p>
 											<p className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-xs">
 												{entry.actorKind === "vendor" ? (

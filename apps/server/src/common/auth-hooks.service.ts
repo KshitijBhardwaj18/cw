@@ -13,6 +13,7 @@ import {
 	Hook,
 } from "@thallesp/nestjs-better-auth";
 import { APIError } from "better-auth/api";
+import { resolveActiveOrganizationIdFromRequest } from "src/common/utils/resolve-active-organization-id";
 import { resolveUserSubRole } from "src/common/utils/resolve-user-sub-role";
 import { PrismaService } from "src/prisma/prisma.service";
 
@@ -30,22 +31,32 @@ export class AuthHooksService {
 		});
 		if (!user) {
 			throw new APIError("NOT_FOUND", {
-				message: "User not found, please ask admin to invite you",
+				message: "User not found. Ask your admin to invite you.",
 				code: "USER_NOT_FOUND",
 				cause: "User not found, please ask admin to invite you",
 			});
 		}
-		await this.validateUser(user, ctx.body.portal, ctx.body.organizationId);
+		const organizationId = await resolveActiveOrganizationIdFromRequest(
+			this.prismaService,
+			ctx.request?.headers ?? ctx.headers,
+		);
+		await this.validateUser(user, ctx.body.portal, organizationId);
 	}
 
 	@AfterHook("/sign-in/email-otp")
 	async afterSignInEmailOtp(ctx: AuthHookContext) {
 		const body = ctx.body as {
 			email?: string;
-			organizationId?: string;
 			portal?: string;
 		};
-		if (!body.organizationId || body.portal === "admin" || !body.email) {
+		if (body.portal === "admin" || !body.email) {
+			return;
+		}
+		const organizationId = await resolveActiveOrganizationIdFromRequest(
+			this.prismaService,
+			ctx.request?.headers ?? ctx.headers,
+		);
+		if (!organizationId) {
 			return;
 		}
 		const user = await this.prismaService.user.findUnique({
@@ -86,7 +97,7 @@ export class AuthHooksService {
 			this.prismaService,
 			user.id,
 			user.role,
-			body.organizationId,
+			organizationId,
 		);
 		await this.prismaService.$transaction([
 			this.prismaService.user.update({
@@ -96,11 +107,28 @@ export class AuthHooksService {
 			this.prismaService.session.update({
 				where: { id: latestSession.id },
 				data: {
-					activeOrganizationId: body.organizationId,
+					activeOrganizationId: organizationId,
 					...vendorSession,
 				},
 			}),
 		]);
+	}
+
+	@AfterHook("/magic-link/verify")
+	async afterMagicLinkVerify(ctx: AuthHookContext) {
+		const organizationId = await resolveActiveOrganizationIdFromRequest(
+			this.prismaService,
+			ctx.request?.headers ?? ctx.headers,
+		);
+		if (!organizationId) return;
+		const sessionId = (
+			ctx.context as { newSession?: { session?: { id?: string } } }
+		).newSession?.session?.id;
+		if (!sessionId) return;
+		await this.prismaService.session.update({
+			where: { id: sessionId },
+			data: { activeOrganizationId: organizationId },
+		});
 	}
 
 	@BeforeHook("/email-otp/send-verification-otp")
@@ -112,22 +140,38 @@ export class AuthHooksService {
 		});
 		if (!user) {
 			throw new APIError("NOT_FOUND", {
-				message: "User not found, please ask admin to invite you",
+				message: "User not found. Ask your admin to invite you.",
 				code: "USER_NOT_FOUND",
 				cause: "User not found, please ask admin to invite you",
 			});
 		}
-		await this.validateUser(user, ctx.body.portal, ctx.body.organizationId);
+		const organizationId = await resolveActiveOrganizationIdFromRequest(
+			this.prismaService,
+			ctx.request?.headers ?? ctx.headers,
+		);
+		await this.validateUser(user, ctx.body.portal, organizationId);
 	}
 
 	private async validateUser(
 		user: User,
 		portal: string,
-		organizationId: string,
+		organizationId: string | null,
 	) {
 		if (user.status === UserStatus.INACTIVE) {
+			const closedCandidate = await this.prismaService.candidate.findFirst({
+				where: { userId: user.id, closedAt: { not: null } },
+				select: { id: true },
+			});
+			if (closedCandidate) {
+				throw new APIError("NOT_FOUND", {
+					message:
+						"This account has been closed. Contact support if you'd like to reopen it.",
+					code: "ACCOUNT_CLOSED",
+					cause: "Candidate closed their account",
+				});
+			}
 			throw new APIError("UNAUTHORIZED", {
-				message: "User is inactive, please ask admin to activate your account",
+				message: "Your account is inactive. Ask your admin to reactivate it.",
 				code: "USER_INACTIVE",
 				cause: "User is inactive, please ask admin to activate your account",
 			});
@@ -137,17 +181,32 @@ export class AuthHooksService {
 				await this.validateAdminUser(user);
 				return;
 			case "candidate":
+				this.assertOrganizationResolved(organizationId);
 				await this.validateCandidateUser(user, organizationId);
 				return;
 			case "auto":
+				this.assertOrganizationResolved(organizationId);
 				await this.validateOrgWebUnifiedPortal(user, organizationId);
 				return;
 			default:
 				throw new APIError("UNAUTHORIZED", {
-					message: "User is not authorized to sign in to this organization",
+					message: "You are not authorized to sign in to this organization.",
 					code: "USER_NOT_AUTHORIZED",
 					cause: "User is not authorized to sign in to this organization",
 				});
+		}
+	}
+
+	private assertOrganizationResolved(
+		organizationId: string | null,
+	): asserts organizationId is string {
+		if (!organizationId) {
+			throw new APIError("BAD_REQUEST", {
+				message:
+					"This hostname is not associated with any organization. Please use your organization's sign-in URL.",
+				code: "ORGANIZATION_NOT_RESOLVED",
+				cause: "Organization could not be resolved from request host",
+			});
 		}
 	}
 
@@ -176,7 +235,7 @@ export class AuthHooksService {
 				return;
 			default:
 				throw new APIError("UNAUTHORIZED", {
-					message: "User is not authorized to sign in to this organization",
+					message: "You are not authorized to sign in to this organization.",
 					code: "USER_NOT_AUTHORIZED",
 					cause: "User is not authorized to sign in to this organization",
 				});
@@ -188,7 +247,7 @@ export class AuthHooksService {
 			["CANDIDATE_USER", "ORGANIZATION_USER", "VENDOR_USER"].includes(user.role)
 		) {
 			throw new APIError("UNAUTHORIZED", {
-				message: "User is not authorized to sign in as admin",
+				message: "You are not authorized to sign in as an admin.",
 				code: "USER_NOT_AUTHORIZED",
 				cause: "User is not authorized to sign in as admin",
 			});
@@ -204,14 +263,14 @@ export class AuthHooksService {
 		});
 		if (!organizationMember) {
 			throw new APIError("NOT_FOUND", {
-				message: "You are not a member of this organization",
+				message: "You are not a member of this organization.",
 				code: "USER_NOT_MEMBER_OF_ORGANIZATION",
 				cause: "You are not a member of this organization",
 			});
 		}
 		if (organizationMember.status === OrganizationMemberStatus.INACTIVE) {
 			throw new APIError("UNAUTHORIZED", {
-				message: "You are not active in this organization",
+				message: "You are not active in this organization.",
 				code: "USER_NOT_ACTIVE_IN_ORGANIZATION",
 				cause: "You are not active in this organization",
 			});
@@ -225,7 +284,7 @@ export class AuthHooksService {
 		});
 		if (!vendorUser) {
 			throw new APIError("NOT_FOUND", {
-				message: "Vendor profile not found for this user",
+				message: "Vendor profile not found for this user.",
 				code: "VENDOR_USER_NOT_FOUND",
 				cause: "Vendor profile not found for this user",
 			});
@@ -240,9 +299,20 @@ export class AuthHooksService {
 		});
 		if (!orgVendor) {
 			throw new APIError("NOT_FOUND", {
-				message: "Your vendor is not linked to this organization",
+				message: "Your vendor is not linked to this organization.",
 				code: "VENDOR_NOT_LINKED_TO_ORGANIZATION",
 				cause: "Your vendor is not linked to this organization",
+			});
+		}
+		const member = await this.prismaService.member.findFirst({
+			where: { userId: user.id, organizationId },
+			select: { id: true },
+		});
+		if (!member) {
+			throw new APIError("NOT_FOUND", {
+				message: "You are not a member of this organization.",
+				code: "USER_NOT_MEMBER_OF_ORGANIZATION",
+				cause: "You are not a member of this organization",
 			});
 		}
 	}
@@ -250,7 +320,7 @@ export class AuthHooksService {
 	private async validateCandidateUser(user: User, organizationId: string) {
 		if (user.role !== "CANDIDATE_USER") {
 			throw new APIError("UNAUTHORIZED", {
-				message: "User is not authorized to sign in as candidate user",
+				message: "You are not authorized to sign in as a candidate.",
 				code: "USER_NOT_AUTHORIZED",
 				cause: "User is not authorized to sign in as candidate user",
 			});

@@ -17,7 +17,7 @@ export function ProjectDeleteDialog({
 	onOpenChange,
 	onConfirm,
 	isPending = false,
-}: ProjectDeleteDialogProps) {
+}: Readonly<ProjectDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={open && !!project}

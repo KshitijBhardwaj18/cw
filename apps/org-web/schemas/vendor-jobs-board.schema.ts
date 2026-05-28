@@ -1,10 +1,12 @@
 import {
 	isAfterOrEqual,
 	requiredPhoneSchema,
+	ShiftType,
 	zipCodeSchema,
 } from "@repo/shared";
 import { useForm } from "@tanstack/react-form";
 import { z } from "zod";
+import type { ShiftTypeKey } from "@/constants/shifts";
 
 const questionnaireRowSchema = z.object({
 	questionId: z.string().uuid(),
@@ -13,7 +15,10 @@ const questionnaireRowSchema = z.object({
 	scope: z.enum(["occupation", "specialty", "general"]),
 });
 
-export const reviewSubmitSchema = z.object({
+/** Same as Prisma `ShiftType` / org shift constants. */
+export type VendorJobBoardShiftType = ShiftTypeKey;
+
+export const candidateProfileSchema = z.object({
 	firstName: z.string(),
 	lastName: z.string(),
 	email: z.string().email(),
@@ -26,7 +31,9 @@ export const reviewSubmitSchema = z.object({
 	specialtyIds: z
 		.array(z.string().uuid())
 		.min(1, "Select at least one specialty"),
-	preferredShiftsText: z.string().min(1, "Preferred shifts are required"),
+	preferredShiftTypes: z
+		.array(z.nativeEnum(ShiftType))
+		.min(1, "Select at least one preferred shift type"),
 	availableFrom: z.string().optional(),
 	isAvailable: z.boolean(),
 	questionnaire: z.array(questionnaireRowSchema),
@@ -56,7 +63,9 @@ export const reviewSubmitSchema = z.object({
 				}
 			}
 		}),
-	/** Display-only in vendor review; uploads are managed in Document Wallet. */
+});
+
+export const reviewSubmitSchema = candidateProfileSchema.extend({
 	complianceItems: z
 		.array(
 			z.object({
@@ -65,10 +74,28 @@ export const reviewSubmitSchema = z.object({
 				file: z.instanceof(File).optional(),
 			}),
 		)
-		.optional(),
+		.superRefine((data, ctx) => {
+			for (let i = 0; i < data.length; i++) {
+				const item = data[i];
+				if (item.status !== "verified" && !item.file) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: "File is required",
+						path: [i, "file"],
+					});
+				}
+			}
+		}),
 });
 
 export type ReviewSubmitFormValues = z.infer<typeof reviewSubmitSchema>;
+
+export const reviewSubmitPostalAutosuggestValidators = {
+	street: candidateProfileSchema.shape.streetAddress,
+	city: candidateProfileSchema.shape.city,
+	state: candidateProfileSchema.shape.state,
+	zipCode: candidateProfileSchema.shape.zipCode,
+} as const;
 
 // Infers the form type from the configuration for 1:1 type-safety.
 const _dummyForm = () =>

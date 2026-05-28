@@ -1,14 +1,9 @@
 import { OrganizationVendorStatus } from "@repo/shared";
 import { z } from "zod";
 
-const STATUS_VALUES = Object.values(OrganizationVendorStatus) as [
-	string,
-	...string[],
-];
-
 export const organizationVendorFormSchema = z.object({
 	vendorId: z.string().min(1, "Please select a vendor"),
-	status: z.enum(STATUS_VALUES, {
+	status: z.nativeEnum(OrganizationVendorStatus, {
 		errorMap: () => ({ message: "Status is required" }),
 	}),
 	startDate: z.string().optional(),
@@ -21,7 +16,7 @@ export type OrganizationVendorFormSchemaValues = z.infer<
 
 export interface CreateOrganizationVendorPayload {
 	vendorId: string;
-	status: (typeof STATUS_VALUES)[number];
+	status: OrganizationVendorStatus;
 	startDate?: string;
 	notes?: string;
 }

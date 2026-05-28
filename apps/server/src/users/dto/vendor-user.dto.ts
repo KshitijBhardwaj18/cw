@@ -13,12 +13,19 @@ import {
 import { PaginatedQueryDto } from "src/common/dto/paginated-query.dto";
 
 export class CreateVendorPortalUserDto {
-	@ApiProperty({ example: "Jane Doe" })
+	@ApiProperty({ example: "Jane" })
 	@Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
 	@IsString()
 	@IsNotEmpty()
-	@MaxLength(120)
-	fullName: string;
+	@MaxLength(60)
+	firstName: string;
+
+	@ApiProperty({ example: "Doe" })
+	@Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+	@IsString()
+	@IsNotEmpty()
+	@MaxLength(60)
+	lastName: string;
 
 	@ApiProperty({ example: "jane@vendor.com" })
 	@Transform(({ value }) =>
@@ -47,12 +54,19 @@ export class CreateVendorPortalUserDto {
 }
 
 export class UpdateVendorPortalUserDto {
-	@ApiProperty({ example: "Jane Doe" })
+	@ApiProperty({ example: "Jane" })
 	@Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
 	@IsString()
 	@IsNotEmpty()
-	@MaxLength(120)
-	fullName: string;
+	@MaxLength(60)
+	firstName: string;
+
+	@ApiProperty({ example: "Doe" })
+	@Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+	@IsString()
+	@IsNotEmpty()
+	@MaxLength(60)
+	lastName: string;
 
 	@ApiPropertyOptional({ example: "+15551234567" })
 	@IsOptional()

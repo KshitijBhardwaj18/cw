@@ -12,7 +12,7 @@ export function JobCandidateSubmissionsPagination({
 	page,
 	totalPages,
 	onPageChange,
-}: JobCandidateSubmissionsPaginationProps) {
+}: Readonly<JobCandidateSubmissionsPaginationProps>) {
 	if (totalPages <= 1) {
 		return null;
 	}

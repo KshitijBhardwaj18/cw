@@ -25,7 +25,7 @@ export function PayCodesTabContent({
 	page,
 	totalPages,
 	onPageChange,
-}: PayCodesTabContentProps) {
+}: Readonly<PayCodesTabContentProps>) {
 	const { columns } = usePayCodesColumns();
 
 	return (

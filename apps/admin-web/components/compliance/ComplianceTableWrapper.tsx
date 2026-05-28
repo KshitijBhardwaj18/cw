@@ -21,7 +21,7 @@ export function ComplianceTableWrapper({
 	getItemForEdit,
 	canEdit = true,
 	canDelete = true,
-}: ComplianceTableWrapperProps) {
+}: Readonly<ComplianceTableWrapperProps>) {
 	const [editRow, setEditRow] = useState<ComplianceTableRowType | null>(null);
 	const [deleteTarget, setDeleteTarget] =
 		useState<ComplianceTableRowType | null>(null);

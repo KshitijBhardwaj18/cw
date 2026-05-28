@@ -6,7 +6,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth.context";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	organizationsKeys,
 	useBulkEnrollOrgUsers,
@@ -25,10 +24,12 @@ import type { User } from "@/types/user";
 import { formatBulkEnrollmentCompleteToast } from "@/utils/bulk-enrollment-banner";
 import { mapOrgMemberToUser } from "@/utils/org-member-api";
 
-const PAGE_SIZE = 10;
+const DEFAULT_LIMIT = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 export const USERS_PARAMS = {
 	PAGE: "usrPage",
+	LIMIT: "usrLimit",
 	SEARCH: "usrSearch",
 } as const;
 
@@ -36,14 +37,15 @@ export function useUsers() {
 	const queryClient = useQueryClient();
 	const { session } = useAuth();
 	const actorUserId = session.user.id;
-	const { id: orgId } = useOrgContext();
 	const bulkEnrollmentStatus = useBulkEnrollmentStore((s) => s.status);
 	const startBulkJob = useBulkEnrollmentStore((s) => s.startJob);
 	const dismissBulkJob = useBulkEnrollmentStore((s) => s.dismiss);
 
-	const { page, setPage } = usePaginationControls({
+	const { page, limit, setPage, setLimit } = usePaginationControls({
 		pageParamKey: USERS_PARAMS.PAGE,
-		defaultLimit: PAGE_SIZE,
+		limitParamKey: USERS_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
@@ -58,10 +60,10 @@ export function useUsers() {
 	const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
 	const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
 
-	const listQuery = useOrgMembersList(orgId, {
+	const listQuery = useOrgMembersList({
 		search: searchFromUrl.trim() || undefined,
 		page,
-		limit: PAGE_SIZE,
+		limit,
 		type: "organization",
 	});
 
@@ -73,29 +75,18 @@ export function useUsers() {
 	const total = listQuery.data?.total ?? 0;
 	const totalPages = listQuery.data?.totalPages ?? 1;
 
-	const enrollMutation = useEnrollOrgUser(orgId);
-	const removeMutation = useRemoveOrgMember(orgId);
-	const updateMutation = useUpdateOrgMember(orgId);
-	const bulkMutation = useBulkEnrollOrgUsers(orgId);
+	const enrollMutation = useEnrollOrgUser();
+	const removeMutation = useRemoveOrgMember();
+	const updateMutation = useUpdateOrgMember();
+	const bulkMutation = useBulkEnrollOrgUsers();
 
 	const prevBulkStatusRef = useRef<BulkEnrollmentStatus>({ phase: "idle" });
-
-	useEffect(() => {
-		void orgId;
-		prevBulkStatusRef.current = { phase: "idle" };
-	}, [orgId]);
 
 	useEffect(() => {
 		const cur = bulkEnrollmentStatus;
 		const prev = prevBulkStatusRef.current;
 
-		if (
-			prev.phase === "processing" &&
-			"organizationId" in prev &&
-			prev.organizationId === orgId &&
-			"organizationId" in cur &&
-			cur.organizationId === orgId
-		) {
+		if (prev.phase === "processing") {
 			if (cur.phase === "completed") {
 				toast.success(
 					formatBulkEnrollmentCompleteToast(
@@ -110,18 +101,15 @@ export function useUsers() {
 		}
 
 		prevBulkStatusRef.current = cur;
-	}, [bulkEnrollmentStatus, orgId]);
+	}, [bulkEnrollmentStatus]);
 
 	useEffect(() => {
-		if (
-			bulkEnrollmentStatus.phase === "completed" &&
-			bulkEnrollmentStatus.organizationId === orgId
-		) {
+		if (bulkEnrollmentStatus.phase === "completed") {
 			void queryClient.invalidateQueries({
-				queryKey: organizationsKeys.members(orgId),
+				queryKey: organizationsKeys.members(),
 			});
 		}
-	}, [bulkEnrollmentStatus, orgId, queryClient]);
+	}, [bulkEnrollmentStatus, queryClient]);
 
 	const handleEdit = useCallback((user: User) => {
 		setEditingUser(user);
@@ -212,13 +200,13 @@ export function useUsers() {
 				onSuccess: (res) => {
 					toast.success("Enrollment process started");
 					setIsBulkUploadDialogOpen(false);
-					startBulkJob(orgId, res.jobId);
+					startBulkJob(res.jobId);
 				},
 				onError: (e) =>
 					toast.error(e instanceof Error ? e.message : "Could not upload file"),
 			});
 		},
-		[bulkMutation, orgId, startBulkJob],
+		[bulkMutation, startBulkJob],
 	);
 
 	const handleDismissBulkStatus = useCallback(() => {
@@ -233,13 +221,15 @@ export function useUsers() {
 			: "Could not load users";
 
 	return {
-		orgId,
 		actorUserId,
 		users,
 		total,
 		totalPages,
 		currentPage: page,
 		setCurrentPage: setPage,
+		limit,
+		setLimit,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 		search: localSearch,
 		setSearch: handleSearchChange,
 		editingUser,

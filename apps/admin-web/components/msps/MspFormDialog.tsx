@@ -1,7 +1,7 @@
 "use client";
 
 import type { MspResponseType } from "@repo/shared";
-import { formatDate, TIMEZONE_OPTIONS } from "@repo/shared";
+import { TIMEZONE_OPTIONS } from "@repo/shared";
 import {
 	Avatar,
 	AvatarFallback,
@@ -54,6 +54,7 @@ import {
 	MSP_ORGANIZATION_TYPE_OPTIONS,
 } from "@/constants/msp";
 import { useMspForm } from "@/hooks/use-msp-form-dialog";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	mspFormBillingPostalAutosuggestValidators,
 	mspFormBillingPostalFieldBindings,
@@ -71,7 +72,7 @@ export function MspFormDialog({
 	open,
 	onOpenChange,
 	initialMsp,
-}: MspFormDialogProps) {
+}: Readonly<MspFormDialogProps>) {
 	const {
 		form,
 		logoInputRef,
@@ -92,6 +93,8 @@ export function MspFormDialog({
 		handleMsaReplace,
 		addMspSchemaBase,
 	} = useMspForm({ open, onOpenChange, initialMsp });
+
+	const { fmtShortDate } = useUserTimezone();
 
 	const submissionAttempts = useStore(
 		form.store,
@@ -505,9 +508,7 @@ export function MspFormDialog({
 																	<p className="mt-1 text-sm font-medium">
 																		{msaFile && msaUploadDate
 																			? msaUploadDate
-																			: initialMsp?.msaUploadedAt
-																				? formatDate(initialMsp.msaUploadedAt)
-																				: "—"}
+																			: fmtShortDate(initialMsp?.msaUploadedAt)}
 																	</p>
 																</div>
 																<div>

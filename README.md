@@ -1,4 +1,4 @@
-# Staff Logic built with Turborepo starter by Heizen.
+# Staff Logic.
 
 This Turborepo starter is maintained by the Turborepo core team.
 

@@ -34,6 +34,7 @@ import type {
 import type {
 	BulkEnrollmentJobResponse,
 	EnrollExistingUserInput,
+	EnrolledCandidateRow,
 	EnrollOrgUserInput,
 	UserDto,
 } from "@/types/users";
@@ -362,6 +363,52 @@ export class OrganizationsService {
 	static async removeMember(organizationId: string, memberId: string) {
 		return ApiClient.delete(
 			`/api/organizations/${organizationId}/members/${memberId}`,
+		);
+	}
+
+	static async getOrgCandidates(
+		organizationId: string,
+		search: string | undefined,
+		page: number,
+		limit: number,
+	) {
+		return ApiClient.get<{
+			data: Array<{
+				id: string;
+				isActive: boolean;
+				workforceType: string | null;
+				source: string | null;
+				inviteStatus: string | null;
+				createdAt: string;
+				user: { id: string; name: string | null; email: string };
+				occupation: { id: string; name: string };
+				vendor: { id: string; name: string } | null;
+			}>;
+			total: number;
+			page: number;
+			limit: number;
+			totalPages: number;
+		}>(`/api/organizations/${organizationId}/candidates`, {
+			search,
+			page,
+			limit,
+		});
+	}
+
+	static async setOrgCandidateActive(
+		organizationId: string,
+		candidateId: string,
+		isActive: boolean,
+	) {
+		return ApiClient.patch<EnrolledCandidateRow>(
+			`/api/organizations/${organizationId}/candidates/${candidateId}/active`,
+			{ isActive },
+		);
+	}
+
+	static async deleteOrgCandidate(organizationId: string, candidateId: string) {
+		return ApiClient.delete(
+			`/api/organizations/${organizationId}/candidates/${candidateId}`,
 		);
 	}
 

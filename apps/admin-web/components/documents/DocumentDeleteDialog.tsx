@@ -15,7 +15,7 @@ export function DocumentDeleteDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: DocumentDeleteDialogProps) {
+}: Readonly<DocumentDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={!!document}

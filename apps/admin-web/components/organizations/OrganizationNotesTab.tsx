@@ -15,7 +15,7 @@ type OrganizationNotesTabProps = {
 
 export function OrganizationNotesTab({
 	organizationId,
-}: OrganizationNotesTabProps) {
+}: Readonly<OrganizationNotesTabProps>) {
 	const notesFilters = useListFilters();
 	const addNoteMutation = useAddOrganizationNoteMutation();
 	const { data: notes = [], isFetching: notesLoading } =

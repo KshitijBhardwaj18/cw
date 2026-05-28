@@ -1,3 +1,18 @@
+/** Standard 8-4-4-4-12 hex UUID (any version / variant). */
+const UUID_REGEX =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Compact display for UUIDs only: first 8 hex chars (no hyphens), uppercased, prefixed with `#`.
+ * Non-UUID strings are returned unchanged (human-readable or numeric IDs stay intact).
+ * e.g. "550e8400-e29b-41d4-a716-446655440000" → "#550E8400"
+ */
+export function shortId(id: string): string {
+	const t = id.trim();
+	if (!t || !UUID_REGEX.test(t)) return id;
+	return `#${t.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
+
 export const getInitials = (name: string, limit: number = 2) => {
 	limit = Math.min(limit, 2);
 	return name
@@ -24,10 +39,14 @@ export const enumToTitleText = (enumValue?: string): string => {
 		.join(" ");
 };
 
+/** Portal default: US dollars, US number formatting. */
+export const USD_LOCALE = "en-US" as const;
+export const USD_CURRENCY_CODE = "USD" as const;
+
 export function formatCurrency(
 	amount: number,
-	currency: string = "USD",
-	region: string = "en-US",
+	currency: string = USD_CURRENCY_CODE,
+	region: string = USD_LOCALE,
 	minimumFractionDigits: number = 0,
 	maximumFractionDigits: number = 1,
 ): string {
@@ -37,6 +56,67 @@ export function formatCurrency(
 		minimumFractionDigits: minimumFractionDigits,
 		maximumFractionDigits: maximumFractionDigits,
 	}).format(amount);
+}
+
+/** Invoice / ledger-style amounts with cents. */
+export function formatUsdLedger(amount: number): string {
+	return formatCurrency(amount, USD_CURRENCY_CODE, USD_LOCALE, 2, 2);
+}
+
+/** Ledger-style USD; null/NaN shown as $0.00 (billing tables, disputes). */
+export function formatUsdLedgerNullable(
+	amount: number | null | undefined,
+): string {
+	if (amount == null || Number.isNaN(amount)) return formatUsdLedger(0);
+	return formatUsdLedger(amount);
+}
+
+/** Whole-dollar USD (commas, no cents) — incentives, summaries. */
+export function formatUsdWhole(amount: number): string {
+	return formatCurrency(amount, USD_CURRENCY_CODE, USD_LOCALE, 0, 0);
+}
+
+/**
+ * Parses typed currency/number text into a finite number.
+ * Strips `$`, commas, and spaces; supports optional leading `-` and one decimal point.
+ */
+export function parseUsdNumberInput(raw: string): number | null {
+	const t = raw.trim();
+	if (t === "" || t === "-" || t === "$" || t === "-$") return null;
+	const normalized = t.replace(/[$,\s]/g, "");
+	if (normalized === "" || normalized === "-" || normalized === ".")
+		return null;
+	if (!/^-?\d*\.?\d*$/.test(normalized)) return null;
+	const n = Number(normalized);
+	return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Hourly bill or pay rate, e.g. `$120.00/hr`.
+ * Use `{ round: true, fractionDigits: 0 }` for whole-dollar rates.
+ */
+export function formatUsdPerHour(
+	rate: number | null | undefined,
+	options?: { fractionDigits?: number; round?: boolean },
+): string {
+	if (rate == null || Number.isNaN(rate)) return "—";
+	let r = rate;
+	if (options?.round) {
+		r = Math.round(r);
+	}
+	const fd = options?.fractionDigits ?? 2;
+	return `${formatCurrency(r, USD_CURRENCY_CODE, USD_LOCALE, fd, fd)}/hr`;
+}
+
+/** Chart Y-axis: `$1.2M`, `$250K`, or full USD for smaller values. */
+export function formatUsdAxisTick(value: number): string {
+	if (value >= 1_000_000) {
+		return `$${(value / 1_000_000).toFixed(1)}M`;
+	}
+	if (value >= 1000) {
+		return `$${Math.round(value / 1000)}K`;
+	}
+	return formatCurrency(value, USD_CURRENCY_CODE, USD_LOCALE, 0, 0);
 }
 
 export const deepTrim = (obj: unknown): unknown => {

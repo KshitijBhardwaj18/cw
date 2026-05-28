@@ -1,10 +1,10 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type Session, type User } from "@repo/db";
-import { sendMail, signInOTPTemplate } from "@repo/mail";
 import type { BetterAuthOptions } from "better-auth";
 import { type Auth, betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP, magicLink } from "better-auth/plugins";
+import { type AuthPortalKind, sendOtpVerificationEmail } from "./auth-otp-mail";
 import { orgDelegationPlugin } from "./auth-plugins/org-delegation.plugin";
 import { config } from "./config";
 
@@ -21,6 +21,7 @@ export const prismaClient = new PrismaClient({
 function createAuthOptions(overrides: {
 	basePath: string;
 	cookiePrefix: string;
+	authPortalKind: AuthPortalKind;
 }): BetterAuthOptions {
 	return {
 		database: prismaAdapter(prismaClient, {
@@ -64,10 +65,18 @@ function createAuthOptions(overrides: {
 			},
 			cookiePrefix: overrides.cookiePrefix,
 			defaultCookieAttributes: {
-				...(config.betterAuthDomain ? { domain: config.betterAuthDomain } : {}),
 				httpOnly: true,
 				secure: config.environment !== "development",
 				sameSite: "lax",
+			},
+			ipAddress: {
+				ipAddressHeaders: [
+					"cf-connecting-ip",
+					"x-real-ip",
+					"x-client-ip",
+					"true-client-ip",
+					"x-forwarded-for",
+				],
 			},
 		},
 		plugins: [
@@ -82,24 +91,17 @@ function createAuthOptions(overrides: {
 			emailOTP({
 				...(process.env.QA_MODE === "true" ||
 				config.environment === "development"
-					? { generateOTP: () => "123456" } // Hardcoded qa code
+					? { generateOTP: () => "123456" } // Hardcoded QA code
 					: {}),
-				async sendVerificationOTP({ email, otp, type }) {
-					const subject = {
-						"sign-in": "Sign In OTP",
-						"email-verification": "Verify Your Email",
-						"forget-password": "Reset Your Password",
-					}[type];
-					if (config.environment === "development") {
-						console.log(`OTP: ${otp} for email: ${email}`);
-					} else {
-						await sendMail(config.mail, {
-							to: email,
-							subject: subject,
-							text: signInOTPTemplate(email, otp),
-						});
-					}
-				},
+				sendVerificationOTP: ({ email, otp, type }, ctx) =>
+					sendOtpVerificationEmail({
+						prisma: prismaClient,
+						authPortalKind: overrides.authPortalKind,
+						email,
+						otp,
+						type,
+						ctx,
+					}),
 				disableSignUp: true,
 				otpLength: 6,
 				expiresIn: 300,
@@ -111,12 +113,12 @@ function createAuthOptions(overrides: {
 			enabled: true,
 			customRules: {
 				"/sign-in/email-otp": {
-					window: 60 * 5, // 5 minutes
-					max: 5,
+					window: 60 * 5,
+					max: 20,
 				},
 				"/email-otp/send-verification-otp": {
-					window: 60, // 1 minute
-					max: 5,
+					window: 60,
+					max: 10,
 				},
 			},
 		},
@@ -162,12 +164,17 @@ function createAuthOptions(overrides: {
 }
 
 export const authAdmin = betterAuth(
-	createAuthOptions({ basePath: "/api/auth/admin", cookiePrefix: "admin" }),
+	createAuthOptions({
+		basePath: "/api/auth/admin",
+		cookiePrefix: "admin",
+		authPortalKind: "admin",
+	}),
 ) as unknown as Auth;
 
 const orgBaseOptions = createAuthOptions({
 	basePath: "/api/auth/org",
 	cookiePrefix: "org",
+	authPortalKind: "org",
 });
 const orgDelegation = orgDelegationPlugin({
 	prisma: prismaClient,

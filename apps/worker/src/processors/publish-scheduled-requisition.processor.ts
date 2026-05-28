@@ -20,12 +20,7 @@ export async function runPublishScheduledRequisitionProcessor(
 		},
 	});
 	if (!row) return;
-	if (
-		row.status !== RequisitionStatus.ACTIVE &&
-		row.status !== RequisitionStatus.APPROVED
-	) {
-		return;
-	}
+	if (row.status !== RequisitionStatus.SCHEDULED) return;
 	if (row.publishMode !== PublishMode.SCHEDULED) return;
 	if (!row.scheduledPublishAt) return;
 

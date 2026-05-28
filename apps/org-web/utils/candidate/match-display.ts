@@ -23,6 +23,13 @@ export function formatMatchShiftLabel(job: CandidateMatchListItem): string {
 	return "Shift TBD";
 }
 
+export function formatMatchSpecialtyLabel(
+	job: CandidateMatchListItem,
+): string | null {
+	if (!job.specialties || job.specialties.length === 0) return null;
+	return job.specialties.map((s) => s.name).join(", ");
+}
+
 export function formatMatchFacilityLabel(job: CandidateMatchListItem): string {
 	const location =
 		job.locationCity && job.locationState

@@ -12,9 +12,9 @@ import { PaginatedQueryDto } from "src/common/dto/paginated-query.dto";
 const CARD_STATUS_VALUES = [
 	"all",
 	"OPEN",
-	"OFFER_ACCEPTED",
 	"FILLED",
 	"DRAFT",
+	"CANCELLED",
 ] as const;
 
 export class QueryRequisitionsDto extends PaginatedQueryDto {

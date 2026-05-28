@@ -28,7 +28,7 @@ export function BulkReminderDialog({
 	targetType,
 	count,
 	onConfirm,
-}: BulkReminderDialogProps) {
+}: Readonly<BulkReminderDialogProps>) {
 	const [message, setMessage] = useState(
 		`Hello,\n\nOur records show you have missing time entries for recent shifts. Please ensure all time is submitted within the 48-hour deadline to avoid payment delays.`,
 	);

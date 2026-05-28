@@ -19,7 +19,7 @@ const TAB_ITEMS: Array<{ key: string; label: string }> = [
 	{ key: "organization", label: "Organization Users" },
 ];
 
-const UsersHeader = ({ activeTab }: UsersHeaderProps) => {
+const UsersHeader = ({ activeTab }: Readonly<UsersHeaderProps>) => {
 	const { data: mspOptions } = useMspOptions();
 	const [isUserFormDialogOpen, setIsUserFormDialogOpen] = useState(false);
 	const [isImportUserDialogOpen, setIsImportUserDialogOpen] = useState(false);

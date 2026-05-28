@@ -1,4 +1,4 @@
-import type { PagePaginatedResponse } from "@repo/shared";
+import type { PagePaginatedResponse, TimesheetEntryStatus } from "@repo/shared";
 import { ApiClient } from "@/lib/api-client";
 
 const BASE = "/api/org/timekeeping/vendor";
@@ -47,6 +47,7 @@ export type VendorTimekeepingEntriesQuery = {
 	page?: number;
 	limit?: number;
 	search?: string;
+	status?: TimesheetEntryStatus;
 };
 
 export type UpdateVendorTimekeepingEntryInput = {
@@ -88,5 +89,33 @@ export class VendorTimekeepingService {
 		return ApiClient.post<{ updated: number }>(`${BASE}/submit`, {
 			entryIds,
 		});
+	}
+
+	static async internalUpload(file: File) {
+		const formData = new FormData();
+		formData.append("file", file);
+		return ApiClient.request<{
+			jobId: string;
+			fileName: string;
+			status: string;
+		}>({
+			method: "POST",
+			url: `${BASE}/internal-upload`,
+			data: formData,
+		});
+	}
+
+	static async getUploadJob(jobId: string) {
+		return ApiClient.get<{
+			id: string;
+			status: string;
+			result: {
+				created: number;
+				skipped: number;
+				failed: number;
+				errors: { row: number; message: string }[];
+			} | null;
+			completedAt: string | null;
+		}>(`${BASE}/internal-upload/${jobId}`);
 	}
 }

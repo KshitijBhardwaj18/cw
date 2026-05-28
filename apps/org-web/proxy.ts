@@ -50,7 +50,6 @@ export async function proxy(request: NextRequest) {
 		const org = (await res.json()) as PublicOrgResponse;
 
 		const requestHeaders = new Headers(request.headers);
-		requestHeaders.set("x-org-id", org.id);
 		requestHeaders.set("x-org-slug", org.slug);
 		requestHeaders.set("x-org-name", org.name);
 		requestHeaders.set("x-org-timezone", org.timeZone);

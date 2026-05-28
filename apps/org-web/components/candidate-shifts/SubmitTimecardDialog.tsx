@@ -14,11 +14,11 @@ import { Label } from "@repo/ui/components/label";
 import { Textarea } from "@repo/ui/components/textarea";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import { cn } from "@repo/ui/lib/utils";
-import { format, parseISO } from "date-fns";
 import { ArrowRight, Plus } from "lucide-react";
 import { useId } from "react";
 import { useSubmitShiftTimecardDialog } from "@/hooks/candidate/use-submit-shift-timecard-dialog";
 import { useSubmitTimecardTableColumns } from "@/hooks/candidate/use-submit-timecard-table-columns";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { CandidateShiftListItem } from "@/types/candidate-shifts";
 import { computeShiftHours } from "@/utils/time-entry";
 
@@ -36,8 +36,9 @@ export function SubmitTimecardDialog({
 	shift,
 	mode = "candidate",
 	vendorAssignmentId,
-}: SubmitTimecardDialogProps) {
+}: Readonly<SubmitTimecardDialogProps>) {
 	const formId = useId();
+	const { fmtShortDate } = useUserTimezone();
 
 	const {
 		rows,
@@ -60,9 +61,7 @@ export function SubmitTimecardDialog({
 		onOpenChange: onClose,
 	});
 
-	const dateLabel = shift
-		? format(parseISO(shift.date), "EEEE, MMM d, yyyy")
-		: "";
+	const dateLabel = shift ? fmtShortDate(shift.date) : "";
 
 	const columns = useSubmitTimecardTableColumns({
 		variant: "shift",
@@ -97,8 +96,8 @@ export function SubmitTimecardDialog({
 							<div className="text-muted-foreground space-y-1 text-sm">
 								<p>{shift.title}</p>
 								<p>
-									{format(parseISO(shift.date), "EEEE, MMMM d, yyyy")} ·
-									Scheduled: {shift.startTime} – {shift.endTime}
+									{fmtShortDate(shift.date)} · Scheduled: {shift.startTime} –{" "}
+									{shift.endTime}
 								</p>
 							</div>
 						</DialogDescription>

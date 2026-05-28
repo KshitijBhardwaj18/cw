@@ -15,6 +15,7 @@ import {
 	RequisitionType,
 	ShiftType,
 	SubmissionStage,
+	UserRole,
 	WorkflowType,
 } from "@repo/db";
 import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
@@ -32,7 +33,6 @@ const DETAIL_SELECT = {
 	templateId: true,
 	jobTitle: true,
 	organizationOccupationId: true,
-	organizationSpecialtyId: true,
 	locationId: true,
 	departmentId: true,
 	unitName: true,
@@ -67,8 +67,12 @@ const DETAIL_SELECT = {
 	organizationOccupation: {
 		select: { occupation: { select: { name: true } } },
 	},
-	organizationSpecialty: {
-		select: { specialty: { select: { name: true } } },
+	requisitionSpecialties: {
+		select: {
+			organizationSpecialty: {
+				select: { id: true, specialty: { select: { id: true, name: true } } },
+			},
+		},
 	},
 	hiringManager: { select: { name: true } },
 	template: { select: { templateName: true } },
@@ -131,7 +135,6 @@ const UPDATE_DEFAULTS_SELECT = {
 	templateId: true,
 	jobTitle: true,
 	organizationOccupationId: true,
-	organizationSpecialtyId: true,
 	locationId: true,
 	departmentId: true,
 	unitName: true,
@@ -162,6 +165,9 @@ const UPDATE_DEFAULTS_SELECT = {
 	publishedAt: true,
 	status: true,
 	requisitionVendors: { select: { vendorId: true } },
+	requisitionSpecialties: {
+		select: { organizationSpecialtyId: true },
+	},
 	acceptanceCriteria: { select: { complianceListItemId: true } },
 	complianceChecklist: {
 		select: {
@@ -181,15 +187,14 @@ const LIST_CARD_INCLUDE = {
 	organizationOccupation: {
 		select: { id: true, occupation: { select: { name: true } } },
 	},
-	organizationSpecialty: {
-		select: { id: true, specialty: { select: { name: true } } },
+	requisitionSpecialties: {
+		select: {
+			organizationSpecialty: {
+				select: { id: true, specialty: { select: { id: true, name: true } } },
+			},
+		},
 	},
 	hiringManager: { select: { id: true, name: true } },
-	submissions: {
-		where: { stage: SubmissionStage.ACCEPTED },
-		take: 1,
-		select: { id: true },
-	},
 } as const;
 
 const PENDING_APPROVAL_INCLUDE = {
@@ -208,6 +213,10 @@ type ListRow = Prisma.RequisitionGetPayload<{
 type PendingApprovalRow = Prisma.RequisitionGetPayload<{
 	include: typeof PENDING_APPROVAL_INCLUDE;
 }>;
+
+type RequisitionApprover =
+	| { kind: "platform-admin" }
+	| { kind: "member"; role: MemberRole };
 
 type SubmissionPipelineCounts = {
 	submitted: number;
@@ -341,24 +350,17 @@ function mapWorkflowToSubmissionType(
 function shiftTypeLabel(st: ShiftType | null): string {
 	if (!st) return "Shift";
 	const labels: Record<ShiftType, string> = {
-		[ShiftType.DAYS]: "Day",
-		[ShiftType.EVENINGS]: "Evening",
-		[ShiftType.NIGHTS]: "Night",
-		[ShiftType.SWING]: "Swing",
-		[ShiftType.ROTATING]: "Rotating",
-		[ShiftType.WEEKENDS_ONLY]: "Weekend",
-		[ShiftType.ON_CALL]: "On-call",
+		[ShiftType.DAY]: "Day Shift",
+		[ShiftType.EVENING]: "Evening Shift",
+		[ShiftType.NIGHT]: "Night Shift",
+		[ShiftType.ROTATING]: "Rotating Shift",
+		[ShiftType.FLEXIBLE]: "Flexible",
 	};
 	return labels[st] ?? st;
 }
 
-function computeDisplayStatus(
-	row: ListRow,
-): "OPEN" | "OFFER_ACCEPTED" | "FILLED" | "DRAFT" {
-	if (row.status === RequisitionStatus.FILLED) return "FILLED";
-	if (row.status === RequisitionStatus.DRAFT) return "DRAFT";
-	if (row.submissions.length > 0) return "OFFER_ACCEPTED";
-	return "OPEN";
+function computeDisplayStatus(row: ListRow): `${RequisitionStatus}` {
+	return row.status;
 }
 
 function formatShiftLabel(row: ListRow): string {
@@ -384,11 +386,7 @@ function formatExpectedStart(row: ListRow): {
 	if (!row.startDate) return { iso: "", display: "—" };
 	const d = row.startDate;
 	const iso = d.toISOString().slice(0, 10);
-	const display = d.toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
+	const display = d.toISOString();
 	return { iso, display };
 }
 
@@ -401,22 +399,12 @@ function buildCardStatusWhere(
 			return { status: RequisitionStatus.DRAFT };
 		case "FILLED":
 			return { status: RequisitionStatus.FILLED };
-		case "OFFER_ACCEPTED":
-			return {
-				status: { not: RequisitionStatus.FILLED },
-				submissions: { some: { stage: SubmissionStage.ACCEPTED } },
-			};
+		case "CANCELLED":
+			return { status: RequisitionStatus.CANCELLED };
 		case "OPEN":
 			return {
 				status: {
-					in: [
-						RequisitionStatus.PUBLISHED,
-						RequisitionStatus.ACTIVE,
-						RequisitionStatus.APPROVED,
-					],
-				},
-				NOT: {
-					submissions: { some: { stage: SubmissionStage.ACCEPTED } },
+					in: [RequisitionStatus.PUBLISHED, RequisitionStatus.SCHEDULED],
 				},
 			};
 		default:
@@ -455,8 +443,7 @@ export class RequisitionsService {
 				row.status === RequisitionStatus.FILLED ||
 				row.publishMode !== PublishMode.SCHEDULED ||
 				!row.scheduledPublishAt ||
-				(row.status !== RequisitionStatus.ACTIVE &&
-					row.status !== RequisitionStatus.APPROVED)
+				row.status !== RequisitionStatus.SCHEDULED
 			) {
 				await this.backgroundJobs.cancelScheduledRequisitionPublish(
 					requisitionId,
@@ -474,7 +461,7 @@ export class RequisitionsService {
 				err instanceof Error ? err.stack : undefined,
 			);
 			throw new ServiceUnavailableException(
-				"Could not schedule automatic publish. Check that Redis is available and try again.",
+				"Could not schedule the publish job. Please try again in a moment.",
 			);
 		}
 	}
@@ -498,7 +485,7 @@ export class RequisitionsService {
 			where: { id: orgId },
 			select: { id: true },
 		});
-		if (!org) throw new NotFoundException("Organization not found");
+		if (!org) throw new NotFoundException("Organization not found.");
 	}
 
 	private async validateCreatePayload(
@@ -509,10 +496,15 @@ export class RequisitionsService {
 			requiresApproval: boolean;
 			approvalRole: MemberRole | null;
 		} | null;
+		organizationSpecialtyIds: string[];
 	}> {
+		const specialtyIds = Array.from(
+			new Set(dto.organizationSpecialtyIds ?? []),
+		);
+
 		const [
 			orgOccupation,
-			orgSpecialty,
+			orgSpecialties,
 			location,
 			department,
 			checklist,
@@ -523,22 +515,29 @@ export class RequisitionsService {
 				where: { id: dto.organizationOccupationId, organizationId: orgId },
 				select: { id: true },
 			}),
-			dto.organizationSpecialtyId
-				? this.prisma.organizationSpecialty.findFirst({
+			specialtyIds.length > 0
+				? this.prisma.organizationSpecialty.findMany({
 						where: {
-							id: dto.organizationSpecialtyId,
+							id: { in: specialtyIds },
 							organizationId: orgId,
 						},
-						select: { id: true },
+						select: { id: true, organizationOccupationId: true },
 					})
-				: Promise.resolve(null),
+				: Promise.resolve(
+						[] as Array<{ id: string; organizationOccupationId: string }>,
+					),
 			this.prisma.organizationLocation.findFirst({
 				where: { id: dto.locationId, organizationId: orgId },
 				select: { id: true },
 			}),
 			this.prisma.department.findFirst({
 				where: { id: dto.departmentId, organizationId: orgId },
-				select: { id: true, organizationOccupationId: true },
+				select: {
+					id: true,
+					departmentOccupations: {
+						select: { organizationOccupationId: true },
+					},
+				},
 			}),
 			this.prisma.complianceChecklist.findFirst({
 				where: {
@@ -569,27 +568,43 @@ export class RequisitionsService {
 				"Selected occupation is not valid for this organization",
 			);
 		}
-		if (dto.organizationSpecialtyId && !orgSpecialty) {
+		if (
+			specialtyIds.length > 0 &&
+			orgSpecialties.length !== specialtyIds.length
+		) {
 			throw new BadRequestException(
-				"Selected specialty is not valid for this organization",
+				"One or more selected specialties are not valid for this organization",
+			);
+		}
+		const mismatchedSpecialty = orgSpecialties.find(
+			(s) => s.organizationOccupationId !== orgOccupation.id,
+		);
+		if (mismatchedSpecialty) {
+			throw new BadRequestException(
+				"One or more selected specialties do not belong to the selected occupation",
 			);
 		}
 		if (!location) {
-			throw new BadRequestException("Location not found for this organization");
+			throw new BadRequestException(
+				"Location not found for this organization.",
+			);
 		}
 		if (!department) {
 			throw new BadRequestException(
 				"Department not found for this organization",
 			);
 		}
-		if (!department.organizationOccupationId) {
+		const departmentOccupationIds = department.departmentOccupations.map(
+			(o) => o.organizationOccupationId,
+		);
+		if (departmentOccupationIds.length === 0) {
 			throw new BadRequestException(
-				"This department is missing an organization occupation. Update the department (occupation) before using it for a requisition",
+				"This department has no occupations configured. Update the department before using it for a requisition",
 			);
 		}
-		if (department.organizationOccupationId !== orgOccupation.id) {
+		if (!departmentOccupationIds.includes(orgOccupation.id)) {
 			throw new BadRequestException(
-				"Department does not match selected occupation",
+				"Department does not support the selected occupation. Update the department before using it for a requisition.",
 			);
 		}
 		if (!checklist) {
@@ -603,13 +618,13 @@ export class RequisitionsService {
 			);
 		}
 		if (dto.templateId && !template) {
-			throw new BadRequestException("Requisition template not found");
+			throw new BadRequestException("Requisition template not found.");
 		}
 
 		if (dto.vendorAccess === "SELECTED_VENDORS") {
 			const ids = dto.selectedVendorIds ?? [];
 			if (ids.length === 0) {
-				throw new BadRequestException("Select at least one vendor");
+				throw new BadRequestException("Select at least one vendor.");
 			}
 			const count = await this.prisma.organizationVendor.count({
 				where: { organizationId: orgId, vendorId: { in: ids } },
@@ -624,15 +639,21 @@ export class RequisitionsService {
 		if (dto.publishMode === "SCHEDULE_PUBLISH_DATE") {
 			if (!dto.scheduledPublishAt) {
 				throw new BadRequestException(
-					"scheduledPublishAt is required for scheduled publishing",
+					"Choose a publish date and time for the scheduled requisition.",
 				);
 			}
 			const t = new Date(dto.scheduledPublishAt).getTime();
 			if (Number.isNaN(t)) {
-				throw new BadRequestException(
-					"scheduledPublishAt must be a valid date",
-				);
+				throw new BadRequestException("Enter a valid publish date and time.");
 			}
+		}
+
+		// End-date ordering applies to both create and update — a backwards
+		// range is never valid. Past-startDate is checked only in create()
+		// because legitimate edits on long-running requisitions can have a
+		// startDate that's already in the past.
+		if (dto.endDate && dto.startDate && dto.endDate < dto.startDate) {
+			throw new BadRequestException("End date must be on or after start date.");
 		}
 
 		if (dto.acceptanceCriteriaIds.length > 0) {
@@ -657,6 +678,7 @@ export class RequisitionsService {
 						approvalRole: template.approvalRole,
 					}
 				: null,
+			organizationSpecialtyIds: orgSpecialties.map((s) => s.id),
 		};
 	}
 
@@ -669,6 +691,18 @@ export class RequisitionsService {
 		const occ = row.organizationOccupation;
 		const dept = row.department;
 		const billRateNum = row.billRate != null ? Number(row.billRate) : null;
+		const specialtyNames = row.requisitionSpecialties
+			.map((s) => s.organizationSpecialty.specialty.name)
+			.filter(Boolean);
+		const specialtyLabel =
+			specialtyNames.length === 0
+				? "—"
+				: specialtyNames.length === 1
+					? specialtyNames[0]
+					: `${specialtyNames[0]} (+${specialtyNames.length - 1})`;
+		const specialtyValues = row.requisitionSpecialties
+			.map((s) => s.organizationSpecialty.id)
+			.filter(Boolean);
 		return {
 			id: row.id,
 			title: row.jobTitle ?? "Untitled requisition",
@@ -678,8 +712,10 @@ export class RequisitionsService {
 			occupationValue: row.organizationOccupationId ?? "",
 			department: dept?.name ?? "—",
 			departmentValue: row.departmentId ?? "",
-			specialty: row.organizationSpecialty?.specialty.name ?? "—",
-			specialtyValue: row.organizationSpecialtyId ?? "",
+			specialty: specialtyLabel,
+			specialties: specialtyNames,
+			specialtyValue: specialtyValues[0] ?? "",
+			specialtyValues,
 			expectedStartDateIso: iso,
 			durationLabel: formatDurationLabel(row.type, row),
 			shiftLabel: formatShiftLabel(row),
@@ -731,11 +767,7 @@ export class RequisitionsService {
 			AND: [
 				{
 					status: {
-						notIn: [
-							RequisitionStatus.CANCELLED,
-							RequisitionStatus.CLOSED,
-							RequisitionStatus.PENDING_APPROVAL,
-						],
+						notIn: [RequisitionStatus.PENDING_APPROVAL],
 					},
 				},
 				...(query.cardStatus && query.cardStatus !== "all"
@@ -750,7 +782,15 @@ export class RequisitionsService {
 					? [{ organizationOccupationId: query.organizationOccupationId }]
 					: []),
 				...(query.organizationSpecialtyId
-					? [{ organizationSpecialtyId: query.organizationSpecialtyId }]
+					? [
+							{
+								requisitionSpecialties: {
+									some: {
+										organizationSpecialtyId: query.organizationSpecialtyId,
+									},
+								},
+							},
+						]
 					: []),
 				...(expectedStartWhere ? [expectedStartWhere] : []),
 				...(query.excludeProjectId
@@ -836,7 +876,7 @@ export class RequisitionsService {
 			where: { id, organizationId: orgId },
 			select: DETAIL_SELECT,
 		});
-		if (!row) throw new NotFoundException("Requisition not found");
+		if (!row) throw new NotFoundException("Requisition not found.");
 
 		const submissionType = mapWorkflowToSubmissionType(row.workflowType);
 		const vendorAccess =
@@ -861,7 +901,17 @@ export class RequisitionsService {
 			locationName: row.location?.name ?? null,
 			departmentName: row.department?.name ?? null,
 			occupationName: row.organizationOccupation?.occupation.name ?? null,
-			specialtyName: row.organizationSpecialty?.specialty.name ?? null,
+			specialtyName: (() => {
+				const names = row.requisitionSpecialties
+					.map((s) => s.organizationSpecialty.specialty.name)
+					.filter(Boolean);
+				if (names.length === 0) return null;
+				if (names.length === 1) return names[0];
+				return `${names[0]} (+${names.length - 1})`;
+			})(),
+			specialtyNames: row.requisitionSpecialties.map(
+				(s) => s.organizationSpecialty.specialty.name,
+			),
 			hiringManagerName: row.hiringManager?.name ?? null,
 			requirementNames: resolveRequirementNamesFromDetailRow(row),
 			jobDetails: {
@@ -870,8 +920,10 @@ export class RequisitionsService {
 				department: row.departmentId ?? "",
 				unitName: row.unitName ?? "",
 				occupation: row.organizationOccupationId ?? "",
-				specialty: row.organizationSpecialtyId ?? "",
-				shiftType: (row.shiftType ?? ShiftType.NIGHTS) as ShiftType,
+				specialty: row.requisitionSpecialties.map(
+					(s) => s.organizationSpecialty.id,
+				),
+				shiftType: (row.shiftType ?? ShiftType.FLEXIBLE) as ShiftType,
 				startDate: row.startDate
 					? row.startDate.toISOString().slice(0, 10)
 					: "",
@@ -914,32 +966,46 @@ export class RequisitionsService {
 	}
 
 	async create(orgId: string, dto: CreateRequisitionDto, userId: string) {
-		const { templateApproval } = await this.validateCreatePayload(orgId, dto);
+		// Reject past start dates only on create — editing an existing job
+		// whose startDate is already past must still succeed (see update()).
+		// Compare YYYY-MM-DD strings directly: no timezone math, picker emits
+		// local calendar dates which are the canonical day on the server.
+		const todayIso = new Date().toISOString().slice(0, 10);
+		if (dto.startDate && dto.startDate < todayIso) {
+			throw new BadRequestException("Start date cannot be in the past.");
+		}
+		const {
+			templateApproval,
+			organizationSpecialtyIds: validatedSpecialtyIds,
+		} = await this.validateCreatePayload(orgId, dto);
 
 		const workflowType = mapSubmissionTypeToWorkflow(dto.submissionType);
 		const publishModeDb = mapFePublishModeToDb(dto.publishMode);
+		const requiresApproval = templateApproval?.requiresApproval ?? false;
+		const approvalRole = templateApproval?.approvalRole ?? null;
+
 		let status: RequisitionStatus = RequisitionStatus.DRAFT;
 		let publishedAt: Date | null = null;
 		let scheduledPublishAt: Date | null = null;
 
 		if (dto.publishMode === "PUBLISH_IMMEDIATELY") {
-			status = RequisitionStatus.PUBLISHED;
-			publishedAt = new Date();
+			if (requiresApproval) {
+				status = RequisitionStatus.PENDING_APPROVAL;
+			} else {
+				status = RequisitionStatus.PUBLISHED;
+				publishedAt = new Date();
+			}
 		} else if (dto.publishMode === "SCHEDULE_PUBLISH_DATE") {
 			scheduledPublishAt = new Date(dto.scheduledPublishAt as string);
-			status = RequisitionStatus.ACTIVE;
+			status = requiresApproval
+				? RequisitionStatus.PENDING_APPROVAL
+				: RequisitionStatus.SCHEDULED;
 		}
 
 		const whoCanSubmit =
 			dto.vendorAccess === "SELECTED_VENDORS"
 				? "selected_vendors"
 				: "all_vendors";
-		const requiresApproval = templateApproval?.requiresApproval ?? false;
-		const approvalRole = templateApproval?.approvalRole ?? null;
-		if (requiresApproval) {
-			status = RequisitionStatus.PENDING_APPROVAL;
-			publishedAt = null;
-		}
 		const vendorIds =
 			dto.vendorAccess === "SELECTED_VENDORS"
 				? (dto.selectedVendorIds ?? [])
@@ -953,7 +1019,6 @@ export class RequisitionsService {
 					templateId: dto.templateId ?? null,
 					jobTitle: dto.jobTitle,
 					organizationOccupationId: dto.organizationOccupationId,
-					organizationSpecialtyId: dto.organizationSpecialtyId ?? null,
 					locationId: dto.locationId,
 					departmentId: dto.departmentId,
 					unitName: dto.unitName ?? null,
@@ -991,6 +1056,16 @@ export class RequisitionsService {
 				select: { id: true },
 			});
 
+			if (validatedSpecialtyIds.length > 0) {
+				await tx.requisitionSpecialty.createMany({
+					data: validatedSpecialtyIds.map((organizationSpecialtyId) => ({
+						requisitionId: created.id,
+						organizationSpecialtyId,
+					})),
+					skipDuplicates: true,
+				});
+			}
+
 			if (dto.acceptanceCriteriaIds.length > 0) {
 				await tx.requisitionAcceptanceCriterion.createMany({
 					data: dto.acceptanceCriteriaIds.map((complianceListItemId) => ({
@@ -1010,14 +1085,10 @@ export class RequisitionsService {
 					skipDuplicates: true,
 				});
 			}
-
 			return created.id;
 		});
 
 		await this.syncScheduledRequisitionPublishJob(createdId);
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			orgId,
-		);
 
 		return this.findOne(orgId, createdId);
 	}
@@ -1032,7 +1103,7 @@ export class RequisitionsService {
 			where: { id, organizationId: orgId },
 			select: UPDATE_DEFAULTS_SELECT,
 		});
-		if (!row) throw new NotFoundException("Requisition not found");
+		if (!row) throw new NotFoundException("Requisition not found.");
 
 		const submissionType = mapWorkflowToSubmissionType(row.workflowType);
 		const vendorAccess =
@@ -1043,18 +1114,15 @@ export class RequisitionsService {
 		const scheduledExistingIso = row.scheduledPublishAt?.toISOString();
 
 		const full: CreateRequisitionDto = {
-			type: dto.type ?? row.type,
-			templateId:
-				dto.templateId !== undefined
-					? dto.templateId || undefined
-					: (row.templateId ?? undefined),
+			type: row.type,
+			templateId: row.templateId ?? undefined,
 			jobTitle: dto.jobTitle ?? row.jobTitle ?? "",
 			organizationOccupationId:
 				dto.organizationOccupationId ?? row.organizationOccupationId ?? "",
-			organizationSpecialtyId:
-				dto.organizationSpecialtyId !== undefined
-					? (dto.organizationSpecialtyId ?? undefined)
-					: (row.organizationSpecialtyId ?? undefined),
+			organizationSpecialtyIds:
+				dto.organizationSpecialtyIds !== undefined
+					? dto.organizationSpecialtyIds
+					: row.requisitionSpecialties.map((s) => s.organizationSpecialtyId),
 			locationId: dto.locationId ?? row.locationId ?? "",
 			departmentId: dto.departmentId ?? row.departmentId ?? "",
 			unitName:
@@ -1063,7 +1131,7 @@ export class RequisitionsService {
 					: (row.unitName ?? undefined),
 			jobSummary: dto.jobSummary ?? row.jobSummary ?? "",
 			benefitsPerks: dto.benefitsPerks ?? row.benefitsPerks ?? [],
-			shiftType: dto.shiftType ?? row.shiftType ?? ShiftType.NIGHTS,
+			shiftType: dto.shiftType ?? row.shiftType ?? ShiftType.FLEXIBLE,
 			startDate:
 				dto.startDate ?? row.startDate?.toISOString().slice(0, 10) ?? "",
 			endDate:
@@ -1116,11 +1184,14 @@ export class RequisitionsService {
 			!full.scheduledPublishAt
 		) {
 			throw new BadRequestException(
-				"scheduledPublishAt is required for scheduled publishing",
+				"Choose a publish date and time for the scheduled requisition.",
 			);
 		}
 
-		const { templateApproval } = await this.validateCreatePayload(orgId, full);
+		const {
+			templateApproval,
+			organizationSpecialtyIds: validatedSpecialtyIds,
+		} = await this.validateCreatePayload(orgId, full);
 
 		const workflowType = mapSubmissionTypeToWorkflow(full.submissionType);
 		const publishModeDb = mapFePublishModeToDb(full.publishMode);
@@ -1146,7 +1217,7 @@ export class RequisitionsService {
 			} else if (full.publishMode === "SCHEDULE_PUBLISH_DATE") {
 				status = requiresApproval
 					? RequisitionStatus.PENDING_APPROVAL
-					: RequisitionStatus.ACTIVE;
+					: RequisitionStatus.SCHEDULED;
 				scheduledPublishAt = new Date(full.scheduledPublishAt as string);
 				publishedAt = null;
 			}
@@ -1166,6 +1237,9 @@ export class RequisitionsService {
 				where: { requisitionId: id },
 			});
 			await tx.requisitionVendor.deleteMany({ where: { requisitionId: id } });
+			await tx.requisitionSpecialty.deleteMany({
+				where: { requisitionId: id },
+			});
 
 			await tx.requisition.update({
 				where: { id },
@@ -1174,7 +1248,6 @@ export class RequisitionsService {
 					templateId: full.templateId ?? null,
 					jobTitle: full.jobTitle,
 					organizationOccupationId: full.organizationOccupationId,
-					organizationSpecialtyId: full.organizationSpecialtyId ?? null,
 					locationId: full.locationId,
 					departmentId: full.departmentId,
 					unitName: full.unitName ?? null,
@@ -1228,17 +1301,40 @@ export class RequisitionsService {
 					skipDuplicates: true,
 				});
 			}
+
+			if (validatedSpecialtyIds.length > 0) {
+				await tx.requisitionSpecialty.createMany({
+					data: validatedSpecialtyIds.map((organizationSpecialtyId) => ({
+						requisitionId: id,
+						organizationSpecialtyId,
+					})),
+					skipDuplicates: true,
+				});
+			}
 		});
 
 		await this.syncScheduledRequisitionPublishJob(id);
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			orgId,
-		);
 
 		return this.findOne(orgId, id);
 	}
 
-	private async getActiveMemberRole(orgId: string, userId: string) {
+	private async getActiveMemberRole(
+		orgId: string,
+		userId: string,
+	): Promise<RequisitionApprover> {
+		// Platform admins (SUPER_ADMIN / GENERAL_ADMIN) are not org members but
+		// must be able to act on any org's requisition approval queue.
+		const user = await this.prisma.user.findUnique({
+			where: { id: userId },
+			select: { role: true },
+		});
+		if (
+			user?.role === UserRole.SUPER_ADMIN ||
+			user?.role === UserRole.GENERAL_ADMIN
+		) {
+			return { kind: "platform-admin" };
+		}
+
 		const member = await this.prisma.member.findFirst({
 			where: {
 				organizationId: orgId,
@@ -1248,9 +1344,9 @@ export class RequisitionsService {
 			select: { role: true },
 		});
 		if (!member) {
-			throw new NotFoundException("Active organization membership not found");
+			throw new NotFoundException("Active organization membership not found.");
 		}
-		return member.role;
+		return { kind: "member", role: member.role };
 	}
 
 	private mapPendingApprovalCard(row: PendingApprovalRow) {
@@ -1259,24 +1355,14 @@ export class RequisitionsService {
 					.filter(Boolean)
 					.join(", ")
 			: "—";
-		const submitted = row.createdAt.toLocaleDateString("en-US", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		});
+		const submitted = row.createdAt.toISOString();
 		return {
 			id: row.id,
 			title: row.jobTitle ?? "Untitled requisition",
 			location: locationLabel,
-			submittedLabel: `Submitted: ${submitted}`,
+			submittedAt: submitted,
 			hiringManager: row.hiringManager?.name ?? "—",
-			expectedStartDate: row.startDate
-				? row.startDate.toLocaleDateString("en-US", {
-						month: "short",
-						day: "numeric",
-						year: "numeric",
-					})
-				: "—",
+			expectedStartDate: row.startDate ? row.startDate.toISOString() : "—",
 			duration:
 				row.lengthWeeks && row.lengthWeeks > 0
 					? `${row.lengthWeeks} week${row.lengthWeeks === 1 ? "" : "s"}`
@@ -1301,7 +1387,7 @@ export class RequisitionsService {
 		query: { search?: string; page?: number; limit?: number },
 	) {
 		await this.ensureOrgExists(orgId);
-		const memberRole = await this.getActiveMemberRole(orgId, userId);
+		const approver = await this.getActiveMemberRole(orgId, userId);
 		const page = query.page ?? 1;
 		const limit = query.limit ?? 20;
 		const skip = (page - 1) * limit;
@@ -1310,7 +1396,7 @@ export class RequisitionsService {
 			organizationId: orgId,
 			status: RequisitionStatus.PENDING_APPROVAL,
 			requiresApproval: true,
-			approvalRole: memberRole,
+			...(approver.kind === "member" ? { approvalRole: approver.role } : {}),
 			...(search
 				? {
 						AND: [
@@ -1356,7 +1442,7 @@ export class RequisitionsService {
 
 	async approve(orgId: string, id: string, userId: string, notes?: string) {
 		await this.ensureOrgExists(orgId);
-		const memberRole = await this.getActiveMemberRole(orgId, userId);
+		const approver = await this.getActiveMemberRole(orgId, userId);
 		const row = await this.prisma.requisition.findFirst({
 			where: { id, organizationId: orgId },
 			select: {
@@ -1369,23 +1455,22 @@ export class RequisitionsService {
 				internalNotes: true,
 			},
 		});
-		if (!row) throw new NotFoundException("Requisition not found");
+		if (!row) throw new NotFoundException("Requisition not found.");
 		if (row.status !== RequisitionStatus.PENDING_APPROVAL) {
-			throw new BadRequestException("Requisition is not pending approval");
+			throw new BadRequestException("Requisition is not pending approval.");
 		}
 		if (!row.approvalRole) {
 			throw new BadRequestException(
 				"Requisition approval role is not configured",
 			);
 		}
-		if (memberRole !== row.approvalRole) {
+		if (approver.kind === "member" && approver.role !== row.approvalRole) {
 			throw new BadRequestException(
 				"You are not allowed to approve this requisition",
 			);
 		}
 
-		// Approved requisitions that are not yet publishable remain in APPROVED.
-		let status: RequisitionStatus = RequisitionStatus.APPROVED;
+		let status: RequisitionStatus = RequisitionStatus.SCHEDULED;
 		let publishedAt: Date | null = null;
 		if (row.publishMode === PublishMode.PUBLISH_IMMEDIATELY) {
 			status = RequisitionStatus.PUBLISHED;
@@ -1415,15 +1500,12 @@ export class RequisitionsService {
 			},
 		});
 		await this.syncScheduledRequisitionPublishJob(id);
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			orgId,
-		);
 		return this.findOne(orgId, id);
 	}
 
 	async reject(orgId: string, id: string, userId: string, notes?: string) {
 		await this.ensureOrgExists(orgId);
-		const memberRole = await this.getActiveMemberRole(orgId, userId);
+		const approver = await this.getActiveMemberRole(orgId, userId);
 		const row = await this.prisma.requisition.findFirst({
 			where: { id, organizationId: orgId },
 			select: {
@@ -1433,16 +1515,16 @@ export class RequisitionsService {
 				internalNotes: true,
 			},
 		});
-		if (!row) throw new NotFoundException("Requisition not found");
+		if (!row) throw new NotFoundException("Requisition not found.");
 		if (row.status !== RequisitionStatus.PENDING_APPROVAL) {
-			throw new BadRequestException("Requisition is not pending approval");
+			throw new BadRequestException("Requisition is not pending approval.");
 		}
 		if (!row.approvalRole) {
 			throw new BadRequestException(
 				"Requisition approval role is not configured",
 			);
 		}
-		if (memberRole !== row.approvalRole) {
+		if (approver.kind === "member" && approver.role !== row.approvalRole) {
 			throw new BadRequestException(
 				"You are not allowed to reject this requisition",
 			);
@@ -1464,9 +1546,6 @@ export class RequisitionsService {
 			},
 		});
 		await this.syncScheduledRequisitionPublishJob(id);
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			orgId,
-		);
 		return this.findOne(orgId, id);
 	}
 
@@ -1475,9 +1554,9 @@ export class RequisitionsService {
 			where: { id, organizationId: orgId },
 			select: { id: true, status: true },
 		});
-		if (!row) throw new NotFoundException("Requisition not found");
+		if (!row) throw new NotFoundException("Requisition not found.");
 		if (row.status === RequisitionStatus.FILLED) {
-			throw new BadRequestException("Filled requisitions cannot be cancelled");
+			throw new BadRequestException("Filled requisitions cannot be cancelled.");
 		}
 		if (row.status !== RequisitionStatus.CANCELLED) {
 			await this.prisma.requisition.update({
@@ -1490,9 +1569,6 @@ export class RequisitionsService {
 			});
 		}
 		await this.syncScheduledRequisitionPublishJob(id);
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			orgId,
-		);
 		return this.findOne(orgId, id);
 	}
 }

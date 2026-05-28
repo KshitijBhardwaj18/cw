@@ -14,8 +14,9 @@ import {
 	XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { JOB_SUBMISSION_PRIMARY_ADVANCE } from "@/constants/job-submission-primary-action";
+import { getSubmissionPrimaryAdvance } from "@/constants/job-submission-primary-action";
 import type { SubmissionListRow } from "@/constants/submissions";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	candidateInitialsFromName,
 	formatJobSubmissionStageAt,
@@ -28,6 +29,7 @@ export interface JobCandidateSubmissionRowProps {
 	onAdvance: (row: SubmissionListRow) => void;
 	onOpenHistory: (row: SubmissionListRow) => void;
 	onRequestReject: (row: SubmissionListRow) => void;
+	isInterviewRequired: boolean;
 }
 
 export function JobCandidateSubmissionRow({
@@ -36,9 +38,11 @@ export function JobCandidateSubmissionRow({
 	onAdvance,
 	onOpenHistory,
 	onRequestReject,
-}: JobCandidateSubmissionRowProps) {
+	isInterviewRequired,
+}: Readonly<JobCandidateSubmissionRowProps>) {
 	const ability = useAbility();
-	const advance = JOB_SUBMISSION_PRIMARY_ADVANCE[row.stage];
+	const { tz } = useUserTimezone();
+	const advance = getSubmissionPrimaryAdvance(row.stage, isInterviewRequired);
 	const canAct = ability.can(
 		Action.Update,
 		subjectInstance("Submission", { stage: row.stage }),
@@ -71,7 +75,7 @@ export function JobCandidateSubmissionRow({
 				<Badge variant="info">{getSubmissionStageLabel(row.stage)}</Badge>
 				<div className="text-muted-foreground flex items-center gap-1 text-xs">
 					<Clock className="size-3.5 shrink-0" />
-					{formatJobSubmissionStageAt(row.stageEnteredAt)}
+					{formatJobSubmissionStageAt(row.stageEnteredAt, tz)}
 				</div>
 			</div>
 

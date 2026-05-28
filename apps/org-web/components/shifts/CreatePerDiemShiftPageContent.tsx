@@ -6,37 +6,23 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/ui/components/card";
-import { DatePicker } from "@repo/ui/components/date-picker";
-import {
-	Field,
-	FieldDescription,
-	FieldError,
-	FieldGroup,
-	FieldLabel,
-} from "@repo/ui/components/field";
-import { Input } from "@repo/ui/components/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@repo/ui/components/select";
-import RequiredStar from "@repo/ui/general/RequiredStar";
-import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
-import { useForm, useStore } from "@tanstack/react-form";
+import { useStore } from "@tanstack/react-form";
+import { addHours, format, parse } from "date-fns";
 import { ArrowLeft, CalendarDays } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { ShiftType } from "@/constants/shifts";
-import { SHIFT_TYPE_OPTIONS } from "@/constants/shifts";
-import { useOrgContext } from "@/contexts/org-context";
+import { useShiftForm } from "@/hooks/use-shift-form";
 import { useCreatePerDiemShift } from "@/queries/per-diem-shifts.queries";
-import { useSpecialtiesForOccupation } from "@/queries/talent-community.queries";
-import { type CreateShiftFormValues, createShiftSchema } from "@/schemas";
+import {
+	useOrgOccupationSpecialties,
+	useShiftTemplateOccupations,
+} from "@/queries/shift-templates.queries";
+import type { CreateShiftFormValues } from "@/schemas";
 import type { ShiftTemplateListItem } from "@/types/shift-template";
+import { PerDiemShiftFormFields } from "./PerDiemShiftFormFields";
 import { SelectedShiftTemplateCard } from "./SelectedShiftTemplateCard";
 import { ShiftSummaryCard } from "./ShiftSummaryCard";
 import { ShiftTemplateSelectorDialog } from "./ShiftTemplateSelectorDialog";
@@ -46,7 +32,7 @@ const INITIAL_FORM_VALUES: CreateShiftFormValues = {
 	startTime: "",
 	endTime: "",
 	occupation: "",
-	specialtyId: "",
+	specialtyIds: [],
 	shiftRatePerHour: 0,
 	vendorRatePerHour: 0,
 	shiftType: "",
@@ -54,19 +40,24 @@ const INITIAL_FORM_VALUES: CreateShiftFormValues = {
 };
 
 export function CreatePerDiemShiftPageContent() {
-	const { id: orgId } = useOrgContext();
 	const router = useRouter();
 	const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
 	const [selectedTemplate, setSelectedTemplate] =
 		useState<ShiftTemplateListItem | null>(null);
 	const createShiftMutation = useCreatePerDiemShift();
-	const specialtiesQuery = useSpecialtiesForOccupation(
-		orgId,
-		selectedTemplate?.occupationId ?? null,
-	);
-	const form = useForm({
+	const orgOccupationsQuery = useShiftTemplateOccupations({});
+	const selectedOrgOccupationId =
+		orgOccupationsQuery.data?.find(
+			(o) => o.id === selectedTemplate?.occupationId,
+		)?.organizationOccupationId ?? null;
+	const { data: specialtyRows, isLoading: specialtiesLoading } =
+		useOrgOccupationSpecialties(selectedOrgOccupationId);
+	const specialtyOptions = (specialtyRows ?? []).map((s) => ({
+		id: s.specialtyId,
+		name: s.name,
+	}));
+	const form = useShiftForm({
 		defaultValues: INITIAL_FORM_VALUES,
-		validators: { onSubmit: createShiftSchema },
 		onSubmitInvalid: () => {
 			toast.error("Please complete all required fields before creating shift.");
 		},
@@ -85,8 +76,7 @@ export function CreatePerDiemShiftPageContent() {
 					totalShiftHours: value.totalShiftHours,
 					shiftRate: value.shiftRatePerHour,
 					vendorRate: value.vendorRatePerHour,
-					specialtyId: value.specialtyId ? value.specialtyId : null,
-					isPublic: true,
+					specialtyIds: value.specialtyIds,
 					isUrgent: false,
 				},
 				{
@@ -109,6 +99,28 @@ export function CreatePerDiemShiftPageContent() {
 		form.store,
 		(s) => s.submissionAttempts ?? 0,
 	);
+
+	const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
+
+	const minStartTime = useMemo(() => {
+		if (values.date !== today) return undefined;
+		return format(new Date(), "HH:mm");
+	}, [values.date, today]);
+
+	useEffect(() => {
+		if (values.startTime && values.totalShiftHours > 0) {
+			try {
+				const start = parse(values.startTime, "HH:mm", new Date());
+				const end = addHours(start, values.totalShiftHours);
+				const formattedEnd = format(end, "HH:mm");
+				if (formattedEnd !== values.endTime) {
+					form.setFieldValue("endTime", formattedEnd);
+				}
+			} catch {
+				form.setFieldValue("endTime", "");
+			}
+		}
+	}, [values.startTime, values.totalShiftHours, values.endTime, form]);
 	const canCreate = Boolean(
 		selectedTemplate &&
 			values.date &&
@@ -124,7 +136,7 @@ export function CreatePerDiemShiftPageContent() {
 	const onTemplateSelect = (template: ShiftTemplateListItem) => {
 		setSelectedTemplate(template);
 		form.setFieldValue("occupation", template.occupation.name);
-		form.setFieldValue("specialtyId", "");
+		form.setFieldValue("specialtyIds", []);
 		form.setFieldValue("shiftRatePerHour", template.baseRate);
 		const vendorRate =
 			template.vendorRateMarkupPercent != null
@@ -199,338 +211,15 @@ export function CreatePerDiemShiftPageContent() {
 										void form.handleSubmit();
 									}}
 								>
-									<FieldGroup>
-										<form.Field
-											name="date"
-											validators={{ onBlur: createShiftSchema.shape.date }}
-										>
-											{(field) => {
-												const isInvalid = formFieldShowInvalid(
-													field.state.meta.isTouched,
-													field.state.meta.isValid,
-													submissionAttempts,
-												);
-												return (
-													<Field data-invalid={isInvalid}>
-														<FieldLabel htmlFor={field.name}>
-															Date <RequiredStar />
-														</FieldLabel>
-														<DatePicker
-															id={field.name}
-															value={field.state.value}
-															onChange={(v) => field.handleChange(v)}
-															onBlur={field.handleBlur}
-															placeholder="Pick a date"
-															aria-invalid={isInvalid}
-														/>
-														{isInvalid && (
-															<FieldError errors={field.state.meta.errors} />
-														)}
-													</Field>
-												);
-											}}
-										</form.Field>
-
-										<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-											<form.Field
-												name="startTime"
-												validators={{
-													onBlur: createShiftSchema.shape.startTime,
-												}}
-											>
-												{(field) => {
-													const isInvalid = formFieldShowInvalid(
-														field.state.meta.isTouched,
-														field.state.meta.isValid,
-														submissionAttempts,
-													);
-													return (
-														<Field data-invalid={isInvalid}>
-															<FieldLabel htmlFor={field.name}>
-																Start Time <RequiredStar />
-															</FieldLabel>
-															<Input
-																id={field.name}
-																type="time"
-																value={field.state.value}
-																onBlur={field.handleBlur}
-																onChange={(e) =>
-																	field.handleChange(e.target.value)
-																}
-																aria-invalid={isInvalid}
-															/>
-															{isInvalid && (
-																<FieldError errors={field.state.meta.errors} />
-															)}
-														</Field>
-													);
-												}}
-											</form.Field>
-											<form.Field
-												name="endTime"
-												validators={{ onBlur: createShiftSchema.shape.endTime }}
-											>
-												{(field) => {
-													const isInvalid = formFieldShowInvalid(
-														field.state.meta.isTouched,
-														field.state.meta.isValid,
-														submissionAttempts,
-													);
-													return (
-														<Field data-invalid={isInvalid}>
-															<FieldLabel htmlFor={field.name}>
-																End Time <RequiredStar />
-															</FieldLabel>
-															<Input
-																id={field.name}
-																type="time"
-																value={field.state.value}
-																onBlur={field.handleBlur}
-																onChange={(e) =>
-																	field.handleChange(e.target.value)
-																}
-																aria-invalid={isInvalid}
-															/>
-															{isInvalid && (
-																<FieldError errors={field.state.meta.errors} />
-															)}
-														</Field>
-													);
-												}}
-											</form.Field>
-										</div>
-
-										<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-											<form.Field
-												name="occupation"
-												validators={{
-													onBlur: createShiftSchema.shape.occupation,
-												}}
-											>
-												{(field) => {
-													const isInvalid = formFieldShowInvalid(
-														field.state.meta.isTouched,
-														field.state.meta.isValid,
-														submissionAttempts,
-													);
-													return (
-														<Field data-invalid={isInvalid}>
-															<FieldLabel htmlFor={field.name}>
-																Occupation <RequiredStar />
-															</FieldLabel>
-															<Input
-																id={field.name}
-																value={field.state.value}
-																disabled
-															/>
-															{isInvalid && (
-																<FieldError errors={field.state.meta.errors} />
-															)}
-														</Field>
-													);
-												}}
-											</form.Field>
-											<form.Field name="specialtyId">
-												{(field) => (
-													<Field>
-														<FieldLabel htmlFor={field.name}>
-															Specialty
-														</FieldLabel>
-														<Select
-															value={field.state.value}
-															onValueChange={(value) => {
-																field.handleChange(
-																	value === "__none__" ? "" : value,
-																);
-															}}
-														>
-															<SelectTrigger id={field.name}>
-																<SelectValue placeholder="Select specialty" />
-															</SelectTrigger>
-															<SelectContent>
-																<SelectItem value="__none__">None</SelectItem>
-																{(specialtiesQuery.data ?? []).map((s) => (
-																	<SelectItem key={s.id} value={s.id}>
-																		{s.name}
-																	</SelectItem>
-																))}
-															</SelectContent>
-														</Select>
-													</Field>
-												)}
-											</form.Field>
-										</div>
-
-										<form.Field
-											name="shiftRatePerHour"
-											validators={{
-												onBlur: createShiftSchema.shape.shiftRatePerHour,
-											}}
-										>
-											{(field) => {
-												const isInvalid = formFieldShowInvalid(
-													field.state.meta.isTouched,
-													field.state.meta.isValid,
-													submissionAttempts,
-												);
-												return (
-													<Field data-invalid={isInvalid}>
-														<FieldLabel htmlFor={field.name}>
-															Shift Rate ($/hour) <RequiredStar />
-														</FieldLabel>
-														<Input
-															id={field.name}
-															type="number"
-															min={0}
-															value={String(field.state.value)}
-															onBlur={field.handleBlur}
-															onChange={(e) =>
-																field.handleChange(
-																	e.target.value ? Number(e.target.value) : 0,
-																)
-															}
-															aria-invalid={isInvalid}
-														/>
-														<FieldDescription>
-															Rate must be above the per-diem floor rate for
-															this position.
-														</FieldDescription>
-														{isInvalid && (
-															<FieldError errors={field.state.meta.errors} />
-														)}
-													</Field>
-												);
-											}}
-										</form.Field>
-
-										<form.Field
-											name="vendorRatePerHour"
-											validators={{
-												onBlur: createShiftSchema.shape.vendorRatePerHour,
-											}}
-										>
-											{(field) => {
-												const isInvalid = formFieldShowInvalid(
-													field.state.meta.isTouched,
-													field.state.meta.isValid,
-													submissionAttempts,
-												);
-												return (
-													<Field data-invalid={isInvalid}>
-														<FieldLabel htmlFor={field.name}>
-															Vendor Rate ($/hour) <RequiredStar />
-														</FieldLabel>
-														<Input
-															id={field.name}
-															type="number"
-															min={0}
-															value={String(field.state.value)}
-															onBlur={field.handleBlur}
-															onChange={(e) =>
-																field.handleChange(
-																	e.target.value ? Number(e.target.value) : 0,
-																)
-															}
-															aria-invalid={isInvalid}
-														/>
-														<FieldDescription>
-															The rate paid to the vendor for this shift.
-														</FieldDescription>
-														{isInvalid && (
-															<FieldError errors={field.state.meta.errors} />
-														)}
-													</Field>
-												);
-											}}
-										</form.Field>
-
-										<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-											<form.Field
-												name="shiftType"
-												validators={{
-													onBlur: createShiftSchema.shape.shiftType,
-												}}
-											>
-												{(field) => {
-													const isInvalid = formFieldShowInvalid(
-														field.state.meta.isTouched,
-														field.state.meta.isValid,
-														submissionAttempts,
-													);
-													return (
-														<Field data-invalid={isInvalid}>
-															<FieldLabel htmlFor={field.name}>
-																Shift Type <RequiredStar />
-															</FieldLabel>
-															<Select
-																value={field.state.value}
-																onValueChange={(value) =>
-																	field.handleChange(value)
-																}
-															>
-																<SelectTrigger
-																	id={field.name}
-																	aria-invalid={isInvalid}
-																>
-																	<SelectValue placeholder="Select type" />
-																</SelectTrigger>
-																<SelectContent>
-																	{SHIFT_TYPE_OPTIONS.map((option) => (
-																		<SelectItem
-																			key={option.value}
-																			value={option.value}
-																		>
-																			{option.label}
-																		</SelectItem>
-																	))}
-																</SelectContent>
-															</Select>
-															{isInvalid && (
-																<FieldError errors={field.state.meta.errors} />
-															)}
-														</Field>
-													);
-												}}
-											</form.Field>
-											<form.Field
-												name="totalShiftHours"
-												validators={{
-													onBlur: createShiftSchema.shape.totalShiftHours,
-												}}
-											>
-												{(field) => {
-													const isInvalid = formFieldShowInvalid(
-														field.state.meta.isTouched,
-														field.state.meta.isValid,
-														submissionAttempts,
-													);
-													return (
-														<Field data-invalid={isInvalid}>
-															<FieldLabel htmlFor={field.name}>
-																Total Shift Hours <RequiredStar />
-															</FieldLabel>
-															<Input
-																id={field.name}
-																type="number"
-																min={1}
-																value={String(field.state.value)}
-																onBlur={field.handleBlur}
-																onChange={(e) =>
-																	field.handleChange(
-																		e.target.value ? Number(e.target.value) : 0,
-																	)
-																}
-																aria-invalid={isInvalid}
-															/>
-															{isInvalid && (
-																<FieldError errors={field.state.meta.errors} />
-															)}
-														</Field>
-													);
-												}}
-											</form.Field>
-										</div>
-									</FieldGroup>
+									<PerDiemShiftFormFields
+										form={form}
+										values={values}
+										submissionAttempts={submissionAttempts}
+										minDate={today}
+										minStartTime={minStartTime}
+										specialtyOptions={specialtyOptions}
+										specialtyOptionsLoading={specialtiesLoading}
+									/>
 								</form>
 							</CardContent>
 						</Card>

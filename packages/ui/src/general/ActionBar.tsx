@@ -24,7 +24,7 @@ export function ActionBar<T extends "link" | "button">({
 	className,
 	innerClassName,
 	showChevron = true,
-}: ActionBarProps<T>) {
+}: Readonly<ActionBarProps<T>>) {
 	const isLink = !!(type === "link" && href);
 
 	return (
@@ -62,9 +62,9 @@ export function ActionBar<T extends "link" | "button">({
 
 function ChevronIcon({
 	variant,
-}: {
+}: Readonly<{
 	variant: "default" | "danger" | "success";
-}) {
+}>) {
 	return (
 		<ChevronRight
 			className={cn(

@@ -1,5 +1,28 @@
-import type { ReviewSubmitFormValues } from "@/schemas/vendor-jobs-board.schema";
+import {
+	CANDIDATE_EXPERIENCE_BAND_OPTIONS,
+	DEFAULT_TIMEZONE,
+	formatTzShortDate,
+	getLabel,
+	type ShiftType,
+} from "@repo/shared";
+import { SHIFT_TYPE_LABEL, SHIFT_TYPE_VALUES } from "@/constants/shifts";
+import type {
+	ReviewSubmitFormValues,
+	VendorJobBoardShiftType,
+} from "@/schemas/vendor-jobs-board.schema";
+import type { CandidateExperienceBandValue } from "@/services/onboarding.service";
 import type { Candidate } from "@/types/vendor-jobs-board";
+
+function isShiftType(value: string): value is VendorJobBoardShiftType {
+	return (SHIFT_TYPE_VALUES as readonly string[]).includes(value);
+}
+
+function experienceBandLabel(
+	band: CandidateExperienceBandValue | null,
+): string {
+	if (band == null) return "—";
+	return getLabel(CANDIDATE_EXPERIENCE_BAND_OPTIONS, band);
+}
 
 /** Response from GET /api/vendor/candidates/job-board-profile/:id */
 export type VendorCandidateJobBoardProfile = {
@@ -13,8 +36,8 @@ export type VendorCandidateJobBoardProfile = {
 	city: string | null;
 	state: string | null;
 	zipCode: string | null;
-	yearsOfExperience: number | null;
-	preferredShiftTypes: string[];
+	experienceBand: CandidateExperienceBandValue | null;
+	preferredShiftTypes: VendorJobBoardShiftType[];
 	availableFrom: string | null;
 	isAvailable: boolean;
 	skills: string[];
@@ -32,7 +55,11 @@ export type VendorCandidateJobBoardProfile = {
 
 export function mapJobBoardProfileToReviewFormValues(
 	p: VendorCandidateJobBoardProfile,
-	fallbacks?: { email?: string; phone?: string },
+	options: {
+		email?: string;
+		phone?: string;
+		requirements?: string[];
+	},
 ): ReviewSubmitFormValues {
 	const fullName = p.user.name.trim();
 	const parts = fullName.split(/\s+/).filter(Boolean);
@@ -44,15 +71,9 @@ export function mapJobBoardProfileToReviewFormValues(
 	const state = p.state?.trim() || "";
 	const zipCode = p.zipCode?.trim() || "";
 
-	const preferredShiftsText =
-		p.preferredShiftTypes.length > 0
-			? p.preferredShiftTypes.join(", ")
-			: "Not specified";
-
 	const email =
-		p.user.email.trim() || fallbacks?.email?.trim() || "unknown@example.com";
-	const phoneNumber =
-		p.user.phoneNumber.trim() || fallbacks?.phone?.trim() || "";
+		p.user.email.trim() || options.email?.trim() || "unknown@example.com";
+	const phoneNumber = p.user.phoneNumber.trim() || options.phone?.trim() || "";
 
 	const availableFrom =
 		p.availableFrom && !Number.isNaN(Date.parse(p.availableFrom))
@@ -71,6 +92,18 @@ export function mapJobBoardProfileToReviewFormValues(
 		};
 	});
 
+	const requirements = options.requirements ?? [];
+	const complianceItems = requirements.map((name) => {
+		const existing = p.compliance.find(
+			(c) => c.name.toLowerCase() === name.toLowerCase(),
+		);
+		return {
+			name: existing?.name || name,
+			status: existing?.status || "missing",
+			file: undefined,
+		};
+	});
+
 	return {
 		firstName,
 		lastName,
@@ -82,35 +115,36 @@ export function mapJobBoardProfileToReviewFormValues(
 		zipCode,
 		occupationId: p.occupationId,
 		specialtyIds: p.specialtyIds.length > 0 ? p.specialtyIds : ([] as string[]),
-		preferredShiftsText,
+		preferredShiftTypes: p.preferredShiftTypes.map((s) => s as ShiftType),
 		availableFrom,
 		isAvailable: p.isAvailable,
 		questionnaire: p.questionnaire.map((q) => ({ ...q })),
 		summaryNote: p.bio?.trim() ?? "",
 		rto: rtoForm,
-		complianceItems: p.compliance.map((c) => ({
-			name: c.name,
-			status: c.status,
-			file: undefined,
-		})),
+		complianceItems,
 	};
 }
+
+type MergeJobBoardProfileOpts = {
+	fmtShortDate?: (iso: string | Date | null | undefined) => string;
+};
 
 /** Merge API profile with list-row candidate for dialogs (match score, status from row). */
 export function mergeJobBoardProfileIntoCandidate(
 	row: Candidate,
 	profile: VendorCandidateJobBoardProfile | undefined,
+	opts?: MergeJobBoardProfileOpts,
 ): Candidate {
 	if (!profile) {
 		return row;
 	}
+	const fmtShort =
+		opts?.fmtShortDate ??
+		((iso: string | Date | null | undefined) =>
+			formatTzShortDate(iso, DEFAULT_TIMEZONE));
 	const loc = [profile.city, profile.state].filter(Boolean).join(", ") || "—";
 	const availability = profile.availableFrom
-		? `From ${new Date(profile.availableFrom).toLocaleDateString("en-US", {
-				month: "short",
-				day: "numeric",
-				year: "numeric",
-			})}`
+		? `From ${fmtShort(profile.availableFrom)}`
 		: profile.isAvailable
 			? "Available"
 			: row.availability;
@@ -125,8 +159,8 @@ export function mergeJobBoardProfileIntoCandidate(
 		specialty: profile.specialtiesLabel,
 		location: loc,
 		experience:
-			profile.yearsOfExperience != null
-				? `${profile.yearsOfExperience} yrs`
+			profile.experienceBand != null
+				? experienceBandLabel(profile.experienceBand)
 				: row.experience,
 		availability,
 		skills: profile.skills.length > 0 ? profile.skills : row.skills,
@@ -138,7 +172,9 @@ export function mergeJobBoardProfileIntoCandidate(
 		]
 			.filter(Boolean)
 			.join(", "),
-		preferredShifts: profile.preferredShiftTypes.join(", "),
+		preferredShifts: profile.preferredShiftTypes
+			.map((s) => SHIFT_TYPE_LABEL[s])
+			.join(", "),
 		availableStartDate: availability,
 		occupationalQuestionnaire: profile.questionnaire
 			.map((q) => `${q.questionText}: ${q.value}`)
@@ -148,10 +184,10 @@ export function mergeJobBoardProfileIntoCandidate(
 			name: c.name,
 			status:
 				c.status === "verified"
-					? "Approved"
+					? "APPROVED"
 					: c.status === "expired"
-						? "Expired"
-						: ("Pending" as const),
+						? "EXPIRED"
+						: "MISSING",
 		})),
 	};
 }
@@ -164,7 +200,7 @@ export type VendorCandidateJobBoardPatchBody = {
 	zipCode?: string;
 	occupationId?: string;
 	specialtyIds?: string[];
-	preferredShiftTypes?: string[];
+	preferredShiftTypes?: VendorJobBoardShiftType[];
 	availableFrom?: string | null;
 	isAvailable?: boolean;
 	bio?: string;
@@ -173,12 +209,9 @@ export type VendorCandidateJobBoardPatchBody = {
 };
 
 export function reviewFormValuesToPatchBody(
-	value: ReviewSubmitFormValues,
+	value: Omit<ReviewSubmitFormValues, "complianceItems">,
 ): VendorCandidateJobBoardPatchBody {
-	const preferredShiftTypes = value.preferredShiftsText
-		.split(",")
-		.map((s) => s.trim())
-		.filter(Boolean);
+	const preferredShiftTypes = value.preferredShiftTypes.filter(isShiftType);
 
 	return {
 		phoneNumber: value.phoneNumber.trim() || undefined,

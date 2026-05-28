@@ -100,20 +100,27 @@ export function useUpdateBillingConfig(orgId: string) {
 	});
 }
 
-export function usePendingInvoiceCount(orgId: string) {
+export function usePendingInvoiceCount(
+	orgId: string,
+	options?: { enabled?: boolean },
+) {
 	return useQuery({
 		queryKey: organizationBillingKeys.pendingCount(orgId),
 		queryFn: () => OrganizationBillingService.getPendingInvoiceCount(orgId),
-		enabled: !!orgId,
+		enabled: !!orgId && (options?.enabled ?? true),
 		staleTime: 30_000,
 	});
 }
 
-export function useInvoices(orgId: string, query: InvoicesQuery = {}) {
+export function useInvoices(
+	orgId: string,
+	query: InvoicesQuery = {},
+	options?: { enabled?: boolean },
+) {
 	return useQuery({
 		queryKey: organizationBillingKeys.invoices(orgId, query),
 		queryFn: () => OrganizationBillingService.listInvoices(orgId, query),
-		enabled: !!orgId,
+		enabled: !!orgId && (options?.enabled ?? true),
 	});
 }
 

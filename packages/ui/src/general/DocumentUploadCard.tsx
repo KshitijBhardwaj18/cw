@@ -22,12 +22,12 @@ function LocalDocOutlineButton({
 	onClick,
 	icon: Icon,
 	children,
-}: {
+}: Readonly<{
 	disabled?: boolean;
 	onClick: () => void;
 	icon: DocActionIcon;
 	children: ReactNode;
-}) {
+}>) {
 	return (
 		<Button
 			type="button"
@@ -49,13 +49,13 @@ function SignedUrlOutlineButton({
 	onClick,
 	icon: Icon,
 	children,
-}: {
+}: Readonly<{
 	disabled?: boolean;
 	isPendingSignedUrl: boolean;
 	onClick: () => void;
 	icon: DocActionIcon;
 	children: ReactNode;
-}) {
+}>) {
 	return (
 		<Button
 			type="button"
@@ -127,7 +127,7 @@ export function DocumentUploadCard({
 	description = "",
 	onDescriptionChange,
 	required = false,
-}: DocumentUploadCardProps) {
+}: Readonly<DocumentUploadCardProps>) {
 	const hasDocument = !!file || hasExistingDocument;
 	const displayName = file?.name ?? existingFileName ?? "Document";
 

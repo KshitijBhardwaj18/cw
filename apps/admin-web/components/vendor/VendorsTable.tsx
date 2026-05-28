@@ -11,7 +11,11 @@ interface VendorsTableProps extends VendorColumnsCallbacks {
 	data: VendorTableRowType[];
 }
 
-export function VendorsTable({ data, onEdit, onDelete }: VendorsTableProps) {
+export function VendorsTable({
+	data,
+	onEdit,
+	onDelete,
+}: Readonly<VendorsTableProps>) {
 	const { columns } = useVendorColumns({ onEdit, onDelete });
 
 	return (

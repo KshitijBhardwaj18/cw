@@ -1,8 +1,13 @@
-import type { CandidatePreferredContractLength } from "@repo/shared";
+import type {
+	CandidateExperienceBand,
+	CandidatePreferredContractLength,
+	CandidateWorkforceType,
+	QuestionType,
+} from "@repo/shared";
 import { ApiClient } from "@/lib/api-client";
+import type { ShiftTypeValue } from "@/schemas/candidate-profile.schema";
 
 export type StartSelfOnboardingInput = {
-	organizationId: string;
 	firstName: string;
 	lastName: string;
 	email: string;
@@ -39,6 +44,10 @@ export type OrgLinkedOccupationItem = {
 		acronym: string | null;
 		code: string;
 	};
+	specialties?: Array<{
+		id: string;
+		specialty: { id: string; name: string; acronym: string | null };
+	}>;
 };
 
 export type OrgLinkedOccupationsResponse =
@@ -48,6 +57,24 @@ export type CatalogSpecialtyOption = {
 	id: string;
 	name: string;
 	acronym: string | null;
+};
+
+export type OrgEnabledSpecialtyOption = {
+	id: string;
+	specialtyId: string;
+	name: string;
+	acronym: string | null;
+};
+
+export type CandidateExperienceBandValue = CandidateExperienceBand;
+export type CandidateOnboardingProfessionalReference = {
+	id: string;
+	fullName: string;
+	title: string;
+	organization: string;
+	relationship: string;
+	phone: string;
+	email: string;
 };
 
 export type CandidateMeOnboarding = {
@@ -62,7 +89,6 @@ export type CandidateMeOnboarding = {
 	city: string;
 	state: string;
 	zipCode: string;
-	yearsOfExperience: number | null;
 	specialtyIds: string[];
 	locationIds: string[];
 	specialties: { id: string; name: string }[];
@@ -72,12 +98,50 @@ export type CandidateMeOnboarding = {
 		city: string | null;
 		state: string | null;
 	}[];
-	preferredShiftTypes: string[];
+	preferredShiftTypes: ShiftTypeValue[];
 	willingToRelocate: boolean;
 	resumeUrl: string | null;
 	showProfileBanner: boolean;
 	preferredContractLengths: CandidatePreferredContractLength[];
 	inviteStatus: string | null;
+	onboardingCompletedAt: string | null;
+	totalProfessionalExperienceBand: CandidateExperienceBandValue | null;
+	earliestStartDate: string | null;
+	recentJobTitle: string | null;
+	dateOfBirth: string | null;
+	lastFourSsn: string | null;
+	skillsChecklistFileKey: string | null;
+	professionalReferences: CandidateOnboardingProfessionalReference[];
+	workforceType: CandidateWorkforceType | null;
+};
+
+export type CandidateOnboardingQuestionType = QuestionType;
+
+export type CandidateOnboardingQuestion = {
+	id: string;
+	questionText: string;
+	type: CandidateOnboardingQuestionType;
+	options: string[];
+	required: boolean;
+	includeInSubmission: boolean;
+	order: number | null;
+};
+
+export type CandidateOnboardingQuestionnaireScope = {
+	id: string;
+	name: string;
+	questionnaireId: string;
+	questions: CandidateOnboardingQuestion[];
+};
+
+export type CandidateOnboardingQuestionnaires = {
+	occupation: CandidateOnboardingQuestionnaireScope | null;
+	specialties: CandidateOnboardingQuestionnaireScope[];
+	answers: Record<string, string>;
+};
+
+export type SaveQuestionnaireAnswersInput = {
+	answers: { questionId: string; value: string }[];
 };
 
 export type SaveMeOnboardingInput = {
@@ -88,12 +152,28 @@ export type SaveMeOnboardingInput = {
 	state?: string;
 	zipCode?: string;
 	occupationId?: string;
-	yearsOfExperience?: number | null;
 	specialtyIds?: string[];
 	locationIds?: string[];
-	preferredShiftTypes?: string[];
+	preferredShiftTypes?: ShiftTypeValue[];
 	willingToRelocate?: boolean;
 	preferredContractLengths?: CandidatePreferredContractLength[];
+	totalProfessionalExperienceBand?: CandidateExperienceBandValue;
+	earliestStartDate?: string;
+	recentJobTitle?: string;
+};
+
+export type SaveOnboardingIdentityInput = {
+	dateOfBirth: string;
+	lastFourSsn: string;
+};
+
+export type SaveOnboardingReferenceInput = {
+	fullName: string;
+	title: string;
+	organization: string;
+	relationship: string;
+	phone: string;
+	email: string;
 };
 
 export class OnboardingService {
@@ -183,6 +263,18 @@ export class OnboardingService {
 		};
 	}
 
+	static async getMyOrgOccupations() {
+		return ApiClient.get<OrgLinkedOccupationsResponse>(
+			"/api/candidates/me/org-occupations",
+		);
+	}
+
+	static async getMyOccupationSpecialties(occupationId: string) {
+		return ApiClient.get<OrgEnabledSpecialtyOption[]>(
+			`/api/candidates/me/occupations/${occupationId}/specialties`,
+		);
+	}
+
 	static async startSelfOnboarding(input: StartSelfOnboardingInput) {
 		return ApiClient.post<{ success: boolean; message: string }>(
 			"/api/candidates/self/start",
@@ -200,6 +292,50 @@ export class OnboardingService {
 		return ApiClient.patch<{ success: boolean }>(
 			"/api/candidates/me/onboarding",
 			input,
+		);
+	}
+
+	static async getMeQuestionnaires() {
+		return ApiClient.get<CandidateOnboardingQuestionnaires>(
+			"/api/candidates/me/onboarding/questionnaires",
+		);
+	}
+
+	static async saveMeQuestionnaireAnswers(
+		input: SaveQuestionnaireAnswersInput,
+	) {
+		return ApiClient.patch<{ success: boolean }>(
+			"/api/candidates/me/onboarding/questionnaires/answers",
+			input,
+		);
+	}
+
+	static async saveMeIdentity(input: SaveOnboardingIdentityInput) {
+		return ApiClient.patch<{ success: boolean }>(
+			"/api/candidates/me/onboarding/identity",
+			input,
+		);
+	}
+
+	static async saveMeReferences(references: SaveOnboardingReferenceInput[]) {
+		return ApiClient.patch<{ success: boolean }>(
+			"/api/candidates/me/onboarding/references",
+			{ references },
+		);
+	}
+
+	static async saveMeSkillsChecklist(file: File) {
+		const form = new FormData();
+		form.append("file", file);
+		return ApiClient.patch<{
+			success: boolean;
+			skillsChecklistFileKey: string;
+		}>("/api/candidates/me/onboarding/skills-checklist", form);
+	}
+
+	static async getMeSkillsChecklistSignedUrl() {
+		return ApiClient.get<{ signedUrl: string | null }>(
+			"/api/candidates/me/onboarding/skills-checklist/signed-url",
 		);
 	}
 

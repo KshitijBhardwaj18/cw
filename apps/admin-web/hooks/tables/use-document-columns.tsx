@@ -1,6 +1,6 @@
 "use client";
 
-import { DOCUMENT_TYPE_OPTIONS, formatDate, getLabel } from "@repo/shared";
+import { DOCUMENT_TYPE_OPTIONS, getLabel } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
@@ -10,6 +10,7 @@ import {
 	DOCUMENT_COLUMN_HEADERS,
 	DOCUMENT_COLUMN_KEYS,
 } from "@/constants/tables/documents";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { useDocumentSignedUrlMutation } from "@/queries/vendor.queries";
 import type { VendorDocumentWithUser } from "@/types/vendor";
 import { isS3Key } from "@/utils";
@@ -20,6 +21,7 @@ export interface DocumentColumnsCallbacks {
 
 export const useDocumentColumns = (callbacks?: DocumentColumnsCallbacks) => {
 	const { onDelete } = callbacks ?? {};
+	const { fmtShortDate } = useUserTimezone();
 	const signedUrlMutation = useDocumentSignedUrlMutation();
 
 	const columns = useMemo<ColumnDef<VendorDocumentWithUser>[]>(
@@ -44,11 +46,7 @@ export const useDocumentColumns = (callbacks?: DocumentColumnsCallbacks) => {
 				accessorKey: DOCUMENT_COLUMN_KEYS.uploadedDate,
 				header: DOCUMENT_COLUMN_HEADERS.uploadedDate,
 				cell: ({ row }) => (
-					<div className="text-sm">
-						{row.original.uploadedAt
-							? formatDate(row.original.uploadedAt, "M/d/yyyy")
-							: "—"}
-					</div>
+					<div className="text-sm">{fmtShortDate(row.original.uploadedAt)}</div>
 				),
 			},
 			{
@@ -112,7 +110,7 @@ export const useDocumentColumns = (callbacks?: DocumentColumnsCallbacks) => {
 				},
 			},
 		],
-		[signedUrlMutation, onDelete],
+		[signedUrlMutation, onDelete, fmtShortDate],
 	);
 
 	return { columns };

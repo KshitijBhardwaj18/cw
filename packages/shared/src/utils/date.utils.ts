@@ -86,16 +86,15 @@ export function formatDateRange(
 	return `${format(start, "MMM d, yyyy")} - ${format(end, "MMM d, yyyy")}`;
 }
 
-/**
- * Normalize a date string (e.g. from a URL or date input) to ISO calendar date
- * `YYYY-MM-DD`. Accepts ISO strings or bare `YYYY-MM-DD` by parsing as local
- * midnight (`value + "T00:00:00"`). Returns `null` if empty or unparseable.
- */
 export function toIsoDateString(value: string): string | null {
 	if (!value) return null;
-	const parsed = new Date(`${value}T00:00:00`);
+	if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+	const parsed = new Date(value);
 	if (Number.isNaN(parsed.getTime())) return null;
-	return parsed.toISOString().slice(0, 10);
+	const y = parsed.getFullYear();
+	const m = String(parsed.getMonth() + 1).padStart(2, "0");
+	const d = String(parsed.getDate()).padStart(2, "0");
+	return `${y}-${m}-${d}`;
 }
 
 export const DATE_DISPLAY_PLACEHOLDER = "—";

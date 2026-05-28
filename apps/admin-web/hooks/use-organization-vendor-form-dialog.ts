@@ -1,7 +1,10 @@
 "use client";
 
 import type { OrganizationVendorWithVendorType } from "@repo/shared";
-import { validateContractDocument } from "@repo/shared";
+import {
+	OrganizationVendorStatus,
+	validateContractDocument,
+} from "@repo/shared";
 import { useLocalDebouncedSearch } from "@repo/ui/hooks/use-local-debounced-search";
 import { useForm } from "@tanstack/react-form";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,7 +28,7 @@ import {
 function getDefaultFormValues(): OrganizationVendorFormSchemaValues {
 	return {
 		vendorId: "",
-		status: "PENDING",
+		status: OrganizationVendorStatus.PENDING,
 		startDate: new Date().toISOString().slice(0, 10),
 		notes: "",
 	};
@@ -36,7 +39,7 @@ function orgVendorToFormValues(
 ): OrganizationVendorFormSchemaValues {
 	return {
 		vendorId: ov.vendorId,
-		status: ov.status,
+		status: ov.status as OrganizationVendorStatus,
 		startDate: ov.startDate
 			? new Date(ov.startDate).toISOString().slice(0, 10)
 			: "",
@@ -112,7 +115,7 @@ export function useOrganizationVendorFormDialog({
 
 			const payload: CreateOrganizationVendorPayload = {
 				vendorId: value.vendorId,
-				status: value.status as CreateOrganizationVendorPayload["status"],
+				status: value.status,
 				startDate: value.startDate?.trim() || undefined,
 				notes: value.notes?.trim() || undefined,
 			};

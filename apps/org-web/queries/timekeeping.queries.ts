@@ -10,70 +10,62 @@ import { TimekeepingService } from "@/services/timekeeping.service";
 
 export const timekeepingKeys = {
 	all: ["timekeeping"] as const,
-	stats: (orgId: string) => [...timekeepingKeys.all, "stats", orgId] as const,
-	entryCounts: (orgId: string, filters: Partial<EntriesQuery> = {}) =>
-		[...timekeepingKeys.all, "entry-counts", orgId, filters] as const,
-	entriesGrouped: (orgId: string, query: EntriesQuery) =>
-		[...timekeepingKeys.all, "entries-grouped", orgId, query] as const,
-	entries: (orgId: string, query: EntriesQuery) =>
-		[...timekeepingKeys.all, "entries", orgId, query] as const,
-	disputeCounts: (orgId: string) =>
-		[...timekeepingKeys.all, "dispute-counts", orgId] as const,
-	disputes: (orgId: string, query: DisputesQuery) =>
-		[...timekeepingKeys.all, "disputes", orgId, query] as const,
-	missingTimeStats: (orgId: string) =>
-		[...timekeepingKeys.all, "missing-time-stats", orgId] as const,
-	missingTime: (orgId: string, query: MissingTimeQuery) =>
-		[...timekeepingKeys.all, "missing-time", orgId, query] as const,
-	holidayStats: (orgId: string, year?: number) =>
-		[...timekeepingKeys.all, "holiday-stats", orgId, year] as const,
-	holidays: (orgId: string, query: HolidaysQuery = {}) =>
-		[...timekeepingKeys.all, "holidays", orgId, query] as const,
-	policy: (orgId: string) => [...timekeepingKeys.all, "policy", orgId] as const,
-	uploadJob: (orgId: string, jobId: string) =>
-		[...timekeepingKeys.all, "upload-job", orgId, jobId] as const,
+	stats: () => [...timekeepingKeys.all, "stats"] as const,
+	entryCounts: (filters: Partial<EntriesQuery> = {}) =>
+		[...timekeepingKeys.all, "entry-counts", filters] as const,
+	entriesGrouped: (query: EntriesQuery) =>
+		[...timekeepingKeys.all, "entries-grouped", query] as const,
+	entries: (query: EntriesQuery) =>
+		[...timekeepingKeys.all, "entries", query] as const,
+	disputeCounts: () => [...timekeepingKeys.all, "dispute-counts"] as const,
+	disputes: (query: DisputesQuery) =>
+		[...timekeepingKeys.all, "disputes", query] as const,
+	missingTimeStats: () =>
+		[...timekeepingKeys.all, "missing-time-stats"] as const,
+	missingTime: (query: MissingTimeQuery) =>
+		[...timekeepingKeys.all, "missing-time", query] as const,
+	holidayStats: (year?: number) =>
+		[...timekeepingKeys.all, "holiday-stats", year] as const,
+	holidays: (query: HolidaysQuery = {}) =>
+		[...timekeepingKeys.all, "holidays", query] as const,
+	policy: () => [...timekeepingKeys.all, "policy"] as const,
+	uploadJob: (jobId: string) =>
+		[...timekeepingKeys.all, "upload-job", jobId] as const,
 };
 
-export function useTimekeepingStats(orgId: string) {
+export function useTimekeepingStats() {
 	return useQuery({
-		queryKey: timekeepingKeys.stats(orgId),
+		queryKey: timekeepingKeys.stats(),
 		queryFn: () => TimekeepingService.getStats(),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useEntryStatusCounts(
-	orgId: string,
-	filters: Partial<EntriesQuery> = {},
-) {
+export function useEntryStatusCounts(filters: Partial<EntriesQuery> = {}) {
 	return useQuery({
-		queryKey: timekeepingKeys.entryCounts(orgId, filters),
+		queryKey: timekeepingKeys.entryCounts(filters),
 		queryFn: () => TimekeepingService.getEntryStatusCounts(filters),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useEntriesGrouped(orgId: string, query: EntriesQuery) {
+export function useEntriesGrouped(query: EntriesQuery) {
 	return useQuery({
-		queryKey: timekeepingKeys.entriesGrouped(orgId, query),
+		queryKey: timekeepingKeys.entriesGrouped(query),
 		queryFn: () => TimekeepingService.listEntriesGrouped(query),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useEntries(orgId: string, query: EntriesQuery) {
+export function useEntries(query: EntriesQuery) {
 	return useQuery({
-		queryKey: timekeepingKeys.entries(orgId, query),
+		queryKey: timekeepingKeys.entries(query),
 		queryFn: () => TimekeepingService.listEntries(query),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useUpdateEntryStatus(_orgId: string) {
+export function useUpdateEntryStatus() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -89,7 +81,7 @@ export function useUpdateEntryStatus(_orgId: string) {
 	});
 }
 
-export function useCreateDispute(_orgId: string) {
+export function useCreateDispute() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -117,25 +109,23 @@ export function useCreateDispute(_orgId: string) {
 	});
 }
 
-export function useDisputeStatusCounts(orgId: string) {
+export function useDisputeStatusCounts() {
 	return useQuery({
-		queryKey: timekeepingKeys.disputeCounts(orgId),
+		queryKey: timekeepingKeys.disputeCounts(),
 		queryFn: () => TimekeepingService.getDisputeStatusCounts(),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useDisputes(orgId: string, query: DisputesQuery) {
+export function useDisputes(query: DisputesQuery) {
 	return useQuery({
-		queryKey: timekeepingKeys.disputes(orgId, query),
+		queryKey: timekeepingKeys.disputes(query),
 		queryFn: () => TimekeepingService.listDisputes(query),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useResolveDispute(_orgId: string) {
+export function useResolveDispute() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -155,7 +145,7 @@ export function useResolveDispute(_orgId: string) {
 	});
 }
 
-export function useRejectDispute(_orgId: string) {
+export function useRejectDispute() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -171,25 +161,23 @@ export function useRejectDispute(_orgId: string) {
 	});
 }
 
-export function useMissingTimeStats(orgId: string) {
+export function useMissingTimeStats() {
 	return useQuery({
-		queryKey: timekeepingKeys.missingTimeStats(orgId),
+		queryKey: timekeepingKeys.missingTimeStats(),
 		queryFn: () => TimekeepingService.getMissingTimeStats(),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useMissingTime(orgId: string, query: MissingTimeQuery) {
+export function useMissingTime(query: MissingTimeQuery) {
 	return useQuery({
-		queryKey: timekeepingKeys.missingTime(orgId, query),
+		queryKey: timekeepingKeys.missingTime(query),
 		queryFn: () => TimekeepingService.listMissingTime(query),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useSendReminder(orgId: string) {
+export function useSendReminder() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({ caseId, message }: { caseId: string; message?: string }) =>
@@ -199,13 +187,13 @@ export function useSendReminder(orgId: string) {
 				queryKey: [...timekeepingKeys.all, "missing-time"],
 			});
 			qc.invalidateQueries({
-				queryKey: timekeepingKeys.missingTimeStats(orgId),
+				queryKey: timekeepingKeys.missingTimeStats(),
 			});
 		},
 	});
 }
 
-export function useBulkSendReminders(orgId: string) {
+export function useBulkSendReminders() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -220,31 +208,29 @@ export function useBulkSendReminders(orgId: string) {
 				queryKey: [...timekeepingKeys.all, "missing-time"],
 			});
 			qc.invalidateQueries({
-				queryKey: timekeepingKeys.missingTimeStats(orgId),
+				queryKey: timekeepingKeys.missingTimeStats(),
 			});
 		},
 	});
 }
 
-export function useHolidayStats(orgId: string, year?: number) {
+export function useHolidayStats(year?: number) {
 	return useQuery({
-		queryKey: timekeepingKeys.holidayStats(orgId, year),
+		queryKey: timekeepingKeys.holidayStats(year),
 		queryFn: () => TimekeepingService.getHolidayStats(year),
-		enabled: !!orgId,
 		staleTime: 60_000,
 	});
 }
 
-export function useHolidays(orgId: string, query: HolidaysQuery = {}) {
+export function useHolidays(query: HolidaysQuery = {}) {
 	return useQuery({
-		queryKey: timekeepingKeys.holidays(orgId, query),
+		queryKey: timekeepingKeys.holidays(query),
 		queryFn: () => TimekeepingService.listHolidays(query),
-		enabled: !!orgId,
 		staleTime: 60_000,
 	});
 }
 
-export function useCreateHoliday(_orgId: string) {
+export function useCreateHoliday() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (payload: {
@@ -263,7 +249,7 @@ export function useCreateHoliday(_orgId: string) {
 	});
 }
 
-export function useDeleteHoliday(_orgId: string) {
+export function useDeleteHoliday() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (holidayId: string) =>
@@ -279,27 +265,26 @@ export function useDeleteHoliday(_orgId: string) {
 	});
 }
 
-export function useTimekeepingPolicy(orgId: string) {
+export function useTimekeepingPolicy() {
 	return useQuery({
-		queryKey: timekeepingKeys.policy(orgId),
+		queryKey: timekeepingKeys.policy(),
 		queryFn: () => TimekeepingService.getPolicy(),
-		enabled: !!orgId,
 		staleTime: 30_000,
 	});
 }
 
-export function useUpdateTimekeepingPolicy(orgId: string) {
+export function useUpdateTimekeepingPolicy() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (payload: Partial<TimekeepingPolicy>) =>
 			TimekeepingService.updatePolicy(payload),
 		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: timekeepingKeys.policy(orgId) });
+			qc.invalidateQueries({ queryKey: timekeepingKeys.policy() });
 		},
 	});
 }
 
-export function useInternalUpload(_orgId: string) {
+export function useInternalUpload() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (file: File) => TimekeepingService.internalUpload(file),
@@ -310,18 +295,14 @@ export function useInternalUpload(_orgId: string) {
 	});
 }
 
-export function useUploadJobStatus(
-	orgId: string,
-	jobId: string | null,
-	enabled = false,
-) {
+export function useUploadJobStatus(jobId: string | null, enabled = false) {
 	return useQuery({
-		queryKey: timekeepingKeys.uploadJob(orgId, jobId ?? ""),
+		queryKey: timekeepingKeys.uploadJob(jobId ?? ""),
 		queryFn: () => {
 			if (!jobId) throw new Error("jobId is required");
 			return TimekeepingService.getUploadJob(jobId);
 		},
-		enabled: !!orgId && !!jobId && enabled,
+		enabled: !!jobId && enabled,
 		refetchInterval: (query) => {
 			const status = query.state.data?.status;
 			return status === "COMPLETED" || status === "FAILED" ? false : 3000;

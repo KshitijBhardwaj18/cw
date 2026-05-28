@@ -16,7 +16,7 @@ export function OrganizationVendorsTable({
 	onEdit,
 	onView,
 	onDelete,
-}: OrganizationVendorsTableProps) {
+}: Readonly<OrganizationVendorsTableProps>) {
 	const { columns } = useOrganizationVendorColumns({
 		onEdit,
 		onView,

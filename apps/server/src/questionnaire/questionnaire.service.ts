@@ -33,7 +33,7 @@ export class QuestionnaireService {
 	): Promise<QuestionnaireDetailDto> {
 		if (!!occupationId === !!specialtyId) {
 			throw new BadRequestException(
-				"Exactly one of occupationId or specialtyId must be provided",
+				"Provide exactly one of occupation or specialty.",
 			);
 		}
 
@@ -68,7 +68,7 @@ export class QuestionnaireService {
 		});
 
 		if (!questionnaire) {
-			throw new NotFoundException("Questionnaire not found");
+			throw new NotFoundException("Questionnaire not found.");
 		}
 
 		return this.mapToDetail(questionnaire);
@@ -134,7 +134,7 @@ export class QuestionnaireService {
 		});
 
 		if (!existing) {
-			throw new NotFoundException("Question not found");
+			throw new NotFoundException("Question not found.");
 		}
 
 		const type = dto.type ?? existing.type;
@@ -205,7 +205,7 @@ export class QuestionnaireService {
 		});
 
 		if (!question) {
-			throw new NotFoundException("Question not found");
+			throw new NotFoundException("Question not found.");
 		}
 
 		await this.ensureQuestionnaireInOrg(questionnaireId, organizationId);
@@ -241,7 +241,7 @@ export class QuestionnaireService {
 
 		if (questions.length !== questionIds.length) {
 			throw new BadRequestException(
-				"All question IDs must belong to this questionnaire and have includeInSubmission set",
+				"All questions must belong to this questionnaire and be marked as included in submission.",
 			);
 		}
 
@@ -317,7 +317,7 @@ export class QuestionnaireService {
 			where: { id: questionnaireId },
 		});
 		if (!exists) {
-			throw new NotFoundException("Questionnaire not found");
+			throw new NotFoundException("Questionnaire not found.");
 		}
 	}
 
@@ -329,7 +329,7 @@ export class QuestionnaireService {
 			where: { id: questionnaireId, organizationId },
 		});
 		if (!q) {
-			throw new NotFoundException("Questionnaire not found");
+			throw new NotFoundException("Questionnaire not found.");
 		}
 	}
 

@@ -16,7 +16,7 @@ export function QuickActionCard({
 	description,
 	icon: Icon,
 	href,
-}: QuickActionCardProps) {
+}: Readonly<QuickActionCardProps>) {
 	return (
 		<Link href={href} className="block">
 			<Card className="transition-colors hover:bg-accent/50">

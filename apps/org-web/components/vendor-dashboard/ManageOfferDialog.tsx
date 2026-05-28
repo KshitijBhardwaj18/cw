@@ -13,6 +13,8 @@ import {
 import { Banner } from "@repo/ui/general/Banner";
 import { cn } from "@repo/ui/lib/utils";
 import { AlertTriangle, ThumbsDown, ThumbsUp } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
+import { formatVendorPlacementCalendarDay } from "@/utils/vendor-calendar-display";
 
 export interface Offer {
 	submissionId: string;
@@ -43,8 +45,15 @@ export function ManageOfferDialog({
 	mode,
 	onConfirm,
 	isSubmitting = false,
-}: ManageOfferDialogProps) {
+}: Readonly<ManageOfferDialogProps>) {
+	const { fmtShortDate, fmtCalendarDate } = useUserTimezone();
 	if (!offer || !mode) return null;
+
+	const startLabel = formatVendorPlacementCalendarDay(
+		offer.startDate,
+		fmtCalendarDate,
+		fmtShortDate,
+	);
 
 	const isAccept = mode === "accept";
 
@@ -99,7 +108,7 @@ export function ManageOfferDialog({
 								/>
 								<DetailItem
 									label="Start Date"
-									value={offer.startDate}
+									value={startLabel}
 									labelClassName="uppercase text-xs"
 									valueClassName="text-xs"
 								/>

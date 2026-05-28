@@ -5,31 +5,33 @@ import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { REQUISITION_STATUS_FILTER_OPTIONS } from "@/constants/requisition-templates";
-import { useOrgContext } from "@/contexts/org-context";
 import { useRequisitionTemplates } from "@/queries/requisition-templates.queries";
 import { useShiftTemplateOccupations } from "@/queries/shift-templates.queries";
 import type { RequisitionTemplateType } from "@/types/requisition-template";
 
-const REQUISITION_TEMPLATES_PAGE_SIZE = 12;
+const DEFAULT_LIMIT = 12;
+const PAGE_SIZE_OPTIONS = [6, 12, 18, 24];
 
 const RT_PARAMS = {
 	SEARCH: "rtSearch",
 	PAGE: "rtPage",
+	LIMIT: "rtLimit",
 	OCCUPATION: "rtOcc",
 	SPECIALTY: "rtSpec",
 	STATUS: "rtStatus",
 } as const;
 
 export function useRequisitionTemplatesPage() {
-	const { id: orgId } = useOrgContext();
 	const router = useRouter();
 
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
 	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-	const { page, setPage } = usePaginationControls({
+	const { page, limit, setPage, setLimit } = usePaginationControls({
 		pageParamKey: RT_PARAMS.PAGE,
-		defaultLimit: REQUISITION_TEMPLATES_PAGE_SIZE,
+		limitParamKey: RT_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -75,7 +77,7 @@ export function useRequisitionTemplatesPage() {
 		[values],
 	);
 
-	const listQuery = useRequisitionTemplates(orgId, {
+	const listQuery = useRequisitionTemplates({
 		search: searchFromUrl.trim() || undefined,
 		status: filters.status === "all" ? undefined : filters.status,
 		organizationOccupationId:
@@ -83,7 +85,7 @@ export function useRequisitionTemplatesPage() {
 		organizationSpecialtyId:
 			filters.specialty === "all" ? undefined : filters.specialty,
 		page,
-		limit: REQUISITION_TEMPLATES_PAGE_SIZE,
+		limit,
 	});
 
 	const templates = listQuery.data?.data ?? [];
@@ -196,6 +198,9 @@ export function useRequisitionTemplatesPage() {
 		page,
 		totalPages,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 		filterConfigs,
 		hasActiveFilters,
 		isLoading: listQuery.isLoading,

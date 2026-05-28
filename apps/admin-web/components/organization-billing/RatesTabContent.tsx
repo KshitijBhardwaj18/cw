@@ -19,6 +19,7 @@ import { CustomTable } from "@repo/ui/general/CustomTable";
 import { TintedMetricCard } from "@repo/ui/general/TintedMetricCard";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { useBillingAbilities } from "@/hooks/use-billing-abilities";
 import {
 	useBillingConfig,
 	useUpdateBillingConfig,
@@ -67,7 +68,10 @@ interface RatesTabContentProps {
 
 export default function RatesTabContent({
 	organizationId,
-}: RatesTabContentProps) {
+}: Readonly<RatesTabContentProps>) {
+	const { canUpdateWorkforceRate, canUpdateConfigSection } =
+		useBillingAbilities();
+	const canEditPlatformRates = canUpdateConfigSection("fee-structure");
 	const { data: config, isLoading } = useBillingConfig(organizationId);
 	const updateConfig = useUpdateBillingConfig(organizationId);
 	const { data: rateDtos, isLoading: ratesLoading } =
@@ -110,11 +114,17 @@ export default function RatesTabContent({
 	);
 
 	const { columns } = useWorkforceBillingRateColumns({
-		disabled: updateRate.isPending || ratesLoading,
-		onStatusChange: (rateId, status) => patchRate(rateId, { isActive: status }),
-		onRateChange: (rateId, techFee) =>
-			patchRate(rateId, { techFee: Number.isFinite(techFee) ? techFee : 0 }),
-		onFeeTypeChange: (rateId, feeType) => patchRate(rateId, { feeType }),
+		disabled: !canUpdateWorkforceRate || updateRate.isPending || ratesLoading,
+		onStatusChange: canUpdateWorkforceRate
+			? (rateId, status) => patchRate(rateId, { isActive: status })
+			: undefined,
+		onRateChange: canUpdateWorkforceRate
+			? (rateId, techFee) =>
+					patchRate(rateId, { techFee: Number.isFinite(techFee) ? techFee : 0 })
+			: undefined,
+		onFeeTypeChange: canUpdateWorkforceRate
+			? (rateId, feeType) => patchRate(rateId, { feeType })
+			: undefined,
 	});
 
 	const handleSavePlatformRates = async (newMsp: number, newSaas: number) => {
@@ -186,13 +196,15 @@ export default function RatesTabContent({
 						/>
 					</div>
 
-					<UpdateRatesDialog
-						mspRate={Number(config?.mspPercent ?? 0)}
-						saasRate={Number(config?.saasPercent ?? 0)}
-						isSaving={updateConfig.isPending}
-						disabled={isLoading && !config}
-						onSave={handleSavePlatformRates}
-					/>
+					{canEditPlatformRates && (
+						<UpdateRatesDialog
+							mspRate={Number(config?.mspPercent ?? 0)}
+							saasRate={Number(config?.saasPercent ?? 0)}
+							isSaving={updateConfig.isPending}
+							disabled={isLoading && !config}
+							onSave={handleSavePlatformRates}
+						/>
+					)}
 				</CardContent>
 			</Card>
 

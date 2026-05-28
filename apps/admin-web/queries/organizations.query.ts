@@ -129,6 +129,20 @@ export const organizationsKeys = {
 		[...organizationsKeys.all, "programUsers", id, search ?? ""] as const,
 	vendorUsers: (id: string, search?: string) =>
 		[...organizationsKeys.all, "vendorUsers", id, search ?? ""] as const,
+	candidates: (
+		id: string,
+		search: string | undefined,
+		page: number,
+		limit: number,
+	) =>
+		[
+			...organizationsKeys.all,
+			"candidates",
+			id,
+			search ?? "",
+			page,
+			limit,
+		] as const,
 	slugSuggest: (name: string, excludeOrganizationId?: string) =>
 		[
 			...organizationsKeys.all,
@@ -414,6 +428,62 @@ export const useEnrollExistingUser = (
 					queryKey: [...organizationsKeys.all, "vendorUsers", organizationId],
 				});
 			}
+		},
+	});
+};
+
+export const useOrgCandidates = (
+	organizationId: string,
+	search: string | undefined,
+	page = 1,
+	limit = 10,
+) => {
+	return useQuery({
+		queryKey: organizationsKeys.candidates(organizationId, search, page, limit),
+		queryFn: () =>
+			OrganizationsService.getOrgCandidates(
+				organizationId,
+				search,
+				page,
+				limit,
+			),
+		enabled: !!organizationId,
+		placeholderData: (prev) => prev,
+	});
+};
+
+export const useSetOrgCandidateActive = (organizationId: string) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: ({
+			candidateId,
+			isActive,
+		}: {
+			candidateId: string;
+			isActive: boolean;
+		}) =>
+			OrganizationsService.setOrgCandidateActive(
+				organizationId,
+				candidateId,
+				isActive,
+			),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: [...organizationsKeys.all, "candidates", organizationId],
+			});
+		},
+	});
+};
+
+export const useDeleteOrgCandidate = (organizationId: string) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (candidateId: string) =>
+			OrganizationsService.deleteOrgCandidate(organizationId, candidateId),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: [...organizationsKeys.all, "candidates", organizationId],
+			});
 		},
 	});
 };

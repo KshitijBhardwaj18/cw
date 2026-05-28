@@ -14,6 +14,7 @@ import {
 	CREDENTIAL_STATUS_BADGE_CLASS,
 	CREDENTIAL_STATUS_LABEL,
 } from "@/constants/credentials";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { CredentialTableItem } from "@/types/credentials";
 
 export interface CredentialColumnsCallbacks {
@@ -23,6 +24,8 @@ export interface CredentialColumnsCallbacks {
 export const useCredentialColumns = ({
 	onViewDetails,
 }: CredentialColumnsCallbacks) => {
+	const { fmtShortDate } = useUserTimezone();
+
 	const columns = useMemo<ColumnDef<CredentialTableItem>[]>(
 		() => [
 			{
@@ -72,7 +75,7 @@ export const useCredentialColumns = ({
 				header: "Expiry Date",
 				cell: ({ row }) => (
 					<div className="space-y-0.5">
-						<p>{row.original.expiryDate}</p>
+						<p>{fmtShortDate(row.original.expiryDate)}</p>
 						<p className="text-amber-600 text-xs font-medium">
 							{row.original.expiryMeta}
 						</p>
@@ -110,7 +113,7 @@ export const useCredentialColumns = ({
 				),
 			},
 		],
-		[onViewDetails],
+		[onViewDetails, fmtShortDate],
 	);
 
 	return { columns };

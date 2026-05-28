@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency } from "@repo/shared";
+import { formatCurrency, shortId } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -16,17 +16,15 @@ import { useCancelRequisition } from "@/queries/requisitions.queries";
 const SAVINGS_IMPACT_RATE = 0.08;
 
 export type CancelRequisitionDialogProps = {
-	orgId: string;
 	row: SpendBreakdownRow | null;
 	onOpenChange: (open: boolean) => void;
 };
 
 export function CancelRequisitionDialog({
-	orgId,
 	row,
 	onOpenChange,
-}: CancelRequisitionDialogProps) {
-	const cancelMutation = useCancelRequisition(orgId);
+}: Readonly<CancelRequisitionDialogProps>) {
+	const cancelMutation = useCancelRequisition();
 	const openSpend = row?.openSpend ?? 0;
 	const savingsImpact = Math.round(openSpend * SAVINGS_IMPACT_RATE);
 
@@ -34,7 +32,7 @@ export function CancelRequisitionDialog({
 		if (!row) return;
 		try {
 			await cancelMutation.mutateAsync(row.requisitionUuid);
-			toast.success(`Requisition ${row.requisitionId} cancelled.`);
+			toast.success(`Requisition ${shortId(row.requisitionId)} cancelled.`);
 			onOpenChange(false);
 		} catch (e) {
 			toast.error(
@@ -64,8 +62,11 @@ export function CancelRequisitionDialog({
 									<span className="text-muted-foreground shrink-0">
 										Requisition ID:
 									</span>
-									<span className="font-medium text-[hsl(173_58%_38%)] dark:text-[hsl(173_50%_52%)]">
-										{row.requisitionId}
+									<span
+										className="font-medium text-[hsl(173_58%_38%)] dark:text-[hsl(173_50%_52%)]"
+										title={row.requisitionId}
+									>
+										{shortId(row.requisitionId)}
 									</span>
 								</div>
 								<div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">

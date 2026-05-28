@@ -27,7 +27,7 @@ interface VendorUserFormFieldsProps {
 export function VendorUserFormFields({
 	form,
 	validators,
-}: VendorUserFormFieldsProps) {
+}: Readonly<VendorUserFormFieldsProps>) {
 	const submissionAttempts = useStore(
 		form.store,
 		(s) => s.submissionAttempts ?? 0,

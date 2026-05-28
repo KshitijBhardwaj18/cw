@@ -251,7 +251,6 @@ model Organization {
   organizationHolidays          OrganizationHoliday[]
   missingTimeCases              MissingTimeCase[]
   timekeepingPolicy             TimekeepingPolicy?
-  spendAnalytics                SpendAnalytics[]
   billingConfigs                BillingConfig[]
   workforceBillingRates         OrganizationWorkforceBillingRate[]
   notifications                 NotificationOrg[]
@@ -259,9 +258,73 @@ model Organization {
   candidateSummaries            CandidateSummary[]
   placementSummaries            PlacementSummary[]
   timekeepingSummaries          TimekeepingSummary[]
+  requisitionAttentionRules     RequisitionAttentionRule[]
+  agingRules                    AgingRule[]
 
   @@unique([slug])
   @@map("organization")
+}
+
+model AgingRule {
+  id              String                   @id @default(uuid()) @db.Uuid
+  organizationId  String                   @db.Uuid
+  stageTransition AgingRuleStageTransition
+  thresholdValue  Int
+  thresholdUnit   AgingRuleUnit
+  isEnabled       Boolean                  @default(true)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, stageTransition])
+  @@map("aging_rule")
+}
+
+enum AgingRuleStageTransition {
+  SUBMISSION_TO_QUALIFIED
+  QUALIFIED_TO_SHORTLISTED
+  SHORTLISTED_TO_INTERVIEW_SCHEDULED
+  INTERVIEW_SCHEDULED_TO_INTERVIEW_COMPLETED
+  INTERVIEW_COMPLETED_TO_OFFER_SENT
+  OFFER_SENT_TO_OFFER_ACCEPTED
+  OFFER_ACCEPTED_TO_ONBOARDING
+  ONBOARDING_TO_STARTED
+  SUBMITTED_TO_REJECTED
+  OFFER_SENT_TO_OFFER_DECLINED
+}
+
+enum AgingRuleUnit {
+  HOURS
+  DAYS
+}
+
+model RequisitionAttentionRule {
+  id             String                       @id @default(uuid()) @db.Uuid
+  organizationId String                       @db.Uuid
+  key            RequisitionAttentionRuleKey
+  thresholdValue Int
+  thresholdUnit  RequisitionAttentionRuleUnit
+  isEnabled      Boolean                      @default(true)
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
+  @@map("requisition_attention_rule")
+}
+
+enum RequisitionAttentionRuleKey {
+  SLOW_TIME_TO_FILL
+  LOW_SUBMISSION_COUNT
+  NO_SUBMISSIONS
+}
+
+enum RequisitionAttentionRuleUnit {
+  HOURS
+  DAYS
+  COUNT
 }
 
 model OrganizationLocation {
@@ -288,7 +351,6 @@ model OrganizationLocation {
   candidatePreferredLocations CandidatePreferredLocation[]
   shiftTemplates              ShiftTemplate[]
   perDiemShifts               PerDiemShift[]
-  spendAnalytics              SpendAnalytics[]
   timesheets                  Timesheet[]
   timesheetEntries            TimesheetEntry[]
   missingTimeCases            MissingTimeCase[]
@@ -299,21 +361,19 @@ model OrganizationLocation {
 }
 
 model Department {
-  id                       String         @id @default(uuid()) @db.Uuid
-  organizationId           String         @db.Uuid
-  locationId               String         @db.Uuid
-  name                     String
-  departmentType           DepartmentType
-  organizationOccupationId String?        @db.Uuid
-  costCenter               String?
-  organizationSpecialtyId  String?        @db.Uuid
-  createdAt                DateTime       @default(now())
-  updatedAt                DateTime       @updatedAt
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @db.Uuid
+  locationId     String         @db.Uuid
+  name           String
+  departmentType DepartmentType
+  costCenter     String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   organization                   Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   location                       OrganizationLocation            @relation(fields: [locationId], references: [id], onDelete: Cascade)
-  organizationOccupation         OrganizationOccupation?         @relation(fields: [organizationOccupationId], references: [id], onDelete: Restrict)
-  organizationSpecialty          OrganizationSpecialty?          @relation(fields: [organizationSpecialtyId], references: [id], onDelete: SetNull)
+  departmentOccupations          DepartmentOccupation[]
+  departmentSpecialties          DepartmentSpecialty[]
   departmentUsers                DepartmentUser[]
   departmentTimekeepingApprovers DepartmentTimekeepingApprover[]
   requisitionTemplates           RequisitionTemplate[]
@@ -321,16 +381,44 @@ model Department {
   placements                     Placement[]
   shiftTemplates                 ShiftTemplate[]
   perDiemShifts                  PerDiemShift[]
-  spendAnalytics                 SpendAnalytics[]
   timesheets                     Timesheet[]
   timesheetEntries               TimesheetEntry[]
   missingTimeCases               MissingTimeCase[]
   timekeepingSummaries           TimekeepingSummary[]
 
-  @@index([organizationOccupationId])
   @@index([organizationId])
   @@index([locationId])
   @@map("department")
+}
+
+model DepartmentOccupation {
+  id                       String   @id @default(uuid()) @db.Uuid
+  departmentId             String   @db.Uuid
+  organizationOccupationId String   @db.Uuid
+  createdAt                DateTime @default(now())
+
+  department             Department             @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  organizationOccupation OrganizationOccupation @relation(fields: [organizationOccupationId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, organizationOccupationId])
+  @@index([departmentId])
+  @@index([organizationOccupationId])
+  @@map("department_occupation")
+}
+
+model DepartmentSpecialty {
+  id                      String   @id @default(uuid()) @db.Uuid
+  departmentId            String   @db.Uuid
+  organizationSpecialtyId String   @db.Uuid
+  createdAt               DateTime @default(now())
+
+  department            Department            @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  organizationSpecialty OrganizationSpecialty @relation(fields: [organizationSpecialtyId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, organizationSpecialtyId])
+  @@index([departmentId])
+  @@index([organizationSpecialtyId])
+  @@map("department_specialty")
 }
 
 model DepartmentTimekeepingApprover {
@@ -382,6 +470,7 @@ model Member {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, organizationId])
   @@index([organizationId])
   @@index([userId])
   @@index([role])
@@ -419,7 +508,6 @@ model Vendor {
   perDiemAssignments              PerDiemAssignment[]
   invoices                        Invoice[]
   billingConfigs                  BillingConfig[]
-  spendAnalytics                  SpendAnalytics[]
   candidateSummaries              CandidateSummary[]
   placementSummaries              PlacementSummary[]
   timekeepingSummaries            TimekeepingSummary[]
@@ -531,17 +619,20 @@ model MSP {
 }
 
 model MSPLinkedOrg {
-  id                       String    @id @default(uuid()) @db.Uuid
-  mspId                    String    @db.Uuid
-  organizationId           String    @db.Uuid
-  addendumAgreement        String
-  startDate                DateTime
-  renewalDate              DateTime
-  possibleCancellationDate DateTime?
-  mspFeePercentage         Float
-  saasFeePercentage        Float
-  createdAt                DateTime  @default(now())
-  updatedAt                DateTime  @updatedAt
+  id                          String    @id @default(uuid()) @db.Uuid
+  mspId                       String    @db.Uuid
+  organizationId              String    @db.Uuid
+  addendumAgreement           String
+  addendumAgreementFileName   String?
+  addendumAgreementUploadedAt DateTime?
+  addendumRevisionDate        DateTime?
+  startDate                   DateTime
+  renewalDate                 DateTime
+  possibleCancellationDate    DateTime?
+  mspFeePercentage            Float
+  saasFeePercentage           Float
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
 
   msp          MSP          @relation(fields: [mspId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -635,7 +726,6 @@ model Occupation {
   candidates                      Candidate[]
   shiftTemplates                  ShiftTemplate[]
   perDiemShifts                   PerDiemShift[]
-  spendAnalytics                  SpendAnalytics[]
   candidateSummaries              CandidateSummary[]
 
   @@index([status])
@@ -655,7 +745,7 @@ model Specialty {
   occupationSpecialties   OccupationSpecialty[]
   organizationSpecialties OrganizationSpecialty[]
   candidateSpecialties    CandidateSpecialty[]
-  perDiemShifts           PerDiemShift[]
+  perDiemShiftSpecialties PerDiemShiftSpecialty[]
   candidateSummaries      CandidateSummary[]
 
   @@index([status])
@@ -678,7 +768,7 @@ model OrganizationOccupation {
   organization              Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   occupation                Occupation                 @relation(fields: [occupationId], references: [id], onDelete: Cascade)
   complianceWalletTemplates ComplianceWalletTemplate[]
-  departments               Department[]
+  departmentOccupations     DepartmentOccupation[]
   requisitionTemplates      RequisitionTemplate[]
   requisitions              Requisition[]
 
@@ -707,9 +797,9 @@ model OrganizationSpecialty {
   specialty                 Specialty                  @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
   organizationOccupation    OrganizationOccupation     @relation(fields: [organizationOccupationId], references: [id], onDelete: Cascade)
   complianceWalletTemplates ComplianceWalletTemplate[]
-  departments               Department[]
-  requisitionTemplates      RequisitionTemplate[]
-  requisitions              Requisition[]
+  departmentSpecialties     DepartmentSpecialty[]
+  requisitionTemplateSpecialties RequisitionTemplateSpecialty[]
+  requisitionSpecialties    RequisitionSpecialty[]
 
   @@unique([organizationOccupationId, specialtyId])
   @@index([organizationId])
@@ -1005,6 +1095,14 @@ enum CandidatePreferredContractLength {
   OPEN_TO_ANYTHING
 }
 
+enum CandidateExperienceBand {
+  LT_1
+  Y1_2
+  Y3_5
+  Y6_9
+  Y10_PLUS
+}
+
 model Candidate {
   id             String  @id @default(uuid()) @db.Uuid
   userId         String  @unique @db.Uuid
@@ -1015,30 +1113,24 @@ model Candidate {
   updatedBy      String? @db.Uuid
 
   workforceType            CandidateWorkforceType?
-  workforceGroup           String?
   source                   CandidateSource?
-  sourceDetails            String?
   streetAddress            String?
   city                     String?
   state                    String?
   zipCode                  String?
   licenseNumber            String?
-  yearsOfExperience        Int?
   willingToRelocate        Boolean                            @default(false)
   resumeUrl                String?
-  portfolioUrl             String?
-  linkedinUrl              String?
   bio                      String?
   avatarUrl                String?
   skills                   String[]
-  languages                String[]
-  preferredShiftTypes      String[]
+  preferredShiftTypes      ShiftType[]
   preferredContractLengths CandidatePreferredContractLength[] @default([])
-  desiredBillRate          Float?
   isActive                 Boolean                            @default(true)
   isAvailable              Boolean                            @default(true)
   availableFrom            DateTime?
   rtos                     Json?
+  closedAt                 DateTime?                          @db.Timestamptz
 
   inviteStatus         CandidateInviteStatus?
   invitedAt            DateTime?
@@ -1046,26 +1138,36 @@ model Candidate {
   inviteToken          String?
   inviteTokenExpiresAt DateTime?
 
+  onboardingCompletedAt DateTime? @db.Timestamptz
+
   profileBannerDismissedAt DateTime? @db.Timestamptz
+
+  totalProfessionalExperienceBand CandidateExperienceBand?
+  earliestStartDate               DateTime?                @db.Date
+  recentJobTitle                  String?
+  dateOfBirth                     DateTime?                @db.Date
+  lastFourSsn                     String?
+  skillsChecklistFileKey          String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  creator                         User?                            @relation("CandidateCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  updater                         User?                            @relation("CandidateUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
-  invitedBy                       User?                            @relation("CandidateInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
-  user                            User                             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization                    Organization?                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  vendor                          Vendor?                          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  occupation                      Occupation                       @relation(fields: [occupationId], references: [id], onDelete: Restrict)
+  creator                         User?                              @relation("CandidateCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater                         User?                              @relation("CandidateUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  invitedBy                       User?                              @relation("CandidateInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  user                            User                               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization                    Organization?                      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vendor                          Vendor?                            @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  occupation                      Occupation                         @relation(fields: [occupationId], references: [id], onDelete: Restrict)
   summary                         CandidateSummary?
   candidateSpecialties            CandidateSpecialty[]
   candidateTags                   CandidateTag[]
   candidatePreferredLocations     CandidatePreferredLocation[]
   candidateCompliances            CandidateCompliance[]
   candidateQuestionnaireResponses CandidateQuestionnaireResponse[]
+  professionalReferences          CandidateProfessionalReference[]
   submissions                     Submission[]
-  placements                      Placement[]                      @relation("PlacementCandidate")
+  placements                      Placement[]                        @relation("PlacementCandidate")
   placementSummaries              PlacementSummary[]
   perDiemAssignments              PerDiemAssignment[]
   timesheets                      Timesheet[]
@@ -1074,6 +1176,7 @@ model Candidate {
   grievances                      Grievance[]
   missingTimeCases                MissingTimeCase[]
   savedRequisitions               CandidateSavedRequisition[]
+  vendorReviewRequests            CandidateRequisitionVendorReview[]
 
   @@index([userId])
   @@index([organizationId])
@@ -1082,6 +1185,7 @@ model Candidate {
   @@index([isActive])
   @@index([isAvailable])
   @@index([inviteStatus])
+  @@index([closedAt])
   @@map("candidate")
 }
 
@@ -1098,6 +1202,25 @@ model CandidateSpecialty {
   @@index([candidateId])
   @@index([specialtyId])
   @@map("candidate_specialties")
+}
+
+model CandidateProfessionalReference {
+  id           String   @id @default(uuid()) @db.Uuid
+  candidateId  String   @db.Uuid
+  position     Int      @default(0)
+  fullName     String
+  title        String
+  organization String
+  relationship String
+  phone        String
+  email        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+  @@map("candidate_professional_reference")
 }
 
 model CandidateTag {
@@ -1145,14 +1268,30 @@ model CandidateSavedRequisition {
   @@map("candidate_saved_requisitions")
 }
 
+model CandidateRequisitionVendorReview {
+  id            String   @id @default(uuid()) @db.Uuid
+  candidateId   String   @db.Uuid
+  requisitionId String   @db.Uuid
+  createdAt     DateTime @default(now())
+
+  candidate   Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  requisition Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, requisitionId])
+  @@index([candidateId])
+  @@index([requisitionId])
+  @@map("candidate_requisition_vendor_reviews")
+}
+
 model CandidateCompliance {
   id                   String                    @id @default(uuid()) @db.Uuid
   candidateId          String                    @db.Uuid
   complianceListItemId String                    @db.Uuid
   documentUrl          String?
   documentFileName     String?
+  issueDate            DateTime?
   expiryDate           DateTime?
-  status               CandidateComplianceStatus @default(PENDING)
+  status               CandidateComplianceStatus @default(MISSING)
   verifiedById         String?                   @db.Uuid
   verifiedAt           DateTime?
   notes                String?
@@ -1234,6 +1373,7 @@ model CandidateSummary {
   @@index([organizationId])
   @@index([vendorId])
   @@index([occupationId])
+  @@index([lastComplianceUpdatedAt])
   @@map("candidate_summary")
 }
 
@@ -1295,6 +1435,11 @@ model Submission {
   @@index([stage])
   @@index([createdBy])
   @@index([updatedBy])
+  @@index([organizationId, stage, stageEnteredAt])
+  @@index([organizationId, stage, submittedAt])
+  @@index([organizationId, stage, qualifiedAt])
+  @@index([organizationId, stage, offerExtendedAt])
+  @@index([organizationId, stage, acceptedAt])
   @@map("submission")
 }
 
@@ -1326,9 +1471,8 @@ model Placement {
   departmentId    String? @db.Uuid
   locationId      String? @db.Uuid
 
-  jobTitle       String?
-  unitName       String?
-  workforceGroup String?
+  jobTitle String?
+  unitName String?
 
   startDate      DateTime?
   endDate        DateTime?
@@ -1446,6 +1590,7 @@ model PlacementSummary {
 
   @@index([organizationId, status, complianceStatus])
   @@index([organizationId, vendorId, status])
+  @@index([lastComplianceUpdatedAt])
   @@map("placement_summary")
 }
 
@@ -1814,14 +1959,14 @@ model ComplianceChecklist {
 }
 
 model ComplianceChecklistItem {
-  id                   String   @id @default(uuid()) @db.Uuid
-  checklistId          String   @db.Uuid
-  complianceListItemId String   @db.Uuid
-  createdAt            DateTime @default(now())
+  id                   String                       @id @default(uuid()) @db.Uuid
+  checklistId          String                       @db.Uuid
+  complianceListItemId String                       @db.Uuid
+  createdAt            DateTime                     @default(now())
   phase                ComplianceChecklistItemPhase @default(SUBMISSION)
-  checklist          ComplianceChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
-  complianceListItem ComplianceListItem  @relation(fields: [complianceListItemId], references: [id], onDelete: Cascade)
-  
+  checklist            ComplianceChecklist          @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  complianceListItem   ComplianceListItem           @relation(fields: [complianceListItemId], references: [id], onDelete: Cascade)
+
   @@unique([checklistId, complianceListItemId])
   @@index([checklistId])
   @@index([complianceListItemId])
@@ -1829,18 +1974,17 @@ model ComplianceChecklistItem {
 }
 
 model RequisitionTemplate {
-  id                       String            @id @default(uuid()) @db.Uuid
-  organizationId           String            @db.Uuid
+  id                       String                    @id @default(uuid()) @db.Uuid
+  organizationId           String                    @db.Uuid
   type                     RequisitionType
   templateName             String
-  organizationOccupationId String            @db.Uuid
-  organizationSpecialtyId  String?           @db.Uuid
-  locationId               String            @db.Uuid
-  departmentId             String            @db.Uuid
+  organizationOccupationId String                    @db.Uuid
+  locationId               String                    @db.Uuid
+  departmentId             String                    @db.Uuid
   unitName                 String?
   jobDescription           String?
   benefitsPerks            String[]
-  status                   RequisitionStatus @default(DRAFT)
+  status                   RequisitionTemplateStatus @default(DRAFT)
 
   startDate     DateTime?
   endDate       DateTime?
@@ -1865,34 +2009,47 @@ model RequisitionTemplate {
   workflowType          WorkflowType?
   whoCanSubmit          String         @default("all_vendors")
   internalNotes         String?
-  usageCount            Int            @default(0)
 
   createdBy String?  @db.Uuid
   updatedBy String?  @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization           Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  organizationOccupation OrganizationOccupation      @relation(fields: [organizationOccupationId], references: [id], onDelete: Restrict)
-  organizationSpecialty  OrganizationSpecialty?      @relation(fields: [organizationSpecialtyId], references: [id], onDelete: SetNull)
-  location               OrganizationLocation        @relation(fields: [locationId], references: [id], onDelete: Restrict)
-  department             Department                  @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  hiringManager          User?                       @relation("RequisitionTemplateHiringManager", fields: [hiringManagerId], references: [id], onDelete: SetNull)
-  complianceChecklist    ComplianceChecklist?        @relation(fields: [complianceChecklistId], references: [id], onDelete: SetNull)
-  creator                User?                       @relation("RequisitionTemplateCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  updater                User?                       @relation("RequisitionTemplateUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  organization           Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationOccupation OrganizationOccupation        @relation(fields: [organizationOccupationId], references: [id], onDelete: Restrict)
+  location               OrganizationLocation          @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  department             Department                    @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  hiringManager          User?                         @relation("RequisitionTemplateHiringManager", fields: [hiringManagerId], references: [id], onDelete: SetNull)
+  complianceChecklist    ComplianceChecklist?          @relation(fields: [complianceChecklistId], references: [id], onDelete: SetNull)
+  creator                User?                         @relation("RequisitionTemplateCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater                User?                         @relation("RequisitionTemplateUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
   templateVendors        RequisitionTemplateVendor[]
+  templateSpecialties    RequisitionTemplateSpecialty[]
   requisitions           Requisition[]
 
   @@index([organizationId])
   @@index([organizationOccupationId])
-  @@index([organizationSpecialtyId])
   @@index([locationId])
   @@index([departmentId])
   @@index([status])
   @@index([createdBy])
   @@index([updatedBy])
   @@map("requisition_template")
+}
+
+model RequisitionTemplateSpecialty {
+  id                      String   @id @default(uuid()) @db.Uuid
+  templateId              String   @db.Uuid
+  organizationSpecialtyId String   @db.Uuid
+  createdAt               DateTime @default(now())
+
+  template              RequisitionTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  organizationSpecialty OrganizationSpecialty @relation(fields: [organizationSpecialtyId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, organizationSpecialtyId])
+  @@index([templateId])
+  @@index([organizationSpecialtyId])
+  @@map("requisition_template_specialty")
 }
 
 model RequisitionTemplateVendor {
@@ -1919,7 +2076,6 @@ model Requisition {
 
   jobTitle                 String?
   organizationOccupationId String?    @db.Uuid
-  organizationSpecialtyId  String?    @db.Uuid
   locationId               String?    @db.Uuid
   departmentId             String?    @db.Uuid
   unitName                 String?
@@ -1967,30 +2123,30 @@ model Requisition {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization           Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  template               RequisitionTemplate?             @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  organizationOccupation OrganizationOccupation?          @relation(fields: [organizationOccupationId], references: [id], onDelete: Restrict)
-  organizationSpecialty  OrganizationSpecialty?           @relation(fields: [organizationSpecialtyId], references: [id], onDelete: Restrict)
-  location               OrganizationLocation?            @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  department             Department?                      @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  hiringManager          User?                            @relation("RequisitionHiringManager", fields: [hiringManagerId], references: [id], onDelete: SetNull)
-  approvedBy             User?                            @relation("RequisitionApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
-  complianceChecklist    ComplianceChecklist?             @relation(fields: [complianceChecklistId], references: [id], onDelete: SetNull)
-  project                Project?                         @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  creator                User?                            @relation("RequisitionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  updater                User?                            @relation("RequisitionUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  organization           Organization                       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  template               RequisitionTemplate?               @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  organizationOccupation OrganizationOccupation?            @relation(fields: [organizationOccupationId], references: [id], onDelete: Restrict)
+  location               OrganizationLocation?              @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  department             Department?                        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  hiringManager          User?                              @relation("RequisitionHiringManager", fields: [hiringManagerId], references: [id], onDelete: SetNull)
+  approvedBy             User?                              @relation("RequisitionApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  complianceChecklist    ComplianceChecklist?               @relation(fields: [complianceChecklistId], references: [id], onDelete: SetNull)
+  project                Project?                           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  creator                User?                              @relation("RequisitionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater                User?                              @relation("RequisitionUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
   requisitionVendors     RequisitionVendor[]
+  requisitionSpecialties RequisitionSpecialty[]
   acceptanceCriteria     RequisitionAcceptanceCriterion[]
   submissions            Submission[]
-  placements             Placement[]                      @relation("PlacementRequisition")
+  placements             Placement[]                        @relation("PlacementRequisition")
   savedByCandidate       CandidateSavedRequisition[]
+  vendorReviewRequests   CandidateRequisitionVendorReview[]
   savedByVendorUsers     VendorUserSavedRequisition[]
   placementSummaries     PlacementSummary[]
 
   @@index([organizationId])
   @@index([templateId])
   @@index([organizationOccupationId])
-  @@index([organizationSpecialtyId])
   @@index([locationId])
   @@index([departmentId])
   @@index([hiringManagerId])
@@ -2000,7 +2156,23 @@ model Requisition {
   @@index([publishMode])
   @@index([createdBy])
   @@index([updatedBy])
+  @@index([organizationId, status, createdAt])
   @@map("requisition")
+}
+
+model RequisitionSpecialty {
+  id                      String   @id @default(uuid()) @db.Uuid
+  requisitionId           String   @db.Uuid
+  organizationSpecialtyId String   @db.Uuid
+  createdAt               DateTime @default(now())
+
+  requisition           Requisition           @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  organizationSpecialty OrganizationSpecialty @relation(fields: [organizationSpecialtyId], references: [id], onDelete: Cascade)
+
+  @@unique([requisitionId, organizationSpecialtyId])
+  @@index([requisitionId])
+  @@index([organizationSpecialtyId])
+  @@map("requisition_specialty")
 }
 
 model RequisitionAcceptanceCriterion {
@@ -2044,11 +2216,10 @@ model Project {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy      User?            @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy      User?            @relation("ProjectUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  requisitions   Requisition[]
-  spendAnalytics SpendAnalytics[]
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?         @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?         @relation("ProjectUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  requisitions Requisition[]
 
   @@index([organizationId])
   @@index([status])
@@ -2138,28 +2309,29 @@ model WorkforceListMember {
 }
 
 model ShiftTemplate {
-  id                      String    @id @default(uuid()) @db.Uuid
-  organizationId          String    @db.Uuid
-  templateName            String
-  occupationId            String    @db.Uuid
-  departmentId            String    @db.Uuid
-  locationId              String    @db.Uuid
-  shiftType               ShiftType
-  durationHours           Float
-  baseRate                Float
-  baseBillRate            Float?
-  vendorRateMarkupPercent Float?
-  limitShiftVisibility    Boolean   @default(false)
-  visibilityUnlockHours   Int?
-  offerIncentive          Boolean   @default(false)
-  incentiveByHour         Float?
-  incentiveByShift        Float?
-  isActive                Boolean   @default(true)
-  usageCount              Int       @default(0)
-  createdById             String?   @db.Uuid
-  updatedById             String?   @db.Uuid
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  id                       String     @id @default(uuid()) @db.Uuid
+  organizationId           String     @db.Uuid
+  templateName             String
+  occupationId             String     @db.Uuid
+  departmentId             String     @db.Uuid
+  locationId               String     @db.Uuid
+  shiftType                ShiftType
+  durationHours            Float
+  baseRate                 Float
+  baseBillRate             Float?
+  vendorRateMarkupPercent  Float?
+  limitShiftVisibility     Boolean    @default(false)
+  visibilityUnlockDuration Int?
+  visibilityUnlockUnit     DelayUnit?
+  offerIncentive           Boolean    @default(false)
+  incentiveByHour          Float?
+  incentiveByShift         Float?
+  isActive                 Boolean    @default(true)
+  usageCount               Int        @default(0)
+  createdById              String?    @db.Uuid
+  updatedById              String?    @db.Uuid
+  createdAt                DateTime   @default(now())
+  updatedAt                DateTime   @updatedAt
 
   organization  Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   occupation    Occupation           @relation(fields: [occupationId], references: [id], onDelete: Restrict)
@@ -2187,7 +2359,6 @@ model PerDiemShift {
   totalShiftHours              Float
   shiftType                    ShiftType
   occupationId                 String             @db.Uuid
-  specialtyId                  String?            @db.Uuid
   departmentId                 String?            @db.Uuid
   locationId                   String             @db.Uuid
   shiftRate                    Float
@@ -2195,7 +2366,6 @@ model PerDiemShift {
   totalCost                    Float?
   sendPersonalizedNotification Boolean            @default(false)
   status                       PerDiemShiftStatus @default(OPEN)
-  isPublic                     Boolean            @default(true)
   isUrgent                     Boolean            @default(false)
   publishedAt                  DateTime?
   routingRuleId                String?            @db.Uuid
@@ -2204,15 +2374,15 @@ model PerDiemShift {
   createdAt                    DateTime           @default(now())
   updatedAt                    DateTime           @updatedAt
 
-  organization  Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  shiftTemplate ShiftTemplate?       @relation(fields: [shiftTemplateId], references: [id], onDelete: SetNull)
-  occupation    Occupation           @relation(fields: [occupationId], references: [id], onDelete: Restrict)
-  specialty     Specialty?           @relation(fields: [specialtyId], references: [id], onDelete: SetNull)
-  department    Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  location      OrganizationLocation @relation(fields: [locationId], references: [id], onDelete: Restrict)
-  createdBy     User?                @relation("PerDiemShiftCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy     User?                @relation("PerDiemShiftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  organization  Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shiftTemplate ShiftTemplate?          @relation(fields: [shiftTemplateId], references: [id], onDelete: SetNull)
+  occupation    Occupation              @relation(fields: [occupationId], references: [id], onDelete: Restrict)
+  department    Department?             @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  location      OrganizationLocation    @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  createdBy     User?                   @relation("PerDiemShiftCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy     User?                   @relation("PerDiemShiftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   assignments   PerDiemAssignment[]
+  specialties   PerDiemShiftSpecialty[]
 
   @@index([organizationId])
   @@index([shiftDate])
@@ -2223,6 +2393,21 @@ model PerDiemShift {
   @@index([organizationId, status, shiftDate])
   @@index([organizationId, shiftDate, startTime])
   @@map("per_diem_shifts")
+}
+
+model PerDiemShiftSpecialty {
+  id          String   @id @default(uuid()) @db.Uuid
+  shiftId     String   @db.Uuid
+  specialtyId String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  shift     PerDiemShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  specialty Specialty    @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@unique([shiftId, specialtyId])
+  @@index([shiftId])
+  @@index([specialtyId])
+  @@map("per_diem_shift_specialties")
 }
 
 model PerDiemAssignment {
@@ -2451,44 +2636,6 @@ model OccupationSpecialty {
   @@index([occupationId])
   @@index([specialtyId])
   @@map("occupation_specialties")
-}
-
-model SpendAnalytics {
-  id                  String   @id @default(uuid()) @db.Uuid
-  organizationId      String   @db.Uuid
-  periodStart         DateTime
-  periodEnd           DateTime
-  periodType          String
-  departmentId        String?  @db.Uuid
-  locationId          String?  @db.Uuid
-  vendorId            String?  @db.Uuid
-  occupationId        String?  @db.Uuid
-  projectId           String?  @db.Uuid
-  totalSpend          Float    @default(0)
-  regularHours        Float    @default(0)
-  overtimeHours       Float    @default(0)
-  totalHours          Float    @default(0)
-  activePlacements    Int      @default(0)
-  totalInvoices       Int      @default(0)
-  averageBillRate     Float    @default(0)
-  permanentHeadcount  Int      @default(0)
-  contingentHeadcount Int      @default(0)
-  contractorHeadcount Int      @default(0)
-  calculatedAt        DateTime @default(now())
-
-  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  department   Department?           @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  location     OrganizationLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  vendor       Vendor?               @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  occupation   Occupation?           @relation(fields: [occupationId], references: [id], onDelete: SetNull)
-  project      Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
-
-  @@index([organizationId])
-  @@index([periodStart, periodEnd])
-  @@index([periodType])
-  @@index([departmentId])
-  @@index([vendorId])
-  @@map("spend_analytics")
 }
 
 model BillingConfig {
@@ -2878,25 +3025,25 @@ enum RequisitionType {
 
 enum RequisitionStatus {
   DRAFT
-  ACTIVE
-  INACTIVE
   PENDING_APPROVAL
-  APPROVED
+  SCHEDULED
   PUBLISHED
-  ON_HOLD
   FILLED
   CANCELLED
-  CLOSED
+}
+
+enum RequisitionTemplateStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
 }
 
 enum ShiftType {
-  DAYS
-  EVENINGS
-  NIGHTS
-  SWING
+  DAY
+  EVENING
+  NIGHT
   ROTATING
-  WEEKENDS_ONLY
-  ON_CALL
+  FLEXIBLE
 }
 
 enum InterviewType {
@@ -2918,13 +3065,10 @@ enum ComplianceChecklistItemPhase {
 
 enum PlacementStatus {
   UPCOMING
-  PENDING
   ACTIVE
-  INACTIVE
-  COMPLETED
-  ENDING_SOON
-  TERMINATED
   ON_HOLD
+  COMPLETED
+  TERMINATED
 }
 
 enum PlacementComplianceStatus {
@@ -2964,7 +3108,6 @@ enum OrganizationVendorStatus {
 }
 
 enum CandidateWorkforceType {
-  SELF
   INTERNAL_FULL_TIME
   INTERNAL_PART_TIME
   INTERNAL_PRN
@@ -2989,10 +3132,11 @@ enum CandidateInviteStatus {
 }
 
 enum CandidateComplianceStatus {
-  APPROVED
-  PENDING
-  EXPIRED
   MISSING
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
 }
 
 enum PublishMode {
@@ -3030,6 +3174,7 @@ enum PerDiemShiftStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+  EXPIRED
 }
 
 enum TimesheetEntryStatus {

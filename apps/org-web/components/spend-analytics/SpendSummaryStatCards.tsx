@@ -15,7 +15,7 @@ import {
 import type { SpendAnalyticsSummary } from "@/services/billing.service";
 
 function iconWrap(
-	tone: keyof typeof TINTED_METRIC_TONE_STYLES,
+	tone: Readonly<keyof typeof TINTED_METRIC_TONE_STYLES>,
 	Icon: typeof DollarSign,
 ) {
 	const styles = TINTED_METRIC_TONE_STYLES[tone];
@@ -47,7 +47,7 @@ export function SpendSummaryStatCards({
 	totalSavings,
 	spendDeltaPct,
 	isLoading,
-}: SpendSummaryStatCardsProps) {
+}: Readonly<SpendSummaryStatCardsProps>) {
 	if (isLoading) {
 		return (
 			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">

@@ -1,5 +1,6 @@
 "use client";
 
+import { coerceYmdOrIsoToUtcInstant } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -29,6 +30,7 @@ import {
 	X,
 } from "lucide-react";
 import { useState } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { PendingRequisitionApprovalItem } from "@/services/requisitions.service";
 
 export function PendingApprovalCard({
@@ -38,15 +40,26 @@ export function PendingApprovalCard({
 	canActOnApprovals = true,
 	onApprove,
 	onReject,
-}: {
+}: Readonly<{
 	job: PendingRequisitionApprovalItem;
 	isApproving?: boolean;
 	isRejecting?: boolean;
 	canActOnApprovals?: boolean;
 	onApprove: (id: string) => void;
 	onReject: (id: string) => void;
-}) {
+}>) {
 	const [open, setOpen] = useState(false);
+	const { fmtShortDate, fmtDateTime } = useUserTimezone();
+	const expectedInstant = coerceYmdOrIsoToUtcInstant(job.expectedStartDate);
+	const expectedStartLabel = expectedInstant
+		? fmtShortDate(expectedInstant)
+		: job.expectedStartDate === "—"
+			? "—"
+			: job.expectedStartDate;
+	const submittedInstant = coerceYmdOrIsoToUtcInstant(job.submittedAt);
+	const submittedLabel = submittedInstant
+		? fmtDateTime(submittedInstant)
+		: job.submittedAt;
 
 	return (
 		<Collapsible open={open} onOpenChange={setOpen}>
@@ -69,7 +82,7 @@ export function PendingApprovalCard({
 						</span>
 						<span className="inline-flex items-center gap-1.5">
 							<Calendar className="size-4 shrink-0" aria-hidden />
-							{job.submittedLabel}
+							{submittedLabel}
 						</span>
 					</div>
 				</CardHeader>
@@ -126,7 +139,7 @@ export function PendingApprovalCard({
 									/>
 									<DetailItem
 										label="Expected Start Date"
-										value={job.expectedStartDate}
+										value={expectedStartLabel}
 										icon={Calendar}
 									/>
 									<DetailItem

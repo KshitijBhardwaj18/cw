@@ -10,8 +10,8 @@ import {
 } from "@repo/ui/components/empty";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
 import { CustomTable } from "@repo/ui/general/CustomTable";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { UserPlus, Users } from "lucide-react";
 import { useState } from "react";
@@ -42,12 +42,11 @@ export function CandidatesPageContent() {
 		setFiltersExpanded,
 		filterConfigs,
 		limit,
+		setLimit,
+		pageSizeOptions,
 		isListLoading,
 		isListError,
 	} = useVendorCandidates();
-
-	const rangeStart = totalRows === 0 ? 0 : (page - 1) * limit + 1;
-	const rangeEnd = totalRows === 0 ? 0 : Math.min(page * limit, totalRows);
 
 	return (
 		<div className="space-y-6">
@@ -65,7 +64,7 @@ export function CandidatesPageContent() {
 									label: "Quick Onboard",
 									icon: <UserPlus className="size-4" />,
 									onClick: () => {
-										if (!org?.id) {
+										if (!org?.slug) {
 											toast.error(
 												"Organization context is required to invite a candidate.",
 											);
@@ -79,11 +78,10 @@ export function CandidatesPageContent() {
 				}
 			/>
 
-			{org?.id ? (
+			{org?.slug ? (
 				<QuickOnboardCandidateDialog
 					open={quickOnboardOpen}
 					onOpenChange={setQuickOnboardOpen}
-					orgId={org.id}
 				/>
 			) : null}
 
@@ -141,16 +139,17 @@ export function CandidatesPageContent() {
 						enablePagination={false}
 						emptyState={null}
 					/>
-					<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-						<p className="text-muted-foreground text-sm">
-							Showing {rangeStart}–{rangeEnd} of {totalRows} candidates
-						</p>
-						<ConfigPagePagination
-							page={page}
-							totalPages={pageCount}
-							onPageChange={setPage}
-						/>
-					</div>
+					<PaginationControls
+						currentPage={page}
+						pageCount={pageCount}
+						goToPage={setPage}
+						limit={limit}
+						setLimit={setLimit}
+						pageSizeOptions={pageSizeOptions}
+						totalItems={totalRows}
+						itemLabel="candidate"
+						itemLabelPlural="candidates"
+					/>
 				</>
 			)}
 		</div>

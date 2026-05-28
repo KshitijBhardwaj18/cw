@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency } from "@repo/shared";
+import { formatCurrency, shortId } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -31,8 +31,9 @@ export function useSpendBreakdownColumns(
 					<Link
 						href={`/org/jobs/${row.original.requisitionId}`}
 						className="text-left font-medium text-primary hover:underline text-wrap line-clamp-1"
+						title={row.original.requisitionId}
 					>
-						{row.original.requisitionId}
+						{shortId(row.original.requisitionId)}
 					</Link>
 				),
 			},

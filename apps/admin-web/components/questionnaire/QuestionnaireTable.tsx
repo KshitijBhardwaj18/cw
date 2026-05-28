@@ -27,7 +27,7 @@ export function QuestionnaireTable({
 	onEditQuestion,
 	onViewTagging,
 	isUpdatePending,
-}: QuestionnaireTableProps) {
+}: Readonly<QuestionnaireTableProps>) {
 	const { columns } = useQuestionnaireColumns({
 		canUpdateQuestion,
 		canDeleteQuestion,

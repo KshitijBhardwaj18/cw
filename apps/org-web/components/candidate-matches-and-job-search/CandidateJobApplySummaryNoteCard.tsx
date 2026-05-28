@@ -16,7 +16,7 @@ export interface CandidateJobApplySummaryNoteCardProps {
 export function CandidateJobApplySummaryNoteCard({
 	value,
 	onChange,
-}: CandidateJobApplySummaryNoteCardProps) {
+}: Readonly<CandidateJobApplySummaryNoteCardProps>) {
 	return (
 		<Card>
 			<CardHeader>

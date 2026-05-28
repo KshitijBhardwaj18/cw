@@ -6,8 +6,12 @@ export interface CandidatePlacementListItem {
 	jobTitle: string;
 	employerName: string;
 	locationLabel: string;
-	/** Display string for dates, e.g. "2024-12-01 - 2025-03-01" or "Starts 2025-01-15" */
+	/** Legacy server-built label; may contain ISO. Prefer {@link startDate}/{@link endDate} + user TZ formatters. */
 	dateLabel: string;
+	/** Assignment start (ISO); omit or null on older API responses */
+	startDate?: string | null;
+	/** Assignment end (ISO); omit or null on older API responses */
+	endDate?: string | null;
 	/** Active placements only — e.g. "Night Shift (7PM - 7AM)" */
 	shiftLabel?: string;
 	/** Upcoming: show inner onboarding banner when set (0–100) */
@@ -18,4 +22,5 @@ export type CandidatePlacementListGrouped = {
 	active: CandidatePlacementListItem[];
 	upcoming: CandidatePlacementListItem[];
 	past: CandidatePlacementListItem[];
+	isInternal: boolean;
 };

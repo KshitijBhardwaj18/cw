@@ -7,7 +7,8 @@ import {
 	GRIEVANCE_STATUS,
 	GRIEVANCE_STATUS_FILTER_OPTIONS,
 	GRIEVANCE_TYPE_FILTER_OPTIONS,
-	GRIEVANCES_PAGE_SIZE,
+	GRIEVANCES_DEFAULT_LIMIT,
+	GRIEVANCES_PAGE_SIZE_OPTIONS,
 	type GrievanceListRow,
 	type GrievanceSummaryFilterKey,
 } from "@/constants/grievances";
@@ -39,14 +40,17 @@ export interface GrievanceSummaryCounts {
 const GRIEVANCE_PARAMS = {
 	SEARCH: "gSearch",
 	PAGE: "gPage",
+	LIMIT: "gLimit",
 	TYPE: "grievanceType",
 	STATUS: "grievanceStatus",
 } as const;
 
-export function useGrievancesPage(orgId: string) {
-	const { page, limit, setPage } = usePaginationControls({
+export function useGrievancesPage() {
+	const { page, limit, setPage, setLimit } = usePaginationControls({
 		pageParamKey: GRIEVANCE_PARAMS.PAGE,
-		defaultLimit: GRIEVANCES_PAGE_SIZE,
+		limitParamKey: GRIEVANCE_PARAMS.LIMIT,
+		defaultLimit: GRIEVANCES_DEFAULT_LIMIT,
+		pageSizeOptions: GRIEVANCES_PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -77,7 +81,7 @@ export function useGrievancesPage(orgId: string) {
 		],
 	});
 
-	const [filtersExpanded, setFiltersExpanded] = useState(true);
+	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
 	const typeFilter = values[GRIEVANCE_PARAMS.TYPE] || "all";
 	const statusFilter = values[GRIEVANCE_PARAMS.STATUS] || "all";
@@ -99,10 +103,7 @@ export function useGrievancesPage(orgId: string) {
 		[page, limit, searchFromUrl, typeFilter, statusFilter],
 	);
 
-	const [countsResult, listResult] = useGrievancesIndexSuspense(
-		orgId,
-		listQuery,
-	);
+	const [countsResult, listResult] = useGrievancesIndexSuspense(listQuery);
 	const countsData = countsResult.data;
 	const listData = listResult.data;
 
@@ -151,6 +152,9 @@ export function useGrievancesPage(orgId: string) {
 		totalPages,
 		page,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions: GRIEVANCES_PAGE_SIZE_OPTIONS,
 		isLoading: countsResult.isLoading || listResult.isLoading,
 		isError: countsResult.isError || listResult.isError,
 	};

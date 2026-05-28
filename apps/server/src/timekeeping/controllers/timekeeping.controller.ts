@@ -145,7 +145,7 @@ export class TimekeepingController {
 		@UploadedFile() file: Express.Multer.File | undefined,
 	) {
 		if (!file?.buffer?.length) {
-			throw new BadRequestException("File is required");
+			throw new BadRequestException("File is required.");
 		}
 		const orgId = requireActiveOrganizationId(session);
 		return this.timekeepingService.uploadDisputeSupportingDocument(
@@ -164,7 +164,8 @@ export class TimekeepingController {
 		@Session() session: UserSession,
 		@Query("key") key: string,
 	) {
-		if (!key?.trim()) throw new BadRequestException("key is required");
+		if (!key?.trim())
+			throw new BadRequestException("Document key is required.");
 		const orgId = requireActiveOrganizationId(session);
 		return this.timekeepingService.getDisputeSupportingDocumentSignedUrl(
 			orgId,
@@ -468,5 +469,47 @@ export class TimekeepingController {
 			actor.vendorId,
 			dto,
 		);
+	}
+
+	@Post("vendor/internal-upload")
+	@ApiOperation({
+		summary:
+			"Vendor portal: bulk-upload timesheet entries (CSV/Excel) for the vendor's own candidates",
+	})
+	@ApiConsumes("multipart/form-data")
+	@ApiBody({
+		schema: {
+			type: "object",
+			properties: { file: { type: "string", format: "binary" } },
+		},
+	})
+	@Permissions({ action: Action.Create, subject: "Timesheet" })
+	@UseInterceptors(FileInterceptor("file"))
+	vendorInternalUpload(
+		@Session() session: UserSession,
+		@UploadedFile() file: Express.Multer.File,
+	) {
+		const orgId = requireActiveOrganizationId(session);
+		const actor = resolveVendorActor(session);
+		return this.timekeepingService.internalUpload(
+			orgId,
+			file,
+			session.user.id,
+			actor.vendorId,
+		);
+	}
+
+	@Get("vendor/internal-upload/:jobId")
+	@ApiOperation({
+		summary: "Vendor portal: get internal upload job status",
+	})
+	@Permissions({ action: Action.Read, subject: "Timesheet" })
+	getVendorUploadJob(
+		@Session() session: UserSession,
+		@Param("jobId", ParseUUIDPipe) jobId: string,
+	) {
+		const orgId = requireActiveOrganizationId(session);
+		const actor = resolveVendorActor(session);
+		return this.timekeepingService.getUploadJob(orgId, jobId, actor.vendorId);
 	}
 }

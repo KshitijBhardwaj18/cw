@@ -6,7 +6,9 @@ import { AppSidebar } from "@/components/sidebar/AppSidebar";
 import { AuthProvider } from "@/contexts/auth.context";
 import { authClient } from "@/lib/auth-client";
 
-const MainLayout = async ({ children }: { children: React.ReactNode }) => {
+const MainLayout = async ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	const session = await authClient.getSession({
 		fetchOptions: {
 			headers: await headers(),

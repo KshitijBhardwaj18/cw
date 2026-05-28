@@ -29,7 +29,7 @@ const VALID_TYPES = Object.values(OrganizationType);
 
 export function OrganizationsByTypePageContent({
 	organizationType,
-}: OrganizationsByTypePageContentProps) {
+}: Readonly<OrganizationsByTypePageContentProps>) {
 	const { ability } = useAuth();
 
 	const { page, setPage } = usePaginationControls({

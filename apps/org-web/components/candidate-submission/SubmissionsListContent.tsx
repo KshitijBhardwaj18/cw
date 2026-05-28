@@ -20,6 +20,7 @@ interface SubmissionsListContentProps {
 	limit: number;
 	setLimit: (limit: number) => void;
 	portalCopy: CandidateListPortalCopy;
+	hasSearch?: boolean;
 	withdrawMutation: UseMutationResult<
 		unknown,
 		Error,
@@ -41,9 +42,10 @@ export function SubmissionsListContent({
 	limit,
 	setLimit,
 	portalCopy,
+	hasSearch = false,
 	withdrawMutation,
 	acceptMutation,
-}: SubmissionsListContentProps) {
+}: Readonly<SubmissionsListContentProps>) {
 	const [withdrawingSubmission, setWithdrawingSubmission] =
 		useState<CandidateSubmission | null>(null);
 	const [acceptingSubmission, setAcceptingSubmission] =
@@ -72,6 +74,7 @@ export function SubmissionsListContent({
 	const payload = listQuery.data;
 	const submissions = payload?.data ?? [];
 	const totalPages = payload?.totalPages ?? 1;
+	const totalItems = payload?.total ?? 0;
 
 	return (
 		<>
@@ -86,7 +89,9 @@ export function SubmissionsListContent({
 				))}
 				{submissions.length === 0 && (
 					<div className="py-24 text-center text-muted-foreground border border-dashed rounded-lg">
-						{portalCopy.emptyList}
+						{hasSearch
+							? "No applications match your search. Try adjusting keywords."
+							: portalCopy.emptyList}
 					</div>
 				)}
 			</div>
@@ -99,6 +104,9 @@ export function SubmissionsListContent({
 						goToPage={setPage}
 						limit={limit}
 						setLimit={setLimit}
+						totalItems={totalItems}
+						itemLabel="application"
+						itemLabelPlural="applications"
 					/>
 				</div>
 			)}

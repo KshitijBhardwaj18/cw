@@ -6,7 +6,7 @@ import {
 import {
 	ComplianceChecklistItemPhase,
 	Prisma,
-	RequisitionStatus,
+	RequisitionTemplateStatus,
 	WorkflowType,
 } from "@repo/db";
 import { PrismaService } from "src/prisma/prisma.service";
@@ -20,7 +20,7 @@ const TEMPLATE_SELECT = {
 	templateName: true,
 	status: true,
 	updatedAt: true,
-	usageCount: true,
+	_count: { select: { requisitions: true } },
 	shiftType: true,
 	startTime: true,
 	endTime: true,
@@ -31,7 +31,13 @@ const TEMPLATE_SELECT = {
 			occupation: { select: { name: true, acronym: true } },
 		},
 	},
-	organizationSpecialty: { select: { specialty: { select: { name: true } } } },
+	templateSpecialties: {
+		select: {
+			organizationSpecialty: {
+				select: { id: true, specialty: { select: { name: true } } },
+			},
+		},
+	},
 	location: { select: { name: true } },
 	department: { select: { name: true } },
 	complianceChecklist: {
@@ -48,7 +54,6 @@ const TEMPLATE_DETAIL_SELECT = {
 	templateName: true,
 	locationId: true,
 	organizationOccupationId: true,
-	organizationSpecialtyId: true,
 	departmentId: true,
 	unitName: true,
 	jobDescription: true,
@@ -87,7 +92,13 @@ const TEMPLATE_DETAIL_SELECT = {
 		},
 	},
 	organizationOccupation: { select: { id: true, occupationId: true } },
-	organizationSpecialty: { select: { id: true, specialtyId: true } },
+	templateSpecialties: {
+		select: {
+			organizationSpecialty: {
+				select: { id: true, specialtyId: true },
+			},
+		},
+	},
 } as const;
 
 @Injectable()
@@ -102,15 +113,19 @@ export class RequisitionTemplatesService {
 		const {
 			complianceChecklist,
 			organizationOccupation,
-			organizationSpecialty,
+			templateSpecialties,
 			...rest
 		} = template;
 		return {
 			...rest,
 			organizationOccupationId: organizationOccupation.id,
-			organizationSpecialtyId: organizationSpecialty?.id ?? null,
 			occupationId: organizationOccupation.occupationId,
-			specialtyId: organizationSpecialty?.specialtyId ?? null,
+			organizationSpecialtyIds: templateSpecialties.map(
+				(t) => t.organizationSpecialty.id,
+			),
+			specialtyIds: templateSpecialties.map(
+				(t) => t.organizationSpecialty.specialtyId,
+			),
 			complianceChecklistItemPhases:
 				complianceChecklist?.items.map((i) => ({
 					complianceListItemId: i.complianceListItemId,
@@ -142,13 +157,13 @@ export class RequisitionTemplatesService {
 		const allowed = new Set(checklist.items.map((i) => i.complianceListItemId));
 		if (phases.length !== allowed.size) {
 			throw new BadRequestException(
-				"complianceChecklistItemPhases must include every item on the checklist",
+				"Provide a phase for every item on the compliance checklist.",
 			);
 		}
 		for (const row of phases) {
 			if (!allowed.has(row.complianceListItemId)) {
 				throw new BadRequestException(
-					"complianceChecklistItemPhases contains an item that is not on this checklist",
+					"One of the provided phase items is not on this checklist.",
 				);
 			}
 		}
@@ -170,7 +185,7 @@ export class RequisitionTemplatesService {
 			where: { id: orgId },
 			select: { id: true },
 		});
-		if (!org) throw new NotFoundException("Organization not found");
+		if (!org) throw new NotFoundException("Organization not found.");
 	}
 
 	async list(orgId: string, query: QueryRequisitionTemplatesDto) {
@@ -202,11 +217,15 @@ export class RequisitionTemplatesService {
 								},
 							},
 							{
-								organizationSpecialty: {
-									specialty: {
-										name: {
-											contains: query.search,
-											mode: "insensitive",
+								templateSpecialties: {
+									some: {
+										organizationSpecialty: {
+											specialty: {
+												name: {
+													contains: query.search,
+													mode: "insensitive",
+												},
+											},
 										},
 									},
 								},
@@ -224,7 +243,7 @@ export class RequisitionTemplatesService {
 				: {}),
 			...(query.status
 				? {
-						status: query.status as RequisitionStatus,
+						status: query.status as RequisitionTemplateStatus,
 					}
 				: {}),
 			...(query.organizationOccupationId
@@ -234,7 +253,11 @@ export class RequisitionTemplatesService {
 				: {}),
 			...(query.organizationSpecialtyId
 				? {
-						organizationSpecialtyId: query.organizationSpecialtyId,
+						templateSpecialties: {
+							some: {
+								organizationSpecialtyId: query.organizationSpecialtyId,
+							},
+						},
 					}
 				: {}),
 		};
@@ -264,21 +287,33 @@ export class RequisitionTemplatesService {
 					: shiftPart;
 				const durationPart =
 					item.lengthWeeks != null ? `${item.lengthWeeks} wk` : "Duration TBD";
+				const specialtyNames = item.templateSpecialties
+					.map((t) => t.organizationSpecialty.specialty.name)
+					.filter(Boolean);
+				const specialtyLabel =
+					specialtyNames.length === 0
+						? "—"
+						: specialtyNames.length === 1
+							? specialtyNames[0]
+							: `${specialtyNames[0]} (+${specialtyNames.length - 1})`;
+				const titleSpecialty =
+					specialtyNames.length === 0 ? "General" : specialtyLabel;
 				return {
 					id: item.id,
 					type: item.type,
 					status: item.status,
-					title: `${item.organizationOccupation.occupation.acronym || item.organizationOccupation.occupation.name} - ${item.location.name} - ${item.organizationSpecialty?.specialty.name ?? "General"}`,
+					title: `${item.organizationOccupation.occupation.acronym || item.organizationOccupation.occupation.name} - ${item.location.name} - ${titleSpecialty}`,
 					templateName: item.templateName,
 					occupation: item.organizationOccupation.occupation.name,
-					specialty: item.organizationSpecialty?.specialty.name ?? "—",
+					specialty: specialtyLabel,
+					specialties: specialtyNames,
 					location: item.location.name,
 					departmentLabel: item.department.name,
 					shiftSummary,
 					billRateLabel: item.billRate != null ? `$${item.billRate}/hr` : "—",
 					complianceTemplateName: item.complianceChecklist?.name ?? "—",
-					lastUsedLabel: `Updated ${item.updatedAt.toLocaleDateString("en-US")}`,
-					usedCount: item.usageCount,
+					lastUsedLabel: `Updated ${item.updatedAt.toISOString()}`,
+					usedCount: item._count.requisitions,
 					complianceItemCount: item.complianceChecklist?.items.length ?? 0,
 					lastUpdated: item.updatedAt.toISOString(),
 					durationLabel: durationPart,
@@ -298,44 +333,73 @@ export class RequisitionTemplatesService {
 	) {
 		await this.ensureOrgExists(orgId);
 
-		const [orgOccupation, orgSpecialty, department, checklist] =
-			await Promise.all([
-				this.prisma.organizationOccupation.findFirst({
-					where: { organizationId: orgId, occupationId: dto.occupationId },
-					select: { id: true },
-				}),
-				dto.specialtyId
-					? this.prisma.organizationSpecialty.findFirst({
-							where: { organizationId: orgId, specialtyId: dto.specialtyId },
-							select: { id: true },
-						})
-					: Promise.resolve(null),
-				this.prisma.department.findFirst({
-					where: { id: dto.departmentId, organizationId: orgId },
-					select: {
-						id: true,
-						locationId: true,
-						organizationOccupationId: true,
+		const specialtyIds = Array.from(new Set(dto.specialtyIds ?? []));
+
+		const [
+			orgOccupation,
+			orgSpecialties,
+			department,
+			checklist,
+			organizationLocation,
+		] = await Promise.all([
+			this.prisma.organizationOccupation.findFirst({
+				where: { organizationId: orgId, occupationId: dto.occupationId },
+				select: { id: true },
+			}),
+			specialtyIds.length > 0
+				? this.prisma.organizationSpecialty.findMany({
+						where: {
+							organizationId: orgId,
+							specialtyId: { in: specialtyIds },
+						},
+						select: { id: true, organizationOccupationId: true },
+					})
+				: Promise.resolve(
+						[] as Array<{ id: string; organizationOccupationId: string }>,
+					),
+			this.prisma.department.findFirst({
+				where: { id: dto.departmentId, organizationId: orgId },
+				select: {
+					id: true,
+					locationId: true,
+					departmentOccupations: {
+						select: { organizationOccupationId: true },
 					},
-				}),
-				this.prisma.complianceChecklist.findFirst({
-					where: {
-						id: dto.complianceChecklistId,
-						organizationId: orgId,
-						isActive: true,
-					},
-					select: { id: true },
-				}),
-			]);
+				},
+			}),
+			this.prisma.complianceChecklist.findFirst({
+				where: {
+					id: dto.complianceChecklistId,
+					organizationId: orgId,
+					isActive: true,
+				},
+				select: { id: true },
+			}),
+			this.prisma.organizationLocation.findFirst({
+				where: { id: dto.locationId, organizationId: orgId },
+				select: { id: true },
+			}),
+		]);
 
 		if (!orgOccupation) {
 			throw new BadRequestException(
 				"Selected occupation is not configured for this organization",
 			);
 		}
-		if (dto.specialtyId && !orgSpecialty) {
+		if (
+			specialtyIds.length > 0 &&
+			orgSpecialties.length !== specialtyIds.length
+		) {
 			throw new BadRequestException(
-				"Selected specialty is not configured for this organization",
+				"One or more selected specialties are not configured for this organization",
+			);
+		}
+		const mismatchedSpecialty = orgSpecialties.find(
+			(s) => s.organizationOccupationId !== orgOccupation.id,
+		);
+		if (mismatchedSpecialty) {
+			throw new BadRequestException(
+				"One or more selected specialties do not belong to the selected occupation",
 			);
 		}
 		if (!department) {
@@ -343,19 +407,32 @@ export class RequisitionTemplatesService {
 				"Department not found for this organization",
 			);
 		}
+		if (!organizationLocation) {
+			throw new BadRequestException(
+				"Selected location was not found for this organization",
+			);
+		}
+		if (department.locationId !== dto.locationId) {
+			throw new BadRequestException(
+				"Department does not belong to the selected location",
+			);
+		}
 		if (!checklist) {
 			throw new BadRequestException(
 				"Compliance checklist not found or inactive",
 			);
 		}
-		if (!department.organizationOccupationId) {
+		const departmentOccupationIds = department.departmentOccupations.map(
+			(o) => o.organizationOccupationId,
+		);
+		if (departmentOccupationIds.length === 0) {
 			throw new BadRequestException(
-				"This department is missing an organization occupation. Update the department (occupation) before using it for a requisition template",
+				"This department has no occupations configured. Update the department before using it for a requisition template",
 			);
 		}
-		if (department.organizationOccupationId !== orgOccupation.id) {
+		if (!departmentOccupationIds.includes(orgOccupation.id)) {
 			throw new BadRequestException(
-				"Department does not match selected occupation",
+				"Department does not support the selected occupation",
 			);
 		}
 
@@ -363,7 +440,7 @@ export class RequisitionTemplatesService {
 			? (dto.selectedVendorIds ?? [])
 			: [];
 		if (dto.selectedVendorsOnly && selectedVendorIds.length === 0) {
-			throw new BadRequestException("Select at least one vendor");
+			throw new BadRequestException("Select at least one vendor.");
 		}
 		if (selectedVendorIds.length > 0) {
 			const linkedVendorsCount = await this.prisma.organizationVendor.count({
@@ -383,15 +460,14 @@ export class RequisitionTemplatesService {
 					type: dto.type,
 					templateName: dto.templateName,
 					organizationOccupationId: orgOccupation.id,
-					organizationSpecialtyId: orgSpecialty?.id ?? null,
-					locationId: department.locationId,
+					locationId: dto.locationId,
 					departmentId: department.id,
 					unitName: dto.unitName ?? null,
 					jobDescription: dto.jobDescription,
 					benefitsPerks: dto.benefitsPerks ?? [],
 					status: dto.status,
-					startDate: new Date(dto.startDate),
-					endDate: dto.endDate ? new Date(dto.endDate) : null,
+					startDate: null,
+					endDate: null,
 					lengthWeeks: dto.lengthWeeks,
 					startTime: dto.startTime,
 					endTime: dto.endTime,
@@ -431,6 +507,16 @@ export class RequisitionTemplatesService {
 				});
 			}
 
+			if (orgSpecialties.length > 0) {
+				await tx.requisitionTemplateSpecialty.createMany({
+					data: orgSpecialties.map((s) => ({
+						templateId: template.id,
+						organizationSpecialtyId: s.id,
+					})),
+					skipDuplicates: true,
+				});
+			}
+
 			if (dto.complianceChecklistItemPhases != null) {
 				await this.syncComplianceChecklistItemPhasesTx(
 					tx,
@@ -454,7 +540,7 @@ export class RequisitionTemplatesService {
 			select: TEMPLATE_DETAIL_SELECT,
 		});
 		if (!template)
-			throw new NotFoundException("Requisition template not found");
+			throw new NotFoundException("Requisition template not found.");
 		return this.mapTemplateDetail(template);
 	}
 
@@ -468,59 +554,123 @@ export class RequisitionTemplatesService {
 		const updateData: Prisma.RequisitionTemplateUncheckedUpdateInput = {
 			updatedBy: userId,
 		};
-		if (dto.specialtyId !== undefined && dto.occupationId !== undefined) {
-			const [orgOccupation, orgSpecialty] = await Promise.all([
-				this.prisma.organizationOccupation.findFirst({
-					where: { organizationId: orgId, occupationId: dto.occupationId },
-					select: { id: true },
-				}),
-				this.prisma.organizationSpecialty.findFirst({
-					where: { organizationId: orgId, specialtyId: dto.specialtyId },
-					select: { id: true, organizationOccupationId: true },
-				}),
-			]);
+
+		let nextOrganizationOccupationId: string | null = null;
+		if (dto.occupationId !== undefined) {
+			const orgOccupation = await this.prisma.organizationOccupation.findFirst({
+				where: { organizationId: orgId, occupationId: dto.occupationId },
+				select: { id: true },
+			});
 			if (!orgOccupation) {
 				throw new BadRequestException(
 					"Selected occupation is not configured for this organization",
 				);
 			}
-			if (!orgSpecialty) {
-				throw new BadRequestException(
-					"Selected specialty is not configured for this organization",
-				);
-			}
-			if (orgSpecialty.organizationOccupationId !== orgOccupation.id) {
-				throw new BadRequestException(
-					"Selected specialty is not linked to the selected occupation",
-				);
-			}
+			nextOrganizationOccupationId = orgOccupation.id;
 			updateData.organizationOccupationId = orgOccupation.id;
-			updateData.organizationSpecialtyId = orgSpecialty.id;
+		}
+
+		const nextSpecialtyIds =
+			dto.specialtyIds !== undefined
+				? Array.from(new Set(dto.specialtyIds))
+				: null;
+		let nextOrgSpecialties: Array<{
+			id: string;
+			organizationOccupationId: string;
+		}> | null = null;
+		if (nextSpecialtyIds !== null) {
+			nextOrgSpecialties =
+				nextSpecialtyIds.length > 0
+					? await this.prisma.organizationSpecialty.findMany({
+							where: {
+								organizationId: orgId,
+								specialtyId: { in: nextSpecialtyIds },
+							},
+							select: { id: true, organizationOccupationId: true },
+						})
+					: [];
+			if (nextOrgSpecialties.length !== nextSpecialtyIds.length) {
+				throw new BadRequestException(
+					"One or more selected specialties are not configured for this organization",
+				);
+			}
+			const expectedOccupationId =
+				nextOrganizationOccupationId ?? existing.organizationOccupationId;
+			const mismatched = nextOrgSpecialties.find(
+				(s) => s.organizationOccupationId !== expectedOccupationId,
+			);
+			if (mismatched) {
+				throw new BadRequestException(
+					"One or more selected specialties do not belong to the template's occupation",
+				);
+			}
 		}
 		if (dto.departmentId !== undefined) {
 			const department = await this.prisma.department.findFirst({
 				where: { id: dto.departmentId, organizationId: orgId },
-				select: { id: true, locationId: true, organizationOccupationId: true },
+				select: {
+					id: true,
+					locationId: true,
+					departmentOccupations: {
+						select: { organizationOccupationId: true },
+					},
+				},
 			});
 			if (!department) {
 				throw new BadRequestException(
 					"Department not found for this organization",
 				);
 			}
-			if (!department.organizationOccupationId) {
+			const departmentOccupationIds = department.departmentOccupations.map(
+				(o) => o.organizationOccupationId,
+			);
+			if (departmentOccupationIds.length === 0) {
 				throw new BadRequestException(
-					"This department is missing an organization occupation. Update the department (occupation) before using it for a requisition template",
+					"This department has no occupations configured. Update the department before using it for a requisition template",
 				);
 			}
 			if (
-				department.organizationOccupationId !==
-				existing.organizationOccupationId
+				!departmentOccupationIds.includes(existing.organizationOccupationId)
 			) {
 				throw new BadRequestException(
-					"Department does not match selected occupation",
+					"Department does not support the template's occupation",
+				);
+			}
+			if (
+				dto.locationId !== undefined &&
+				dto.locationId !== department.locationId
+			) {
+				throw new BadRequestException(
+					"Location must match the selected department",
 				);
 			}
 			updateData.departmentId = department.id;
+			updateData.locationId = department.locationId;
+		}
+		if (dto.locationId !== undefined && dto.departmentId === undefined) {
+			const organizationLocation =
+				await this.prisma.organizationLocation.findFirst({
+					where: { id: dto.locationId, organizationId: orgId },
+					select: { id: true },
+				});
+			if (!organizationLocation) {
+				throw new BadRequestException(
+					"Selected location was not found for this organization",
+				);
+			}
+			const currentDepartment = await this.prisma.department.findFirst({
+				where: { id: existing.departmentId, organizationId: orgId },
+				select: { locationId: true },
+			});
+			if (
+				!currentDepartment ||
+				currentDepartment.locationId !== dto.locationId
+			) {
+				throw new BadRequestException(
+					"Department does not belong to the selected location",
+				);
+			}
+			updateData.locationId = dto.locationId;
 		}
 		if (dto.templateName !== undefined)
 			updateData.templateName = dto.templateName;
@@ -530,10 +680,6 @@ export class RequisitionTemplatesService {
 		if (dto.benefitsPerks !== undefined)
 			updateData.benefitsPerks = dto.benefitsPerks;
 		if (dto.status !== undefined) updateData.status = dto.status;
-		if (dto.startDate !== undefined)
-			updateData.startDate = new Date(dto.startDate);
-		if (dto.endDate !== undefined)
-			updateData.endDate = dto.endDate ? new Date(dto.endDate) : null;
 		if (dto.lengthWeeks !== undefined) updateData.lengthWeeks = dto.lengthWeeks;
 		if (dto.startTime !== undefined) updateData.startTime = dto.startTime;
 		if (dto.endTime !== undefined) updateData.endTime = dto.endTime;
@@ -574,6 +720,9 @@ export class RequisitionTemplatesService {
 		if (dto.internalNotes !== undefined)
 			updateData.internalNotes = dto.internalNotes ?? null;
 
+		updateData.startDate = null;
+		updateData.endDate = null;
+
 		const result = await this.prisma.$transaction(async (tx) => {
 			if (
 				dto.selectedVendorIds &&
@@ -593,6 +742,22 @@ export class RequisitionTemplatesService {
 				}
 			}
 			await tx.requisitionTemplate.update({ where: { id }, data: updateData });
+
+			if (nextOrgSpecialties !== null) {
+				await tx.requisitionTemplateSpecialty.deleteMany({
+					where: { templateId: id },
+				});
+				if (nextOrgSpecialties.length > 0) {
+					await tx.requisitionTemplateSpecialty.createMany({
+						data: nextOrgSpecialties.map((s) => ({
+							templateId: id,
+							organizationSpecialtyId: s.id,
+						})),
+						skipDuplicates: true,
+					});
+				}
+			}
+
 			const effectiveChecklistId =
 				dto.complianceChecklistId !== undefined
 					? dto.complianceChecklistId
@@ -615,7 +780,7 @@ export class RequisitionTemplatesService {
 				select: TEMPLATE_DETAIL_SELECT,
 			});
 			if (!updated)
-				throw new NotFoundException("Requisition template not found");
+				throw new NotFoundException("Requisition template not found.");
 			return this.mapTemplateDetail(updated);
 		});
 		return result;

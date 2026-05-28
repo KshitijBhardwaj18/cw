@@ -6,6 +6,7 @@ import type { SpecialtyAcronym } from "./specialties";
 export const WALLET_ID = {
 	RN_ICU: getDeterministicId(`${SEED_PREFIX}wallet-RN-ICU`),
 	RN_ER: getDeterministicId(`${SEED_PREFIX}wallet-RN-ER`),
+	RN_GENERAL: getDeterministicId(`${SEED_PREFIX}wallet-RN-general`),
 	LPN_GENERAL: getDeterministicId(`${SEED_PREFIX}wallet-LPN-general`),
 	PT_GENERAL: getDeterministicId(`${SEED_PREFIX}wallet-PT-general`),
 	OT_GENERAL: getDeterministicId(`${SEED_PREFIX}wallet-OT-general`),
@@ -50,6 +51,19 @@ export const getComplianceWalletsDataset = (): SeedComplianceWallet[] => {
 			],
 		},
 		{
+			id: WALLET_ID.RN_GENERAL,
+			occupationAcronym: "RN",
+			specialtyAcronym: null,
+			itemIds: [
+				COMPLIANCE_ITEM_ID.BACKGROUND_CHECK,
+				COMPLIANCE_ITEM_ID.DRUG_SCREENING,
+				COMPLIANCE_ITEM_ID.DRIVERS_LICENSE,
+				COMPLIANCE_ITEM_ID.RN_LICENSE,
+				COMPLIANCE_ITEM_ID.BLS,
+				COMPLIANCE_ITEM_ID.PHYSICAL_EXAM,
+			],
+		},
+		{
 			id: WALLET_ID.LPN_GENERAL,
 			occupationAcronym: "LPN",
 			specialtyAcronym: null,
@@ -65,13 +79,27 @@ export const getComplianceWalletsDataset = (): SeedComplianceWallet[] => {
 			id: WALLET_ID.PT_GENERAL,
 			occupationAcronym: "PT",
 			specialtyAcronym: null,
-			itemIds: [],
+			itemIds: [
+				COMPLIANCE_ITEM_ID.BACKGROUND_CHECK,
+				COMPLIANCE_ITEM_ID.DRUG_SCREENING,
+				COMPLIANCE_ITEM_ID.DRIVERS_LICENSE,
+				COMPLIANCE_ITEM_ID.PT_LICENSE,
+				COMPLIANCE_ITEM_ID.BLS,
+				COMPLIANCE_ITEM_ID.PHYSICAL_EXAM,
+			],
 		},
 		{
 			id: WALLET_ID.OT_GENERAL,
 			occupationAcronym: "OT",
 			specialtyAcronym: null,
-			itemIds: [],
+			itemIds: [
+				COMPLIANCE_ITEM_ID.BACKGROUND_CHECK,
+				COMPLIANCE_ITEM_ID.DRUG_SCREENING,
+				COMPLIANCE_ITEM_ID.DRIVERS_LICENSE,
+				COMPLIANCE_ITEM_ID.OT_LICENSE,
+				COMPLIANCE_ITEM_ID.BLS,
+				COMPLIANCE_ITEM_ID.PHYSICAL_EXAM,
+			],
 		},
 	];
 };

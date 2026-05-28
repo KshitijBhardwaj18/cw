@@ -23,6 +23,7 @@ export const OPS_PARAMS = {
 } as const;
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 const REQUISITION_FILTER_KEYS = REQUISITION_PERFORMANCE_STAT_CARDS.map(
 	(card) => card.key,
@@ -42,6 +43,7 @@ export function useOperationsManagementFilters() {
 		pageParamKey: OPS_PARAMS.PAGE,
 		limitParamKey: OPS_PARAMS.LIMIT,
 		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const [filterParam, setFilterParam] = useQueryState(OPS_PARAMS.FILTER);
@@ -70,6 +72,8 @@ export function useOperationsManagementFilters() {
 				page,
 				limit,
 			}),
+		refetchOnMount: "always",
+		refetchOnWindowFocus: true,
 	});
 
 	const requisitionCountsByFilter = useMemo(
@@ -88,6 +92,8 @@ export function useOperationsManagementFilters() {
 				"overdue-submissions": 0,
 				"aging-qualified": 0,
 				"aging-shortlisted": 0,
+				"interview-delayed": 0,
+				"offer-pending": 0,
 				"overdue-offers": 0,
 				"delayed-onboarding": 0,
 			},
@@ -144,9 +150,23 @@ export function useOperationsManagementFilters() {
 		candidateRows,
 		rowsTotal: operationsQuery.data?.rowsTotal ?? 0,
 		page,
+		setPage,
 		limit,
+		setLimit,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 		isLoading: operationsQuery.isLoading,
 		isError: operationsQuery.isError,
+		requisitionAttentionRulesConfigured:
+			operationsQuery.data?.requisitionAttentionRulesConfigured ?? true,
+		candidateAgingRulesConfigured:
+			operationsQuery.data?.candidateAgingRulesConfigured ?? true,
+		requisitionCardDescriptions:
+			operationsQuery.data?.requisitionCardDescriptions,
+		candidateCardDescriptions: operationsQuery.data?.candidateCardDescriptions,
+		requisitionCardConfigured: operationsQuery.data?.requisitionCardConfigured,
+		candidateCardConfigured: operationsQuery.data?.candidateCardConfigured,
+		requisitionCardActive: operationsQuery.data?.requisitionCardActive,
+		candidateCardActive: operationsQuery.data?.candidateCardActive,
 		handleFilterChange,
 		handlePaginationChange,
 		clearFilter,

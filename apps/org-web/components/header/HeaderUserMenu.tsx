@@ -10,7 +10,7 @@ import { authClient } from "@/lib/auth-client";
 export type HeaderUserMenuProps = {
 	profileLink?: string;
 };
-const OrgHeaderUserMenu = ({ profileLink }: HeaderUserMenuProps) => {
+const OrgHeaderUserMenu = ({ profileLink }: Readonly<HeaderUserMenuProps>) => {
 	const { session } = useAuth();
 	const router = useRouter();
 

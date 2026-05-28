@@ -10,7 +10,6 @@ import {
 	Check,
 	CheckCircle2,
 	Clock,
-	DollarSign,
 	MapPin,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,7 +25,7 @@ import {
 import type { CandidateMatchListItem } from "@/types/candidate-matches";
 import {
 	formatMatchFacilityLabel,
-	formatMatchPayLabel,
+	formatMatchSpecialtyLabel,
 } from "@/utils/candidate/match-display";
 
 export interface CandidateJobMatchCardProps {
@@ -37,7 +36,7 @@ export interface CandidateJobMatchCardProps {
 export function CandidateJobMatchCard({
 	job,
 	organizationId,
-}: CandidateJobMatchCardProps) {
+}: Readonly<CandidateJobMatchCardProps>) {
 	const saveMatch = useSaveMatch();
 	const unsaveMatch = useUnsaveMatch();
 
@@ -61,8 +60,6 @@ export function CandidateJobMatchCard({
 	};
 
 	const locationLine = formatMatchFacilityLabel(job);
-	const payLabel = formatMatchPayLabel(job);
-	const hasPay = payLabel !== "—";
 
 	return (
 		<Card className="flex h-full flex-col overflow-hidden border py-1 shadow-sm transition-shadow hover:shadow-md">
@@ -107,11 +104,14 @@ export function CandidateJobMatchCard({
 					<h3 className="text-base font-semibold leading-snug text-foreground">
 						{job.jobTitle}
 					</h3>
-					{job.specialty && (
-						<p className="mt-0.5 text-sm text-muted-foreground">
-							{job.specialty}
-						</p>
-					)}
+					{(() => {
+						const specialtyLabel = formatMatchSpecialtyLabel(job);
+						return specialtyLabel ? (
+							<p className="mt-0.5 text-sm text-muted-foreground">
+								{specialtyLabel}
+							</p>
+						) : null;
+					})()}
 				</div>
 
 				<div className="space-y-2 text-sm">
@@ -133,13 +133,6 @@ export function CandidateJobMatchCard({
 						</div>
 					)}
 				</div>
-
-				{hasPay && (
-					<div className="flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-						<DollarSign className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-						<span className="text-sm font-medium">{payLabel}</span>
-					</div>
-				)}
 
 				<div className="flex flex-wrap gap-2">
 					<Badge variant="info" className="font-normal">

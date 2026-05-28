@@ -21,7 +21,7 @@ interface OrganizationSpecialtyPageContentProps {
 
 export default function OrganizationSpecialtyPageContent({
 	organizationId,
-}: OrganizationSpecialtyPageContentProps) {
+}: Readonly<OrganizationSpecialtyPageContentProps>) {
 	const { page, setPage } = usePaginationControls({
 		pageParamKey: ORG_SPECIALTY_PARAMS.PAGE,
 		defaultLimit: PAGE_SIZE,

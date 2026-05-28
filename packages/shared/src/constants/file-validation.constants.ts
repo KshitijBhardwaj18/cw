@@ -18,6 +18,22 @@ export const RESUME_FILE_ACCEPT = ".pdf,application/pdf";
 /** Hint line for resume upload UI (matches {@link RESUME_MAX_SIZE_MB}) */
 export const RESUME_UPLOAD_HINT = `PDF (Max ${RESUME_MAX_SIZE_MB}MB)`;
 
+/** Candidate skills checklist uploads (PDF/DOC/DOCX/JPG/PNG) */
+export const SKILLS_CHECKLIST_MAX_SIZE_MB = 10;
+export const SKILLS_CHECKLIST_MAX_SIZE_BYTES =
+	SKILLS_CHECKLIST_MAX_SIZE_MB * 1024 * 1024;
+
+export const SKILLS_CHECKLIST_FILE_ACCEPT =
+	".pdf,.doc,.docx,.jpg,.jpeg,.png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png";
+
+export const SKILLS_CHECKLIST_ALLOWED_MIMES = [
+	"application/pdf",
+	"application/msword",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"image/jpeg",
+	"image/png",
+] as const;
+
 /** Allowed MIME type for bulk enrollment CSV uploads */
 export const BULK_ENROLLMENT_CSV_MIME = "text/csv";
 

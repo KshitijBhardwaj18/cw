@@ -37,3 +37,20 @@ export enum ComplianceChecklistItemPhase {
 	SUBMISSION = "SUBMISSION",
 	PLACEMENT = "PLACEMENT",
 }
+
+/**
+ * - MISSING: candidate hasn't uploaded yet.
+ * - PENDING_REVIEW: uploaded, awaiting reviewer (vendor for external wallet/
+ *   submission; vendor or org for placement compliance).
+ * - APPROVED: verified by reviewer or auto-approved for internal candidates.
+ * - REJECTED: explicitly rejected; rejection reason stored in `notes` on the
+ *   row. File is retained so the candidate can see what was rejected.
+ * - EXPIRED: expiry date has passed.
+ */
+export enum CandidateComplianceStatus {
+	MISSING = "MISSING",
+	PENDING_REVIEW = "PENDING_REVIEW",
+	APPROVED = "APPROVED",
+	REJECTED = "REJECTED",
+	EXPIRED = "EXPIRED",
+}

@@ -1,17 +1,33 @@
 "use client";
 
-import { format, parse } from "date-fns";
+import {
+	CANDIDATE_EXPERIENCE_BAND_OPTIONS,
+	formatCalendarDate,
+	getLabel,
+} from "@repo/shared";
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useApplyToJob } from "@/queries/candidate-matches.queries";
+import {
+	useMarkCandidateRequisitionComplianceLinkSubmitted,
+	useUploadCandidateRequisitionComplianceItem,
+} from "@/queries/candidate-document-wallet.queries";
+import {
+	useApplyToJob,
+	useSubmitForVendorReview,
+} from "@/queries/candidate-matches.queries";
+import type { CandidateExperienceBandValue } from "@/services/onboarding.service";
+import type { CandidateJobAcceptanceCriterion } from "@/types/candidate-matches";
 
-const ISO_DATE = "yyyy-MM-dd";
+function experienceBandLabel(
+	band: CandidateExperienceBandValue | null,
+): string {
+	if (band == null) return "Not specified";
+	return getLabel(CANDIDATE_EXPERIENCE_BAND_OPTIONS, band);
+}
 
-function formatTimeOffDisplay(iso: string): string {
-	const d = parse(iso, ISO_DATE, new Date());
-	if (Number.isNaN(d.getTime())) return iso;
-	return format(d, "MMM d, yyyy");
+function formatTimeOffDisplay(yyyyMmDd: string): string {
+	return formatCalendarDate(yyyyMmDd);
 }
 
 export interface CandidateJobApplyPageInput {
@@ -23,7 +39,9 @@ export interface CandidateJobApplyPageInput {
 	candidateName: string;
 	candidateEmail: string;
 	candidatePhone: string;
-	yearsOfExperience: number | null;
+	experienceBand: CandidateExperienceBandValue | null;
+	acceptanceCriteria: CandidateJobAcceptanceCriterion[];
+	isExternalCandidate: boolean;
 }
 
 export function useCandidateJobApplyPage(input: CandidateJobApplyPageInput) {
@@ -44,6 +62,15 @@ export function useCandidateJobApplyPage(input: CandidateJobApplyPageInput) {
 	const endId = useId();
 
 	const applyMutation = useApplyToJob();
+	const submitForVendorReviewMutation = useSubmitForVendorReview();
+	const uploadMutation = useUploadCandidateRequisitionComplianceItem(
+		input.jobId,
+	);
+	const markLinkMutation = useMarkCandidateRequisitionComplianceLinkSubmitted(
+		input.jobId,
+	);
+	const [uploadItem, setUploadItem] =
+		useState<CandidateJobAcceptanceCriterion | null>(null);
 
 	const handleAddTimeOff = () => {
 		if (timeOffType === "single" && !startDate) {
@@ -85,7 +112,32 @@ export function useCandidateJobApplyPage(input: CandidateJobApplyPageInput) {
 		setEndDate("");
 	};
 
-	const handleSubmitApplication = () => {
+	const missingDocuments = useMemo(
+		() => input.acceptanceCriteria.filter((c) => !c.satisfied),
+		[input.acceptanceCriteria],
+	);
+	const canSubmitApplication = missingDocuments.length === 0;
+
+	const openUploadDialog = (item: CandidateJobAcceptanceCriterion) => {
+		setUploadItem(item);
+	};
+
+	const closeUploadDialog = () => setUploadItem(null);
+
+	const markLinkSubmitted = (complianceListItemId: string) => {
+		markLinkMutation.mutate(complianceListItemId, {
+			onSuccess: () => {
+				toast.success("Marked as submitted");
+			},
+			onError: (err) => {
+				toast.error(
+					err instanceof Error ? err.message : "Failed to mark as submitted",
+				);
+			},
+		});
+	};
+
+	const submitApplication = () => {
 		const rtos = timeOffEntries.map(({ startDate: s, endDate: e, label }) => ({
 			startDate: s,
 			endDate: e,
@@ -114,6 +166,37 @@ export function useCandidateJobApplyPage(input: CandidateJobApplyPageInput) {
 		);
 	};
 
+	const submitForMe = () => {
+		submitForVendorReviewMutation.mutate(input.jobId, {
+			onSuccess: () => {
+				toast.success("Submitted for vendor review", {
+					description:
+						"Your vendor will verify your compliance and submit you for this role.",
+				});
+				router.push("/matches");
+			},
+			onError: (err) => {
+				toast.error(
+					err instanceof Error ? err.message : "Failed to submit for review",
+				);
+			},
+		});
+	};
+
+	const handleSubmitApplication = () => {
+		if (!canSubmitApplication) {
+			toast.error(
+				`Complete required item${missingDocuments.length === 1 ? "" : "s"} first: ${missingDocuments.map((d) => d.name).join(", ")}.`,
+			);
+			return;
+		}
+		if (input.isExternalCandidate) {
+			submitForMe();
+		} else {
+			submitApplication();
+		}
+	};
+
 	const goBackToJob = () => {
 		router.push(backHref);
 	};
@@ -129,10 +212,7 @@ export function useCandidateJobApplyPage(input: CandidateJobApplyPageInput) {
 		},
 		{
 			label: "Years of Experience",
-			value:
-				input.yearsOfExperience != null
-					? `${input.yearsOfExperience} year${input.yearsOfExperience === 1 ? "" : "s"}`
-					: "Not specified",
+			value: experienceBandLabel(input.experienceBand),
 		},
 	];
 
@@ -150,7 +230,8 @@ export function useCandidateJobApplyPage(input: CandidateJobApplyPageInput) {
 		questionnaire,
 		summaryNote,
 		setSummaryNote,
-		isSubmitting: applyMutation.isPending,
+		isSubmitting:
+			applyMutation.isPending || submitForVendorReviewMutation.isPending,
 		timeOff: {
 			open: timeOffOpen,
 			type: timeOffType,
@@ -169,5 +250,15 @@ export function useCandidateJobApplyPage(input: CandidateJobApplyPageInput) {
 		},
 		handleSubmitApplication,
 		goBackToJob,
+		canSubmitApplication,
+		missingDocuments,
+		acceptanceCriteria: input.acceptanceCriteria,
+		isExternalCandidate: input.isExternalCandidate,
+		uploadItem,
+		openUploadDialog,
+		closeUploadDialog,
+		uploadMutation,
+		markLinkSubmitted,
+		isMarkingLink: markLinkMutation.isPending,
 	};
 }

@@ -21,7 +21,7 @@ export interface TimecardPageContentProps {
 export function TimecardPageContent({
 	data,
 	canMutate,
-}: TimecardPageContentProps) {
+}: Readonly<TimecardPageContentProps>) {
 	const [entryOpen, setEntryOpen] = useState(false);
 	const [dialogWeekEnding, setDialogWeekEnding] = useState(
 		data.currentWeekEnding,

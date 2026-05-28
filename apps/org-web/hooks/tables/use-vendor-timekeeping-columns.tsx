@@ -1,13 +1,15 @@
 "use client";
 
+import { shortId } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil } from "lucide-react";
 import { useMemo } from "react";
-import { VENDOR_TIMEKEEPING_STATUS_CONFIG } from "../../constants/vendor-timekeeping";
-import type { VendorTimekeepingEntry } from "../../types/vendor-timekeeping";
-import { formatHHmmForDisplay } from "../../utils/time-entry";
+import { VENDOR_TIMEKEEPING_STATUS_CONFIG } from "@/constants/vendor-timekeeping";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
+import type { VendorTimekeepingEntry } from "@/types/vendor-timekeeping";
+import { formatHHmmForDisplay } from "@/utils/time-entry";
 
 export interface VendorTimekeepingColumnsParams {
 	onEditRow?: (row: VendorTimekeepingEntry) => void;
@@ -16,6 +18,8 @@ export interface VendorTimekeepingColumnsParams {
 export function useVendorTimekeepingColumns({
 	onEditRow,
 }: VendorTimekeepingColumnsParams = {}) {
+	const { fmtCalendarDate } = useUserTimezone();
+
 	const columns = useMemo<ColumnDef<VendorTimekeepingEntry>[]>(
 		() => [
 			{
@@ -26,8 +30,11 @@ export function useVendorTimekeepingColumns({
 					return (
 						<div className="flex flex-col gap-0.5">
 							<span>{entry.candidateName}</span>
-							<span className="text-muted-foreground text-xs">
-								{entry.candidateId}
+							<span
+								className="text-muted-foreground text-xs"
+								title={entry.candidateId}
+							>
+								{shortId(entry.candidateId)}
 							</span>
 						</div>
 					);
@@ -53,7 +60,7 @@ export function useVendorTimekeepingColumns({
 			{
 				accessorKey: "date",
 				header: "Date",
-				cell: ({ row }) => <span>{row.original.date}</span>,
+				cell: ({ row }) => <span>{fmtCalendarDate(row.original.date)}</span>,
 			},
 			{
 				accessorKey: "startTime",
@@ -118,7 +125,7 @@ export function useVendorTimekeepingColumns({
 				},
 			},
 		],
-		[onEditRow],
+		[onEditRow, fmtCalendarDate],
 	);
 
 	return { columns };

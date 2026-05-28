@@ -25,6 +25,7 @@ import {
 	Send,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useVendorRequisitionDetail,
 	useVendorSaveJob,
@@ -52,16 +53,17 @@ export function JobDetailDialog({
 	onSubmitCandidate,
 	showSubmitCandidate = true,
 	showSaveJob = true,
-}: JobDetailDialogProps) {
+}: Readonly<JobDetailDialogProps>) {
 	const detailQuery = useVendorRequisitionDetail(
 		open && requisition?.id ? requisition.id : null,
 	);
 
 	const saveJob = useVendorSaveJob();
 	const unsaveJob = useVendorUnsaveJob();
+	const { fmtShortDate } = useUserTimezone();
 
 	const display: Requisition | null = detailQuery.data
-		? mapDetailToRequisition(detailQuery.data)
+		? mapDetailToRequisition(detailQuery.data, fmtShortDate)
 		: requisition;
 
 	if (!requisition || !display) return null;
@@ -197,7 +199,7 @@ export function JobDetailDialog({
 						</CardContent>
 					</Card>
 
-					{display.requirements.length > 0 && (
+					{display.requirements && display.requirements.length > 0 && (
 						<div className="space-y-3">
 							<h3 className="font-semibold text-base">Requirements</h3>
 							<ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
@@ -208,7 +210,7 @@ export function JobDetailDialog({
 						</div>
 					)}
 
-					{display.benefits.length > 0 && (
+					{display.benefits && display.benefits.length > 0 && (
 						<div className="space-y-3">
 							<h3 className="font-semibold text-base">Benefits & Perks</h3>
 							<div className="space-y-2 text-sm text-muted-foreground">
@@ -223,7 +225,7 @@ export function JobDetailDialog({
 					)}
 
 					<div className="space-y-4">
-						<h3 className="font-semibold text-base">Schedule & Pay</h3>
+						<h3 className="font-semibold text-base">Schedule</h3>
 						<div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 							<DetailItem label="Shift" value={display.shift} />
 							<DetailItem label="Duration" value={display.duration} />
@@ -265,6 +267,7 @@ export function JobDetailDialog({
 							enabled={open}
 							showSubmittedTab={false}
 							onViewCandidate={onViewCandidate}
+							className="px-0"
 						/>
 					</div>
 				</div>

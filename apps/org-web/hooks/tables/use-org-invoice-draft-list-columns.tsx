@@ -9,8 +9,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Eye } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { OrgInvoiceListRow } from "@/services/billing.service";
-import { fmtPeriod } from "@/utils/format";
 
 const TEXT_WIDE = "min-w-0 max-w-[16rem] px-2";
 const CURRENCY =
@@ -29,6 +29,7 @@ function statusBadgeVariant(
 }
 
 export function useOrgInvoiceDraftListColumns() {
+	const { fmtPeriod } = useUserTimezone();
 	const projectLabel = useCallback((row: OrgInvoiceListRow): string => {
 		const count = row.projectCount ?? 0;
 		const name = row.projectName?.trim();
@@ -200,6 +201,6 @@ export function useOrgInvoiceDraftListColumns() {
 				),
 			},
 		],
-		[projectLabel],
+		[fmtPeriod, projectLabel],
 	);
 }

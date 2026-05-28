@@ -30,11 +30,13 @@ import {
 	getContractTypeLabel,
 	getShiftTypeLabel,
 } from "@/constants/candidate/matches-and-job-search";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useSaveMatch,
 	useUnsaveMatch,
 } from "@/queries/candidate-matches.queries";
 import type { CandidateMatchDetail } from "@/types/candidate-matches";
+import { formatMatchSpecialtyLabel } from "@/utils/candidate/match-display";
 
 export interface CandidateJobDetailPageContentProps {
 	job: CandidateMatchDetail;
@@ -44,10 +46,10 @@ export interface CandidateJobDetailPageContentProps {
 function DetailGrid({
 	items,
 	columnsClassName = "md:grid-cols-2",
-}: {
+}: Readonly<{
 	items: readonly { label: string; value: string }[];
 	columnsClassName?: string;
-}) {
+}>) {
 	return (
 		<div className={cn("grid gap-6", columnsClassName)}>
 			{items.map((row) => (
@@ -60,7 +62,8 @@ function DetailGrid({
 export function CandidateJobDetailPageContent({
 	job,
 	organizationId,
-}: CandidateJobDetailPageContentProps) {
+}: Readonly<CandidateJobDetailPageContentProps>) {
+	const { fmtShortDate } = useUserTimezone();
 	const saveMatch = useSaveMatch();
 	const unsaveMatch = useUnsaveMatch();
 	const isSaving = saveMatch.isPending || unsaveMatch.isPending;
@@ -87,6 +90,7 @@ export function CandidateJobDetailPageContent({
 			: null;
 
 	const locationLine = [job.facilityName, location].filter(Boolean).join(" · ");
+	const specialtyLabel = formatMatchSpecialtyLabel(job);
 
 	const incentiveLabel =
 		job.incentiveType && job.incentiveAmount != null
@@ -126,7 +130,7 @@ export function CandidateJobDetailPageContent({
 		job.shiftHours && { label: "Shift Hours", value: job.shiftHours },
 		job.startDate && {
 			label: "Start Date",
-			value: new Date(job.startDate).toLocaleDateString(),
+			value: fmtShortDate(job.startDate),
 		},
 		job.shiftsPerWeek && {
 			label: "Shifts / Week",
@@ -186,13 +190,13 @@ export function CandidateJobDetailPageContent({
 
 					<div className="grid grid-cols-1 gap-4 rounded-lg bg-muted/60 p-4 md:grid-cols-3">
 						{job.unitName && <DetailItem label="Unit" value={job.unitName} />}
-						{job.specialty && (
-							<DetailItem label="Specialty" value={job.specialty} />
+						{specialtyLabel && (
+							<DetailItem label="Specialty" value={specialtyLabel} />
 						)}
 						{job.startDate && (
 							<DetailItem
 								label="Start Date"
-								value={new Date(job.startDate).toLocaleDateString()}
+								value={fmtShortDate(job.startDate)}
 							/>
 						)}
 					</div>
@@ -208,43 +212,54 @@ export function CandidateJobDetailPageContent({
 						</div>
 					)}
 				</CardContent>
-				<CardFooter className="flex flex-col gap-3 border-t sm:flex-row">
-					{job.isApplied ? (
-						<Button
-							variant="outline"
-							className="gap-2 font-medium border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-50 hover:text-blue-700 sm:min-w-[160px] dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-							disabled
-						>
-							<CheckCircle2 className="size-4" aria-hidden />
-							Applied
-						</Button>
-					) : (
-						<Button asChild className="gap-2 font-medium sm:min-w-[160px]">
-							<Link href={`/matches/${job.id}/apply`}>
-								Apply Now
-								<ArrowRight className="size-4" aria-hidden />
-							</Link>
-						</Button>
-					)}
-					<Button
-						type="button"
-						variant="outline"
-						className="gap-2 font-medium sm:min-w-[160px]"
-						onClick={handleToggleSave}
-						disabled={isSaving || !organizationId}
-					>
-						{job.isSaved ? (
-							<>
-								<BookmarkCheck className="size-4 text-primary" aria-hidden />
-								Saved
-							</>
+				<CardFooter className="flex flex-col items-stretch gap-3 border-t">
+					<div className="flex flex-col gap-3 sm:flex-row">
+						{job.isApplied ? (
+							<Button
+								variant="outline"
+								className="gap-2 font-medium border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-50 hover:text-blue-700 sm:min-w-[160px] dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+								disabled
+							>
+								<CheckCircle2 className="size-4" aria-hidden />
+								Applied
+							</Button>
+						) : job.isSubmittedForVendorReview ? (
+							<Button
+								variant="outline"
+								className="gap-2 font-medium border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-50 hover:text-blue-700 sm:min-w-[160px] dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+								disabled
+							>
+								<CheckCircle2 className="size-4" aria-hidden />
+								Marked as interested
+							</Button>
 						) : (
-							<>
-								<Bookmark className="size-4" aria-hidden />
-								Save Job
-							</>
+							<Button className="gap-2 font-medium sm:min-w-[160px]" asChild>
+								<Link href={`/matches/${job.id}/apply`}>
+									Apply Now
+									<ArrowRight className="size-4" aria-hidden />
+								</Link>
+							</Button>
 						)}
-					</Button>
+						<Button
+							type="button"
+							variant="outline"
+							className="gap-2 font-medium sm:min-w-[160px]"
+							onClick={handleToggleSave}
+							disabled={isSaving || !organizationId}
+						>
+							{job.isSaved ? (
+								<>
+									<BookmarkCheck className="size-4 text-primary" aria-hidden />
+									Saved
+								</>
+							) : (
+								<>
+									<Bookmark className="size-4" aria-hidden />
+									Save Job
+								</>
+							)}
+						</Button>
+					</div>
 				</CardFooter>
 			</Card>
 
@@ -304,7 +319,7 @@ export function CandidateJobDetailPageContent({
 							{ label: "Location", value: locationLine || "—" },
 							{ label: "Department", value: job.department ?? "—" },
 							{ label: "Occupation", value: job.occupation ?? "—" },
-							{ label: "Specialty", value: job.specialty ?? "—" },
+							{ label: "Specialty", value: specialtyLabel ?? "—" },
 						]}
 					/>
 				</CardContent>
@@ -390,21 +405,6 @@ export function CandidateJobDetailPageContent({
 								</li>
 							))}
 						</ul>
-					</CardContent>
-				</Card>
-			)}
-
-			{job.whoCanSubmit && (
-				<Card>
-					<CardHeader>
-						<CardTitle className="text-lg">Who Can Apply</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-100">
-							{job.whoCanSubmit === "all_vendors"
-								? "This job is open to all candidates"
-								: job.whoCanSubmit}
-						</div>
 					</CardContent>
 				</Card>
 			)}

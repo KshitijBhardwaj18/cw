@@ -38,13 +38,13 @@ import {
 import Link from "next/link";
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import { useFinalInvoiceLineItemColumns } from "@/hooks/tables/use-final-invoice-line-item-columns";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { useInvoice } from "@/queries/billing.queries";
 import { BillingService } from "@/services/billing.service";
 
 function iconTone(
-	tone: keyof typeof TINTED_METRIC_TONE_STYLES,
+	tone: Readonly<keyof typeof TINTED_METRIC_TONE_STYLES>,
 	Icon: typeof DollarSign,
 ) {
 	const styles = TINTED_METRIC_TONE_STYLES[tone];
@@ -60,7 +60,7 @@ function iconTone(
 	);
 }
 
-function invoiceSummaryStatusBadge(status: string) {
+function invoiceSummaryStatusBadge(status: Readonly<string>) {
 	if (status === "PAID") {
 		return (
 			<Badge variant="success" className="gap-1 font-normal">
@@ -91,9 +91,9 @@ export type FinalInvoiceDetailPageContentProps = {
 
 export function FinalInvoiceDetailPageContent({
 	id,
-}: FinalInvoiceDetailPageContentProps) {
-	const { id: orgId } = useOrgContext();
-	const invoiceQuery = useInvoice(orgId, id);
+}: Readonly<FinalInvoiceDetailPageContentProps>) {
+	const { fmtShortDate, fmtDateRange } = useUserTimezone();
+	const invoiceQuery = useInvoice(id);
 	const detail = invoiceQuery.data;
 	const columns = useFinalInvoiceLineItemColumns();
 	const lineFooter = useMemo(() => {
@@ -179,16 +179,16 @@ export function FinalInvoiceDetailPageContent({
 								label: "Period",
 								value:
 									detail.periodStartDate && detail.periodEndDate
-										? `${new Date(detail.periodStartDate).toLocaleDateString()} - ${new Date(detail.periodEndDate).toLocaleDateString()}`
+										? fmtDateRange(detail.periodStartDate, detail.periodEndDate)
 										: "—",
 							},
 							{
 								label: "Issue date",
-								value: new Date(detail.invoiceDate).toLocaleDateString(),
+								value: fmtShortDate(detail.invoiceDate),
 							},
 							{
 								label: "Due date",
-								value: new Date(detail.dueDate).toLocaleDateString(),
+								value: fmtShortDate(detail.dueDate),
 							},
 						].map((field) => (
 							<div
@@ -313,11 +313,11 @@ function InvoiceTotalFooter({
 	regular,
 	ot,
 	invoiceAmount,
-}: {
+}: Readonly<{
 	regular: number;
 	ot: number;
 	invoiceAmount: number;
-}) {
+}>) {
 	return (
 		<div className="flex flex-col items-end gap-1 text-sm">
 			<span className="text-muted-foreground">

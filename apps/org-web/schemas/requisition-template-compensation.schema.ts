@@ -1,11 +1,5 @@
+import { InterviewType } from "@repo/shared";
 import { z } from "zod";
-
-/** Matches Prisma InterviewType enum */
-const INTERVIEW_TYPE_VALUES = [
-	"NO_INTERVIEW",
-	"CLIENT_INTERVIEW",
-	"INTERNAL_INTERVIEW",
-] as const;
 
 export const requisitionTemplateCompensationSchema = z.object({
 	billRate: z
@@ -23,7 +17,7 @@ export const requisitionTemplateCompensationSchema = z.object({
 		.min(0, "Incentive amount cannot be negative")
 		.optional()
 		.nullable(),
-	interviewRequired: z.enum(INTERVIEW_TYPE_VALUES).optional().nullable(),
+	interviewRequired: z.nativeEnum(InterviewType).optional().nullable(),
 	hiringManagerId: z.string().optional().nullable(),
 });
 

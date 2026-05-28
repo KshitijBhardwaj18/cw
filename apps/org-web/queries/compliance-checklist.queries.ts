@@ -13,44 +13,36 @@ import { ComplianceChecklistService } from "@/services/compliance-checklist.serv
 
 export const complianceChecklistKeys = {
 	all: ["compliance-checklists"] as const,
-	lists: (orgId: string) =>
-		[...complianceChecklistKeys.all, "list", orgId] as const,
-	list: (orgId: string, params?: GetChecklistsParams) =>
-		[...complianceChecklistKeys.lists(orgId), params] as const,
-	detail: (orgId: string, id: string) =>
-		[...complianceChecklistKeys.all, "detail", orgId, id] as const,
+	lists: () => [...complianceChecklistKeys.all, "list"] as const,
+	list: (params?: GetChecklistsParams) =>
+		[...complianceChecklistKeys.lists(), params] as const,
+	detail: (id: string) =>
+		[...complianceChecklistKeys.all, "detail", id] as const,
 	activeItems: (search?: string) =>
 		["compliance-list-items", "active", search] as const,
 };
 
-export function useComplianceChecklists(
-	orgId: string,
-	params?: GetChecklistsParams,
-) {
+export function useComplianceChecklists(params?: GetChecklistsParams) {
 	return useQuery({
-		queryKey: complianceChecklistKeys.list(orgId, params),
+		queryKey: complianceChecklistKeys.list(params),
 		queryFn: () => ComplianceChecklistService.getChecklists(params),
-		enabled: !!orgId,
 		refetchOnMount: "always",
 	});
 }
 
-export function useComplianceChecklistsSuspense(
-	orgId: string,
-	params?: GetChecklistsParams,
-) {
+export function useComplianceChecklistsSuspense(params?: GetChecklistsParams) {
 	return useSuspenseQuery({
-		queryKey: complianceChecklistKeys.list(orgId, params),
+		queryKey: complianceChecklistKeys.list(params),
 		queryFn: () => ComplianceChecklistService.getChecklists(params),
 		refetchOnMount: "always",
 	});
 }
 
-export function useComplianceChecklist(orgId: string, id: string) {
+export function useComplianceChecklist(id: string) {
 	return useQuery({
-		queryKey: complianceChecklistKeys.detail(orgId, id),
+		queryKey: complianceChecklistKeys.detail(id),
 		queryFn: () => ComplianceChecklistService.getChecklist(id),
-		enabled: !!orgId && !!id,
+		enabled: !!id,
 	});
 }
 
@@ -63,55 +55,55 @@ export function useActiveComplianceListItems(search?: string, enabled = true) {
 	});
 }
 
-export function useCreateChecklist(orgId: string) {
+export function useCreateChecklist() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (input: CreateChecklistInput) =>
 			ComplianceChecklistService.createChecklist(input),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: complianceChecklistKeys.lists(orgId),
+				queryKey: complianceChecklistKeys.lists(),
 			});
 		},
 	});
 }
 
-export function useUpdateChecklist(orgId: string, id: string) {
+export function useUpdateChecklist(id: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (input: UpdateChecklistInput) =>
 			ComplianceChecklistService.updateChecklist(id, input),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: complianceChecklistKeys.lists(orgId),
+				queryKey: complianceChecklistKeys.lists(),
 			});
 			void queryClient.invalidateQueries({
-				queryKey: complianceChecklistKeys.detail(orgId, id),
+				queryKey: complianceChecklistKeys.detail(id),
 			});
 		},
 	});
 }
 
-export function useDeleteChecklist(orgId: string) {
+export function useDeleteChecklist() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (id: string) => ComplianceChecklistService.deleteChecklist(id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: complianceChecklistKeys.lists(orgId),
+				queryKey: complianceChecklistKeys.lists(),
 			});
 		},
 	});
 }
 
-export function useDuplicateChecklist(orgId: string) {
+export function useDuplicateChecklist() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (id: string) =>
 			ComplianceChecklistService.duplicateChecklist(id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: complianceChecklistKeys.lists(orgId),
+				queryKey: complianceChecklistKeys.lists(),
 			});
 		},
 	});

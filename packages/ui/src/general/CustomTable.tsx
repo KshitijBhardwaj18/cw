@@ -20,7 +20,7 @@ import {
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Loader2 } from "lucide-react";
 import React from "react";
 import { cn } from "../lib/utils";
 import PaginationControls from "./PaginationControls";
@@ -69,6 +69,8 @@ interface CustomTableProps<TData> {
 	getRowCanExpand?: (originalRow: TData) => boolean;
 	renderSubComponent?: (originalRow: TData) => React.ReactNode;
 	expandedRowIds?: Set<string>;
+	isLoading?: boolean;
+	loadingLabel?: string;
 }
 
 const selectColumnId = "select";
@@ -102,7 +104,9 @@ export function CustomTable<TData>({
 	getRowCanExpand,
 	renderSubComponent,
 	expandedRowIds = new Set(),
-}: CustomTableProps<TData>) {
+	isLoading = false,
+	loadingLabel = "Loading...",
+}: Readonly<CustomTableProps<TData>>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
 		[],
@@ -292,7 +296,18 @@ export function CustomTable<TData>({
 						))}
 					</TableHeader>
 					<TableBody>
-						{table.getRowModel().rows?.length ? (
+						{isLoading ? (
+							<TableRow>
+								<TableCell colSpan={columns.length} className="h-24">
+									<div className="flex items-center justify-center gap-2">
+										<Loader2 className="size-4 animate-spin text-primary" />
+										<span className="text-sm text-muted-foreground">
+											{loadingLabel}
+										</span>
+									</div>
+								</TableCell>
+							</TableRow>
+						) : table.getRowModel().rows?.length ? (
 							table.getRowModel().rows.map((row) => {
 								const rowId = getRowId ? getRowId(row.original) : row.id;
 								const isExpanded =
@@ -364,7 +379,7 @@ export function CustomTable<TData>({
 				</Table>
 			</div>
 
-			{enablePagination && pageCount > 1 && (
+			{enablePagination && (
 				<PaginationControls
 					currentPage={pagination.pageIndex + 1}
 					pageCount={pageCount}

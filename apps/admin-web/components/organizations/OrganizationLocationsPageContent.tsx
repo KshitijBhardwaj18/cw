@@ -17,7 +17,7 @@ type OrganizationLocationsPageContentProps = {
 
 export function OrganizationLocationsPageContent({
 	organizationId,
-}: OrganizationLocationsPageContentProps) {
+}: Readonly<OrganizationLocationsPageContentProps>) {
 	const { page, setPage } = usePaginationControls({
 		pageParamKey: LOC_PARAMS.PAGE,
 		defaultLimit: PAGE_SIZE,

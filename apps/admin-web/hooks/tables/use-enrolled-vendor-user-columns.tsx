@@ -8,9 +8,9 @@ import type { EnrolledVendorUserRow } from "@/types/users";
 
 function InviteStatusCell({
 	status,
-}: {
+}: Readonly<{
 	status: EnrolledVendorUserRow["inviteStatus"];
-}) {
+}>) {
 	const isSent = status === "Sent";
 	const isScheduled = status === "Scheduled";
 	return (

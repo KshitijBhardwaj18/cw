@@ -13,7 +13,7 @@ export class BulkEnrollmentFilePipe
 		_metadata: ArgumentMetadata,
 	): Express.Multer.File {
 		if (!value?.buffer) {
-			throw new BadRequestException("File is required");
+			throw new BadRequestException("File is required.");
 		}
 		const error = validateBulkEnrollmentCsv(
 			{

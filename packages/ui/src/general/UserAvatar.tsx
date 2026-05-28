@@ -17,7 +17,7 @@ const UserAvatar = ({
 	name,
 	className,
 	fallbackClassName,
-}: UserAvatarProps) => {
+}: Readonly<UserAvatarProps>) => {
 	return (
 		<Avatar className={className}>
 			<AvatarImage src={avatarUrl} />

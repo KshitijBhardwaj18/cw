@@ -58,7 +58,7 @@ export class OrgMembersService {
 			select: { id: true },
 		});
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 	}
 
@@ -148,7 +148,7 @@ export class OrgMembersService {
 		const role = programMap[user.role];
 		if (!role) {
 			throw new BadRequestException(
-				`Cannot derive an organization role for user role: ${user.role}`,
+				"This user's role cannot be assigned to an organization.",
 			);
 		}
 		return role;
@@ -173,9 +173,9 @@ export class OrgMembersService {
 				);
 			}
 
-			if (existing.role === UserRole.VENDOR_USER) {
+			if (existing.role !== UserRole.ORGANIZATION_USER) {
 				throw new ConflictException(
-					"This user cannot be enrolled as an organization user because they are already a vendor user",
+					"This email cannot be enrolled as an organization user.",
 				);
 			}
 
@@ -224,7 +224,7 @@ export class OrgMembersService {
 			},
 		});
 		if (!user) {
-			throw new NotFoundException("User not found");
+			throw new NotFoundException("User not found.");
 		}
 
 		const duplicate = await this.prisma.member.findFirst({
@@ -255,7 +255,7 @@ export class OrgMembersService {
 			select: { id: true },
 		});
 		if (!member) {
-			throw new NotFoundException("Member not found");
+			throw new NotFoundException("Member not found.");
 		}
 		await this.prisma.member.delete({
 			where: { id: memberId },
@@ -279,7 +279,7 @@ export class OrgMembersService {
 			dto.status !== undefined ||
 			dto.departmentIds !== undefined;
 		if (!hasUpdate) {
-			throw new BadRequestException("No fields to update");
+			throw new BadRequestException("No fields to update.");
 		}
 
 		return this.prisma.$transaction(async (tx) => {
@@ -288,7 +288,7 @@ export class OrgMembersService {
 				include: { user: { select: { id: true, name: true, role: true } } },
 			});
 			if (!member) {
-				throw new NotFoundException("Member not found");
+				throw new NotFoundException("Member not found.");
 			}
 			if (member.user.role !== UserRole.ORGANIZATION_USER) {
 				throw new BadRequestException(
@@ -300,11 +300,13 @@ export class OrgMembersService {
 				dto.status === OrganizationMemberStatus.INACTIVE &&
 				member.userId === actorUserId
 			) {
-				throw new BadRequestException("You cannot deactivate your own account");
+				throw new BadRequestException(
+					"You cannot deactivate your own account.",
+				);
 			}
 
 			if (dto.role !== undefined && !ORG_PORTAL_MEMBER_ROLES.has(dto.role)) {
-				throw new BadRequestException("Invalid role for an organization user");
+				throw new BadRequestException("Invalid role for an organization user.");
 			}
 
 			if (dto.email !== undefined) {
@@ -313,7 +315,7 @@ export class OrgMembersService {
 					select: { id: true },
 				});
 				if (existing) {
-					throw new ConflictException("Email already in use");
+					throw new ConflictException("Email already in use.");
 				}
 			}
 

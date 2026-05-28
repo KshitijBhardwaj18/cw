@@ -7,7 +7,10 @@ import { cn } from "@repo/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import { useMemo } from "react";
 
-function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
+function FieldSet({
+	className,
+	...props
+}: Readonly<React.ComponentProps<"fieldset">>) {
 	return (
 		<fieldset
 			data-slot="field-set"
@@ -25,7 +28,9 @@ function FieldLegend({
 	className,
 	variant = "legend",
 	...props
-}: React.ComponentProps<"legend"> & { variant?: "legend" | "label" }) {
+}: Readonly<
+	React.ComponentProps<"legend"> & { variant?: "legend" | "label" }
+>) {
 	return (
 		<legend
 			data-slot="field-legend"
@@ -41,7 +46,10 @@ function FieldLegend({
 	);
 }
 
-function FieldGroup({ className, ...props }: React.ComponentProps<"div">) {
+function FieldGroup({
+	className,
+	...props
+}: Readonly<React.ComponentProps<"div">>) {
 	return (
 		<div
 			data-slot="field-group"
@@ -82,7 +90,7 @@ function Field({
 	className,
 	orientation = "vertical",
 	...props
-}: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
+}: Readonly<React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>>) {
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: <explanation> used for form validation
 		<div
@@ -95,7 +103,10 @@ function Field({
 	);
 }
 
-function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
+function FieldContent({
+	className,
+	...props
+}: Readonly<React.ComponentProps<"div">>) {
 	return (
 		<div
 			data-slot="field-content"
@@ -111,7 +122,7 @@ function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
 function FieldLabel({
 	className,
 	...props
-}: React.ComponentProps<typeof Label>) {
+}: Readonly<React.ComponentProps<typeof Label>>) {
 	return (
 		<Label
 			data-slot="field-label"
@@ -126,7 +137,10 @@ function FieldLabel({
 	);
 }
 
-function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
+function FieldTitle({
+	className,
+	...props
+}: Readonly<React.ComponentProps<"div">>) {
 	return (
 		<div
 			data-slot="field-label"
@@ -139,7 +153,10 @@ function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
 	);
 }
 
-function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
+function FieldDescription({
+	className,
+	...props
+}: Readonly<React.ComponentProps<"p">>) {
 	return (
 		<p
 			data-slot="field-description"
@@ -158,9 +175,11 @@ function FieldSeparator({
 	children,
 	className,
 	...props
-}: React.ComponentProps<"div"> & {
-	children?: React.ReactNode;
-}) {
+}: Readonly<
+	React.ComponentProps<"div"> & {
+		children?: React.ReactNode;
+	}
+>) {
 	return (
 		<div
 			data-slot="field-separator"
@@ -191,9 +210,11 @@ function FieldError({
 	children,
 	errors,
 	...props
-}: React.ComponentProps<"div"> & {
-	errors?: Array<FieldErrorItem>;
-}) {
+}: Readonly<
+	React.ComponentProps<"div"> & {
+		errors?: Array<FieldErrorItem>;
+	}
+>) {
 	const content = useMemo(() => {
 		if (children) {
 			return children;

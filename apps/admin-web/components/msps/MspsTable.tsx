@@ -18,7 +18,7 @@ export function MspsTable({
 	onDelete,
 	onRowClick,
 	actions,
-}: MspsTableProps) {
+}: Readonly<MspsTableProps>) {
 	const { columns } = useMspColumns({ onEdit, onDelete, actions });
 
 	return (

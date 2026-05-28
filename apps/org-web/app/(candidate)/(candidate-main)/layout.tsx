@@ -3,8 +3,11 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AuthProvider } from "@/contexts/auth.context";
 import { authClient } from "@/lib/auth-client";
+import { OnboardingService } from "@/services/onboarding.service";
 
-const MainLayout = async ({ children }: { children: React.ReactNode }) => {
+const MainLayout = async ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	const headersList = await headers();
 
 	const session = await authClient.getSession({
@@ -25,6 +28,18 @@ const MainLayout = async ({ children }: { children: React.ReactNode }) => {
 			return redirect("/vendor/dashboard");
 		}
 		return redirect("/not-a-member");
+	}
+
+	let onboardingCompletedAt: string | null = null;
+	try {
+		const onboarding = await OnboardingService.getMeOnboarding();
+		onboardingCompletedAt = onboarding.onboardingCompletedAt;
+	} catch {
+		return redirect("/candidate/sign-up");
+	}
+
+	if (!onboardingCompletedAt) {
+		return redirect("/candidate/sign-up");
 	}
 
 	return <AuthProvider>{children}</AuthProvider>;

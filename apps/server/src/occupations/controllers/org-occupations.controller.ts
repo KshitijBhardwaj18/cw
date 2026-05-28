@@ -5,6 +5,8 @@ import {
 	Get,
 	HttpCode,
 	HttpStatus,
+	Param,
+	ParseUUIDPipe,
 	Post,
 	Put,
 	Query,
@@ -46,6 +48,20 @@ export class OrgOccupationsController {
 				all: query.all,
 			},
 		);
+	}
+
+	@Get(":organizationOccupationId/specialties")
+	@Permissions({ action: Action.List, subject: "OrganizationOccupation" })
+	async getSpecialtiesForOrgOccupation(
+		@Session() session: UserSession,
+		@Param("organizationOccupationId", ParseUUIDPipe)
+		organizationOccupationId: string,
+	) {
+		const organizationId = requireActiveOrganizationId(session);
+		return this.occupationsService.getOrgEnabledSpecialtiesForOccupation({
+			organizationId,
+			organizationOccupationId,
+		});
 	}
 
 	@Post()

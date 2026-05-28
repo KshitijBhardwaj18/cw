@@ -11,7 +11,7 @@ type MspPageLayoutProps = {
 	children: React.ReactNode;
 };
 
-function MspPageLayout({ children }: MspPageLayoutProps) {
+function MspPageLayout({ children }: Readonly<MspPageLayoutProps>) {
 	return (
 		<PermissionsGuard permissions={[{ action: Action.Read, subject: "MSP" }]}>
 			<PageContainer>{children}</PageContainer>

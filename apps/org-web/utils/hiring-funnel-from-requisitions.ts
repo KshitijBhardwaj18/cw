@@ -19,12 +19,10 @@ export function orgJobCardToHiringFunnelListingItem(
 	job: OrgJobCardItem,
 ): HiringFunnelJobListingItem {
 	const p = job.submissionPipeline;
-	const status: HiringFunnelJobListingItem["status"] =
-		job.status === "FILLED" ? "closed" : "open";
 	return {
 		id: job.id,
 		jobTitle: job.title,
-		status,
+		status: job.status,
 		location: job.location,
 		department: job.department,
 		submitted: p.submitted,

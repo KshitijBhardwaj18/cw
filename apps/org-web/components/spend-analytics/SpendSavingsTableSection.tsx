@@ -15,13 +15,14 @@ import {
 } from "@repo/ui/components/chart";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { CustomTable } from "@repo/ui/general/CustomTable";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { BarChart as BarChartIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import type { SavingsByCostCenterRow } from "@/constants/spend-analytics";
+import type { SavingsByDepartmentTableRow } from "@/constants/spend-analytics";
 import { SAVINGS_BY_CC_CHART_CONFIG } from "@/constants/spend-analytics";
 import { useSavingsAnalysisColumns } from "@/hooks/tables/use-savings-analysis-columns";
-import type { SpendAnalyticsRow } from "@/services/billing.service";
+import type { SavingsByDepartmentRow } from "@/services/billing.service";
 import { SpendSavingsSummaryCards } from "./SpendSavingsSummaryCards";
 
 function niceBarAxisMax(maxVal: number): {
@@ -39,55 +40,45 @@ function niceBarAxisMax(maxVal: number): {
 }
 
 export type SpendSavingsTableSectionProps = {
-	rows: SpendAnalyticsRow[];
+	rows: SavingsByDepartmentRow[];
+	totalSavings: number;
+	periodDays: number;
 	isLoading?: boolean;
-	costCenterFilter: string;
-	setCostCenterFilter: (cc: string) => void;
+	departmentFilter: string;
+	setDepartmentFilter: (id: string) => void;
 };
 
 export function SpendSavingsTableSection({
 	rows,
+	totalSavings,
+	periodDays,
 	isLoading = false,
-	costCenterFilter,
-	setCostCenterFilter,
-}: SpendSavingsTableSectionProps) {
-	const allRows = useMemo((): SavingsByCostCenterRow[] => {
-		const byKey = new Map<string, { label: string; amount: number }>();
-		for (const r of rows) {
-			const rawCc = r.department?.costCenter?.trim();
-			const deptName = r.department?.name?.trim();
-			const key = rawCc?.toLowerCase() || "unassigned";
-			const label = rawCc
-				? deptName
-					? `${rawCc} - ${deptName}`
-					: rawCc
-				: deptName || "Unassigned";
-			const cur = byKey.get(key) ?? { label, amount: 0 };
-			cur.amount += r.totalSpend;
-			if (!byKey.has(key)) byKey.set(key, cur);
-		}
-		const values = [...byKey.entries()]
-			.map(([key, v]) => ({ key, ...v }))
-			.sort((a, b) => b.amount - a.amount);
-		const total = values.reduce((s, v) => s + v.amount, 0);
-		return values.map((v) => {
-			const pct = total > 0 ? (v.amount / total) * 100 : 0;
+	departmentFilter,
+	setDepartmentFilter,
+}: Readonly<SpendSavingsTableSectionProps>) {
+	const allRows = useMemo((): SavingsByDepartmentTableRow[] => {
+		const denom = totalSavings;
+		return rows.map((r) => {
+			const pct = denom > 0 ? (r.savingsAmount / denom) * 100 : 0;
+			const label = r.departmentCostCenter
+				? `${r.departmentCostCenter} - ${r.departmentName}`
+				: r.departmentName;
 			return {
-				id: v.key,
-				costCenterKey: v.key,
-				costCenterLabel: v.label,
-				savingsAmount: v.amount,
+				id: r.id,
+				departmentKey: r.id,
+				departmentLabel: label,
+				savingsAmount: r.savingsAmount,
 				trend: pct >= 10 ? "high-impact" : "moderate",
 			};
 		});
-	}, [rows]);
+	}, [rows, totalSavings]);
 
 	const filteredRows = useMemo(
 		() =>
-			costCenterFilter === "all"
+			departmentFilter === "all"
 				? allRows
-				: allRows.filter((r) => r.costCenterKey === costCenterFilter),
-		[allRows, costCenterFilter],
+				: allRows.filter((r) => r.departmentKey === departmentFilter),
+		[allRows, departmentFilter],
 	);
 
 	const visibleTotal = useMemo(
@@ -114,31 +105,44 @@ export function SpendSavingsTableSection({
 		return visibleTotal / filteredRows.length;
 	}, [filteredRows, visibleTotal]);
 
-	const topCostCenterName = useMemo(() => {
-		const label = filteredRows[0]?.costCenterLabel ?? "—";
+	const topDepartmentName = useMemo(() => {
+		const label = filteredRows[0]?.departmentLabel ?? "—";
 		return label.includes(" - ") ? label.split(" - ")[1] || label : label;
 	}, [filteredRows]);
 
-	const annualizedSpend = useMemo(() => visibleTotal * 4, [visibleTotal]);
+	const annualizedSpend = useMemo(() => {
+		if (periodDays <= 0) return 0;
+		return (visibleTotal * 365) / periodDays;
+	}, [visibleTotal, periodDays]);
 
 	const columns = useSavingsAnalysisColumns({
 		pctDenominator: visibleTotal,
 	});
 
-	const costCenterOptions = useMemo(
+	const departmentOptions = useMemo(
 		() =>
 			allRows.map((r) => ({
-				value: r.costCenterKey,
-				label: r.costCenterLabel,
+				value: r.departmentKey,
+				label: r.departmentLabel,
 			})),
 		[allRows],
+	);
+
+	const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
+	const [page, setPage] = useState(1);
+	const [limit, setLimit] = useState(10);
+	const pageCount = Math.ceil(filteredRows.length / limit) || 1;
+	const safePage = Math.min(Math.max(1, page), pageCount);
+	const pagedRows = useMemo(
+		() => filteredRows.slice((safePage - 1) * limit, safePage * limit),
+		[filteredRows, safePage, limit],
 	);
 
 	return (
 		<Card>
 			<CardHeader>
 				<CardTitle className="font-semibold text-lg">
-					Savings Analysis by Cost Center
+					Savings Analysis by Department
 				</CardTitle>
 				<CardDescription>
 					Savings generated from canceled requisitions, avoided costs, and
@@ -147,14 +151,14 @@ export function SpendSavingsTableSection({
 			</CardHeader>
 			<CardContent className="space-y-6">
 				<div className="flex w-fit items-center gap-3 rounded-lg border px-3 py-2">
-					<span className="text-sm font-semibold">Filter by Cost Center:</span>
+					<span className="text-sm font-semibold">Filter by Department:</span>
 					<select
 						className="bg-background rounded-md border px-2 py-1 text-sm"
-						value={costCenterFilter}
-						onChange={(e) => setCostCenterFilter(e.target.value)}
+						value={departmentFilter}
+						onChange={(e) => setDepartmentFilter(e.target.value)}
 					>
-						<option value="all">All Cost Centers</option>
-						{costCenterOptions.map((opt) => (
+						<option value="all">All Departments</option>
+						{departmentOptions.map((opt) => (
 							<option key={opt.value} value={opt.value}>
 								{opt.label}
 							</option>
@@ -172,7 +176,7 @@ export function SpendSavingsTableSection({
 								aria-hidden
 							/>
 							<p className="text-foreground text-sm font-medium">
-								Savings trend by cost center
+								Savings trend by department
 							</p>
 						</div>
 						{filteredRows.length === 0 ? (
@@ -190,7 +194,7 @@ export function SpendSavingsTableSection({
 								>
 									<CartesianGrid strokeDasharray="3 3" vertical={false} />
 									<XAxis
-										dataKey="costCenterLabel"
+										dataKey="departmentLabel"
 										tickLine={false}
 										axisLine={false}
 										tickMargin={10}
@@ -217,11 +221,11 @@ export function SpendSavingsTableSection({
 												labelClassName="text-slate-900 dark:text-slate-100"
 												labelFormatter={(_, payload) => {
 													const row = payload?.[0]?.payload as
-														| { costCenterLabel?: string }
+														| { departmentLabel?: string }
 														| undefined;
 													return (
 														<span className="font-semibold text-base text-slate-900 dark:text-slate-100">
-															{row?.costCenterLabel ?? ""}
+															{row?.departmentLabel ?? ""}
 														</span>
 													);
 												}}
@@ -253,18 +257,27 @@ export function SpendSavingsTableSection({
 				) : (
 					<>
 						<CustomTable
-							data={filteredRows}
+							data={pagedRows}
 							columns={columns}
 							enableSorting
-							enablePagination
-							paginationMode="client"
-							pageSize={10}
+							enablePagination={false}
 							className="rounded-none border-0 border-b-0"
 							emptyState={
 								<p className="text-muted-foreground py-8 text-center text-sm">
 									No rows to show.
 								</p>
 							}
+						/>
+						<PaginationControls
+							currentPage={safePage}
+							pageCount={pageCount}
+							goToPage={setPage}
+							limit={limit}
+							setLimit={setLimit}
+							pageSizeOptions={PAGE_SIZE_OPTIONS}
+							totalItems={filteredRows.length}
+							itemLabel="department"
+							itemLabelPlural="departments"
 						/>
 						<div className="bg-muted/30 flex flex-wrap items-center justify-end gap-6 border-t px-4 py-3 text-sm">
 							<span className="text-muted-foreground font-medium">Total:</span>
@@ -275,7 +288,7 @@ export function SpendSavingsTableSection({
 
 						<SpendSavingsSummaryCards
 							avgPerCenterUsd={avgPerDept}
-							topCostCenterName={topCostCenterName}
+							topCostCenterName={topDepartmentName}
 							projectedAnnualUsd={annualizedSpend}
 						/>
 					</>

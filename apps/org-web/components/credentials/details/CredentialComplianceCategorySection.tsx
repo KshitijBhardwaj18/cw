@@ -27,9 +27,9 @@ export function CredentialComplianceCategorySection({
 	canEdit,
 	onStatusChange,
 	onUploadDocument,
-}: CredentialComplianceCategorySectionProps) {
+}: Readonly<CredentialComplianceCategorySectionProps>) {
 	const completedCount = category.items.filter(
-		(item) => item.status === "approved",
+		(item) => item.status === "APPROVED",
 	).length;
 
 	return (

@@ -20,7 +20,7 @@ interface BulkImportPlatformUsersDialogProps {
 export default function BulkImportPlatformUsers({
 	open,
 	onOpenChange,
-}: BulkImportPlatformUsersDialogProps) {
+}: Readonly<BulkImportPlatformUsersDialogProps>) {
 	const startJob = useBulkPlatformUsersStore((s) => s.startJob);
 
 	const {

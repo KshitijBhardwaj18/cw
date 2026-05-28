@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import { FINAL_INVOICE_STATUS_LABEL } from "@/constants/final-invoices";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type {
 	FinalInvoiceListRow,
 	FinalInvoiceStatus,
@@ -46,6 +47,7 @@ export function useFinalInvoiceListColumns(
 	handlers: FinalInvoiceListColumnHandlers,
 ) {
 	const { onView, onRoute, onDownload, canRoute = true } = handlers;
+	const { fmtShortDate, fmtDateRange } = useUserTimezone();
 
 	return useMemo<ColumnDef<FinalInvoiceListRow>[]>(
 		() => [
@@ -82,7 +84,10 @@ export function useFinalInvoiceListColumns(
 					<div className={PERIOD}>
 						<span className="text-sm tabular-nums">
 							{row.original.periodStartDate && row.original.periodEndDate
-								? `${new Date(row.original.periodStartDate).toLocaleDateString()} - ${new Date(row.original.periodEndDate).toLocaleDateString()}`
+								? fmtDateRange(
+										row.original.periodStartDate,
+										row.original.periodEndDate,
+									)
 								: "—"}
 						</span>
 					</div>
@@ -95,7 +100,7 @@ export function useFinalInvoiceListColumns(
 				cell: ({ row }) => (
 					<div className={DATE}>
 						<span className="text-sm">
-							{new Date(row.original.invoiceDate).toLocaleDateString()}
+							{fmtShortDate(row.original.invoiceDate)}
 						</span>
 					</div>
 				),
@@ -107,7 +112,7 @@ export function useFinalInvoiceListColumns(
 				cell: ({ row }) => (
 					<div className={DATE}>
 						<span className="text-sm">
-							{new Date(row.original.dueDate).toLocaleDateString()}
+							{fmtShortDate(row.original.dueDate)}
 						</span>
 					</div>
 				),
@@ -192,6 +197,6 @@ export function useFinalInvoiceListColumns(
 				),
 			},
 		],
-		[onView, onRoute, onDownload, canRoute],
+		[onView, onRoute, onDownload, canRoute, fmtShortDate, fmtDateRange],
 	);
 }

@@ -45,13 +45,13 @@ function SortableQuestionRow({
 	total,
 	onMoveUp,
 	onMoveDown,
-}: {
+}: Readonly<{
 	question: QuestionWithTagging;
 	index: number;
 	total: number;
 	onMoveUp: () => void;
 	onMoveDown: () => void;
-}) {
+}>) {
 	const {
 		attributes,
 		listeners,
@@ -129,7 +129,7 @@ export function ManageSubmissionReadinessOrderDialog({
 	onOpenChange,
 	questions,
 	onSave,
-}: ManageSubmissionReadinessOrderDialogProps) {
+}: Readonly<ManageSubmissionReadinessOrderDialogProps>) {
 	const [order, setOrder] = useState<string[]>(() =>
 		[...questions]
 			.sort((a, b) => {

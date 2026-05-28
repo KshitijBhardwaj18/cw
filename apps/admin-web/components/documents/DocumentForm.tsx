@@ -25,7 +25,10 @@ export interface DocumentFormProps {
 	isPending: boolean;
 }
 
-export function DocumentForm({ onSubmit, isPending }: DocumentFormProps) {
+export function DocumentForm({
+	onSubmit,
+	isPending,
+}: Readonly<DocumentFormProps>) {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const selectedFileRef = useRef<File | null>(null);
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);

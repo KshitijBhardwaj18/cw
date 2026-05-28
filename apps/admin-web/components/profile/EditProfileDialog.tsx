@@ -51,7 +51,7 @@ export function EditProfileDialog({
 	user,
 	onSuccess,
 	trigger,
-}: EditProfileDialogProps) {
+}: Readonly<EditProfileDialogProps>) {
 	const [open, setOpen] = useState(false);
 
 	const form = useForm({

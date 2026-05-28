@@ -14,83 +14,68 @@ import { BillingService } from "@/services/billing.service";
 
 export const billingKeys = {
 	all: ["billing"] as const,
-	payCodeStats: (orgId: string) =>
-		[...billingKeys.all, "pay-code-stats", orgId] as const,
-	payCodes: (orgId: string, query: PayCodesQuery = {}) =>
-		[...billingKeys.all, "pay-codes", orgId, query] as const,
-	config: (orgId: string) => [...billingKeys.all, "config", orgId] as const,
-	invoices: (orgId: string, query: InvoicesQuery = {}) =>
-		[...billingKeys.all, "invoices", orgId, query] as const,
-	invoice: (orgId: string, invoiceId: string) =>
-		[...billingKeys.all, "invoice", orgId, invoiceId] as const,
-	pendingCount: (orgId: string) =>
-		[...billingKeys.all, "pending-count", orgId] as const,
-	invoiceHistoryPendingCount: (orgId: string) =>
-		[...billingKeys.all, "invoice-history-pending-count", orgId] as const,
-	invoiceHistory: (orgId: string, query: InvoicesQuery = {}) =>
-		[...billingKeys.all, "invoice-history", orgId, query] as const,
-	invoiceDraftMetrics: (orgId: string) =>
-		[...billingKeys.all, "invoice-draft-metrics", orgId] as const,
-	invoiceDraftSummary: (orgId: string, query: InvoicesQuery = {}) =>
-		[...billingKeys.all, "invoice-draft-summary", orgId, query] as const,
-	finalInvoices: (orgId: string, query: InvoicesQuery = {}) =>
-		[...billingKeys.all, "final-invoices", orgId, query] as const,
-	finalInvoiceSummary: (orgId: string, query: InvoicesQuery = {}) =>
-		[...billingKeys.all, "final-invoice-summary", orgId, query] as const,
-	invoiceApprovers: (orgId: string) =>
-		[...billingKeys.all, "invoice-approvers", orgId] as const,
-	spendSummary: (orgId: string, query: SpendAnalyticsQuery = {}) =>
-		[...billingKeys.all, "spend-summary", orgId, query] as const,
-	spendAnalytics: (orgId: string, query: SpendAnalyticsQuery = {}) =>
-		[...billingKeys.all, "spend-analytics", orgId, query] as const,
-	spendOpenCommittedBreakdown: (
-		orgId: string,
-		query: SpendAnalyticsQuery = {},
-	) =>
-		[
-			...billingKeys.all,
-			"spend-open-committed-breakdown",
-			orgId,
-			query,
-		] as const,
+	payCodeStats: () => [...billingKeys.all, "pay-code-stats"] as const,
+	payCodes: (query: PayCodesQuery = {}) =>
+		[...billingKeys.all, "pay-codes", query] as const,
+	config: () => [...billingKeys.all, "config"] as const,
+	invoices: (query: InvoicesQuery = {}) =>
+		[...billingKeys.all, "invoices", query] as const,
+	invoice: (invoiceId: string) =>
+		[...billingKeys.all, "invoice", invoiceId] as const,
+	pendingCount: () => [...billingKeys.all, "pending-count"] as const,
+	invoiceHistoryPendingCount: () =>
+		[...billingKeys.all, "invoice-history-pending-count"] as const,
+	invoiceHistory: (query: InvoicesQuery = {}) =>
+		[...billingKeys.all, "invoice-history", query] as const,
+	invoiceDraftMetrics: () =>
+		[...billingKeys.all, "invoice-draft-metrics"] as const,
+	invoiceDraftSummary: (query: InvoicesQuery = {}) =>
+		[...billingKeys.all, "invoice-draft-summary", query] as const,
+	finalInvoices: (query: InvoicesQuery = {}) =>
+		[...billingKeys.all, "final-invoices", query] as const,
+	finalInvoiceSummary: (query: InvoicesQuery = {}) =>
+		[...billingKeys.all, "final-invoice-summary", query] as const,
+	invoiceApprovers: () => [...billingKeys.all, "invoice-approvers"] as const,
+	spendSummary: (query: SpendAnalyticsQuery = {}) =>
+		[...billingKeys.all, "spend-summary", query] as const,
+	spendAnalytics: (query: SpendAnalyticsQuery = {}) =>
+		[...billingKeys.all, "spend-analytics", query] as const,
+	spendSavingsByDepartment: (query: SpendAnalyticsQuery = {}) =>
+		[...billingKeys.all, "spend-savings-by-department", query] as const,
+	spendOpenCommittedBreakdown: (query: SpendAnalyticsQuery = {}) =>
+		[...billingKeys.all, "spend-open-committed-breakdown", query] as const,
 };
 
-function invalidateInvoiceCaches(
-	qc: QueryClient,
-	orgId: string,
-	invoiceId?: string,
-) {
-	qc.invalidateQueries({ queryKey: [...billingKeys.all, "invoices", orgId] });
+function invalidateInvoiceCaches(qc: QueryClient, invoiceId?: string) {
+	qc.invalidateQueries({ queryKey: [...billingKeys.all, "invoices"] });
 	qc.invalidateQueries({
-		queryKey: billingKeys.invoiceDraftMetrics(orgId),
+		queryKey: billingKeys.invoiceDraftMetrics(),
 	});
 	if (invoiceId) {
 		qc.invalidateQueries({
-			queryKey: billingKeys.invoice(orgId, invoiceId),
+			queryKey: billingKeys.invoice(invoiceId),
 		});
 	}
-	qc.invalidateQueries({ queryKey: billingKeys.pendingCount(orgId) });
+	qc.invalidateQueries({ queryKey: billingKeys.pendingCount() });
 }
 
-export function usePayCodeStats(orgId: string) {
+export function usePayCodeStats() {
 	return useQuery({
-		queryKey: billingKeys.payCodeStats(orgId),
+		queryKey: billingKeys.payCodeStats(),
 		queryFn: () => BillingService.getPayCodeStats(),
-		enabled: !!orgId,
 		staleTime: 60_000,
 	});
 }
 
-export function usePayCodes(orgId: string, query: PayCodesQuery = {}) {
+export function usePayCodes(query: PayCodesQuery = {}) {
 	return useQuery({
-		queryKey: billingKeys.payCodes(orgId, query),
+		queryKey: billingKeys.payCodes(query),
 		queryFn: () => BillingService.listPayCodes(query),
-		enabled: !!orgId,
 		staleTime: 60_000,
 	});
 }
 
-export function useCreatePayCode(orgId: string) {
+export function useCreatePayCode() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (payload: {
@@ -102,85 +87,80 @@ export function useCreatePayCode(orgId: string) {
 		}) => BillingService.createPayCode(payload),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: [...billingKeys.all, "pay-codes"] });
-			qc.invalidateQueries({ queryKey: billingKeys.payCodeStats(orgId) });
+			qc.invalidateQueries({ queryKey: billingKeys.payCodeStats() });
 		},
 	});
 }
 
-export function useDeletePayCode(orgId: string) {
+export function useDeletePayCode() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (payCodeId: string) => BillingService.deletePayCode(payCodeId),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: [...billingKeys.all, "pay-codes"] });
-			qc.invalidateQueries({ queryKey: billingKeys.payCodeStats(orgId) });
+			qc.invalidateQueries({ queryKey: billingKeys.payCodeStats() });
 		},
 	});
 }
 
-export function useBillingConfig(orgId: string) {
+export function useBillingConfig() {
 	return useQuery({
-		queryKey: billingKeys.config(orgId),
+		queryKey: billingKeys.config(),
 		queryFn: () => BillingService.getConfig(),
-		enabled: !!orgId,
 		staleTime: 60_000,
 	});
 }
 
-export function useUpdateBillingConfig(orgId: string) {
+export function useUpdateBillingConfig() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (payload: UpdateBillingConfigPayload) =>
 			BillingService.updateConfig(payload),
 		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: billingKeys.config(orgId) });
+			qc.invalidateQueries({ queryKey: billingKeys.config() });
 		},
 	});
 }
 
-export function usePendingInvoiceCount(orgId: string) {
+export function usePendingInvoiceCount() {
 	return useQuery({
-		queryKey: billingKeys.pendingCount(orgId),
+		queryKey: billingKeys.pendingCount(),
 		queryFn: () => BillingService.getPendingInvoiceCount(),
-		enabled: !!orgId,
 		staleTime: 30_000,
 	});
 }
 
-export function useInvoiceHistoryPendingCount(orgId: string) {
+export function useInvoiceHistoryPendingCount() {
 	return useQuery({
-		queryKey: billingKeys.invoiceHistoryPendingCount(orgId),
+		queryKey: billingKeys.invoiceHistoryPendingCount(),
 		queryFn: () => BillingService.getInvoiceHistoryPendingCount(),
-		enabled: !!orgId,
 		staleTime: 30_000,
 	});
 }
 
-export function useInvoices(orgId: string, query: InvoicesQuery = {}) {
+export function useInvoices(query: InvoicesQuery = {}) {
 	return useQuery({
-		queryKey: billingKeys.invoices(orgId, query),
+		queryKey: billingKeys.invoices(query),
 		queryFn: () => BillingService.listInvoices(query),
-		enabled: !!orgId,
 	});
 }
 
-export function useInvoiceHistory(orgId: string, query: InvoicesQuery = {}) {
+export function useInvoiceHistory(query: InvoicesQuery = {}) {
 	return useQuery({
-		queryKey: billingKeys.invoiceHistory(orgId, query),
+		queryKey: billingKeys.invoiceHistory(query),
 		queryFn: () => BillingService.listInvoiceHistory(query),
-		enabled: !!orgId,
 	});
 }
 
-export function useInvoice(orgId: string, invoiceId: string) {
+export function useInvoice(invoiceId: string) {
 	return useQuery({
-		queryKey: billingKeys.invoice(orgId, invoiceId),
+		queryKey: billingKeys.invoice(invoiceId),
 		queryFn: () => BillingService.getInvoice(invoiceId),
-		enabled: !!orgId && !!invoiceId,
+		enabled: !!invoiceId,
 	});
 }
 
-export function useUpdateInvoiceStatus(orgId: string) {
+export function useUpdateInvoiceStatus() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -191,13 +171,12 @@ export function useUpdateInvoiceStatus(orgId: string) {
 			status: string;
 		}) => BillingService.updateInvoiceStatus(invoiceId, status),
 		onSuccess: (_, { invoiceId }) => {
-			invalidateInvoiceCaches(qc, orgId, invoiceId);
+			invalidateInvoiceCaches(qc, invoiceId);
 		},
 	});
 }
 
 export function useInvoiceDraftMetrics(
-	orgId: string,
 	query: InvoicesQuery = {
 		status: "DRAFT",
 		page: 1,
@@ -205,67 +184,58 @@ export function useInvoiceDraftMetrics(
 	},
 ) {
 	return useQuery({
-		queryKey: billingKeys.invoices(orgId, query),
+		queryKey: billingKeys.invoices(query),
 		queryFn: () => BillingService.listInvoices(query),
-		enabled: !!orgId,
 		staleTime: 30_000,
 	});
 }
 
 export function useInvoiceDraftSummary(
-	orgId: string,
 	query: InvoicesQuery = {
 		status: "DRAFT",
 	},
 ) {
 	return useQuery({
-		queryKey: billingKeys.invoiceDraftSummary(orgId, query),
+		queryKey: billingKeys.invoiceDraftSummary(query),
 		queryFn: () => BillingService.getInvoiceDraftSummary(query),
-		enabled: !!orgId,
 		staleTime: 30_000,
 	});
 }
 
-export function useFinalInvoices(orgId: string, query: InvoicesQuery = {}) {
+export function useFinalInvoices(query: InvoicesQuery = {}) {
 	return useQuery({
-		queryKey: billingKeys.finalInvoices(orgId, query),
+		queryKey: billingKeys.finalInvoices(query),
 		queryFn: () => BillingService.listFinalInvoices(query),
-		enabled: !!orgId,
 	});
 }
 
-export function useFinalInvoiceSummary(
-	orgId: string,
-	query: InvoicesQuery = {},
-) {
+export function useFinalInvoiceSummary(query: InvoicesQuery = {}) {
 	return useQuery({
-		queryKey: billingKeys.finalInvoiceSummary(orgId, query),
+		queryKey: billingKeys.finalInvoiceSummary(query),
 		queryFn: () => BillingService.getFinalInvoiceSummary(query),
-		enabled: !!orgId,
 		staleTime: 30_000,
 	});
 }
 
-export function useInvoiceApprovers(orgId: string) {
+export function useInvoiceApprovers() {
 	return useQuery({
-		queryKey: billingKeys.invoiceApprovers(orgId),
+		queryKey: billingKeys.invoiceApprovers(),
 		queryFn: () => BillingService.listInvoiceApprovers(),
-		enabled: !!orgId,
 		staleTime: 60_000,
 	});
 }
 
-export function useSubmitInvoice(orgId: string) {
+export function useSubmitInvoice() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (invoiceId: string) => BillingService.submitInvoice(invoiceId),
 		onSuccess: (_, invoiceId) => {
-			invalidateInvoiceCaches(qc, orgId, invoiceId);
+			invalidateInvoiceCaches(qc, invoiceId);
 		},
 	});
 }
 
-export function useReviewInvoice(orgId: string) {
+export function useReviewInvoice() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -276,12 +246,12 @@ export function useReviewInvoice(orgId: string) {
 			reviewNotes?: string;
 		}) => BillingService.reviewInvoice(invoiceId, { reviewNotes }),
 		onSuccess: (_, { invoiceId }) => {
-			invalidateInvoiceCaches(qc, orgId, invoiceId);
+			invalidateInvoiceCaches(qc, invoiceId);
 		},
 	});
 }
 
-export function useApproveInvoice(orgId: string) {
+export function useApproveInvoice() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -292,23 +262,23 @@ export function useApproveInvoice(orgId: string) {
 			approvalNotes?: string;
 		}) => BillingService.approveInvoice(invoiceId, { approvalNotes }),
 		onSuccess: (_, { invoiceId }) => {
-			invalidateInvoiceCaches(qc, orgId, invoiceId);
+			invalidateInvoiceCaches(qc, invoiceId);
 		},
 	});
 }
 
-export function useMarkInvoiceSent(orgId: string) {
+export function useMarkInvoiceSent() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (invoiceId: string) =>
 			BillingService.markInvoiceSent(invoiceId),
 		onSuccess: (_, invoiceId) => {
-			invalidateInvoiceCaches(qc, orgId, invoiceId);
+			invalidateInvoiceCaches(qc, invoiceId);
 		},
 	});
 }
 
-export function useMarkInvoicePaid(orgId: string) {
+export function useMarkInvoicePaid() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -319,12 +289,12 @@ export function useMarkInvoicePaid(orgId: string) {
 			payload: Parameters<typeof BillingService.markInvoicePaid>[1];
 		}) => BillingService.markInvoicePaid(invoiceId, payload),
 		onSuccess: (_, { invoiceId }) => {
-			invalidateInvoiceCaches(qc, orgId, invoiceId);
+			invalidateInvoiceCaches(qc, invoiceId);
 		},
 	});
 }
 
-export function useRouteInvoiceForApproval(orgId: string) {
+export function useRouteInvoiceForApproval() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
@@ -335,10 +305,10 @@ export function useRouteInvoiceForApproval(orgId: string) {
 			payload: { approverUserId: string; routingNotes?: string };
 		}) => BillingService.routeInvoiceForApproval(invoiceId, payload),
 		onSuccess: (_, { invoiceId }) => {
-			invalidateInvoiceCaches(qc, orgId, invoiceId);
-			qc.invalidateQueries({ queryKey: billingKeys.finalInvoices(orgId) });
+			invalidateInvoiceCaches(qc, invoiceId);
+			qc.invalidateQueries({ queryKey: billingKeys.finalInvoices() });
 			qc.invalidateQueries({
-				queryKey: billingKeys.finalInvoiceSummary(orgId),
+				queryKey: billingKeys.finalInvoiceSummary(),
 			});
 		},
 	});
@@ -351,41 +321,69 @@ export function useTriggerBillingCycleRun() {
 	});
 }
 
+const SPEND_ANALYTICS_STALE_TIME = 60_000;
+const SPEND_ANALYTICS_GC_TIME = 5 * 60_000;
+
 export function useSpendAnalyticsSummary(
-	orgId: string,
 	query: SpendAnalyticsQuery = {},
 	options?: { enabled?: boolean },
 ) {
 	return useQuery({
-		queryKey: billingKeys.spendSummary(orgId, query),
+		queryKey: billingKeys.spendSummary(query),
 		queryFn: () => BillingService.getSpendAnalyticsSummary(query),
-		enabled: !!orgId && (options?.enabled ?? true),
-		staleTime: 60_000,
+		enabled: options?.enabled ?? true,
+		staleTime: SPEND_ANALYTICS_STALE_TIME,
+		gcTime: SPEND_ANALYTICS_GC_TIME,
+		placeholderData: (prev) => prev,
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 }
 
 export function useSpendAnalyticsList(
-	orgId: string,
 	query: SpendAnalyticsQuery = {},
 	options?: { enabled?: boolean },
 ) {
 	return useQuery({
-		queryKey: billingKeys.spendAnalytics(orgId, query),
+		queryKey: billingKeys.spendAnalytics(query),
 		queryFn: () => BillingService.listSpendAnalytics(query),
-		enabled: !!orgId && (options?.enabled ?? true),
-		staleTime: 60_000,
+		enabled: options?.enabled ?? true,
+		staleTime: SPEND_ANALYTICS_STALE_TIME,
+		gcTime: SPEND_ANALYTICS_GC_TIME,
+		placeholderData: (prev) => prev,
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 }
 
 export function useSpendOpenCommittedBreakdown(
-	orgId: string,
 	query: SpendAnalyticsQuery = {},
 	options?: { enabled?: boolean },
 ) {
 	return useQuery({
-		queryKey: billingKeys.spendOpenCommittedBreakdown(orgId, query),
+		queryKey: billingKeys.spendOpenCommittedBreakdown(query),
 		queryFn: () => BillingService.listSpendOpenCommittedBreakdown(query),
-		enabled: !!orgId && (options?.enabled ?? true),
-		staleTime: 30_000,
+		enabled: options?.enabled ?? true,
+		staleTime: SPEND_ANALYTICS_STALE_TIME,
+		gcTime: SPEND_ANALYTICS_GC_TIME,
+		placeholderData: (prev) => prev,
+		refetchOnWindowFocus: true,
+		refetchOnMount: false,
+	});
+}
+
+export function useSpendSavingsByDepartment(
+	query: SpendAnalyticsQuery = {},
+	options?: { enabled?: boolean },
+) {
+	return useQuery({
+		queryKey: billingKeys.spendSavingsByDepartment(query),
+		queryFn: () => BillingService.getSavingsByDepartment(query),
+		enabled: options?.enabled ?? true,
+		staleTime: SPEND_ANALYTICS_STALE_TIME,
+		gcTime: SPEND_ANALYTICS_GC_TIME,
+		placeholderData: (prev) => prev,
+		refetchOnWindowFocus: false,
+		refetchOnMount: false,
 	});
 }

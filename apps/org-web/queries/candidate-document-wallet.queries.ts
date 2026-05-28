@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DOCUMENT_WALLET_LIST_PAGE_SIZE } from "@/constants/document-wallet";
+import { DOCUMENT_WALLET_DEFAULT_LIMIT } from "@/constants/document-wallet";
+import { candidateMatchesKeys } from "@/queries/candidate-matches.queries";
+import { candidatePlacementsKeys } from "@/queries/candidate-placements.queries";
 import type { CandidateDocumentWalletItemsQuery } from "@/services/candidate-document-wallet.service";
 import { CandidateDocumentWalletService } from "@/services/candidate-document-wallet.service";
 import type { CandidateDocumentWalletUploadVars } from "@/types/candidate-document-wallet";
@@ -12,7 +14,7 @@ export const candidateDocumentWalletKeys = {
 			...candidateDocumentWalletKeys.all,
 			"items",
 			q.page ?? 1,
-			q.limit ?? DOCUMENT_WALLET_LIST_PAGE_SIZE,
+			q.limit ?? DOCUMENT_WALLET_DEFAULT_LIMIT,
 			q.search ?? "",
 			q.categoryKey ?? "",
 		] as const,
@@ -63,6 +65,7 @@ export function useUploadCandidateDocumentWalletItem() {
 		mutationFn: CandidateDocumentWalletService.uploadDocument,
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: candidateDocumentWalletKeys.all });
+			qc.invalidateQueries({ queryKey: candidateMatchesKeys.all });
 		},
 	});
 }
@@ -75,5 +78,95 @@ export function useCandidateComplianceDocumentSignedUrl() {
 	>({
 		mutationFn: ({ complianceListItemId }) =>
 			CandidateDocumentWalletService.getSignedUrl(complianceListItemId),
+	});
+}
+
+export function useMarkCandidateComplianceLinkSubmitted() {
+	const qc = useQueryClient();
+	return useMutation<{ success: true }, Error, string>({
+		mutationFn: (complianceListItemId: string) =>
+			CandidateDocumentWalletService.markLinkSubmitted(complianceListItemId),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: candidateDocumentWalletKeys.all });
+			qc.invalidateQueries({ queryKey: candidateMatchesKeys.all });
+		},
+	});
+}
+
+export function useUploadCandidateRequisitionComplianceItem(
+	requisitionId: string,
+) {
+	const qc = useQueryClient();
+	return useMutation<
+		{ success: true },
+		Error,
+		CandidateDocumentWalletUploadVars
+	>({
+		mutationFn: (input) =>
+			CandidateDocumentWalletService.uploadDocumentForRequisition(
+				requisitionId,
+				input,
+			),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: candidateDocumentWalletKeys.all });
+			qc.invalidateQueries({ queryKey: candidateMatchesKeys.all });
+		},
+	});
+}
+
+export function useMarkCandidateRequisitionComplianceLinkSubmitted(
+	requisitionId: string,
+) {
+	const qc = useQueryClient();
+	return useMutation<{ success: true }, Error, string>({
+		mutationFn: (complianceListItemId: string) =>
+			CandidateDocumentWalletService.markLinkSubmittedForRequisition(
+				requisitionId,
+				complianceListItemId,
+			),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: candidateDocumentWalletKeys.all });
+			qc.invalidateQueries({ queryKey: candidateMatchesKeys.all });
+		},
+	});
+}
+
+export function useUploadCandidatePlacementComplianceItem(placementId: string) {
+	const qc = useQueryClient();
+	return useMutation<
+		{ success: true },
+		Error,
+		CandidateDocumentWalletUploadVars
+	>({
+		mutationFn: (input) =>
+			CandidateDocumentWalletService.uploadDocumentForPlacement(
+				placementId,
+				input,
+			),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: candidateDocumentWalletKeys.all });
+			qc.invalidateQueries({
+				queryKey: candidatePlacementsKeys.compliance(placementId),
+			});
+		},
+	});
+}
+
+export function useMarkCandidatePlacementComplianceLinkSubmitted(
+	placementId: string,
+) {
+	const qc = useQueryClient();
+	return useMutation<{ success: true }, Error, string>({
+		mutationFn: (complianceListItemId: string) =>
+			CandidateDocumentWalletService.markLinkSubmittedForPlacement(
+				placementId,
+				complianceListItemId,
+			),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: candidateDocumentWalletKeys.all });
+			qc.invalidateQueries({
+				queryKey: candidatePlacementsKeys.compliance(placementId),
+			});
+		},
 	});
 }

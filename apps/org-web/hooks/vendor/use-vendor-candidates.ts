@@ -1,5 +1,6 @@
 "use client";
 
+import type { VendorCandidatePortalStatus } from "@repo/shared";
 import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useSearchWithFilters } from "@repo/ui/hooks/use-search-with-filters";
 import { useCallback, useState } from "react";
@@ -10,10 +11,10 @@ import {
 	useVendorCandidatesMetrics,
 } from "@/queries/vendor-candidates.queries";
 
-const DEFAULT_LIMIT = 20;
-const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const DEFAULT_LIMIT = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
-type VendorCandidateStatus = "all" | "ACTIVE" | "ONBOARDING" | "INACTIVE";
+type VendorCandidatesUrlStatus = "all" | VendorCandidatePortalStatus;
 
 export const VENDOR_CANDIDATES_PARAMS = {
 	PAGE: "vcPage",
@@ -53,9 +54,9 @@ export function useVendorCandidates() {
 	});
 
 	const statusFilter = (values[VENDOR_CANDIDATES_PARAMS.STATUS] ||
-		"all") as VendorCandidateStatus;
+		"all") as VendorCandidatesUrlStatus;
 
-	const [filtersExpanded, setFiltersExpanded] = useState(true);
+	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
 	const setStatusFilter = useCallback(
 		(v: string) => {

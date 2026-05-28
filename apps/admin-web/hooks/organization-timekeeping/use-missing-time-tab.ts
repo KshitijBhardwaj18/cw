@@ -1,9 +1,10 @@
 "use client";
 
-import { exportAsCSV } from "@repo/shared";
+import { exportAsCSV, formatUtcLongDate } from "@repo/shared";
 import type { MissingTimeEntry } from "@repo/ui/general/timekeeping/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useBulkSendReminders,
 	useMissingTime,
@@ -11,7 +12,6 @@ import {
 	useTimekeepingPolicy,
 } from "@/queries/organization-timekeeping.queries";
 import type { MissingTimeCase } from "@/services/organization-timekeeping.types";
-import { fmtDate } from "@/utils/format";
 import type { TimekeepingUrlState } from "./use-timekeeping-url-state";
 import { MISSING_TIME_LIST_PAGE_SIZE, WORKER_TYPE_LABEL } from "./utils";
 
@@ -35,6 +35,7 @@ export function useMissingTimeTab(
 		setMissingTimePage(1);
 	}, [searchFromUrl]);
 
+	const { fmtShortDate } = useUserTimezone();
 	const { data: policy } = useTimekeepingPolicy(orgId);
 	const deadline = policy?.submissionDeadlineDays ?? 3;
 
@@ -67,14 +68,14 @@ export function useMissingTimeTab(
 				location: item.location?.name ?? "—",
 				department: item.department?.name ?? "—",
 				position: item.placement?.jobTitle ?? "",
-				missingDates: [fmtDate(item.workDate)],
+				missingDates: [formatUtcLongDate(item.workDate)],
 				lastSubmitted: item.lastRemindedAt
-					? fmtDate(item.lastRemindedAt)
+					? fmtShortDate(item.lastRemindedAt)
 					: "Never",
 				daysOverdue: item.daysOverdue,
 			};
 		},
-		[deadline],
+		[deadline, fmtShortDate],
 	);
 
 	const groupMissingTimeEntries = useCallback(
@@ -108,7 +109,7 @@ export function useMissingTimeTab(
 					continue;
 				}
 
-				existing.entry.missingDates.push(fmtDate(item.workDate));
+				existing.entry.missingDates.push(formatUtcLongDate(item.workDate));
 
 				if (
 					remindedAt !== null &&
@@ -116,7 +117,7 @@ export function useMissingTimeTab(
 						remindedAt > existing.lastRemindedAt)
 				) {
 					existing.lastRemindedAt = remindedAt;
-					existing.entry.lastSubmitted = fmtDate(item.lastRemindedAt);
+					existing.entry.lastSubmitted = fmtShortDate(item.lastRemindedAt);
 				}
 
 				if (item.daysOverdue > existing.entry.daysOverdue) {
@@ -128,7 +129,7 @@ export function useMissingTimeTab(
 
 			return Array.from(grouped.values()).map(({ entry }) => entry);
 		},
-		[toMissingTimeEntry, deadline],
+		[toMissingTimeEntry, deadline, fmtShortDate],
 	);
 
 	const missingTimeEntries = useMemo<MissingTimeEntry[]>(

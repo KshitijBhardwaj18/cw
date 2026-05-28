@@ -44,6 +44,7 @@ export const CANDIDATE_SUBMISSIONS_URL_KEYS = {
 	tab: "csubTab",
 	page: "csubPage",
 	limit: "csubLimit",
+	search: "csubSearch",
 } as const;
 
 const SUBMISSION_TAB_VALUES = SUBMISSION_TABS.map(
@@ -56,8 +57,9 @@ export const COMPLIANCE_STATUS_CONFIG: Record<
 	CandidateComplianceItemStatus,
 	{ tone: "emerald" | "amber" | "red" | "sky"; icon: typeof CheckCircle }
 > = {
-	Approved: { tone: "emerald", icon: CheckCircle2 },
-	"Pending Verification": { tone: "amber", icon: Clock },
-	Requested: { tone: "red", icon: XCircle },
-	Expired: { tone: "sky", icon: XCircle },
+	APPROVED: { tone: "emerald", icon: CheckCircle2 },
+	PENDING_REVIEW: { tone: "amber", icon: Clock },
+	MISSING: { tone: "red", icon: XCircle },
+	REJECTED: { tone: "red", icon: XCircle },
+	EXPIRED: { tone: "sky", icon: XCircle },
 };

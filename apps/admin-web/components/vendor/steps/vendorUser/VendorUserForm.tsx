@@ -11,7 +11,7 @@ interface VendorUserFormProps {
 	vendorId: string;
 }
 
-export function VendorUserForm({ vendorId }: VendorUserFormProps) {
+export function VendorUserForm({ vendorId }: Readonly<VendorUserFormProps>) {
 	const addMutation = useAddVendorUserMutation();
 
 	const { form, isSubmitting, validators } = useVendorUserForm({

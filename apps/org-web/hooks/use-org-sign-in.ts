@@ -8,7 +8,6 @@ import {
 } from "@repo/shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
-import { useOrgContext } from "@/contexts/org-context";
 import { authClient } from "@/lib/auth-client";
 
 export type OrgSignInStep = "email" | "otp";
@@ -31,7 +30,6 @@ function defaultDestinationForRole(role: string): string {
 export function useOrgSignIn() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
-	const { id: orgId } = useOrgContext();
 
 	const rawCallbackUrl = searchParams.get("callbackUrl");
 	const callbackUrl =
@@ -52,9 +50,8 @@ export function useOrgSignIn() {
 			email,
 			type: "sign-in" as const,
 			portal: AUTO_PORTAL,
-			organizationId: orgId,
 		}),
-		[orgId],
+		[],
 	);
 
 	const signInEmailOtpBody = useCallback(
@@ -62,9 +59,8 @@ export function useOrgSignIn() {
 			email,
 			otp,
 			portal: AUTO_PORTAL,
-			organizationId: orgId,
 		}),
-		[orgId],
+		[],
 	);
 
 	const handleSendOTP = useCallback(

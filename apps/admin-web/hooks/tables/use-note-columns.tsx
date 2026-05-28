@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate, getLabel, NOTE_TYPE_OPTIONS } from "@repo/shared";
+import { getLabel, NOTE_TYPE_OPTIONS } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
@@ -9,6 +9,7 @@ import {
 	NOTE_COLUMN_HEADERS,
 	NOTE_COLUMN_KEYS,
 } from "@/constants/tables/notes";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { NoteWithUser, VendorNoteWithDetails } from "@/types/vendor";
 
 /** Note type for table - supports vendor, msp, or organization context */
@@ -22,6 +23,7 @@ export interface NoteColumnsCallbacks {
 
 export const useNoteColumns = (callbacks?: NoteColumnsCallbacks) => {
 	const { onView, onEdit, onDelete } = callbacks ?? {};
+	const { fmtShortDate } = useUserTimezone();
 	const columns = useMemo<ColumnDef<NoteRow>[]>(
 		() => [
 			{
@@ -37,11 +39,7 @@ export const useNoteColumns = (callbacks?: NoteColumnsCallbacks) => {
 				accessorKey: NOTE_COLUMN_KEYS.date,
 				header: NOTE_COLUMN_HEADERS.date,
 				cell: ({ row }) => (
-					<div className="text-sm">
-						{row.original.createdAt
-							? formatDate(row.original.createdAt, "M/d/yyyy")
-							: "—"}
-					</div>
+					<div className="text-sm">{fmtShortDate(row.original.createdAt)}</div>
 				),
 			},
 			{
@@ -101,7 +99,7 @@ export const useNoteColumns = (callbacks?: NoteColumnsCallbacks) => {
 				},
 			},
 		],
-		[onView, onEdit, onDelete],
+		[onView, onEdit, onDelete, fmtShortDate],
 	);
 
 	return { columns };

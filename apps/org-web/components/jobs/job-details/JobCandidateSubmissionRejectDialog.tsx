@@ -23,7 +23,7 @@ export function JobCandidateSubmissionRejectDialog({
 	candidateName,
 	onOpenChange,
 	onConfirmReject,
-}: JobCandidateSubmissionRejectDialogProps) {
+}: Readonly<JobCandidateSubmissionRejectDialogProps>) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>

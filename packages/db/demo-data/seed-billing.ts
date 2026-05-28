@@ -1,10 +1,12 @@
 /**
- * Billing demo seed — invoices (multiple statuses + line items) and spend_analytics
- * rows for an org that already has OrganizationVendor + related data.
+ * Billing demo seed — invoices (multiple statuses + line items) and timesheet
+ * entries for an org that already has OrganizationVendor + related data.
  *
- * Idempotent for re-runs: removes prior seed rows by `invoiceNumber` prefix `SEED-DEMO-`
- * and `spend_analytics.periodType === 'SEED_DEMO'`, then recreates ~48 spend rows (8 per
- * month × Jan–Jun 2026) across vendors, departments, and projects.
+ * Spend analytics are computed at query time from invoices and timesheet data;
+ * there is no persisted spend_analytics table.
+ *
+ * Idempotent for re-runs: removes prior seed rows by `invoiceNumber` prefix
+ * `SEED-DEMO-`, then recreates demo invoices.
  *
  * Run via `bun run --cwd packages/db db:seed:billing` (or `db:seed:demo` / `db:seed:all`).
  */
@@ -19,62 +21,6 @@ import {
 } from "@repo/db";
 
 const INVOICE_PREFIX = "SEED-DEMO-";
-/** Marks synthetic spend rows so we can deleteMany safely without touching real data */
-export const SPEND_ANALYTICS_SEED_PERIOD_TYPE = "SEED_DEMO";
-
-/** Monthly windows (no overlapping rollup + slice rows — chart/table aggregates stay interpretable). */
-const SPEND_SEED_MONTHS = [
-	{ from: "2026-01-01", to: "2026-01-31" },
-	{ from: "2026-02-01", to: "2026-02-28" },
-	{ from: "2026-03-01", to: "2026-03-31" },
-	{ from: "2026-04-01", to: "2026-04-30" },
-	{ from: "2026-05-01", to: "2026-05-31" },
-	{ from: "2026-06-01", to: "2026-06-30" },
-] as const;
-
-function utcDay(isoDate: string, endOfDay: boolean) {
-	return endOfDay
-		? new Date(`${isoDate}T23:59:59.999Z`)
-		: new Date(`${isoDate}T00:00:00.000Z`);
-}
-
-function seedSpendRow(
-	orgId: string,
-	vendorIdForRow: string,
-	args: {
-		periodStart: Date;
-		periodEnd: Date;
-		departmentId?: string | null;
-		locationId?: string | null;
-		projectId?: string | null;
-		occupationId?: string | null;
-		totalSpend: number;
-	},
-) {
-	const th = Math.max(48, Math.round(args.totalSpend / 48));
-	const reg = Math.round(th * 0.88);
-	return {
-		organizationId: orgId,
-		periodStart: args.periodStart,
-		periodEnd: args.periodEnd,
-		periodType: SPEND_ANALYTICS_SEED_PERIOD_TYPE,
-		departmentId: args.departmentId ?? null,
-		locationId: args.locationId ?? null,
-		vendorId: vendorIdForRow,
-		occupationId: args.occupationId ?? null,
-		projectId: args.projectId ?? null,
-		totalSpend: args.totalSpend,
-		regularHours: reg,
-		overtimeHours: th - reg,
-		totalHours: th,
-		activePlacements: Math.max(1, Math.round(args.totalSpend / 13_000)),
-		totalInvoices: Math.max(1, Math.round(args.totalSpend / 28_000)),
-		averageBillRate: 78 + (args.totalSpend % 22),
-		permanentHeadcount: 25 + (Math.round(args.totalSpend / 18_000) % 90),
-		contingentHeadcount: 18 + (Math.round(args.totalSpend / 22_000) % 75),
-		contractorHeadcount: 2 + (Math.round(args.totalSpend / 55_000) % 18),
-	};
-}
 
 function line(
 	description: string,
@@ -97,19 +43,6 @@ function isHolidayPayCode(code?: string | null, category?: string | null) {
 }
 
 export async function seedBillingDemo(prisma: PrismaClient): Promise<void> {
-	const spendAnalyticsRelKindRows = await prisma.$queryRaw<
-		Array<{ relkind: string }>
-	>`
-		SELECT c.relkind::text AS relkind
-		FROM pg_class c
-		JOIN pg_namespace n ON n.oid = c.relnamespace
-		WHERE n.nspname = current_schema()
-		  AND c.relname = 'spend_analytics'
-		LIMIT 1
-	`;
-	const spendAnalyticsRelKind = spendAnalyticsRelKindRows[0]?.relkind ?? "r";
-	const isSpendAnalyticsMaterializedView = spendAnalyticsRelKind === "m";
-
 	const orgVendor = await prisma.organizationVendor.findFirst({
 		where: { status: OrganizationVendorStatus.ACTIVE },
 		select: { organizationId: true, vendorId: true },
@@ -133,44 +66,6 @@ export async function seedBillingDemo(prisma: PrismaClient): Promise<void> {
 		orderBy: { createdAt: "asc" },
 	});
 	const actorId = member?.userId ?? null;
-
-	const [location, occupation] = await Promise.all([
-		prisma.organizationLocation.findFirst({
-			where: { organizationId: orgId },
-			select: { id: true },
-		}),
-		prisma.occupation.findFirst({ select: { id: true } }),
-	]);
-
-	const [departments, projects, orgVendorRows] = await Promise.all([
-		prisma.department.findMany({
-			where: { organizationId: orgId },
-			select: { id: true, name: true },
-			orderBy: { name: "asc" },
-			take: 14,
-		}),
-		prisma.project.findMany({
-			where: { organizationId: orgId },
-			select: { id: true },
-			take: 12,
-		}),
-		prisma.organizationVendor.findMany({
-			where: {
-				organizationId: orgId,
-				status: OrganizationVendorStatus.ACTIVE,
-			},
-			select: { vendorId: true },
-			orderBy: { createdAt: "asc" },
-			take: 8,
-		}),
-	]);
-
-	const vendorIds = orgVendorRows.map((r) => r.vendorId);
-	const pickVendor = (i: number) =>
-		vendorIds[i % Math.max(1, vendorIds.length)] ?? vendorId;
-	const projectIds = projects.map((p) => p.id);
-	const pickProject = (i: number) =>
-		projectIds[i % Math.max(1, projectIds.length)] ?? null;
 
 	const [payCodes, seedTimesheets] = await Promise.all([
 		prisma.organizationPayCode.findMany({
@@ -366,15 +261,6 @@ export async function seedBillingDemo(prisma: PrismaClient): Promise<void> {
 			invoiceNumber: { startsWith: INVOICE_PREFIX },
 		},
 	});
-
-	if (!isSpendAnalyticsMaterializedView) {
-		await prisma.spendAnalytics.deleteMany({
-			where: {
-				organizationId: orgId,
-				periodType: SPEND_ANALYTICS_SEED_PERIOD_TYPE,
-			},
-		});
-	}
 
 	const periodStart = new Date("2026-04-01T00:00:00.000Z");
 	const periodEnd = new Date("2026-06-30T00:00:00.000Z");
@@ -576,47 +462,7 @@ export async function seedBillingDemo(prisma: PrismaClient): Promise<void> {
 		},
 	});
 
-	/** Enough slices/month to populate tables even when the org has few departments. */
-	const SLOTS_PER_MONTH = 8;
-	const spendRows: ReturnType<typeof seedSpendRow>[] = [];
-	let spendIdx = 0;
-
-	for (let mi = 0; mi < SPEND_SEED_MONTHS.length; mi++) {
-		const blk = SPEND_SEED_MONTHS[mi];
-		const ps = utcDay(blk.from, false);
-		const pe = utcDay(blk.to, true);
-
-		for (let li = 0; li < SLOTS_PER_MONTH; li++) {
-			const deptId =
-				departments.length === 0
-					? null
-					: (departments[li % departments.length]?.id ?? null);
-			const totalSpend = 18_000 + mi * 1600 + li * 2800 + ((mi + li) % 5) * 850;
-			spendRows.push(
-				seedSpendRow(orgId, pickVendor(spendIdx++), {
-					periodStart: ps,
-					periodEnd: pe,
-					departmentId: deptId,
-					locationId: location?.id ?? null,
-					projectId: pickProject(spendIdx + li),
-					occupationId: occupation?.id ?? null,
-					totalSpend,
-				}),
-			);
-		}
-	}
-
-	if (isSpendAnalyticsMaterializedView) {
-		await prisma.$executeRawUnsafe(
-			`REFRESH MATERIALIZED VIEW "spend_analytics"`,
-		);
-		console.log(
-			`seedBillingDemo: invoices (${INVOICE_PREFIX}*) seeded; spend_analytics is a materialized view (refreshed, no direct writes) for org ${orgId}`,
-		);
-	} else {
-		await prisma.spendAnalytics.createMany({ data: spendRows });
-		console.log(
-			`seedBillingDemo: invoices (${INVOICE_PREFIX}*) + spend_analytics ${spendRows.length} rows (${SPEND_ANALYTICS_SEED_PERIOD_TYPE}) for org ${orgId}`,
-		);
-	}
+	console.log(
+		`seedBillingDemo: invoices (${INVOICE_PREFIX}*) seeded for org ${orgId}`,
+	);
 }

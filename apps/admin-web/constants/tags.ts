@@ -1,9 +1,9 @@
-import type { TagType } from "@repo/db";
+import { TagType } from "@repo/shared";
 
 export const TAG_TYPE_OPTIONS: { value: TagType; label: string }[] = [
-	{ value: "SKILL", label: "Skill" },
-	{ value: "COMPLIANCE", label: "Compliance" },
-	{ value: "AVAILABILITY", label: "Availability" },
-	{ value: "PRIORITY", label: "Priority" },
-	{ value: "FLAG", label: "Flag" },
+	{ value: TagType.SKILL, label: "Skill" },
+	{ value: TagType.COMPLIANCE, label: "Compliance" },
+	{ value: TagType.AVAILABILITY, label: "Availability" },
+	{ value: TagType.PRIORITY, label: "Priority" },
+	{ value: TagType.FLAG, label: "Flag" },
 ];

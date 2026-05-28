@@ -7,7 +7,7 @@ interface AuthLayoutProps {
 	children: React.ReactNode;
 }
 
-export function AuthLayout({ children }: AuthLayoutProps) {
+export function AuthLayout({ children }: Readonly<AuthLayoutProps>) {
 	return (
 		<div className="flex min-h-screen bg-muted/20 items-center justify-center p-4">
 			<div className="w-full max-w-md space-y-6">

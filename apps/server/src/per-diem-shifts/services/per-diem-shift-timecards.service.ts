@@ -5,6 +5,7 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import { TimeEntryDataSource, TimesheetEntryStatus, UserRole } from "@repo/db";
+import { isInternalWorkforceType } from "@repo/shared";
 import type { UserSession } from "@thallesp/nestjs-better-auth";
 import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
 import { resolveVendorActor } from "src/common/utils/resolve-vendor-actor";
@@ -36,7 +37,8 @@ export class PerDiemShiftTimecardsService {
 
 	private parseWorkDateAtUtcNoon(iso: string): Date {
 		const [y, m, d] = iso.split("-").map(Number);
-		if (!y || !m || !d) throw new BadRequestException("Invalid workDate");
+		if (!y || !m || !d)
+			throw new BadRequestException("Enter a valid work date.");
 		return new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0));
 	}
 
@@ -62,9 +64,14 @@ export class PerDiemShiftTimecardsService {
 		await this.assertMobileEntryEnabled(orgId);
 		const candidate = await this.prisma.candidate.findFirst({
 			where: { userId, organizationId: orgId },
-			select: { id: true },
+			select: { id: true, workforceType: true },
 		});
-		if (!candidate) throw new NotFoundException("Candidate profile not found");
+		if (!candidate) throw new NotFoundException("Candidate profile not found.");
+		if (isInternalWorkforceType(candidate.workforceType)) {
+			throw new ForbiddenException(
+				"Internal candidates do not submit timecards; hours are billed directly from your schedule.",
+			);
+		}
 
 		const shift = await this.prisma.perDiemShift.findFirst({
 			where: { id: shiftId, organizationId: orgId },
@@ -77,14 +84,14 @@ export class PerDiemShiftTimecardsService {
 				locationId: true,
 			},
 		});
-		if (!shift) throw new NotFoundException("Shift not found");
+		if (!shift) throw new NotFoundException("Shift not found.");
 
 		const assignment = await this.prisma.perDiemAssignment.findFirst({
 			where: { shiftId, candidateId: candidate.id },
 			select: { id: true, status: true },
 		});
 		if (!assignment)
-			throw new NotFoundException("No assignment found for this shift");
+			throw new NotFoundException("No assignment found for this shift.");
 
 		return this.persistTimecardForAssignment(
 			orgId,
@@ -123,7 +130,7 @@ export class PerDiemShiftTimecardsService {
 				},
 			},
 		});
-		if (!assignmentRow) throw new NotFoundException("Assignment not found");
+		if (!assignmentRow) throw new NotFoundException("Assignment not found.");
 
 		if (actorRole === UserRole.VENDOR_USER) {
 			await this.assertVendorCanAccessCandidate(
@@ -157,12 +164,12 @@ export class PerDiemShiftTimecardsService {
 		dto: SubmitShiftTimecardDto,
 	) {
 		if (assignment.status === "cancelled") {
-			throw new BadRequestException("This assignment is cancelled");
+			throw new BadRequestException("This assignment is cancelled.");
 		}
 
 		const shiftDateIso = shift.shiftDate.toISOString().slice(0, 10);
 		if (!dto.entries?.length) {
-			throw new BadRequestException("At least one time entry is required");
+			throw new BadRequestException("At least one time entry is required.");
 		}
 
 		const normalized = dto.entries.map((e) => ({
@@ -176,7 +183,7 @@ export class PerDiemShiftTimecardsService {
 		for (const row of normalized) {
 			if (row.workDate !== shiftDateIso) {
 				throw new BadRequestException(
-					`workDate must be the shift date (${shiftDateIso})`,
+					`Work date must match the shift date (${shiftDateIso}).`,
 				);
 			}
 		}
@@ -184,7 +191,7 @@ export class PerDiemShiftTimecardsService {
 		const regularRows = normalized.filter((e) => !e.isOvertime);
 		if (regularRows.length !== 1) {
 			throw new BadRequestException(
-				"Include exactly one regular row (isOvertime: false)",
+				"Include exactly one regular (non-overtime) time entry.",
 			);
 		}
 
@@ -240,7 +247,7 @@ export class PerDiemShiftTimecardsService {
 				regularHours: row.isOvertime ? 0 : hrs,
 				overtimeHours: row.isOvertime ? hrs : 0,
 				hours: hrs,
-				notes: null,
+				notes: notesTrimmed.length > 0 ? notesTrimmed : null,
 			});
 		}
 
@@ -249,6 +256,18 @@ export class PerDiemShiftTimecardsService {
 			: TimesheetEntryStatus.DRAFT;
 
 		await this.prisma.$transaction(async (tx) => {
+			const approvedExisting = await tx.timesheetEntry.count({
+				where: {
+					perDiemAssignmentId: assignment.id,
+					status: TimesheetEntryStatus.APPROVED,
+				},
+			});
+			if (approvedExisting > 0) {
+				throw new BadRequestException(
+					"This timecard has been approved and can no longer be edited",
+				);
+			}
+
 			let timesheetId: string | undefined = (
 				await tx.timesheet.findFirst({
 					where: { perDiemAssignmentId: assignment.id },
@@ -300,7 +319,6 @@ export class PerDiemShiftTimecardsService {
 			await tx.perDiemAssignment.update({
 				where: { id: assignment.id },
 				data: {
-					candidateFeedback: notesTrimmed.length > 0 ? notesTrimmed : null,
 					status: dto.submit ? "submitted" : "draft",
 				},
 				select: { id: true },

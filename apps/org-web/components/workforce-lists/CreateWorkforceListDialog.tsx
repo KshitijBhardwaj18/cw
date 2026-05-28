@@ -29,7 +29,7 @@ export function CreateWorkforceListDialog({
 	open,
 	onOpenChange,
 	onCreate,
-}: CreateWorkforceListDialogProps) {
+}: Readonly<CreateWorkforceListDialogProps>) {
 	const form = useForm({
 		defaultValues: {
 			name: "",

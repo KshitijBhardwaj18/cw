@@ -1,3 +1,0 @@
--- AlterEnum
-ALTER TYPE "BackGroundJobType" ADD VALUE 'INVITE_SINGLE';
-ALTER TYPE "BackGroundJobType" ADD VALUE 'INVITE_BULK';

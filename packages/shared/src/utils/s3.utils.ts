@@ -7,11 +7,17 @@ export type S3ClientConfig = {
 };
 
 export function createS3Client(config: S3ClientConfig): S3Client {
-	return new S3Client({
+	const options: {
+		region: string;
+		credentials?: { accessKeyId: string; secretAccessKey: string };
+	} = {
 		region: config.region,
-		credentials: {
+	};
+	if (config.accessKeyId && config.secretAccessKey) {
+		options.credentials = {
 			accessKeyId: config.accessKeyId,
 			secretAccessKey: config.secretAccessKey,
-		},
-	});
+		};
+	}
+	return new S3Client(options);
 }

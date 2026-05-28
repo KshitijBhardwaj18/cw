@@ -6,7 +6,7 @@ type OrganizationsByTypePageProps = {
 
 export default async function OrganizationsByTypePage({
 	params,
-}: OrganizationsByTypePageProps) {
+}: Readonly<OrganizationsByTypePageProps>) {
 	const { type } = await params;
 	return <OrganizationsByTypePageContent organizationType={type} />;
 }

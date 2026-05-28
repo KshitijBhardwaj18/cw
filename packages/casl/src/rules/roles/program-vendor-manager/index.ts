@@ -1,11 +1,16 @@
+import {
+	BILLING_CONFIG_SECTION_CONDITIONS,
+	BILLING_TAB_CONDITIONS,
+} from "../../../constants/billing";
 import { SUBMISSION_TAB_CONDITIONS } from "../../../constants/submissions";
-import { Action } from "../../../types/actions";
 import type { AppSubjects } from "../../../types/subjects";
 import {
 	type Can,
-	CRU_ACTIONS,
-	READ_CREATE_ACTIONS,
-	READ_UPDATE_ACTIONS,
+	type Cannot,
+	CREATE_READ_LIST_UPDATE_ACTIONS,
+	READ_LIST_ACTIONS,
+	READ_LIST_CREATE_ACTIONS,
+	READ_LIST_UPDATE_ACTIONS,
 } from "../../helpers";
 
 const PORTAL_MANAGER_CRU_SUBJECTS = [
@@ -28,42 +33,77 @@ const TIMEKEEPING_READ_ONLY_GROUP_SUBJECTS = [
 	"OrganizationHoliday",
 ] as const satisfies readonly AppSubjects[];
 
-const LIST = [Action.Read, Action.List] as const;
-const RU = [Action.Read, Action.List, Action.Update] as const;
+export function defineProgramVendorManagerRules(can: Can, cannot: Cannot) {
+	can(READ_LIST_ACTIONS, "ComplianceWalletTemplate");
 
-export function defineProgramVendorManagerRules(can: Can) {
-	can([...LIST], "ComplianceWalletTemplate");
+	can(READ_LIST_UPDATE_ACTIONS, "CommandCenter");
 
-	can(READ_UPDATE_ACTIONS, "CommandCenter");
+	can(READ_LIST_UPDATE_ACTIONS, "Placement");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "PlacementComplianceItem");
 
-	can([Action.Read, Action.List, Action.Update], "Placement");
-	can(CRU_ACTIONS, "PlacementComplianceItem");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "Credentials");
 
-	can(CRU_ACTIONS, "Credentials");
+	can(READ_LIST_CREATE_ACTIONS, "ComplianceChecklist");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, [
+		"RequisitionTemplate",
+		"ShiftTemplate",
+	]);
+	can(
+		READ_LIST_ACTIONS,
+		"Billing",
+		BILLING_TAB_CONDITIONS["billing-configuration"],
+	);
+	can(READ_LIST_ACTIONS, "BillingConfig");
+	cannot(
+		READ_LIST_ACTIONS,
+		"BillingConfig",
+		BILLING_CONFIG_SECTION_CONDITIONS.general,
+	);
+	cannot(
+		READ_LIST_ACTIONS,
+		"BillingConfig",
+		BILLING_CONFIG_SECTION_CONDITIONS["invoice-preferences"],
+	);
+	cannot(
+		READ_LIST_ACTIONS,
+		"BillingConfig",
+		BILLING_CONFIG_SECTION_CONDITIONS["fee-structure"],
+	);
+	can(READ_LIST_ACTIONS, ["OrganizationPayCode", "OrganizationHoliday"]);
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "User");
 
-	can(READ_CREATE_ACTIONS, "ComplianceChecklist");
-	can(CRU_ACTIONS, ["RequisitionTemplate", "ShiftTemplate"]);
-	can([...LIST], "Billing");
-	can(CRU_ACTIONS, "User");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, [...PORTAL_MANAGER_CRU_SUBJECTS]);
+	can(READ_LIST_UPDATE_ACTIONS, "RequisitionApprovals");
+	can(READ_LIST_ACTIONS, ["Organization"]);
 
-	can(CRU_ACTIONS, [...PORTAL_MANAGER_CRU_SUBJECTS]);
-	can(READ_UPDATE_ACTIONS, "RequisitionApprovals");
-	can([...LIST], ["Organization"]);
+	can(
+		READ_LIST_UPDATE_ACTIONS,
+		"Submission",
+		SUBMISSION_TAB_CONDITIONS.submitted,
+	);
+	can(READ_LIST_ACTIONS, "Submission", SUBMISSION_TAB_CONDITIONS.qualified);
+	can(
+		READ_LIST_ACTIONS,
+		"Submission",
+		SUBMISSION_TAB_CONDITIONS.interviewScheduled,
+	);
+	can(READ_LIST_ACTIONS, "Submission", SUBMISSION_TAB_CONDITIONS.offerExtended);
+	can(READ_LIST_ACTIONS, "Submission", SUBMISSION_TAB_CONDITIONS.rejected);
 
-	can([...RU], "Submission", SUBMISSION_TAB_CONDITIONS.submitted);
-	can([...LIST], "Submission", SUBMISSION_TAB_CONDITIONS.qualified);
-	can([...LIST], "Submission", SUBMISSION_TAB_CONDITIONS.interviewScheduled);
-	can([...LIST], "Submission", SUBMISSION_TAB_CONDITIONS.offerExtended);
-	can([...LIST], "Submission", SUBMISSION_TAB_CONDITIONS.rejected);
-
-	can(CRU_ACTIONS, [
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, [
 		"TalentCommunity",
 		"WorkforceLists",
 		"ShiftRoutingSettings",
 	]);
 
-	can(CRU_ACTIONS, ["Timekeeping", ...TIMEKEEPING_HIGH_CONTROL_SUBJECTS]);
-	can([...LIST], [...TIMEKEEPING_READ_ONLY_GROUP_SUBJECTS]);
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, [
+		"Timekeeping",
+		...TIMEKEEPING_HIGH_CONTROL_SUBJECTS,
+	]);
+	can(READ_LIST_ACTIONS, [...TIMEKEEPING_READ_ONLY_GROUP_SUBJECTS]);
 
-	can([...LIST], ["SpendAnalytics", "Invoice"]);
+	can(READ_LIST_ACTIONS, ["SpendAnalytics", "Invoice"]);
+
+	can(READ_LIST_ACTIONS, "Department");
+	can(CREATE_READ_LIST_UPDATE_ACTIONS, "Member");
 }

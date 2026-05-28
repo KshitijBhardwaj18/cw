@@ -1,6 +1,10 @@
 "use client";
 
-import { formatUsdPerHour } from "@repo/shared";
+import {
+	formatUsdPerHour,
+	getRequisitionStatusLabel,
+	getRequisitionStatusVariant,
+} from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
@@ -17,10 +21,8 @@ import {
 	EmptyTitle,
 } from "@repo/ui/components/empty";
 import LoadingScreen from "@repo/ui/general/LoadingScreen";
-import { cn } from "@repo/ui/lib/utils";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { useState } from "react";
-import { useOrgContext } from "@/contexts/org-context";
 import { useRequisitionsList } from "@/queries/requisitions.queries";
 import type { OrgJobCardItem } from "@/types/org-job";
 
@@ -36,12 +38,11 @@ export function AddRequisitionsToProjectDialog({
 	onOpenChange,
 	projectId,
 	onAdd,
-}: AddRequisitionsToProjectDialogProps) {
-	const { id: orgId } = useOrgContext();
+}: Readonly<AddRequisitionsToProjectDialogProps>) {
 	const [search, setSearch] = useState("");
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-	const listQuery = useRequisitionsList(orgId, {
+	const listQuery = useRequisitionsList({
 		search: search.trim() || undefined,
 		excludeProjectId: projectId,
 		page: 1,
@@ -139,25 +140,10 @@ export function AddRequisitionsToProjectDialog({
 												{req.title}
 											</h4>
 											<Badge
-												variant="secondary"
-												className={cn(
-													`text-xs font-semibold px-2 py-0 h-5 shrink-0`,
-													req.status === "OPEN"
-														? "bg-green-50 text-green-700 border-green-100"
-														: req.status === "DRAFT"
-															? "bg-violet-50 text-violet-800 border-violet-100"
-															: "bg-slate-100 text-slate-700 border-slate-200",
-												)}
+												variant={getRequisitionStatusVariant(req.status)}
+												className="text-xs font-semibold px-2 py-0 h-5 shrink-0"
 											>
-												{req.status === "OPEN"
-													? "Open"
-													: req.status === "DRAFT"
-														? "Draft"
-														: req.status === "FILLED"
-															? "Filled"
-															: req.status === "OFFER_ACCEPTED"
-																? "Offer accepted"
-																: req.status}
+												{getRequisitionStatusLabel(req.status)}
 											</Badge>
 										</div>
 										<div className="mt-2 flex flex-wrap items-center text-sm text-muted-foreground gap-x-2">

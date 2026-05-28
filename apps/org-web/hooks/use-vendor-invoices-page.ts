@@ -9,18 +9,22 @@ import {
 	useVendorInvoices,
 } from "@/queries/vendor-invoices.queries";
 
-const PAGE_SIZE = 10;
+const DEFAULT_LIMIT = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 export const VENDOR_INVOICES_PARAMS = {
 	PAGE: "vinvPage",
+	LIMIT: "vinvLimit",
 	SEARCH: "vinvSearch",
 	STATUS: "vendorInvStatus",
 } as const;
 
 export function useVendorInvoicesPage() {
-	const { page, setPage } = usePaginationControls({
+	const { page, setPage, limit, setLimit } = usePaginationControls({
 		pageParamKey: VENDOR_INVOICES_PARAMS.PAGE,
-		defaultLimit: PAGE_SIZE,
+		limitParamKey: VENDOR_INVOICES_PARAMS.LIMIT,
+		defaultLimit: DEFAULT_LIMIT,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 	});
 
 	const {
@@ -46,16 +50,16 @@ export function useVendorInvoicesPage() {
 
 	const statusFilter = values[VENDOR_INVOICES_PARAMS.STATUS] || "all";
 
-	const [filtersExpanded, setFiltersExpanded] = useState(true);
+	const [filtersExpanded, setFiltersExpanded] = useState(false);
 
 	const query = useMemo(
 		() => ({
 			page,
-			limit: PAGE_SIZE,
+			limit,
 			...(searchFromUrl.trim() ? { search: searchFromUrl.trim() } : {}),
 			...(statusFilter !== "all" ? { status: statusFilter.toUpperCase() } : {}),
 		}),
-		[page, searchFromUrl, statusFilter],
+		[page, limit, searchFromUrl, statusFilter],
 	);
 
 	const listQuery = useVendorInvoices(query);
@@ -70,6 +74,9 @@ export function useVendorInvoicesPage() {
 		setFiltersExpanded,
 		page,
 		setPage,
+		limit,
+		setLimit,
+		pageSizeOptions: PAGE_SIZE_OPTIONS,
 		query,
 		listQuery,
 		summaryQuery,

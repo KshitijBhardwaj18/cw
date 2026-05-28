@@ -32,7 +32,7 @@ export function ApproveTimeLogDialog({
 	log,
 	worker,
 	mode = "approval",
-}: ApproveTimeLogDialogProps) {
+}: Readonly<ApproveTimeLogDialogProps>) {
 	const [note, setNote] = useState("");
 
 	useEffect(() => {

@@ -51,6 +51,8 @@ export class OrganizationDepartmentsController {
 			query.limit,
 			query.search,
 			query.locationId,
+			query.organizationOccupationId,
+			query.organizationSpecialtyId,
 		);
 	}
 
@@ -74,6 +76,8 @@ export class OrganizationDepartmentsController {
 			query.limit,
 			query.search,
 			query.locationId,
+			query.organizationOccupationId,
+			query.organizationSpecialtyId,
 		);
 	}
 

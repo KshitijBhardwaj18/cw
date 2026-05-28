@@ -40,14 +40,12 @@ import { inviteCandidateSchema } from "@/schemas/talent-community.schema";
 type InviteCandidateDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	orgId: string;
 };
 
 export function InviteCandidateDialog({
 	open,
 	onOpenChange,
-	orgId,
-}: InviteCandidateDialogProps) {
+}: Readonly<InviteCandidateDialogProps>) {
 	const {
 		form,
 		occupationItems,
@@ -58,7 +56,7 @@ export function InviteCandidateDialog({
 		selectedOccupationId,
 		submissionAttempts,
 		handleOpenChange,
-	} = useInviteCandidateDialog({ onOpenChange, orgId });
+	} = useInviteCandidateDialog({ onOpenChange });
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>

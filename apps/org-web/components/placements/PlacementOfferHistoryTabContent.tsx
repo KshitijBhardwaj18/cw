@@ -6,14 +6,12 @@ import { OfferHistoryEventCard } from "./OfferHistoryEventCard";
 
 interface PlacementOfferHistoryTabContentProps {
 	placementId: string;
-	orgId: string;
 }
 
 export function PlacementOfferHistoryTabContent({
 	placementId,
-	orgId,
-}: PlacementOfferHistoryTabContentProps) {
-	const { data } = usePlacementOfferHistorySuspense(orgId, placementId);
+}: Readonly<PlacementOfferHistoryTabContentProps>) {
+	const { data } = usePlacementOfferHistorySuspense(placementId);
 
 	const { summary, events } = data ?? { summary: null, events: [] };
 

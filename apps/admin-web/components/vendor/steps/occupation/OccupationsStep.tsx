@@ -32,7 +32,7 @@ interface OccupationsStepProps {
 	vendorId: string;
 }
 
-export function OccupationsStep({ vendorId }: OccupationsStepProps) {
+export function OccupationsStep({ vendorId }: Readonly<OccupationsStepProps>) {
 	const router = useRouter();
 	const { data: vendor } = useVendorDetailQuery(vendorId);
 	const setOccupationsMutation = useSetOccupationsMutation();

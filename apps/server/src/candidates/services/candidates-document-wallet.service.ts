@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
 	BadRequestException,
 	ForbiddenException,
@@ -7,17 +6,27 @@ import {
 } from "@nestjs/common";
 import {
 	CandidateComplianceStatus,
+	type CandidateWorkforceType,
 	type ComplianceListItem,
 	type ComplianceListItemCategory,
+	ComplianceListItemResponseStyle,
 	ComplianceListItemStatus,
+	PlacementStatus,
 	type Prisma,
 } from "@repo/db";
 import {
+	ComplianceListItemExpirationType,
+	type ExpirationRuleUnit,
 	getComplianceListItemCategoryLabel,
 	type PagePaginatedResponse,
-	S3_PREFIX_COMPLIANCE_DOCS,
 } from "@repo/shared";
 import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
+import { CandidateComplianceWriteService } from "src/common/services/candidate-compliance-write.service";
+import { deriveStoredComplianceStatus } from "src/common/utils/derive-stored-compliance-status";
+import {
+	hybridSummaryFetch,
+	type SummaryEntry,
+} from "src/common/utils/summary-hybrid";
 import { FilesService } from "src/files/files.service";
 import type { UpdateCandidateComplianceStatusDto } from "src/placements/dto/update-candidate-compliance-status.dto";
 import { PrismaService } from "src/prisma/prisma.service";
@@ -34,10 +43,17 @@ type WalletRow = {
 	title: string;
 	description: string;
 	categoryKey: ComplianceListItemCategory;
-	status: "pending_upload" | "pending_verification" | "approved" | "expired";
+	status: `${CandidateComplianceStatus}`;
+	rejectionReason: string | null;
 	uploadedAt: string | null;
+	issuedAt: string | null;
 	expiresAt: string | null;
 	documentFileName: string | null;
+	expirationType: `${ComplianceListItemExpirationType}`;
+	expirationRuleValue: number | null;
+	expirationRuleUnit: `${ExpirationRuleUnit}` | null;
+	responseStyle: `${ComplianceListItemResponseStyle}`;
+	link: string | null;
 };
 
 /** Minimal candidate shape for batched wallet template + compliance resolution */
@@ -45,6 +61,14 @@ type CandidateWalletKey = {
 	id: string;
 	occupationId: string;
 	candidateSpecialties: { specialtyId: string }[];
+};
+
+type LiveWalletStats = {
+	walletTotalComplianceItems: number;
+	walletApprovedComplianceItems: number;
+	walletPendingUploadComplianceItems: number;
+	walletPendingVerificationComplianceItems: number;
+	walletExpiredComplianceItems: number;
 };
 
 const VENDOR_WALLET_LIST_SELECT = {
@@ -69,26 +93,8 @@ export class CandidatesDocumentWalletService {
 		private readonly prisma: PrismaService,
 		private readonly filesService: FilesService,
 		private readonly backgroundJobs: BackgroundJobsService,
+		private readonly complianceWrite: CandidateComplianceWriteService,
 	) {}
-
-	private mapCandidateWalletUiStatus(
-		cc: {
-			status: CandidateComplianceStatus;
-			expiryDate: Date | null;
-			documentUrl: string | null;
-		} | null,
-		now: Date,
-	): WalletRow["status"] {
-		if (!cc?.documentUrl) return "pending_upload";
-		if (cc.expiryDate && cc.expiryDate < now) return "expired";
-		if (cc.status === CandidateComplianceStatus.EXPIRED) return "expired";
-		if (cc.status === CandidateComplianceStatus.APPROVED) return "approved";
-		if (cc.status === CandidateComplianceStatus.PENDING)
-			return "pending_verification";
-		if (cc.status === CandidateComplianceStatus.MISSING)
-			return "pending_upload";
-		return "pending_upload";
-	}
 
 	/** Compound lookup for (organizationOccupationId, specialtyId) → organization_specialty.id */
 	private orgOccSpecialtyCompoundKey(
@@ -215,7 +221,8 @@ export class CandidatesDocumentWalletService {
 				const li = wi.complianceListItem;
 				if (
 					li.status !== ComplianceListItemStatus.ACTIVE ||
-					!li.displayToCandidate
+					!li.displayToCandidate ||
+					li.responseStyle === ComplianceListItemResponseStyle.INTERNAL_TASK
 				) {
 					continue;
 				}
@@ -369,7 +376,7 @@ export class CandidatesDocumentWalletService {
 			const rows: WalletRow[] = [];
 			for (const li of listItemsById.values()) {
 				const cc = ccByItem.get(li.id) ?? null;
-				const status = this.mapCandidateWalletUiStatus(cc, now);
+				const status = deriveStoredComplianceStatus(cc, now);
 				rows.push({
 					complianceListItemId: li.id,
 					placementId: null,
@@ -377,9 +384,19 @@ export class CandidatesDocumentWalletService {
 					description: (li.instructionalNotes ?? "").trim() || li.name,
 					categoryKey: li.category,
 					status,
+					rejectionReason:
+						status === CandidateComplianceStatus.REJECTED
+							? (cc?.notes?.trim() ?? null)
+							: null,
 					uploadedAt: cc?.uploadedAt ? cc.uploadedAt.toISOString() : null,
+					issuedAt: cc?.issueDate ? cc.issueDate.toISOString() : null,
 					expiresAt: cc?.expiryDate ? cc.expiryDate.toISOString() : null,
 					documentFileName: cc?.documentFileName ?? null,
+					expirationType: li.expirationType,
+					expirationRuleValue: li.expirationRuleValue,
+					expirationRuleUnit: li.expirationRuleUnit,
+					responseStyle: li.responseStyle,
+					link: li.file,
 				});
 			}
 			rows.sort(
@@ -420,6 +437,54 @@ export class CandidatesDocumentWalletService {
 		return m.get(candidate.id) ?? [];
 	}
 
+	private async computeLiveWalletStats(
+		organizationId: string,
+		candidates: CandidateWalletKey[],
+	): Promise<Map<string, LiveWalletStats>> {
+		const out = new Map<string, LiveWalletStats>();
+		if (candidates.length === 0) return out;
+
+		const rowsByCandidate =
+			await this.buildWalletRowsForOrganizationAndCandidatesBatch(
+				organizationId,
+				candidates,
+			);
+
+		for (const c of candidates) {
+			const rows = rowsByCandidate.get(c.id) ?? [];
+			let approved = 0;
+			let pendingUpload = 0;
+			let pendingVerification = 0;
+			let expired = 0;
+			for (const r of rows) {
+				switch (r.status) {
+					case CandidateComplianceStatus.APPROVED:
+						approved += 1;
+						break;
+					case CandidateComplianceStatus.MISSING:
+						pendingUpload += 1;
+						break;
+					case CandidateComplianceStatus.PENDING_REVIEW:
+					case CandidateComplianceStatus.REJECTED:
+						pendingVerification += 1;
+						break;
+					case CandidateComplianceStatus.EXPIRED:
+						expired += 1;
+						break;
+				}
+			}
+			out.set(c.id, {
+				walletTotalComplianceItems: rows.length,
+				walletApprovedComplianceItems: approved,
+				walletPendingUploadComplianceItems: pendingUpload,
+				walletPendingVerificationComplianceItems: pendingVerification,
+				walletExpiredComplianceItems: expired,
+			});
+		}
+
+		return out;
+	}
+
 	async getVendorCandidateDocumentWalletSummary(
 		organizationId: string,
 		vendorId: string,
@@ -435,7 +500,6 @@ export class CandidatesDocumentWalletService {
 				id: true,
 				occupationId: true,
 				candidateSpecialties: {
-					take: 3,
 					orderBy: { id: "asc" },
 					select: {
 						specialtyId: true,
@@ -448,7 +512,7 @@ export class CandidatesDocumentWalletService {
 			},
 		});
 		if (!row) {
-			throw new NotFoundException("Candidate not found");
+			throw new NotFoundException("Candidate not found.");
 		}
 
 		const candidate = {
@@ -459,22 +523,22 @@ export class CandidatesDocumentWalletService {
 			})),
 		};
 
-		const summary = await this.prisma.candidateSummary.findUnique({
-			where: { candidateId: candidate.id },
-			select: {
-				walletTotalComplianceItems: true,
-				walletApprovedComplianceItems: true,
-				walletPendingUploadComplianceItems: true,
-				walletPendingVerificationComplianceItems: true,
-				walletExpiredComplianceItems: true,
-				walletLastComplianceUpdatedAt: true,
-			},
-		});
-		const useSummary = summary?.walletLastComplianceUpdatedAt != null;
-		const total = useSummary ? summary.walletTotalComplianceItems : 0;
-		const approved = useSummary ? summary.walletApprovedComplianceItems : 0;
+		const liveStats = await this.computeLiveWalletStats(organizationId, [
+			candidate,
+		]);
+		const stats =
+			liveStats.get(candidate.id) ??
+			({
+				walletTotalComplianceItems: 0,
+				walletApprovedComplianceItems: 0,
+				walletPendingUploadComplianceItems: 0,
+				walletPendingVerificationComplianceItems: 0,
+				walletExpiredComplianceItems: 0,
+			} satisfies LiveWalletStats);
+		const total = stats.walletTotalComplianceItems;
+		const approved = stats.walletApprovedComplianceItems;
 		const approvedPercent =
-			total > 0 ? Math.round((approved / total) * 100) : 0;
+			total > 0 ? Math.round((approved / total) * 100) : 100;
 
 		const specialtyParts = row.candidateSpecialties.map((s) => {
 			const n = s.specialty.name?.trim();
@@ -499,13 +563,9 @@ export class CandidatesDocumentWalletService {
 			total,
 			approved,
 			approvedPercent,
-			pendingVerification: useSummary
-				? summary.walletPendingVerificationComplianceItems
-				: 0,
-			pendingUpload: useSummary
-				? summary.walletPendingUploadComplianceItems
-				: 0,
-			expired: useSummary ? summary.walletExpiredComplianceItems : 0,
+			pendingVerification: stats.walletPendingVerificationComplianceItems,
+			pendingUpload: stats.walletPendingUploadComplianceItems,
+			expired: stats.walletExpiredComplianceItems,
 		};
 	}
 
@@ -533,7 +593,7 @@ export class CandidatesDocumentWalletService {
 			},
 		});
 		if (!row) {
-			throw new NotFoundException("Candidate not found");
+			throw new NotFoundException("Candidate not found.");
 		}
 
 		return this.getCandidateDocumentWalletItemsByCandidate(
@@ -636,7 +696,7 @@ export class CandidatesDocumentWalletService {
 			},
 		});
 		if (!candidate) {
-			throw new NotFoundException("Candidate not found");
+			throw new NotFoundException("Candidate not found.");
 		}
 
 		const allowedItems = await this.resolveTemplateComplianceListItems(
@@ -644,7 +704,7 @@ export class CandidatesDocumentWalletService {
 			candidate,
 		);
 		if (!allowedItems.has(complianceListItemId)) {
-			throw new ForbiddenException("Document not accessible");
+			throw new ForbiddenException("You don't have access to this document.");
 		}
 
 		const cc = await this.prisma.candidateCompliance.findUnique({
@@ -656,7 +716,7 @@ export class CandidatesDocumentWalletService {
 			},
 		});
 		if (!cc?.documentUrl) {
-			throw new NotFoundException("No document on file");
+			throw new NotFoundException("No document uploaded yet.");
 		}
 
 		const signedUrl = await this.filesService.getSignedUrl(cc.documentUrl);
@@ -689,7 +749,7 @@ export class CandidatesDocumentWalletService {
 			},
 		});
 		if (!candidate) {
-			throw new NotFoundException("Candidate not found");
+			throw new NotFoundException("Candidate not found.");
 		}
 
 		const allowedItems = await this.resolveTemplateComplianceListItems(
@@ -702,29 +762,48 @@ export class CandidatesDocumentWalletService {
 			);
 		}
 
-		const existing = await this.prisma.candidateCompliance.findUnique({
-			where: {
-				candidateId_complianceListItemId: {
-					candidateId: candidate.id,
-					complianceListItemId,
+		const [existing, listItem] = await Promise.all([
+			this.prisma.candidateCompliance.findUnique({
+				where: {
+					candidateId_complianceListItemId: {
+						candidateId: candidate.id,
+						complianceListItemId,
+					},
 				},
-			},
-		});
+			}),
+			this.prisma.complianceListItem.findUnique({
+				where: { id: complianceListItemId },
+				select: { responseStyle: true },
+			}),
+		]);
+
+		const isLinkItem =
+			listItem?.responseStyle === ComplianceListItemResponseStyle.LINK;
+		const candidateHasActed = isLinkItem
+			? existing?.status === CandidateComplianceStatus.PENDING_REVIEW ||
+				existing?.status === CandidateComplianceStatus.APPROVED ||
+				existing?.status === CandidateComplianceStatus.REJECTED
+			: !!existing?.documentUrl?.trim();
 
 		if (dto.status === CandidateComplianceStatus.APPROVED) {
-			if (!existing?.documentUrl?.trim()) {
+			if (!candidateHasActed) {
 				throw new BadRequestException(
-					"Cannot approve without an uploaded document",
+					isLinkItem
+						? "Cannot approve until the candidate marks the link as submitted"
+						: "Cannot approve without an uploaded document",
 				);
 			}
 		}
 
-		if (dto.status === CandidateComplianceStatus.MISSING) {
-			if (!existing?.documentUrl?.trim()) {
+		if (dto.status === CandidateComplianceStatus.REJECTED) {
+			if (!candidateHasActed) {
 				throw new BadRequestException(
-					"Cannot send back without an uploaded document",
+					isLinkItem
+						? "Cannot reject until the candidate marks the link as submitted"
+						: "Cannot reject without an uploaded document",
 				);
 			}
+			const reason = dto.notes?.trim() || null;
 			await this.prisma.$transaction(async (tx) => {
 				await tx.candidateCompliance.update({
 					where: {
@@ -734,13 +813,8 @@ export class CandidatesDocumentWalletService {
 						},
 					},
 					data: {
-						status: CandidateComplianceStatus.MISSING,
-						notes: dto.notes ?? null,
-						documentUrl: null,
-						documentFileName: null,
-						expiryDate: null,
-						uploadedAt: null,
-						uploadedById: null,
+						status: CandidateComplianceStatus.REJECTED,
+						notes: reason,
 						verifiedById: null,
 						verifiedAt: null,
 					},
@@ -824,7 +898,11 @@ export class CandidatesDocumentWalletService {
 	) {
 		const candidate = await this.prisma.candidate.findFirst({
 			where: { userId, organizationId },
-			select: { id: true },
+			select: {
+				id: true,
+				occupationId: true,
+				candidateSpecialties: { select: { specialtyId: true } },
+			},
 		});
 		if (!candidate) {
 			throw new NotFoundException(
@@ -832,34 +910,30 @@ export class CandidatesDocumentWalletService {
 			);
 		}
 
-		const summary = await this.prisma.candidateSummary.findUnique({
-			where: { candidateId: candidate.id },
-			select: {
-				walletTotalComplianceItems: true,
-				walletApprovedComplianceItems: true,
-				walletPendingUploadComplianceItems: true,
-				walletPendingVerificationComplianceItems: true,
-				walletExpiredComplianceItems: true,
-				walletLastComplianceUpdatedAt: true,
-			},
-		});
+		const liveStats = await this.computeLiveWalletStats(organizationId, [
+			candidate,
+		]);
+		const stats =
+			liveStats.get(candidate.id) ??
+			({
+				walletTotalComplianceItems: 0,
+				walletApprovedComplianceItems: 0,
+				walletPendingUploadComplianceItems: 0,
+				walletPendingVerificationComplianceItems: 0,
+				walletExpiredComplianceItems: 0,
+			} satisfies LiveWalletStats);
 
-		const useSummary = summary?.walletLastComplianceUpdatedAt != null;
-		const total = useSummary ? summary.walletTotalComplianceItems : 0;
-		const approved = useSummary ? summary.walletApprovedComplianceItems : 0;
+		const total = stats.walletTotalComplianceItems;
+		const approved = stats.walletApprovedComplianceItems;
 		const approvedPercent =
-			total > 0 ? Math.round((approved / total) * 100) : 0;
+			total > 0 ? Math.round((approved / total) * 100) : 100;
 		return {
 			total,
 			approved,
 			approvedPercent,
-			pendingVerification: useSummary
-				? summary.walletPendingVerificationComplianceItems
-				: 0,
-			pendingUpload: useSummary
-				? summary.walletPendingUploadComplianceItems
-				: 0,
-			expired: useSummary ? summary.walletExpiredComplianceItems : 0,
+			pendingVerification: stats.walletPendingVerificationComplianceItems,
+			pendingUpload: stats.walletPendingUploadComplianceItems,
+			expired: stats.walletExpiredComplianceItems,
 		};
 	}
 
@@ -913,27 +987,25 @@ export class CandidatesDocumentWalletService {
 		return [];
 	}
 
-	async uploadCandidateComplianceDocumentAsCandidate(
+	private resolveRequisitionAllowedComplianceItems(
+		organizationId: string,
+		requisitionId: string,
+	): Promise<Set<string>> {
+		return this.complianceWrite.listAllowedComplianceItemsForRequisition(
+			organizationId,
+			requisitionId,
+		);
+	}
+
+	async markComplianceLinkSubmittedAsCandidate(
 		userId: string,
 		organizationId: string,
 		complianceListItemId: string,
-		file: Express.Multer.File,
-		expiryDateRaw: string | undefined,
 	) {
-		const candidate = await this.prisma.candidate.findFirst({
-			where: { userId, organizationId },
-			select: {
-				id: true,
-				occupationId: true,
-				candidateSpecialties: { select: { specialtyId: true } },
-			},
-		});
-		if (!candidate) {
-			throw new NotFoundException(
-				"Candidate profile not found for organization",
-			);
-		}
-
+		const candidate = await this.resolveCandidateForUpload(
+			userId,
+			organizationId,
+		);
 		const allowedItems = await this.resolveTemplateComplianceListItems(
 			organizationId,
 			candidate,
@@ -943,59 +1015,185 @@ export class CandidatesDocumentWalletService {
 				"This document is not part of your occupation document wallet for this organization",
 			);
 		}
-
-		let expiryDate: Date | null = null;
-		if (expiryDateRaw?.trim()) {
-			const d = new Date(expiryDateRaw.trim());
-			if (!Number.isNaN(d.getTime())) expiryDate = d;
-		}
-
-		const original = file.originalname ?? "upload";
-		const ext =
-			original.includes(".") && original.lastIndexOf(".") < original.length - 1
-				? original.slice(original.lastIndexOf(".") + 1).replace(/[^\w.-]/g, "")
-				: "bin";
-		const safeExt = ext.length > 16 ? "bin" : ext || "bin";
-		const key = `${S3_PREFIX_COMPLIANCE_DOCS}/${organizationId}/candidate-wallet/${candidate.id}/${complianceListItemId}/${randomUUID()}.${safeExt}`;
-
-		const { key: documentUrl } = await this.filesService.uploadFileBuffer(
-			file.buffer,
-			key,
-			file.mimetype || "application/octet-stream",
+		return this.performMarkLinkSubmitted(
+			userId,
+			candidate,
+			complianceListItemId,
 		);
+	}
 
-		const documentFileName = original || "document";
-		const now = new Date();
-		const { id: candidateId } = candidate;
+	async markComplianceLinkSubmittedForRequisitionAsCandidate(
+		userId: string,
+		organizationId: string,
+		requisitionId: string,
+		complianceListItemId: string,
+	) {
+		const candidate = await this.resolveCandidateForUpload(
+			userId,
+			organizationId,
+		);
+		const allowedItems = await this.resolveRequisitionAllowedComplianceItems(
+			organizationId,
+			requisitionId,
+		);
+		if (!allowedItems.has(complianceListItemId)) {
+			throw new NotFoundException(
+				"This document is not required by the selected job",
+			);
+		}
+		return this.performMarkLinkSubmitted(
+			userId,
+			candidate,
+			complianceListItemId,
+		);
+	}
 
-		await this.prisma.candidateCompliance.upsert({
-			where: {
-				candidateId_complianceListItemId: {
-					candidateId,
-					complianceListItemId,
-				},
-			},
-			update: {
-				documentUrl,
-				documentFileName,
-				uploadedById: userId,
-				uploadedAt: now,
-				...(expiryDate ? { expiryDate } : {}),
-			},
-			create: {
-				candidateId,
-				complianceListItemId,
-				documentUrl,
-				documentFileName,
-				uploadedById: userId,
-				uploadedAt: now,
-				expiryDate,
-				status: CandidateComplianceStatus.PENDING,
+	private async assertCandidateOwnsActivePlacement(
+		organizationId: string,
+		placementId: string,
+		candidateId: string,
+	): Promise<void> {
+		const placement = await this.prisma.placement.findFirst({
+			where: { id: placementId, organizationId, candidateId },
+			select: { status: true },
+		});
+		if (!placement) {
+			throw new NotFoundException("Placement not found.");
+		}
+		if (
+			placement.status === PlacementStatus.COMPLETED ||
+			placement.status === PlacementStatus.TERMINATED
+		) {
+			throw new BadRequestException(
+				"This placement is no longer accepting compliance updates",
+			);
+		}
+	}
+
+	private async resolvePlacementAllowedComplianceItems(
+		organizationId: string,
+		placementId: string,
+		candidateId: string,
+	): Promise<Set<string>> {
+		await this.assertCandidateOwnsActivePlacement(
+			organizationId,
+			placementId,
+			candidateId,
+		);
+		return this.complianceWrite.listAllowedComplianceItemsForPlacement(
+			organizationId,
+			placementId,
+		);
+	}
+
+	async uploadCandidateComplianceDocumentForPlacementAsCandidate(
+		userId: string,
+		organizationId: string,
+		placementId: string,
+		complianceListItemId: string,
+		file: Express.Multer.File,
+		expiryDateRaw: string | undefined,
+		issueDateRaw: string | undefined,
+	) {
+		const candidate = await this.resolveCandidateForUpload(
+			userId,
+			organizationId,
+		);
+		const allowedItems = await this.resolvePlacementAllowedComplianceItems(
+			organizationId,
+			placementId,
+			candidate.id,
+		);
+		if (!allowedItems.has(complianceListItemId)) {
+			throw new NotFoundException(
+				"This document is not part of this placement",
+			);
+		}
+		return this.performUpload(
+			userId,
+			organizationId,
+			candidate,
+			complianceListItemId,
+			file,
+			expiryDateRaw,
+			issueDateRaw,
+		);
+	}
+
+	async markComplianceLinkSubmittedForPlacementAsCandidate(
+		userId: string,
+		organizationId: string,
+		placementId: string,
+		complianceListItemId: string,
+	) {
+		const candidate = await this.resolveCandidateForUpload(
+			userId,
+			organizationId,
+		);
+		const allowedItems = await this.resolvePlacementAllowedComplianceItems(
+			organizationId,
+			placementId,
+			candidate.id,
+		);
+		if (!allowedItems.has(complianceListItemId)) {
+			throw new NotFoundException(
+				"This document is not part of this placement",
+			);
+		}
+		return this.performMarkLinkSubmitted(
+			userId,
+			candidate,
+			complianceListItemId,
+		);
+	}
+
+	private async resolveCandidateForUpload(
+		userId: string,
+		organizationId: string,
+	) {
+		const candidate = await this.prisma.candidate.findFirst({
+			where: { userId, organizationId },
+			select: {
+				id: true,
+				occupationId: true,
+				workforceType: true,
+				candidateSpecialties: { select: { specialtyId: true } },
 			},
 		});
+		if (!candidate) {
+			throw new NotFoundException(
+				"Candidate profile not found for organization",
+			);
+		}
+		return candidate;
+	}
 
+	private async performMarkLinkSubmitted(
+		userId: string,
+		candidate: {
+			id: string;
+			workforceType: `${CandidateWorkforceType}` | null;
+		},
+		complianceListItemId: string,
+	) {
+		await this.complianceWrite.writeMarkLinkSubmitted({
+			candidateId: candidate.id,
+			workforceType: candidate.workforceType,
+			complianceListItemId,
+			userId,
+		});
+		await this.enqueueCandidateComplianceSideEffects(
+			candidate.id,
+			complianceListItemId,
+		);
+		return { success: true as const };
+	}
+
+	private async enqueueCandidateComplianceSideEffects(
+		candidateId: string,
+		complianceListItemId: string,
+	) {
 		await this.backgroundJobs.enqueueCandidateSummary(candidateId);
-
 		const affected = await this.prisma.placementComplianceItem.findMany({
 			where: {
 				complianceListItemId,
@@ -1009,7 +1207,142 @@ export class CandidatesDocumentWalletService {
 				row.placementId,
 			);
 		}
+	}
 
+	async uploadCandidateComplianceDocumentAsCandidate(
+		userId: string,
+		organizationId: string,
+		complianceListItemId: string,
+		file: Express.Multer.File,
+		expiryDateRaw: string | undefined,
+		issueDateRaw: string | undefined,
+	) {
+		const candidate = await this.resolveCandidateForUpload(
+			userId,
+			organizationId,
+		);
+		const allowedItems = await this.resolveTemplateComplianceListItems(
+			organizationId,
+			candidate,
+		);
+		if (!allowedItems.has(complianceListItemId)) {
+			throw new NotFoundException(
+				"This document is not part of your occupation document wallet for this organization",
+			);
+		}
+		return this.performUpload(
+			userId,
+			organizationId,
+			candidate,
+			complianceListItemId,
+			file,
+			expiryDateRaw,
+			issueDateRaw,
+		);
+	}
+
+	async uploadCandidateComplianceDocumentAsVendor(
+		userId: string,
+		organizationId: string,
+		vendorId: string,
+		candidateId: string,
+		requisitionId: string,
+		complianceListItemId: string,
+		file: Express.Multer.File,
+		expiryDateRaw: string | undefined,
+		issueDateRaw: string | undefined,
+	) {
+		const candidate = await this.prisma.candidate.findFirst({
+			where: { id: candidateId, organizationId, vendorId },
+			select: {
+				id: true,
+				occupationId: true,
+				workforceType: true,
+				candidateSpecialties: { select: { specialtyId: true } },
+			},
+		});
+		if (!candidate) {
+			throw new NotFoundException("Candidate not found for this vendor.");
+		}
+		const allowedItems = await this.resolveRequisitionAllowedComplianceItems(
+			organizationId,
+			requisitionId,
+		);
+		if (!allowedItems.has(complianceListItemId)) {
+			throw new NotFoundException(
+				"This document is not required by the selected job",
+			);
+		}
+		return this.performUpload(
+			userId,
+			organizationId,
+			candidate,
+			complianceListItemId,
+			file,
+			expiryDateRaw,
+			issueDateRaw,
+		);
+	}
+
+	async uploadCandidateComplianceDocumentForRequisitionAsCandidate(
+		userId: string,
+		organizationId: string,
+		requisitionId: string,
+		complianceListItemId: string,
+		file: Express.Multer.File,
+		expiryDateRaw: string | undefined,
+		issueDateRaw: string | undefined,
+	) {
+		const candidate = await this.resolveCandidateForUpload(
+			userId,
+			organizationId,
+		);
+		const allowedItems = await this.resolveRequisitionAllowedComplianceItems(
+			organizationId,
+			requisitionId,
+		);
+		if (!allowedItems.has(complianceListItemId)) {
+			throw new NotFoundException(
+				"This document is not required by the selected job",
+			);
+		}
+		return this.performUpload(
+			userId,
+			organizationId,
+			candidate,
+			complianceListItemId,
+			file,
+			expiryDateRaw,
+			issueDateRaw,
+		);
+	}
+
+	private async performUpload(
+		userId: string,
+		organizationId: string,
+		candidate: {
+			id: string;
+			workforceType: `${CandidateWorkforceType}` | null;
+		},
+		complianceListItemId: string,
+		file: Express.Multer.File,
+		expiryDateRaw: string | undefined,
+		issueDateRaw: string | undefined,
+	) {
+		await this.complianceWrite.writeUpload({
+			candidateId: candidate.id,
+			workforceType: candidate.workforceType,
+			complianceListItemId,
+			file,
+			expiryDateRaw,
+			issueDateRaw,
+			userId,
+			s3KeyPath: `${organizationId}/candidate-wallet/${candidate.id}/${complianceListItemId}`,
+		});
+		await this.enqueueCandidateComplianceSideEffects(
+			candidate.id,
+			complianceListItemId,
+		);
 		return { success: true as const };
 	}
 
@@ -1037,7 +1370,7 @@ export class CandidatesDocumentWalletService {
 			candidate,
 		);
 		if (!allowedItems.has(complianceListItemId)) {
-			throw new ForbiddenException("Document not accessible");
+			throw new ForbiddenException("You don't have access to this document.");
 		}
 
 		const cc = await this.prisma.candidateCompliance.findUnique({
@@ -1049,7 +1382,7 @@ export class CandidatesDocumentWalletService {
 			},
 		});
 		if (!cc?.documentUrl) {
-			throw new NotFoundException("No document on file");
+			throw new NotFoundException("No document uploaded yet.");
 		}
 
 		const signedUrl = await this.filesService.getSignedUrl(cc.documentUrl);
@@ -1087,9 +1420,7 @@ export class CandidatesDocumentWalletService {
 	} {
 		const completedDocs = ok;
 		let status: VendorDocumentWalletListStatus;
-		if (totalDocs === 0) {
-			status = "IN_PROGRESS";
-		} else if (missing > 0 || warning > 0) {
+		if (missing > 0 || warning > 0) {
 			status = "CRITICAL";
 		} else if (completedDocs === totalDocs) {
 			status = "COMPLETE";
@@ -1102,36 +1433,6 @@ export class CandidatesDocumentWalletService {
 			docCounts: { ok, pending, missing, warning },
 			status,
 		};
-	}
-
-	private vendorListDerivedFromCandidateSummaryWallet(
-		s: {
-			walletTotalComplianceItems: number;
-			walletApprovedComplianceItems: number;
-			walletPendingVerificationComplianceItems: number;
-			walletPendingUploadComplianceItems: number;
-			walletExpiredComplianceItems: number;
-			walletLastComplianceUpdatedAt: Date | null;
-		} | null,
-	): {
-		completedDocs: number;
-		totalDocs: number;
-		docCounts: {
-			ok: number;
-			pending: number;
-			missing: number;
-			warning: number;
-		};
-		status: VendorDocumentWalletListStatus;
-	} | null {
-		if (s?.walletLastComplianceUpdatedAt == null) return null;
-		return this.deriveVendorWalletListFromDocCounts(
-			s.walletTotalComplianceItems,
-			s.walletApprovedComplianceItems,
-			s.walletPendingVerificationComplianceItems,
-			s.walletPendingUploadComplianceItems,
-			s.walletExpiredComplianceItems,
-		);
 	}
 
 	async getVendorDocumentWalletsMetrics(
@@ -1156,22 +1457,9 @@ export class CandidatesDocumentWalletService {
 			};
 		}
 
-		const walletSummarySelect = {
-			candidateId: true,
-			walletTotalComplianceItems: true,
-			walletApprovedComplianceItems: true,
-			walletPendingVerificationComplianceItems: true,
-			walletPendingUploadComplianceItems: true,
-			walletExpiredComplianceItems: true,
-			walletLastComplianceUpdatedAt: true,
-		} as const;
-
-		const summaries = await this.prisma.candidateSummary.findMany({
-			where: { candidateId: { in: candidates.map((c) => c.id) } },
-			select: walletSummarySelect,
-		});
-		const summaryByCandidateId = new Map(
-			summaries.map((s) => [s.candidateId, s]),
+		const statsById = await this.fetchWalletStatsHybrid(
+			organizationId,
+			candidates,
 		);
 
 		let complete = 0;
@@ -1179,12 +1467,16 @@ export class CandidatesDocumentWalletService {
 		let critical = 0;
 
 		for (const c of candidates) {
-			const s = summaryByCandidateId.get(c.id);
-			const fromSummary = this.vendorListDerivedFromCandidateSummaryWallet(
-				s ?? null,
-			);
-			const derived =
-				fromSummary ?? this.deriveVendorWalletListFromDocCounts(0, 0, 0, 0, 0);
+			const stats = statsById.get(c.id);
+			const derived = stats
+				? this.deriveVendorWalletListFromDocCounts(
+						stats.walletTotalComplianceItems,
+						stats.walletApprovedComplianceItems,
+						stats.walletPendingVerificationComplianceItems,
+						stats.walletPendingUploadComplianceItems,
+						stats.walletExpiredComplianceItems,
+					)
+				: this.deriveVendorWalletListFromDocCounts(0, 0, 0, 0, 0);
 			if (derived.status === "COMPLETE") complete += 1;
 			else if (derived.status === "CRITICAL") critical += 1;
 			else inProgress += 1;
@@ -1196,6 +1488,66 @@ export class CandidatesDocumentWalletService {
 			inProgress,
 			critical,
 		};
+	}
+
+	/**
+	 * Hybrid wallet-stats fetch for a batch of candidates. Reads CandidateSummary
+	 * for fresh rows; for missing or stale (>3 min) rows, recomputes live and
+	 * fires an async refresh enqueue.
+	 */
+	private async fetchWalletStatsHybrid(
+		organizationId: string,
+		candidates: CandidateWalletKey[],
+	): Promise<Map<string, LiveWalletStats>> {
+		if (candidates.length === 0) return new Map();
+		const candidateById = new Map(candidates.map((c) => [c.id, c]));
+
+		return hybridSummaryFetch<string, LiveWalletStats>({
+			scope: "wallet-stats",
+			keys: candidates.map((c) => c.id),
+			fetchSummaries: async (
+				ids,
+			): Promise<SummaryEntry<string, LiveWalletStats>[]> => {
+				const rows = await this.prisma.candidateSummary.findMany({
+					where: { candidateId: { in: ids } },
+					select: {
+						candidateId: true,
+						walletTotalComplianceItems: true,
+						walletApprovedComplianceItems: true,
+						walletPendingUploadComplianceItems: true,
+						walletPendingVerificationComplianceItems: true,
+						walletExpiredComplianceItems: true,
+						walletLastComplianceUpdatedAt: true,
+					},
+				});
+				return rows.map((r) => ({
+					key: r.candidateId,
+					value: {
+						walletTotalComplianceItems: r.walletTotalComplianceItems,
+						walletApprovedComplianceItems: r.walletApprovedComplianceItems,
+						walletPendingUploadComplianceItems:
+							r.walletPendingUploadComplianceItems,
+						walletPendingVerificationComplianceItems:
+							r.walletPendingVerificationComplianceItems,
+						walletExpiredComplianceItems: r.walletExpiredComplianceItems,
+					},
+					computedAt: r.walletLastComplianceUpdatedAt,
+				}));
+			},
+			computeLive: async (staleIds) => {
+				const staleCandidates = staleIds
+					.map((id) => candidateById.get(id))
+					.filter((c): c is CandidateWalletKey => c != null);
+				return this.computeLiveWalletStats(organizationId, staleCandidates);
+			},
+			onStale: (staleIds) => {
+				for (const id of staleIds) {
+					void this.backgroundJobs
+						.enqueueCandidateSummary(id)
+						.catch(() => undefined);
+				}
+			},
+		});
 	}
 
 	async listVendorDocumentWallets(
@@ -1251,8 +1603,62 @@ export class CandidatesDocumentWalletService {
 
 		const page = query.page ?? 1;
 		const limit = query.limit ?? 20;
-		const skip = (page - 1) * limit;
+		const statusFilter = query.status;
 
+		if (statusFilter) {
+			const allCandidates = await this.prisma.candidate.findMany({
+				where,
+				select: { ...VENDOR_WALLET_LIST_SELECT, occupationId: true },
+				orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+			});
+
+			if (allCandidates.length === 0) {
+				return { data: [], total: 0, page, limit, totalPages: 1 };
+			}
+
+			const statsById = await this.fetchWalletStatsHybrid(
+				organizationId,
+				allCandidates.map((c) => ({
+					id: c.id,
+					occupationId: c.occupationId,
+					candidateSpecialties: c.candidateSpecialties.map((s) => ({
+						specialtyId: s.specialtyId,
+					})),
+				})),
+			);
+
+			const allRows: VendorDocumentWalletListRowDto[] = allCandidates.map(
+				(c) => {
+					const stats = statsById.get(c.id);
+					const derived = stats
+						? this.deriveVendorWalletListFromDocCounts(
+								stats.walletTotalComplianceItems,
+								stats.walletApprovedComplianceItems,
+								stats.walletPendingVerificationComplianceItems,
+								stats.walletPendingUploadComplianceItems,
+								stats.walletExpiredComplianceItems,
+							)
+						: this.deriveVendorWalletListFromDocCounts(0, 0, 0, 0, 0);
+					return {
+						id: c.id,
+						name: c.user.name?.trim() || "—",
+						email: c.user.email ?? "—",
+						phone: c.user.phoneNumber?.trim() || null,
+						specialty: this.specialtyLabelForWalletList(c.candidateSpecialties),
+						...derived,
+					};
+				},
+			);
+
+			const filtered = allRows.filter((r) => r.status === statusFilter);
+			const total = filtered.length;
+			const skip = (page - 1) * limit;
+			const data = filtered.slice(skip, skip + limit);
+			const totalPages = Math.ceil(total / limit) || 1;
+			return { data, total, page, limit, totalPages };
+		}
+
+		const skip = (page - 1) * limit;
 		const total = await this.prisma.candidate.count({ where });
 
 		if (total === 0) {
@@ -1267,33 +1673,34 @@ export class CandidatesDocumentWalletService {
 
 		const candidates = await this.prisma.candidate.findMany({
 			where,
-			select: VENDOR_WALLET_LIST_SELECT,
+			select: { ...VENDOR_WALLET_LIST_SELECT, occupationId: true },
 			orderBy: [{ createdAt: "desc" }, { id: "desc" }],
 			skip,
 			take: limit,
 		});
 
-		const pageSummaries = await this.prisma.candidateSummary.findMany({
-			where: { candidateId: { in: candidates.map((c) => c.id) } },
-			select: {
-				candidateId: true,
-				walletTotalComplianceItems: true,
-				walletApprovedComplianceItems: true,
-				walletPendingVerificationComplianceItems: true,
-				walletPendingUploadComplianceItems: true,
-				walletExpiredComplianceItems: true,
-				walletLastComplianceUpdatedAt: true,
-			},
-		});
-		const summaryById = new Map(pageSummaries.map((s) => [s.candidateId, s]));
+		const statsById = await this.fetchWalletStatsHybrid(
+			organizationId,
+			candidates.map((c) => ({
+				id: c.id,
+				occupationId: c.occupationId,
+				candidateSpecialties: c.candidateSpecialties.map((s) => ({
+					specialtyId: s.specialtyId,
+				})),
+			})),
+		);
 
 		const data: VendorDocumentWalletListRowDto[] = candidates.map((c) => {
-			const s = summaryById.get(c.id);
-			const fromSummary = this.vendorListDerivedFromCandidateSummaryWallet(
-				s ?? null,
-			);
-			const derived =
-				fromSummary ?? this.deriveVendorWalletListFromDocCounts(0, 0, 0, 0, 0);
+			const stats = statsById.get(c.id);
+			const derived = stats
+				? this.deriveVendorWalletListFromDocCounts(
+						stats.walletTotalComplianceItems,
+						stats.walletApprovedComplianceItems,
+						stats.walletPendingVerificationComplianceItems,
+						stats.walletPendingUploadComplianceItems,
+						stats.walletExpiredComplianceItems,
+					)
+				: this.deriveVendorWalletListFromDocCounts(0, 0, 0, 0, 0);
 			const name = c.user.name?.trim() || "—";
 			const email = c.user.email ?? "—";
 			const phone = c.user.phoneNumber?.trim() || null;

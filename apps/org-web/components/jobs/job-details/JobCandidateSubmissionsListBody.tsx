@@ -10,6 +10,7 @@ export interface JobCandidateSubmissionsListBodyProps {
 	onAdvance: (row: SubmissionListRow) => void;
 	onOpenHistory: (row: SubmissionListRow) => void;
 	onRequestReject: (row: SubmissionListRow) => void;
+	isInterviewRequired: boolean;
 }
 
 export function JobCandidateSubmissionsListBody({
@@ -19,7 +20,8 @@ export function JobCandidateSubmissionsListBody({
 	onAdvance,
 	onOpenHistory,
 	onRequestReject,
-}: JobCandidateSubmissionsListBodyProps) {
+	isInterviewRequired,
+}: Readonly<JobCandidateSubmissionsListBodyProps>) {
 	if (isLoading) {
 		return (
 			<div className="text-muted-foreground p-8 text-center text-sm">
@@ -44,6 +46,7 @@ export function JobCandidateSubmissionsListBody({
 					onAdvance={onAdvance}
 					onOpenHistory={onOpenHistory}
 					onRequestReject={onRequestReject}
+					isInterviewRequired={isInterviewRequired}
 				/>
 			))}
 		</>

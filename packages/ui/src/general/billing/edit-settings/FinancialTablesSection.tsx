@@ -3,6 +3,7 @@
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
+import { DatePicker } from "@repo/ui/components/date-picker";
 import { Input } from "@repo/ui/components/input";
 import { Label } from "@repo/ui/components/label";
 import {
@@ -38,6 +39,12 @@ interface FinancialTablesSectionProps {
 	costCenters: string[];
 	onCostCentersChange: (costCenters: string[]) => void;
 	isLoading?: boolean;
+	canAddPayCode?: boolean;
+	canEditPayCode?: boolean;
+	canDeletePayCode?: boolean;
+	canAddHoliday?: boolean;
+	canEditHoliday?: boolean;
+	canDeleteHoliday?: boolean;
 }
 
 export function FinancialTablesSection({
@@ -48,7 +55,13 @@ export function FinancialTablesSection({
 	costCenters,
 	onCostCentersChange,
 	isLoading = false,
-}: FinancialTablesSectionProps) {
+	canAddPayCode = true,
+	canEditPayCode = true,
+	canDeletePayCode = true,
+	canAddHoliday = true,
+	canEditHoliday = true,
+	canDeleteHoliday = true,
+}: Readonly<FinancialTablesSectionProps>) {
 	const [showAddPayCode, setShowAddPayCode] = useState(false);
 	const [newCode, setNewCode] = useState("");
 	const [newCodeDesc, setNewCodeDesc] = useState("");
@@ -137,14 +150,16 @@ export function FinancialTablesSection({
 					<div className="space-y-4">
 						<div className="flex items-center justify-between">
 							<Label>Pay Codes</Label>
-							<Button
-								variant="secondary"
-								size="sm"
-								onClick={() => setShowAddPayCode((v) => !v)}
-							>
-								<Plus className="size-4" />
-								Add Pay Code
-							</Button>
+							{canAddPayCode && (
+								<Button
+									variant="secondary"
+									size="sm"
+									onClick={() => setShowAddPayCode((v) => !v)}
+								>
+									<Plus className="size-4" />
+									Add Pay Code
+								</Button>
+							)}
 						</div>
 
 						<div className="space-y-2">
@@ -160,51 +175,70 @@ export function FinancialTablesSection({
 											key={item.id ?? `new-${i}`}
 											className="flex flex-wrap items-center gap-2 sm:flex-nowrap"
 										>
-											<Input
-												value={item.code}
-												onChange={(e) =>
-													patchPayCode(i, {
-														code: e.target.value.toUpperCase(),
-													})
-												}
-												className="h-9 w-20 shrink-0 text-center font-mono text-sm uppercase"
-												aria-label="Pay code"
-											/>
-											<Input
-												value={item.description}
-												onChange={(e) =>
-													patchPayCode(i, { description: e.target.value })
-												}
-												className="h-9 min-w-0 flex-1 text-sm"
-												placeholder="Description"
-												aria-label="Description"
-											/>
-											<Input
-												value={
-													item.multiplier === null ||
-													item.multiplier === undefined
-														? ""
-														: String(item.multiplier)
-												}
-												onChange={(e) =>
-													patchPayCode(i, {
-														multiplier: parseMultiplier(e.target.value),
-													})
-												}
-												type="number"
-												step="0.25"
-												className="h-9 w-20 shrink-0 text-center text-sm"
-												placeholder="1"
-												aria-label="Multiplier"
-											/>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-												onClick={() => handleDeletePayCode(i)}
-											>
-												<Trash2 className="size-4" />
-											</Button>
+											{canEditPayCode ? (
+												<>
+													<Input
+														value={item.code}
+														onChange={(e) =>
+															patchPayCode(i, {
+																code: e.target.value.toUpperCase(),
+															})
+														}
+														className="h-9 w-20 shrink-0 text-center font-mono text-sm uppercase"
+														aria-label="Pay code"
+													/>
+													<Input
+														value={item.description}
+														onChange={(e) =>
+															patchPayCode(i, {
+																description: e.target.value,
+															})
+														}
+														className="h-9 min-w-0 flex-1 text-sm"
+														placeholder="Description"
+														aria-label="Description"
+													/>
+													<Input
+														value={
+															item.multiplier === null ||
+															item.multiplier === undefined
+																? ""
+																: String(item.multiplier)
+														}
+														onChange={(e) =>
+															patchPayCode(i, {
+																multiplier: parseMultiplier(e.target.value),
+															})
+														}
+														type="number"
+														step="0.25"
+														className="h-9 w-20 shrink-0 text-center text-sm"
+														placeholder="1"
+														aria-label="Multiplier"
+													/>
+												</>
+											) : (
+												<p className="text-sm">
+													<span className="font-mono font-medium">
+														{item.code}
+													</span>
+													{" — "}
+													{item.description}
+													{item.multiplier != null
+														? ` (${item.multiplier}x)`
+														: ""}
+												</p>
+											)}
+											{canDeletePayCode && (
+												<Button
+													variant="ghost"
+													size="icon"
+													className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+													onClick={() => handleDeletePayCode(i)}
+												>
+													<Trash2 className="size-4" />
+												</Button>
+											)}
 										</div>
 									))}
 									{payCodes.length === 0 && !showAddPayCode && (
@@ -216,7 +250,7 @@ export function FinancialTablesSection({
 							)}
 						</div>
 
-						{showAddPayCode && (
+						{canAddPayCode && showAddPayCode && (
 							<div className="flex flex-wrap items-center gap-2 rounded border border-dashed p-3 sm:flex-nowrap">
 								<Input
 									value={newCode}
@@ -315,14 +349,16 @@ export function FinancialTablesSection({
 					<div className="space-y-4">
 						<div className="flex items-center justify-between">
 							<Label>Holidays Table</Label>
-							<Button
-								variant="secondary"
-								size="sm"
-								onClick={() => setShowAddHoliday((v) => !v)}
-							>
-								<Plus className="size-4" />
-								Add Holiday
-							</Button>
+							{canAddHoliday && (
+								<Button
+									variant="secondary"
+									size="sm"
+									onClick={() => setShowAddHoliday((v) => !v)}
+								>
+									<Plus className="size-4" />
+									Add Holiday
+								</Button>
+							)}
 						</div>
 
 						<div className="space-y-2">
@@ -338,46 +374,58 @@ export function FinancialTablesSection({
 											key={item.id ?? `new-${i}`}
 											className="flex flex-wrap items-center gap-2 sm:flex-nowrap"
 										>
-											<Input
-												value={item.name}
-												onChange={(e) =>
-													patchHoliday(i, { name: e.target.value })
-												}
-												className="h-9 min-w-0 flex-1 text-sm"
-												placeholder="Holiday name"
-												aria-label="Holiday name"
-											/>
-											<Input
-												value={toDateInputValue(item.observedOn)}
-												onChange={(e) =>
-													patchHoliday(i, { observedOn: e.target.value })
-												}
-												type="date"
-												className="h-9 w-40 shrink-0"
-												aria-label="Observed date"
-											/>
-											<Select
-												value={item.holidayType ?? "Paid"}
-												onValueChange={(v) =>
-													patchHoliday(i, { holidayType: v })
-												}
-											>
-												<SelectTrigger className="h-9 w-28 shrink-0">
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="Paid">Paid</SelectItem>
-													<SelectItem value="Unpaid">Unpaid</SelectItem>
-												</SelectContent>
-											</Select>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-												onClick={() => handleDeleteHoliday(i)}
-											>
-												<Trash2 className="size-4" />
-											</Button>
+											{canEditHoliday ? (
+												<>
+													<Input
+														value={item.name}
+														onChange={(e) =>
+															patchHoliday(i, { name: e.target.value })
+														}
+														className="h-9 min-w-0 flex-1 text-sm"
+														placeholder="Holiday name"
+														aria-label="Holiday name"
+													/>
+													<DatePicker
+														id={`holiday-observed-${item.id ?? i}`}
+														value={toDateInputValue(item.observedOn)}
+														onChange={(v) => patchHoliday(i, { observedOn: v })}
+														className="h-9 w-60 shrink-0"
+														placeholder="Observed date"
+														clearable
+													/>
+													<Select
+														value={item.holidayType ?? "Paid"}
+														onValueChange={(v) =>
+															patchHoliday(i, { holidayType: v })
+														}
+													>
+														<SelectTrigger className="h-9 w-28 shrink-0">
+															<SelectValue />
+														</SelectTrigger>
+														<SelectContent>
+															<SelectItem value="Paid">Paid</SelectItem>
+															<SelectItem value="Unpaid">Unpaid</SelectItem>
+														</SelectContent>
+													</Select>
+												</>
+											) : (
+												<p className="text-sm">
+													<span className="font-medium">{item.name}</span>
+													{" — "}
+													{toDateInputValue(item.observedOn) || "—"}
+													{` (${item.holidayType ?? "Paid"})`}
+												</p>
+											)}
+											{canDeleteHoliday && (
+												<Button
+													variant="ghost"
+													size="icon"
+													className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+													onClick={() => handleDeleteHoliday(i)}
+												>
+													<Trash2 className="size-4" />
+												</Button>
+											)}
 										</div>
 									))}
 									{holidays.length === 0 && !showAddHoliday && (
@@ -389,7 +437,7 @@ export function FinancialTablesSection({
 							)}
 						</div>
 
-						{showAddHoliday && (
+						{canAddHoliday && showAddHoliday && (
 							<div className="flex flex-wrap items-center gap-2 rounded border border-dashed p-3 sm:flex-nowrap">
 								<Input
 									value={newHolidayName}
@@ -397,11 +445,12 @@ export function FinancialTablesSection({
 									placeholder="Holiday name"
 									className="h-9 min-w-0 flex-1"
 								/>
-								<Input
+								<DatePicker
 									value={newHolidayDate}
-									onChange={(e) => setNewHolidayDate(e.target.value)}
-									type="date"
-									className="h-9 w-40"
+									onChange={setNewHolidayDate}
+									className="h-9 w-40 shrink-0"
+									placeholder="Pick date"
+									clearable
 								/>
 								<Select
 									value={newHolidayType}

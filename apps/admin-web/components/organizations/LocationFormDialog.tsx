@@ -91,7 +91,7 @@ export function LocationFormDialog({
 	onOpenChange,
 	organizationId,
 	initialLocation,
-}: LocationFormDialogProps) {
+}: Readonly<LocationFormDialogProps>) {
 	const {
 		form,
 		isEdit,

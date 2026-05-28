@@ -32,7 +32,7 @@ export const METRIC_KEY_METADATA: Record<
 	},
 	SUBMIT_TO_OFFER_RATIO: {
 		unit: "ratio",
-		direction: "higher_is_better",
+		direction: "lower_is_better",
 	},
 	AVG_TIME_TO_FIRST_SUBMISSION: {
 		unit: "days",

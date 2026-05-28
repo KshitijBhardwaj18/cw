@@ -36,7 +36,7 @@ export function DepartmentEditApproversTab({
 	departmentDetail,
 	handleSaveApprovers,
 	isPendingApprovers,
-}: DepartmentEditApproversTabProps) {
+}: Readonly<DepartmentEditApproversTabProps>) {
 	const {
 		search: approverSearch,
 		debouncedSearch,

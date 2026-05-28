@@ -14,7 +14,7 @@ export async function generateMetadata({
 
 export default async function VendorDocumentWalletDetailPage({
 	params,
-}: PageProps) {
+}: Readonly<PageProps>) {
 	const { id } = await params;
 	return <VendorDocumentWalletDetailPageContent candidateId={id} />;
 }

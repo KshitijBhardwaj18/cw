@@ -14,7 +14,7 @@ type SelectedShiftTemplateCardProps = {
 export function SelectedShiftTemplateCard({
 	template,
 	onChangeTemplate,
-}: SelectedShiftTemplateCardProps) {
+}: Readonly<SelectedShiftTemplateCardProps>) {
 	return (
 		<Card className="bg-muted/10">
 			<CardContent className="space-y-2.5 p-3.5">

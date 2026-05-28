@@ -8,6 +8,7 @@ import {
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import LoadingScreen from "@repo/ui/general/LoadingScreen";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { Plus, Upload, Users } from "lucide-react";
 import { useUserListColumns } from "@/hooks/tables/use-user-list-columns";
 import { useUsers } from "@/hooks/use-users";
@@ -23,13 +24,15 @@ function UsersPageContent() {
 	const canDeleteUser = ability.can(Action.Delete, "User");
 
 	const {
-		orgId,
 		actorUserId,
 		users,
 		total,
 		totalPages,
 		currentPage,
 		setCurrentPage,
+		limit,
+		setLimit,
+		pageSizeOptions,
 		search,
 		setSearch,
 		editingUser,
@@ -125,28 +128,36 @@ function UsersPageContent() {
 					description={listErrorMessage}
 				/>
 			) : (
-				<CustomTable
-					data={users}
-					columns={columns}
-					enableSorting
-					enablePagination={totalPages > 1}
-					paginationMode="server"
-					totalCount={total}
-					currentPage={currentPage}
-					pageSize={10}
-					onPaginationChange={(page) => setCurrentPage(page)}
-					emptyState={
-						<ConfigPageEmptyState
-							hasSearch={search.trim() !== ""}
-							searchEmptyTitle="No users found"
-							emptyTitle="No users found"
-							searchEmptyMessage="Try adjusting your search."
-							emptyMessage="Add a user to get started."
-							icon={Users}
-							className="border-dashed"
-						/>
-					}
-				/>
+				<>
+					<CustomTable
+						data={users}
+						columns={columns}
+						enableSorting
+						enablePagination={false}
+						emptyState={
+							<ConfigPageEmptyState
+								hasSearch={search.trim() !== ""}
+								searchEmptyTitle="No users found"
+								emptyTitle="No users found"
+								searchEmptyMessage="Try adjusting your search."
+								emptyMessage="Add a user to get started."
+								icon={Users}
+								className="border-dashed"
+							/>
+						}
+					/>
+					<PaginationControls
+						currentPage={currentPage}
+						pageCount={totalPages}
+						goToPage={setCurrentPage}
+						limit={limit}
+						setLimit={setLimit}
+						pageSizeOptions={pageSizeOptions}
+						totalItems={total}
+						itemLabel="user"
+						itemLabelPlural="users"
+					/>
+				</>
 			)}
 
 			<AddUserDialog
@@ -164,7 +175,6 @@ function UsersPageContent() {
 			/>
 
 			<EditUserDialog
-				orgId={orgId}
 				user={editingUser}
 				open={isEditDialogOpen}
 				onOpenChange={setIsEditDialogOpen}

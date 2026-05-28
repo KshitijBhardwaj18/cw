@@ -49,7 +49,7 @@ export const LiveWaveform = ({
 	onStreamEnd,
 	className,
 	...props
-}: LiveWaveformProps) => {
+}: Readonly<LiveWaveformProps>) => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const historyRef = useRef<number[]>([]);

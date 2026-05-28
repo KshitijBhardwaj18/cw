@@ -156,7 +156,7 @@ export class OrganizationTimekeepingController {
 		@UploadedFile() file: Express.Multer.File | undefined,
 	) {
 		if (!file?.buffer?.length) {
-			throw new BadRequestException("File is required");
+			throw new BadRequestException("File is required.");
 		}
 		return this.timekeepingService.uploadDisputeSupportingDocument(
 			organizationId,
@@ -175,7 +175,8 @@ export class OrganizationTimekeepingController {
 		@Param("organizationId", ParseUUIDPipe) organizationId: string,
 		@Query("key") key: string,
 	) {
-		if (!key?.trim()) throw new BadRequestException("key is required");
+		if (!key?.trim())
+			throw new BadRequestException("Document key is required.");
 		return this.timekeepingService.getDisputeSupportingDocumentSignedUrl(
 			organizationId,
 			key.trim(),

@@ -1,3 +1,6 @@
+"use client";
+
+import { coerceYmdOrIsoToUtcInstant } from "@repo/shared";
 import { Avatar, AvatarFallback } from "@repo/ui/components/avatar";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
@@ -32,6 +35,7 @@ import {
 	PROGRESS_INDICATOR_MAP,
 	STATUS_VARIANT_MAP,
 } from "@/constants/vendor/onboarding-tracker";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { OnboardingCandidate } from "@/types/vendor-onboarding-tracker";
 import { VendorOnboardingDocumentItem } from "./VendorOnboardingDocumentItem";
 
@@ -45,7 +49,13 @@ export function VendorOnboardingCandidateCard({
 	candidate,
 	onSendReminder,
 	isReminderPending,
-}: VendorOnboardingCandidateCardProps) {
+}: Readonly<VendorOnboardingCandidateCardProps>) {
+	const { fmtShortDate } = useUserTimezone();
+	const startInstant = coerceYmdOrIsoToUtcInstant(candidate.startDate);
+	const startLabel = startInstant
+		? fmtShortDate(startInstant)
+		: candidate.startDate;
+	const dueLabel = fmtShortDate(candidate.dueDate);
 	const [isOpen, setIsOpen] = useState(false);
 
 	return (
@@ -62,7 +72,7 @@ export function VendorOnboardingCandidateCard({
 					<div className="flex items-center gap-4 mt-1">
 						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 							<CalendarIcon className="size-3.5" />
-							<span>Starts: {candidate.startDate}</span>
+							<span>Starts: {startLabel}</span>
 						</div>
 						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 							<ClockIcon className="size-3.5" />
@@ -112,7 +122,7 @@ export function VendorOnboardingCandidateCard({
 							{candidate.documentsCompleted} of {candidate.totalDocuments}{" "}
 							documents complete
 						</span>
-						<span>Due: {candidate.dueDate}</span>
+						<span>Due: {dueLabel}</span>
 					</div>
 
 					<div className="flex gap-2">

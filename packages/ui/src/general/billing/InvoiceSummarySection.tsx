@@ -19,7 +19,7 @@ export interface InvoiceSummarySectionProps {
 export function InvoiceSummarySection({
 	invoice,
 	formatCurrency,
-}: InvoiceSummarySectionProps) {
+}: Readonly<InvoiceSummarySectionProps>) {
 	return (
 		<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 			<Card className="bg-blue-50/10 border-blue-100 shadow-none">

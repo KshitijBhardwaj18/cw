@@ -17,10 +17,10 @@ import { useSession } from "@/lib/auth-client";
 export default function GlobalError({
 	error,
 	reset,
-}: {
+}: Readonly<{
 	error: Error & { digest?: string };
 	reset: () => void;
-}) {
+}>) {
 	const { data: session } = useSession();
 
 	useEffect(() => {

@@ -12,7 +12,7 @@ type VendorPlacementDetailPageProps = {
 
 export default async function VendorPlacementDetailPage({
 	params,
-}: VendorPlacementDetailPageProps) {
+}: Readonly<VendorPlacementDetailPageProps>) {
 	const { placementId } = await params;
 	return (
 		<PlacementDetailsPageContent

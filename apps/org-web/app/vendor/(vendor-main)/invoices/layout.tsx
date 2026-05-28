@@ -7,7 +7,9 @@ export const metadata: Metadata = {
 	title: "Invoices",
 };
 
-const InvoicesLayout = ({ children }: { children: React.ReactNode }) => {
+const InvoicesLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.List, subject: "Invoice" }]}

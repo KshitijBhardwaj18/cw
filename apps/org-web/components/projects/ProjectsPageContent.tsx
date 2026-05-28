@@ -7,7 +7,7 @@ import {
 	ConfigPageErrorState,
 } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { FolderOpen, Plus } from "lucide-react";
 import { useProjectsPage } from "@/hooks/use-projects-page";
@@ -37,6 +37,9 @@ export function ProjectsPageContent() {
 		paginatedProjects,
 		currentPage,
 		setCurrentPage,
+		limit,
+		setLimit,
+		pageSizeOptions,
 		totalPages,
 		filterConfigs,
 		handleCreateProject,
@@ -133,10 +136,16 @@ export function ProjectsPageContent() {
 								/>
 							))}
 						</div>
-						<ConfigPagePagination
-							page={currentPage}
-							totalPages={totalPages}
-							onPageChange={setCurrentPage}
+						<PaginationControls
+							currentPage={currentPage}
+							pageCount={totalPages}
+							goToPage={setCurrentPage}
+							limit={limit}
+							setLimit={setLimit}
+							pageSizeOptions={pageSizeOptions}
+							totalItems={filteredCount}
+							itemLabel="project"
+							itemLabelPlural="projects"
 						/>
 					</>
 				)}

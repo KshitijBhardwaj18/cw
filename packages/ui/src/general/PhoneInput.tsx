@@ -105,7 +105,7 @@ const CountrySelect = ({
 	value: selectedCountry,
 	options: countryList,
 	onChange,
-}: CountrySelectProps) => {
+}: Readonly<CountrySelectProps>) => {
 	const scrollAreaRef = React.useRef<HTMLDivElement>(null);
 	const [searchValue, setSearchValue] = React.useState("");
 	const [isOpen, setIsOpen] = React.useState(false);
@@ -194,7 +194,7 @@ const CountrySelectOption = ({
 	selectedCountry,
 	onChange,
 	onSelectComplete,
-}: CountrySelectOptionProps) => {
+}: Readonly<CountrySelectOptionProps>) => {
 	const handleSelect = () => {
 		onChange(country);
 		onSelectComplete();
@@ -212,7 +212,10 @@ const CountrySelectOption = ({
 	);
 };
 
-const FlagComponent = ({ country, countryName }: RPNInput.FlagProps) => {
+const FlagComponent = ({
+	country,
+	countryName,
+}: Readonly<RPNInput.FlagProps>) => {
 	const Flag = flags[country];
 
 	return (

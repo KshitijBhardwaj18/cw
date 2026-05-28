@@ -4,26 +4,25 @@ import { formatCurrency } from "@repo/shared";
 import type { ColumnDef } from "@tanstack/react-table";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useMemo } from "react";
-import type { SavingsByCostCenterRow } from "@/constants/spend-analytics";
+import type { SavingsByDepartmentTableRow } from "@/constants/spend-analytics";
 
 export type UseSavingsAnalysisColumnsOptions = {
-	/** Denominator for "% of total savings" (e.g. organization YTD total). */
 	pctDenominator: number;
 };
 
 export function useSavingsAnalysisColumns(
 	options: UseSavingsAnalysisColumnsOptions,
-): ColumnDef<SavingsByCostCenterRow>[] {
+): ColumnDef<SavingsByDepartmentTableRow>[] {
 	const { pctDenominator } = options;
 
 	return useMemo(
 		() => [
 			{
-				id: "costCenterLabel",
-				header: "Cost Center",
-				accessorKey: "costCenterLabel",
+				id: "departmentLabel",
+				header: "Department",
+				accessorKey: "departmentLabel",
 				cell: ({ row }) => (
-					<span className="max-w-[280px]">{row.original.costCenterLabel}</span>
+					<span className="max-w-[280px]">{row.original.departmentLabel}</span>
 				),
 			},
 			{

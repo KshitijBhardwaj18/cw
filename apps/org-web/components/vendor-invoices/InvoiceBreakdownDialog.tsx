@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency } from "@repo/shared";
+import { formatCurrency, shortId } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Dialog,
@@ -11,6 +11,7 @@ import {
 } from "@repo/ui/components/dialog";
 import { cn } from "@repo/ui/lib/utils";
 import { Calculator } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import { useVendorInvoiceBreakdown } from "@/queries/vendor-invoices.queries";
 import type { VendorInvoiceRow } from "@/types/vendor-invoices";
 
@@ -24,7 +25,8 @@ export function InvoiceBreakdownDialog({
 	open,
 	onOpenChange,
 	invoice,
-}: InvoiceBreakdownDialogProps) {
+}: Readonly<InvoiceBreakdownDialogProps>) {
+	const { fmtPeriod, fmtShortDate } = useUserTimezone();
 	const breakdownQuery = useVendorInvoiceBreakdown(invoice?.id);
 	if (!invoice) {
 		return null;
@@ -85,10 +87,17 @@ export function InvoiceBreakdownDialog({
 
 				<div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
 					<div className="bg-muted/80 grid grid-cols-1 gap-3 rounded-lg p-4 sm:grid-cols-2">
-						<BreakdownMeta label="Invoice ID" value={b.invoiceId} />
+						<BreakdownMeta
+							label="Invoice ID"
+							value={shortId(b.invoiceId)}
+							title={b.invoiceId}
+						/>
 						<BreakdownMeta label="Organization" value={b.organization} />
-						<BreakdownMeta label="Period" value={b.periodLabel} />
-						<BreakdownMeta label="Due Date" value={b.dueDateLabel} />
+						<BreakdownMeta
+							label="Period"
+							value={fmtPeriod(b.periodStartDate, b.periodEndDate)}
+						/>
+						<BreakdownMeta label="Due Date" value={fmtShortDate(b.dueDate)} />
 					</div>
 
 					<div>
@@ -180,11 +189,21 @@ export function InvoiceBreakdownDialog({
 	);
 }
 
-function BreakdownMeta({ label, value }: { label: string; value: string }) {
+function BreakdownMeta({
+	label,
+	value,
+	title,
+}: Readonly<{
+	label: string;
+	value: string;
+	title?: string;
+}>) {
 	return (
 		<div>
 			<p className="text-muted-foreground text-xs">{label}</p>
-			<p className="mt-0.5 text-sm font-semibold">{value}</p>
+			<p className="mt-0.5 text-sm font-semibold" title={title}>
+				{value}
+			</p>
 		</div>
 	);
 }

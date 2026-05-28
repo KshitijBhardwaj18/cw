@@ -11,6 +11,7 @@ export type VendorDocumentWalletsListQuery = {
 	page?: number;
 	limit?: number;
 	search?: string;
+	status?: "COMPLETE" | "IN_PROGRESS" | "CRITICAL";
 };
 
 export class VendorDocumentWalletsService {

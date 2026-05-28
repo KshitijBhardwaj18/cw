@@ -11,11 +11,19 @@ import {
 	Prisma,
 	UserRole,
 } from "@repo/db";
-import { formatCurrency, getInitials } from "@repo/shared";
+import {
+	formatCurrency,
+	getInitials,
+	isInternalWorkforceType,
+} from "@repo/shared";
 import type { UserSession } from "@thallesp/nestjs-better-auth";
-import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
 import { resolveVendorActor } from "src/common/utils/resolve-vendor-actor";
 import { PrismaService } from "src/prisma/prisma.service";
+import {
+	ShiftVisibilityService,
+	VENDOR_USER_WORKFORCE_TYPES,
+	type ViewerVisibilityContext,
+} from "src/shift-routing/shift-visibility.service";
 import type { QueryCandidateShiftsDto } from "../dto/per-diem-shift-assignment/query-candidate-shifts.dto";
 import { VendorPerDiemShiftsQueryDto } from "../dto/per-diem-shifts/vendor-per-diem-shifts-query.dto";
 import { buildTimecardSnapshotFromAssignment } from "../utils/timecard-snapshot-from-assignment";
@@ -24,17 +32,53 @@ import { buildTimecardSnapshotFromAssignment } from "../utils/timecard-snapshot-
 export class PerDiemShiftAssignmentService {
 	constructor(
 		private readonly prisma: PrismaService,
-		private readonly backgroundJobs: BackgroundJobsService,
+		private readonly visibility: ShiftVisibilityService,
 	) {}
+
+	private candidateShiftMatchWhere(candidate: {
+		occupationId: string;
+		specialtyIds: string[];
+	}): Prisma.PerDiemShiftWhereInput {
+		return {
+			occupationId: candidate.occupationId,
+			OR: [
+				{ specialties: { none: {} } },
+				{
+					specialties: {
+						some: { specialtyId: { in: candidate.specialtyIds } },
+					},
+				},
+			],
+		};
+	}
+
+	private assertCandidateQualifiesForShift(
+		candidate: { occupationId: string; specialtyIds: string[] },
+		shift: { occupationId: string; specialtyIds: string[] },
+	): void {
+		if (candidate.occupationId !== shift.occupationId) {
+			throw new ForbiddenException(
+				"Candidate's occupation does not match this shift",
+			);
+		}
+		if (
+			shift.specialtyIds.length > 0 &&
+			!shift.specialtyIds.some((id) => candidate.specialtyIds.includes(id))
+		) {
+			throw new ForbiddenException(
+				"Candidate does not hold any of the specialties required for this shift",
+			);
+		}
+	}
 
 	private parseDateFilter(date: string | undefined) {
 		if (!date?.trim()) return null;
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-			throw new BadRequestException("date must be in YYYY-MM-DD format");
+			throw new BadRequestException("Date must be in YYYY-MM-DD format.");
 		}
 		const d = new Date(`${date}T00:00:00.000Z`);
 		if (Number.isNaN(d.getTime())) {
-			throw new BadRequestException("Invalid date");
+			throw new BadRequestException("Enter a valid date.");
 		}
 		return d.toISOString().slice(0, 10);
 	}
@@ -50,7 +94,9 @@ export class PerDiemShiftAssignmentService {
 		shiftType: true,
 		isUrgent: true,
 		occupation: { select: { name: true } },
-		specialty: { select: { name: true } },
+		specialties: {
+			select: { specialty: { select: { name: true } } },
+		},
 		department: { select: { name: true } },
 		location: { select: { name: true } },
 		shiftTemplate: { select: { templateName: true } },
@@ -68,14 +114,13 @@ export class PerDiemShiftAssignmentService {
 			shiftType: string;
 			isUrgent: boolean;
 			occupation: { name: string };
-			specialty: { name: string } | null;
+			specialties: { specialty: { name: string } }[];
 			department: { name: string } | null;
 			location: { name: string };
 			shiftTemplate: { templateName: string } | null;
 		},
 		isClaimed: boolean,
 		assignment?: {
-			candidateFeedback: string | null;
 			status: string;
 			timesheet: {
 				entries: Array<{
@@ -86,22 +131,28 @@ export class PerDiemShiftAssignmentService {
 					regularHours: number;
 					overtimeHours: number;
 					hours: number | null;
+					notes: string | null;
 				}>;
 			} | null;
 		} | null,
 	) {
 		const tc = buildTimecardSnapshotFromAssignment(assignment ?? null);
+		const status =
+			shift.status === PerDiemShiftStatus.OPEN &&
+			shift.shiftDate < this.getTodayStartUtc()
+				? PerDiemShiftStatus.EXPIRED
+				: shift.status;
 		return {
 			id: shift.id,
 			title: `${shift.shiftTemplate?.templateName ?? "Per Diem"} - ${shift.occupation.name}`,
-			status: shift.status,
+			status,
 			date: shift.shiftDate.toISOString().slice(0, 10),
 			startTime: shift.startTime,
 			endTime: shift.endTime,
 			totalHours: shift.totalShiftHours,
 			ratePerHour: shift.shiftRate,
 			occupation: shift.occupation.name,
-			specialty: shift.specialty?.name ?? null,
+			specialties: shift.specialties.map((ss) => ss.specialty.name),
 			department: shift.department?.name ?? null,
 			location: shift.location.name,
 			isUrgent: shift.isUrgent,
@@ -109,6 +160,12 @@ export class PerDiemShiftAssignmentService {
 			isClaimed,
 			...tc,
 		};
+	}
+
+	private getTodayStartUtc(): Date {
+		const d = new Date();
+		d.setUTCHours(0, 0, 0, 0);
+		return d;
 	}
 
 	private buildCandidateShiftWhere(
@@ -165,28 +222,58 @@ export class PerDiemShiftAssignmentService {
 	) {
 		const candidate = await this.prisma.candidate.findFirst({
 			where: { userId, organizationId: orgId },
-			select: { id: true },
+			select: {
+				id: true,
+				occupationId: true,
+				workforceType: true,
+				candidateSpecialties: { select: { specialtyId: true } },
+			},
 		});
 
 		const page = dto.page ?? 1;
 		const limit = dto.limit ?? 10;
 		const skip = (page - 1) * limit;
 
+		if (!candidate) {
+			return {
+				data: [],
+				total: 0,
+				page,
+				limit,
+				totalPages: 0,
+			};
+		}
+
+		const qualifications = {
+			occupationId: candidate.occupationId,
+			specialtyIds: candidate.candidateSpecialties.map((s) => s.specialtyId),
+		};
+
+		const visibilityWhere = await this.visibility.buildShiftVisibilityWhere(
+			orgId,
+			{
+				kind: "candidate",
+				workforceType: candidate.workforceType ?? null,
+			},
+		);
+
 		const where = this.buildCandidateShiftWhere(orgId, dto, {
 			status: PerDiemShiftStatus.OPEN,
-			isPublic: true,
+			...this.candidateShiftMatchWhere(qualifications),
+			...(this.parseDateFilter(dto.date)
+				? {}
+				: { shiftDate: { gte: this.getTodayStartUtc() } }),
+			AND: [visibilityWhere],
 		});
 
-		const claimedShiftIds = candidate
-			? new Set(
-					(
-						await this.prisma.perDiemAssignment.findMany({
-							where: { candidateId: candidate.id },
-							select: { shiftId: true },
-						})
-					).map((a) => a.shiftId),
-				)
-			: new Set<string>();
+		const claimedShiftIds = new Set(
+			(
+				await this.prisma.perDiemAssignment.findMany({
+					where: { candidateId: candidate.id },
+					select: { shiftId: true },
+				})
+			).map((a) => a.shiftId),
+		);
 
 		const [items, total] = await Promise.all([
 			this.prisma.perDiemShift.findMany({
@@ -248,7 +335,6 @@ export class PerDiemShiftAssignmentService {
 						take: 1,
 						orderBy: { assignedAt: "desc" },
 						select: {
-							candidateFeedback: true,
 							status: true,
 							timesheet: {
 								select: {
@@ -262,6 +348,7 @@ export class PerDiemShiftAssignmentService {
 											regularHours: true,
 											overtimeHours: true,
 											hours: true,
+											notes: true,
 										},
 									},
 								},
@@ -290,56 +377,148 @@ export class PerDiemShiftAssignmentService {
 	async getCandidateShiftCounts(userId: string, orgId: string) {
 		const candidate = await this.prisma.candidate.findFirst({
 			where: { userId, organizationId: orgId },
-			select: { id: true },
+			select: { id: true, workforceType: true },
 		});
 
-		const [available, myShifts] = await Promise.all([
+		const visibilityWhere = await this.visibility.buildShiftVisibilityWhere(
+			orgId,
+			{
+				kind: "candidate",
+				workforceType: candidate?.workforceType ?? null,
+			},
+		);
+
+		const todayStart = this.getTodayStartUtc();
+		const [available, active, completed] = await Promise.all([
 			this.prisma.perDiemShift.count({
 				where: {
 					organizationId: orgId,
 					status: PerDiemShiftStatus.OPEN,
-					isPublic: true,
+					shiftDate: { gte: todayStart },
+					AND: [visibilityWhere],
 				},
 			}),
 			candidate
 				? this.prisma.perDiemAssignment.count({
 						where: {
 							candidateId: candidate.id,
-							shift: { organizationId: orgId },
+							shift: {
+								organizationId: orgId,
+								shiftDate: { gte: todayStart },
+								status: {
+									notIn: [
+										PerDiemShiftStatus.COMPLETED,
+										PerDiemShiftStatus.CANCELLED,
+										PerDiemShiftStatus.EXPIRED,
+									],
+								},
+							},
+						},
+					})
+				: Promise.resolve(0),
+			candidate
+				? this.prisma.perDiemAssignment.count({
+						where: {
+							candidateId: candidate.id,
+							shift: {
+								organizationId: orgId,
+								OR: [
+									{ status: PerDiemShiftStatus.COMPLETED },
+									{ shiftDate: { lt: todayStart } },
+								],
+							},
 						},
 					})
 				: Promise.resolve(0),
 		]);
 
-		return { available, myShifts };
+		return {
+			available,
+			active,
+			completed,
+			myShifts: active + completed,
+			isInternal: isInternalWorkforceType(candidate?.workforceType),
+		};
 	}
 
 	async claimShift(userId: string, orgId: string, shiftId: string) {
 		const candidate = await this.prisma.candidate.findFirst({
 			where: { userId, organizationId: orgId },
-			select: { id: true },
+			select: {
+				id: true,
+				vendorId: true,
+				occupationId: true,
+				workforceType: true,
+				candidateSpecialties: { select: { specialtyId: true } },
+			},
 		});
-		if (!candidate) throw new NotFoundException("Candidate profile not found");
+		if (!candidate) throw new NotFoundException("Candidate profile not found.");
 
 		const shift = await this.prisma.perDiemShift.findFirst({
-			where: { id: shiftId, organizationId: orgId, isPublic: true },
-			select: { id: true, status: true },
+			where: { id: shiftId, organizationId: orgId },
+			select: {
+				id: true,
+				status: true,
+				shiftDate: true,
+				publishedAt: true,
+				occupationId: true,
+				specialties: { select: { specialtyId: true } },
+				shiftTemplate: {
+					select: {
+						limitShiftVisibility: true,
+						visibilityUnlockDuration: true,
+						visibilityUnlockUnit: true,
+					},
+				},
+			},
 		});
-		if (!shift) throw new NotFoundException("Shift not found");
+		if (!shift) throw new NotFoundException("Shift not found.");
 		if (shift.status !== PerDiemShiftStatus.OPEN) {
-			throw new BadRequestException("This shift is no longer available");
+			throw new BadRequestException("This shift is no longer available.");
 		}
+		const todayStartUtc = new Date();
+		todayStartUtc.setUTCHours(0, 0, 0, 0);
+		if (shift.shiftDate < todayStartUtc) {
+			throw new BadRequestException("This shift has already passed.");
+		}
+
+		const routingConfig = await this.visibility.resolveOrgRoutingConfig(orgId);
+		const canSee = this.visibility.canViewerSeeShift(
+			{ kind: "candidate", workforceType: candidate.workforceType ?? null },
+			{ publishedAt: shift.publishedAt, shiftTemplate: shift.shiftTemplate },
+			routingConfig,
+		);
+		if (!canSee) {
+			throw new ForbiddenException(
+				"This shift is not yet available to your workforce tier",
+			);
+		}
+
+		this.assertCandidateQualifiesForShift(
+			{
+				occupationId: candidate.occupationId,
+				specialtyIds: candidate.candidateSpecialties.map((s) => s.specialtyId),
+			},
+			{
+				occupationId: shift.occupationId,
+				specialtyIds: shift.specialties.map((s) => s.specialtyId),
+			},
+		);
 
 		const existing = await this.prisma.perDiemAssignment.findFirst({
 			where: { shiftId, candidateId: candidate.id },
 			select: { id: true },
 		});
 		if (existing)
-			throw new ConflictException("You have already claimed this shift");
+			throw new ConflictException("You have already claimed this shift.");
 
 		await this.prisma.$transaction([
 			this.prisma.perDiemAssignment.create({
-				data: { shiftId, candidateId: candidate.id },
+				data: {
+					shiftId,
+					candidateId: candidate.id,
+					vendorId: candidate.vendorId,
+				},
 			}),
 			this.prisma.perDiemShift.update({
 				where: { id: shiftId },
@@ -347,9 +526,6 @@ export class PerDiemShiftAssignmentService {
 				select: { id: true },
 			}),
 		]);
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			orgId,
-		);
 
 		return { success: true };
 	}
@@ -383,7 +559,6 @@ export class PerDiemShiftAssignmentService {
 					take: 1,
 					orderBy: { assignedAt: "desc" },
 					select: {
-						candidateFeedback: true,
 						status: true,
 						timesheet: {
 							select: {
@@ -397,6 +572,7 @@ export class PerDiemShiftAssignmentService {
 										regularHours: true,
 										overtimeHours: true,
 										hours: true,
+										notes: true,
 									},
 								},
 							},
@@ -424,10 +600,15 @@ export class PerDiemShiftAssignmentService {
 	) {
 		const candidate = await this.prisma.candidate.findFirst({
 			where: { id: candidateId, organizationId: orgId },
-			select: { id: true, vendorId: true },
+			select: {
+				id: true,
+				vendorId: true,
+				occupationId: true,
+				candidateSpecialties: { select: { specialtyId: true } },
+			},
 		});
 		if (!candidate) {
-			throw new NotFoundException("Candidate not found in this organization");
+			throw new NotFoundException("Candidate not found in this organization.");
 		}
 
 		if (actorRole === UserRole.VENDOR_USER) {
@@ -436,7 +617,7 @@ export class PerDiemShiftAssignmentService {
 				select: { vendorId: true },
 			});
 			if (!vendorUser) {
-				throw new ForbiddenException("Vendor profile not found");
+				throw new ForbiddenException("Vendor profile not found.");
 			}
 			if (candidate.vendorId !== vendorUser.vendorId) {
 				throw new ForbiddenException(
@@ -446,13 +627,58 @@ export class PerDiemShiftAssignmentService {
 		}
 
 		const shift = await this.prisma.perDiemShift.findFirst({
-			where: { id: shiftId, organizationId: orgId, isPublic: true },
-			select: { id: true, status: true },
+			where: { id: shiftId, organizationId: orgId },
+			select: {
+				id: true,
+				status: true,
+				shiftDate: true,
+				publishedAt: true,
+				occupationId: true,
+				specialties: { select: { specialtyId: true } },
+				shiftTemplate: {
+					select: {
+						limitShiftVisibility: true,
+						visibilityUnlockDuration: true,
+						visibilityUnlockUnit: true,
+					},
+				},
+			},
 		});
-		if (!shift) throw new NotFoundException("Shift not found");
+		if (!shift) throw new NotFoundException("Shift not found.");
 		if (shift.status !== PerDiemShiftStatus.OPEN) {
-			throw new BadRequestException("This shift is no longer available");
+			throw new BadRequestException("This shift is no longer available.");
 		}
+		const todayStartUtc = new Date();
+		todayStartUtc.setUTCHours(0, 0, 0, 0);
+		if (shift.shiftDate < todayStartUtc) {
+			throw new BadRequestException("This shift has already passed.");
+		}
+
+		if (actorRole === UserRole.VENDOR_USER) {
+			const routingConfig =
+				await this.visibility.resolveOrgRoutingConfig(orgId);
+			const canSee = this.visibility.canViewerSeeShift(
+				{ kind: "vendor", workforceTypes: VENDOR_USER_WORKFORCE_TYPES },
+				{ publishedAt: shift.publishedAt, shiftTemplate: shift.shiftTemplate },
+				routingConfig,
+			);
+			if (!canSee) {
+				throw new ForbiddenException(
+					"This shift is not yet available to vendor partners",
+				);
+			}
+		}
+
+		this.assertCandidateQualifiesForShift(
+			{
+				occupationId: candidate.occupationId,
+				specialtyIds: candidate.candidateSpecialties.map((s) => s.specialtyId),
+			},
+			{
+				occupationId: shift.occupationId,
+				specialtyIds: shift.specialties.map((s) => s.specialtyId),
+			},
+		);
 
 		const existingForCandidate = await this.prisma.perDiemAssignment.findFirst({
 			where: { shiftId, candidateId: candidate.id },
@@ -469,12 +695,16 @@ export class PerDiemShiftAssignmentService {
 			select: { id: true },
 		});
 		if (existingForShift) {
-			throw new ConflictException("This shift is already filled");
+			throw new ConflictException("This shift is already filled.");
 		}
 
 		await this.prisma.$transaction([
 			this.prisma.perDiemAssignment.create({
-				data: { shiftId, candidateId: candidate.id },
+				data: {
+					shiftId,
+					candidateId: candidate.id,
+					vendorId: candidate.vendorId,
+				},
 			}),
 			this.prisma.perDiemShift.update({
 				where: { id: shiftId },
@@ -482,9 +712,6 @@ export class PerDiemShiftAssignmentService {
 				select: { id: true },
 			}),
 		]);
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			orgId,
-		);
 
 		return { success: true };
 	}
@@ -539,7 +766,7 @@ export class PerDiemShiftAssignmentService {
 			totalShiftHours: number;
 			vendorRate: number;
 			occupation: { name: string };
-			specialty: { name: string } | null;
+			specialties: { specialty: { name: string } }[];
 			department: { name: string } | null;
 			location: { name: string; city: string; state: string };
 		},
@@ -550,9 +777,9 @@ export class PerDiemShiftAssignmentService {
 		},
 	) {
 		const urgency: "High" | "Medium" | "Low" = s.isUrgent ? "High" : "Medium";
-		const requirements = s.specialty?.name
-			? [s.specialty.name]
-			: ([] as string[]);
+		const requirements = s.specialties
+			.map((ss) => ss.specialty.name)
+			.filter(Boolean);
 		const timecard =
 			opts.assignment !== undefined && opts.assignment !== null
 				? buildTimecardSnapshotFromAssignment(opts.assignment)
@@ -584,9 +811,9 @@ export class PerDiemShiftAssignmentService {
 			where: { id: orgId },
 			select: { id: true },
 		});
-		if (!org) throw new NotFoundException("Organization not found");
+		if (!org) throw new NotFoundException("Organization not found.");
 
-		resolveVendorActor(session);
+		const vendorViewer = this.resolveVendorVisibilityContext(session);
 
 		const page = query.page ?? 1;
 		const limit = query.limit ?? 10;
@@ -601,12 +828,18 @@ export class PerDiemShiftAssignmentService {
 
 		const searchWhere = this.buildVendorShiftSearchWhere(query.search);
 
+		const visibilityWhere = await this.visibility.buildShiftVisibilityWhere(
+			orgId,
+			vendorViewer,
+		);
+
 		const where: Prisma.PerDiemShiftWhereInput = {
 			organizationId: orgId,
 			status: PerDiemShiftStatus.OPEN,
-			isPublic: true,
 			...urgencyWhere,
-			...(query.specialtyId ? { specialtyId: query.specialtyId } : {}),
+			...(query.specialtyId
+				? { specialties: { some: { specialtyId: query.specialtyId } } }
+				: {}),
 			...(dateIso
 				? {
 						shiftDate: {
@@ -614,8 +847,9 @@ export class PerDiemShiftAssignmentService {
 							lt: new Date(`${dateIso}T23:59:59.999Z`),
 						},
 					}
-				: {}),
+				: { shiftDate: { gte: this.getTodayStartUtc() } }),
 			...(searchWhere ? searchWhere : {}),
+			AND: [visibilityWhere],
 		};
 
 		const [items, total] = await Promise.all([
@@ -630,7 +864,9 @@ export class PerDiemShiftAssignmentService {
 					totalShiftHours: true,
 					vendorRate: true,
 					occupation: { select: { name: true } },
-					specialty: { select: { name: true } },
+					specialties: {
+						select: { specialty: { select: { name: true } } },
+					},
 					department: { select: { name: true } },
 					location: {
 						select: { name: true, city: true, state: true },
@@ -654,6 +890,19 @@ export class PerDiemShiftAssignmentService {
 		};
 	}
 
+	private resolveVendorVisibilityContext(
+		session?: UserSession,
+	): ViewerVisibilityContext {
+		const actor = resolveVendorActor(session);
+		if (!actor.vendorId) {
+			return { kind: "bypass" };
+		}
+		return {
+			kind: "vendor",
+			workforceTypes: VENDOR_USER_WORKFORCE_TYPES,
+		};
+	}
+
 	async listVendorAssignedShifts(
 		orgId: string,
 		query: VendorPerDiemShiftsQueryDto,
@@ -663,7 +912,7 @@ export class PerDiemShiftAssignmentService {
 			where: { id: orgId },
 			select: { id: true },
 		});
-		if (!org) throw new NotFoundException("Organization not found");
+		if (!org) throw new NotFoundException("Organization not found.");
 
 		const actor = resolveVendorActor(session);
 
@@ -689,7 +938,9 @@ export class PerDiemShiftAssignmentService {
 				some: { candidate: { vendorId: actor.vendorId } },
 			},
 			...urgencyWhere,
-			...(query.specialtyId ? { specialtyId: query.specialtyId } : {}),
+			...(query.specialtyId
+				? { specialties: { some: { specialtyId: query.specialtyId } } }
+				: {}),
 			...(dateIso
 				? {
 						shiftDate: {
@@ -713,7 +964,9 @@ export class PerDiemShiftAssignmentService {
 					totalShiftHours: true,
 					vendorRate: true,
 					occupation: { select: { name: true } },
-					specialty: { select: { name: true } },
+					specialties: {
+						select: { specialty: { select: { name: true } } },
+					},
 					department: { select: { name: true } },
 					location: {
 						select: { name: true, city: true, state: true },
@@ -724,7 +977,6 @@ export class PerDiemShiftAssignmentService {
 						take: 1,
 						select: {
 							id: true,
-							candidateFeedback: true,
 							status: true,
 							timesheet: {
 								select: {
@@ -738,6 +990,7 @@ export class PerDiemShiftAssignmentService {
 											regularHours: true,
 											overtimeHours: true,
 											hours: true,
+											notes: true,
 										},
 									},
 								},
@@ -773,54 +1026,58 @@ export class PerDiemShiftAssignmentService {
 			where: { id: orgId },
 			select: { id: true },
 		});
-		if (!org) throw new NotFoundException("Organization not found");
+		if (!org) throw new NotFoundException("Organization not found.");
 
 		const actor = resolveVendorActor(session);
-
-		const basePublic = {
-			organizationId: orgId,
-			isPublic: true,
-		} satisfies Prisma.PerDiemShiftWhereInput;
-
-		const [totalShifts, highUrgency, inProgress, completed] = await Promise.all(
-			[
-				this.prisma.perDiemShift.count({
-					where: {
-						...basePublic,
-						status: { not: PerDiemShiftStatus.CANCELLED },
-					},
-				}),
-				this.prisma.perDiemShift.count({
-					where: {
-						...basePublic,
-						status: PerDiemShiftStatus.OPEN,
-						isUrgent: true,
-					},
-				}),
-				this.prisma.perDiemShift.count({
-					where: {
-						organizationId: orgId,
-						status: PerDiemShiftStatus.IN_PROGRESS,
-						assignments: {
-							some: { candidate: { vendorId: actor.vendorId } },
-						},
-					},
-				}),
-				this.prisma.perDiemShift.count({
-					where: {
-						organizationId: orgId,
-						status: PerDiemShiftStatus.COMPLETED,
-						assignments: {
-							some: { candidate: { vendorId: actor.vendorId } },
-						},
-					},
-				}),
-			],
+		const vendorViewer = this.resolveVendorVisibilityContext(session);
+		const visibilityWhere = await this.visibility.buildShiftVisibilityWhere(
+			orgId,
+			vendorViewer,
 		);
 
+		const availableWhere: Prisma.PerDiemShiftWhereInput = {
+			organizationId: orgId,
+			status: PerDiemShiftStatus.OPEN,
+			shiftDate: { gte: this.getTodayStartUtc() },
+			AND: [visibilityWhere],
+		};
+		const assignedWhere: Prisma.PerDiemShiftWhereInput = {
+			organizationId: orgId,
+			status: {
+				in: [PerDiemShiftStatus.IN_PROGRESS, PerDiemShiftStatus.COMPLETED],
+			},
+			assignments: {
+				some: { candidate: { vendorId: actor.vendorId } },
+			},
+		};
+
+		const [
+			availableTotal,
+			assignedTotal,
+			availableHighUrgency,
+			assignedHighUrgency,
+			inProgress,
+			completed,
+		] = await Promise.all([
+			this.prisma.perDiemShift.count({ where: availableWhere }),
+			this.prisma.perDiemShift.count({ where: assignedWhere }),
+			this.prisma.perDiemShift.count({
+				where: { ...availableWhere, isUrgent: true },
+			}),
+			this.prisma.perDiemShift.count({
+				where: { ...assignedWhere, isUrgent: true },
+			}),
+			this.prisma.perDiemShift.count({
+				where: { ...assignedWhere, status: PerDiemShiftStatus.IN_PROGRESS },
+			}),
+			this.prisma.perDiemShift.count({
+				where: { ...assignedWhere, status: PerDiemShiftStatus.COMPLETED },
+			}),
+		]);
+
 		return {
-			totalShifts,
-			highUrgency,
+			totalShifts: availableTotal + assignedTotal,
+			highUrgency: availableHighUrgency + assignedHighUrgency,
 			inProgress,
 			completed,
 		};
@@ -835,7 +1092,7 @@ export class PerDiemShiftAssignmentService {
 			where: { id: orgId },
 			select: { id: true },
 		});
-		if (!org) throw new NotFoundException("Organization not found");
+		if (!org) throw new NotFoundException("Organization not found.");
 
 		const actor = resolveVendorActor(session);
 
@@ -844,13 +1101,40 @@ export class PerDiemShiftAssignmentService {
 				id: shiftId,
 				organizationId: orgId,
 				status: PerDiemShiftStatus.OPEN,
-				isPublic: true,
+				shiftDate: { gte: this.getTodayStartUtc() },
 			},
-			select: { id: true, occupationId: true },
+			select: {
+				id: true,
+				occupationId: true,
+				publishedAt: true,
+				specialties: { select: { specialtyId: true } },
+				shiftTemplate: {
+					select: {
+						limitShiftVisibility: true,
+						visibilityUnlockDuration: true,
+						visibilityUnlockUnit: true,
+					},
+				},
+			},
 		});
 		if (!shift) {
-			throw new NotFoundException("Shift not found or not available");
+			throw new NotFoundException("Shift not found or not available.");
 		}
+
+		if (actor.vendorId) {
+			const routingConfig =
+				await this.visibility.resolveOrgRoutingConfig(orgId);
+			const canSee = this.visibility.canViewerSeeShift(
+				{ kind: "vendor", workforceTypes: VENDOR_USER_WORKFORCE_TYPES },
+				{ publishedAt: shift.publishedAt, shiftTemplate: shift.shiftTemplate },
+				routingConfig,
+			);
+			if (!canSee) {
+				throw new NotFoundException("Shift not found or not available.");
+			}
+		}
+
+		const shiftSpecialtyIds = shift.specialties.map((s) => s.specialtyId);
 
 		const candidates = await this.prisma.candidate.findMany({
 			where: {
@@ -858,6 +1142,13 @@ export class PerDiemShiftAssignmentService {
 				vendorId: actor.vendorId,
 				occupationId: shift.occupationId,
 				isActive: true,
+				...(shiftSpecialtyIds.length > 0
+					? {
+							candidateSpecialties: {
+								some: { specialtyId: { in: shiftSpecialtyIds } },
+							},
+						}
+					: {}),
 			},
 			select: {
 				id: true,

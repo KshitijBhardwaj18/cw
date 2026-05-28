@@ -1,13 +1,14 @@
 import type {
+	CandidateSource,
 	CandidateTalentType,
 	CandidateWorkforceType,
 	PaginatedTalentCommunityResponse,
+	VendorCandidateWorkforceType,
 } from "@repo/shared";
 import { ApiClient } from "@/lib/api-client";
 import type {
 	AddExistingTalentCandidateRow,
 	AddExistingTalentStatusValue,
-	CandidateSourceValue,
 } from "@/types/talent-community-add-existing";
 
 export type InviteCandidateInput = {
@@ -16,7 +17,7 @@ export type InviteCandidateInput = {
 	specialtyIds?: string[];
 	email: string;
 	phoneNumber: string;
-	workforceType: CandidateWorkforceType;
+	workforceType: CandidateWorkforceType | VendorCandidateWorkforceType;
 };
 
 export type OrgVendorOption = {
@@ -48,7 +49,7 @@ export type TalentCommunityQuery = {
 export type ExistingTalentQuery = {
 	search?: string;
 	workforceType?: CandidateWorkforceType | "all";
-	source?: CandidateSourceValue | "all";
+	source?: CandidateSource | "all";
 	status?: AddExistingTalentStatusValue | "all";
 	page?: number;
 	limit?: number;
@@ -62,15 +63,23 @@ export type ExistingTalentResponse = {
 	totalPages: number;
 };
 
+export type ComplianceSeverity = "ok" | "warning" | "danger";
+
 export type CandidateProfileType = CandidateTalentType & {
 	candidateCompliances: {
 		id: string;
 		documentName: string;
 		category: string;
 		status: string;
+		severity: ComplianceSeverity;
 		expiryDate: string | null;
 		updatedAt: string;
 	}[];
+	complianceSummary: {
+		total: number;
+		verified: number;
+		allVerified: boolean;
+	};
 };
 
 export type CandidateActivityEvent = {

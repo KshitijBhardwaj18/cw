@@ -43,6 +43,7 @@ import {
 	Users,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { InvoiceDraftDetailLineItem } from "@/constants/invoice-draft-detail";
@@ -51,7 +52,7 @@ import {
 	INVOICE_DRAFT_STATUS_LABEL,
 	type InvoiceDraftStatus,
 } from "@/constants/invoice-drafts";
-import { useOrgContext } from "@/contexts/org-context";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	useApproveInvoice,
 	useInvoice,
@@ -61,7 +62,7 @@ import { DisputeLineItemDialog } from "./DisputeLineItemDialog";
 import { InvoiceDraftDetailLineItemsCard } from "./InvoiceDraftDetailLineItemsCard";
 
 function iconTone(
-	tone: keyof typeof TINTED_METRIC_TONE_STYLES,
+	tone: Readonly<keyof typeof TINTED_METRIC_TONE_STYLES>,
 	Icon: typeof DollarSign,
 ) {
 	const styles = TINTED_METRIC_TONE_STYLES[tone];
@@ -91,13 +92,14 @@ export interface InvoiceDraftDetailPageContentProps {
 
 export function InvoiceDraftDetailPageContent({
 	draftId,
-}: InvoiceDraftDetailPageContentProps) {
-	const { id: orgId } = useOrgContext();
+}: Readonly<InvoiceDraftDetailPageContentProps>) {
+	const { fmtShortDate, fmtPeriod } = useUserTimezone();
+	const router = useRouter();
 	const ability = useAbility();
 	const canEditInvoice = ability.can(Action.Update, "Invoice");
-	const submitInvoice = useSubmitInvoice(orgId);
-	const approveInvoice = useApproveInvoice(orgId);
-	const { data: invoice } = useInvoice(orgId, draftId);
+	const submitInvoice = useSubmitInvoice();
+	const approveInvoice = useApproveInvoice();
+	const { data: invoice } = useInvoice(draftId);
 	const [activeTab, setActiveTab] = useTabSwitch([
 		"all",
 		"approved",
@@ -112,8 +114,11 @@ export function InvoiceDraftDetailPageContent({
 		if (!open) setSelectedLine(null);
 	};
 	const detail = useMemo(
-		() => (invoice ? toInvoiceDraftDetail(invoice) : null),
-		[invoice],
+		() =>
+			invoice
+				? toInvoiceDraftDetail(invoice, { fmtShortDate, fmtPeriod })
+				: null,
+		[invoice, fmtShortDate, fmtPeriod],
 	);
 
 	const onApproveAndFinalize = async () => {
@@ -126,6 +131,7 @@ export function InvoiceDraftDetailPageContent({
 					invoiceId: invoice.id,
 				});
 				toast.success("Invoice approved and finalized");
+				router.push("/org/invoice-drafts");
 				return;
 			}
 			if (status === "SUBMITTED") {
@@ -133,6 +139,7 @@ export function InvoiceDraftDetailPageContent({
 					invoiceId: invoice.id,
 				});
 				toast.success("Invoice approved and finalized");
+				router.push("/org/invoice-drafts");
 				return;
 			}
 			if (status === "APPROVED") {

@@ -51,6 +51,12 @@ export type ComplianceChecklistType = Prisma.ComplianceChecklistGetPayload<{
 				};
 			};
 		};
+		_count: {
+			select: {
+				requisitions: true;
+				requisitionTemplates: true;
+			};
+		};
 	};
 }>;
 

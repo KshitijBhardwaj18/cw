@@ -35,6 +35,9 @@ export const S3_PREFIX_COMPLIANCE_LIST_DOCUMENTS = "compliance/docs";
 
 export const S3_PREFIX_CANDIDATE_RESUMES = "candidates/resumes";
 
+export const S3_PREFIX_CANDIDATE_SKILLS_CHECKLISTS =
+	"candidates/skills-checklists";
+
 export const S3_PREFIX_TIMEKEEPING_UPLOADS = "timekeeping/uploads";
 
 /** Dispute supporting docs: `billing/disputes/{orgId}/{userId}/{file}` */

@@ -18,9 +18,13 @@ import {
 } from "@repo/ui/components/dialog";
 import { ActionBar } from "@repo/ui/general/ActionBar";
 import PaginationControls from "@repo/ui/general/PaginationControls";
+import { SearchBar } from "@repo/ui/general/SearchBar";
+import { useDebouncedSearch } from "@repo/ui/hooks/use-debounced-search";
+import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useVendorCandidatesList } from "@/queries/vendor-candidates.queries";
+import { useEffect } from "react";
+import { VJB_CANDIDATE_SELECTION_PARAMS } from "@/hooks/vendor/use-vendor-jobs-board";
+import { useVendorSubmittableCandidates } from "@/queries/vendor-requisitions.queries";
 import type { Candidate, Requisition } from "@/types/vendor-jobs-board";
 import { mapVendorCandidateListRowToCandidate } from "@/utils/vendor-job-board-mapper";
 
@@ -40,24 +44,42 @@ export function CandidateSelectionDialog({
 	onSelectCandidate,
 	title = "Select Candidate",
 	description,
-}: CandidateSelectionDialogProps) {
-	const [page, setPage] = useState(1);
+}: Readonly<CandidateSelectionDialogProps>) {
 	const PAGE_SIZE = 10;
+
+	const { page, setPage, limit, setLimit } = usePaginationControls({
+		pageParamKey: VJB_CANDIDATE_SELECTION_PARAMS.PAGE,
+		limitParamKey: VJB_CANDIDATE_SELECTION_PARAMS.LIMIT,
+		defaultLimit: PAGE_SIZE,
+		pageSizeOptions: [PAGE_SIZE],
+	});
+
+	const { localSearch, searchFromUrl, handleSearchChange } = useDebouncedSearch(
+		{
+			wait: 350,
+			paramKey: VJB_CANDIDATE_SELECTION_PARAMS.SEARCH,
+			pageParamKey: VJB_CANDIDATE_SELECTION_PARAMS.PAGE,
+		},
+	);
+
+	const debouncedTrimmed = searchFromUrl.trim();
+
+	const listQuery = useVendorSubmittableCandidates(
+		requisition?.id ?? null,
+		{
+			page,
+			limit,
+			search: debouncedTrimmed || undefined,
+		},
+		{ enabled: open && !!requisition },
+	);
 
 	useEffect(() => {
 		if (open) {
 			setPage(1);
+			handleSearchChange("");
 		}
-	}, [open]);
-
-	const listQuery = useVendorCandidatesList(
-		{
-			page,
-			limit: PAGE_SIZE,
-			status: "ACTIVE",
-		},
-		{ enabled: open },
-	);
+	}, [open, setPage, handleSearchChange]);
 
 	if (!requisition) return null;
 
@@ -98,6 +120,12 @@ export function CandidateSelectionDialog({
 							{listQuery.isLoading ? "…" : total} total)
 						</h4>
 
+						<SearchBar
+							value={localSearch}
+							onChange={handleSearchChange}
+							placeholder="Search by name, email, or specialty..."
+						/>
+
 						{listQuery.isLoading && (
 							<div className="flex items-center gap-2 text-muted-foreground py-6">
 								<Loader2 className="size-5 animate-spin" />
@@ -117,8 +145,9 @@ export function CandidateSelectionDialog({
 							!listQuery.isError &&
 							rows.length === 0 && (
 								<p className="text-muted-foreground text-sm py-4">
-									No active candidates found. Add candidates in Talent Community
-									first.
+									{debouncedTrimmed
+										? `No candidates match "${debouncedTrimmed}" for this job's occupation and specialty.`
+										: "No active candidates match this job's occupation and specialty. Add qualified candidates in Talent Community."}
 								</p>
 							)}
 
@@ -158,8 +187,8 @@ export function CandidateSelectionDialog({
 								currentPage={page}
 								pageCount={pageCount}
 								goToPage={setPage}
-								limit={PAGE_SIZE}
-								setLimit={() => {}}
+								limit={limit}
+								setLimit={setLimit}
 								pageSizeOptions={[PAGE_SIZE]}
 							/>
 						)}

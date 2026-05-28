@@ -1,11 +1,5 @@
-import type { MetricType } from "@repo/db";
+import { MetricType } from "@repo/shared";
 import { z } from "zod";
-import { METRIC_TYPE_OPTIONS } from "@/constants/metrics";
-
-const METRIC_TYPE_VALUES = METRIC_TYPE_OPTIONS.map((o) => o.value) as [
-	MetricType,
-	...MetricType[],
-];
 
 export const metricFormBaseSchema = z.object({
 	name: z
@@ -13,7 +7,7 @@ export const metricFormBaseSchema = z.object({
 		.trim()
 		.min(1, "Metric name is required")
 		.max(200, "Name must be less than 200 characters"),
-	type: z.enum(METRIC_TYPE_VALUES, {
+	type: z.nativeEnum(MetricType, {
 		required_error: "Metric type is required",
 	}),
 	formula: z

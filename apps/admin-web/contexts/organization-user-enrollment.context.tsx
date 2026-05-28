@@ -4,6 +4,7 @@ import type { RowSelectionState } from "@tanstack/react-table";
 import { createContext, type ReactNode, useContext } from "react";
 import { useOrganizationUserEnrollmentPage } from "@/hooks/use-organization-user-enrollment-page";
 import type {
+	EnrolledCandidateRow,
 	EnrolledOrganizationUserRow,
 	EnrolledProgramUserRow,
 	EnrolledVendorUserRow,
@@ -19,10 +20,10 @@ const OrganizationUserEnrollmentContext =
 export function OrganizationUserEnrollmentProvider({
 	organizationId,
 	children,
-}: {
+}: Readonly<{
 	organizationId: string;
 	children: ReactNode;
-}) {
+}>) {
 	const value = useOrganizationUserEnrollmentPage(organizationId);
 	return (
 		<OrganizationUserEnrollmentContext.Provider value={value}>
@@ -149,6 +150,36 @@ export type VendorUsersTabContentContextValue = {
 	onClearSelection: () => void;
 	onBulkSendInvite: () => void;
 };
+
+export type CandidatesTabContentContextValue = {
+	isLoading: boolean;
+	isError: boolean;
+	rows: EnrolledCandidateRow[];
+	columns: OrganizationUserEnrollmentContextValue["candidateColumns"];
+	debouncedSearch: string;
+	totalCount: number | undefined;
+	page: number;
+	pageSize: number;
+	onPaginationChange: (page: number, pageSize: number) => void;
+};
+
+export function useCandidatesTabContent(): CandidatesTabContentContextValue {
+	const ctx = useOrganizationUserEnrollment();
+	return {
+		isLoading: ctx.candidateLoading,
+		isError: ctx.candidateError,
+		rows: ctx.candidateRows,
+		columns: ctx.candidateColumns,
+		debouncedSearch: ctx.debouncedSearch,
+		totalCount: ctx.candidateResult?.total,
+		page: ctx.candidatePage,
+		pageSize: ctx.candidatePageSize,
+		onPaginationChange: (page, pageSize) => {
+			ctx.setCandidatePage(page);
+			ctx.setCandidatePageSize(pageSize);
+		},
+	};
+}
 
 export function useVendorUsersTabContent(): VendorUsersTabContentContextValue {
 	const ctx = useOrganizationUserEnrollment();

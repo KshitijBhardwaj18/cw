@@ -1,7 +1,9 @@
 import {
 	AlertCircle,
+	CalendarClock,
 	CircleX,
 	Clock3,
+	MailQuestion,
 	TriangleAlert,
 	UserRoundSearch,
 	UsersRound,
@@ -93,6 +95,30 @@ export const CANDIDATE_PROCESSING_ISSUE_STAT_CARDS: OperationsFilterStatCardItem
 			icon: UsersRound,
 		},
 		{
+			key: "interview-delayed",
+			label: "Interview Delayed",
+			description: "Interview scheduled but not completed",
+			countLabel: "candidates",
+			priorityLabel: "Medium Priority",
+			priorityClassName: "bg-amber-100 text-amber-700",
+			activeClassName: "ring-2 ring-primary border-primary",
+			countClassName: "text-amber-700",
+			iconClassName: "text-amber-500",
+			icon: CalendarClock,
+		},
+		{
+			key: "offer-pending",
+			label: "Offer Pending",
+			description: "Interview done but offer not released",
+			countLabel: "candidates",
+			priorityLabel: "Medium Priority",
+			priorityClassName: "bg-amber-100 text-amber-700",
+			activeClassName: "ring-2 ring-primary border-primary",
+			countClassName: "text-amber-700",
+			iconClassName: "text-amber-500",
+			icon: MailQuestion,
+		},
+		{
 			key: "overdue-offers",
 			label: "Overdue Offers",
 			description: ">48h response deadline",
@@ -145,6 +171,15 @@ export const OPERATIONS_MANAGEMENT_FILTER_DESCRIPTIONS: Record<
 	"aging-shortlisted": {
 		heading: "Showing: Aging Shortlisted",
 		description: "Candidates in Shortlisted stage past review SLA",
+	},
+	"interview-delayed": {
+		heading: "Showing: Interview Delayed",
+		description:
+			"Candidates where interview was scheduled but not completed within threshold.",
+	},
+	"offer-pending": {
+		heading: "Showing: Offer Pending",
+		description: "Candidates with completed interviews but no offer sent yet.",
 	},
 	"overdue-offers": {
 		heading: "Showing: Overdue Offers",

@@ -123,7 +123,7 @@ export function useVendorClaimShifts() {
 	const [isTimecardDialogOpen, setIsTimecardDialogOpen] = useState(false);
 
 	const { data: sessionData } = authClient.useSession();
-	const orgId = sessionData?.session?.activeOrganizationId ?? undefined;
+	const hasSession = Boolean(sessionData?.session);
 
 	const availableParams = useMemo(
 		() => ({
@@ -154,44 +154,43 @@ export function useVendorClaimShifts() {
 	const metricsQuery = useQuery({
 		queryKey: vendorShiftClaimingKeys.metrics(),
 		queryFn: () => {
-			if (!orgId) throw new Error("Missing organization");
+			if (!hasSession) throw new Error("Missing session");
 			return PerDiemShiftsService.getVendorShiftMetrics();
 		},
-		enabled: Boolean(orgId),
+		enabled: hasSession,
 	});
 
-	const orgLinkedSpecialtiesQuery = useOrgLinkedOccupationSpecialties(
-		orgId ?? "",
-	);
+	const orgLinkedSpecialtiesQuery = useOrgLinkedOccupationSpecialties();
 
 	const availableQuery = useQuery({
 		queryKey: vendorShiftClaimingKeys.available(availableParams),
 		queryFn: () => {
-			if (!orgId) throw new Error("Missing organization");
+			if (!hasSession) throw new Error("Missing session");
 			return PerDiemShiftsService.listVendorAvailable(availableParams);
 		},
-		enabled: Boolean(orgId),
+		enabled: hasSession,
 	});
 
 	const assignedQuery = useQuery({
 		queryKey: vendorShiftClaimingKeys.assigned(assignedParams),
 		queryFn: () => {
-			if (!orgId) throw new Error("Missing organization");
+			if (!hasSession) throw new Error("Missing session");
 			return PerDiemShiftsService.listVendorAssigned(assignedParams);
 		},
-		enabled: Boolean(orgId),
+		enabled: hasSession,
 	});
 
 	const candidatesQuery = useQuery({
 		queryKey: vendorShiftClaimingKeys.candidates(selectedShift?.id),
 		queryFn: async () => {
-			if (!selectedShift || !orgId) throw new Error("Missing shift or org");
+			if (!selectedShift || !hasSession)
+				throw new Error("Missing shift or session");
 			const res = await PerDiemShiftsService.listVendorAssignableCandidates(
 				selectedShift.id,
 			);
 			return res.data;
 		},
-		enabled: Boolean(orgId && selectedShift && isClaimDialogOpen),
+		enabled: Boolean(hasSession && selectedShift && isClaimDialogOpen),
 	});
 
 	const assignMutation = useVendorAssignShift();
@@ -285,7 +284,7 @@ export function useVendorClaimShifts() {
 
 	const handleConfirmClaim = useCallback(
 		(candidateId: string) => {
-			if (!orgId || !selectedShift) return;
+			if (!hasSession || !selectedShift) return;
 			assignMutation.mutate(
 				{ shiftId: selectedShift.id, candidateId },
 				{
@@ -303,7 +302,7 @@ export function useVendorClaimShifts() {
 				},
 			);
 		},
-		[assignMutation, selectedShift, orgId],
+		[assignMutation, selectedShift, hasSession],
 	);
 
 	const availableShifts = availableQuery.data?.data ?? [];
@@ -339,7 +338,6 @@ export function useVendorClaimShifts() {
 	}, [hookFilterConfigs, onFilterChange, specialtyOptions]);
 
 	return {
-		organizationId: orgId,
 		searchValue: localSearch,
 		setSearchValue: handleSearchChange,
 		filtersExpanded,

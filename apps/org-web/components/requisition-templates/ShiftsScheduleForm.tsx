@@ -1,5 +1,7 @@
 "use client";
 
+import { ShiftType } from "@repo/shared";
+import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
 	Card,
@@ -8,7 +10,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/ui/components/card";
-import { DatePicker } from "@repo/ui/components/date-picker";
 import {
 	Field,
 	FieldError,
@@ -27,8 +28,8 @@ import { TimePicker } from "@repo/ui/components/time-picker";
 import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
-import { addWeeks, format, parse } from "date-fns";
-import { useMemo } from "react";
+import { addHours, format, parse } from "date-fns";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { REQUISITION_TEMPLATE_SHIFT_TYPE_OPTIONS } from "@/constants/requisition-templates";
 import {
@@ -38,11 +39,10 @@ import {
 import { STEP_VALIDATION_TOAST } from "./CreateRequisitionTemplatePageContent";
 
 const defaultValues: RequisitionTemplateShiftsScheduleFormValues = {
-	startDate: "",
 	lengthWeeks: 1,
 	startTime: "",
 	endTime: "",
-	shiftType: "DAYS",
+	shiftType: ShiftType.DAY,
 	shiftHours: 8,
 	shiftsPerWeek: 1,
 	hoursPerWeek: undefined,
@@ -57,17 +57,6 @@ interface ShiftsScheduleFormProps {
 	readOnly?: boolean;
 }
 
-function computeEndDate(startDate: string, lengthWeeks: number): string | null {
-	if (!startDate || lengthWeeks < 1) return null;
-	try {
-		const start = parse(startDate, "yyyy-MM-dd", new Date());
-		const end = addWeeks(start, lengthWeeks);
-		return format(end, "yyyy-MM-dd");
-	} catch {
-		return null;
-	}
-}
-
 export function ShiftsScheduleForm({
 	onSubmit,
 	onCancel,
@@ -75,7 +64,7 @@ export function ShiftsScheduleForm({
 	isPending = false,
 	initialValues,
 	readOnly = false,
-}: ShiftsScheduleFormProps) {
+}: Readonly<ShiftsScheduleFormProps>) {
 	const form = useForm({
 		defaultValues: initialValues ?? defaultValues,
 		validators: {
@@ -89,24 +78,34 @@ export function ShiftsScheduleForm({
 		},
 	});
 
-	const startDate = useStore(form.store, (s) => s.values.startDate);
-	const lengthWeeks = useStore(form.store, (s) => s.values.lengthWeeks);
-	const endDateDisplay = useMemo(
-		() => computeEndDate(startDate, lengthWeeks),
-		[startDate, lengthWeeks],
-	);
-
+	const values = useStore(form.store, (s) => s.values);
 	const submissionAttempts = useStore(
 		form.store,
 		(s) => s.submissionAttempts ?? 0,
 	);
+
+	useEffect(() => {
+		if (values.startTime && values.shiftHours > 0) {
+			try {
+				const start = parse(values.startTime, "HH:mm", new Date());
+				const end = addHours(start, values.shiftHours);
+				const formattedEnd = format(end, "HH:mm");
+				if (formattedEnd !== values.endTime) {
+					form.setFieldValue("endTime", formattedEnd);
+				}
+			} catch {
+				form.setFieldValue("endTime", "");
+			}
+		}
+	}, [values.startTime, values.shiftHours, values.endTime, form]);
 
 	return (
 		<Card>
 			<CardHeader>
 				<CardTitle>Shifts & Schedule</CardTitle>
 				<CardDescription>
-					Define the schedule and shift details for this requisition template
+					Define reusable schedule and shift details. Start and end dates are
+					set when you create a job from this template.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -119,41 +118,6 @@ export function ShiftsScheduleForm({
 				>
 					<FieldGroup>
 						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-							<form.Field
-								name="startDate"
-								validators={{
-									onChange:
-										requisitionTemplateShiftsScheduleSchema.shape.startDate,
-								}}
-							>
-								{(field) => {
-									const isInvalid = formFieldShowInvalid(
-										field.state.meta.isTouched,
-										field.state.meta.isValid,
-										submissionAttempts,
-									);
-									return (
-										<Field data-invalid={isInvalid}>
-											<FieldLabel htmlFor={field.name}>
-												Start Date <RequiredStar />
-											</FieldLabel>
-											<DatePicker
-												id={field.name}
-												value={field.state.value}
-												onChange={(v) => field.handleChange(v)}
-												onBlur={field.handleBlur}
-												disabled={isPending || readOnly}
-												placeholder="Pick a date"
-												aria-invalid={isInvalid}
-											/>
-											{isInvalid && (
-												<FieldError errors={field.state.meta.errors} />
-											)}
-										</Field>
-									);
-								}}
-							</form.Field>
-
 							<form.Field
 								name="lengthWeeks"
 								validators={{
@@ -197,19 +161,6 @@ export function ShiftsScheduleForm({
 									);
 								}}
 							</form.Field>
-						</div>
-
-						<Field>
-							<FieldLabel>End Date</FieldLabel>
-							<Input
-								readOnly
-								value={endDateDisplay ?? "—"}
-								className="bg-muted cursor-not-allowed"
-								aria-readonly
-							/>
-						</Field>
-
-						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<form.Field
 								name="startTime"
 								validators={{
@@ -258,19 +209,29 @@ export function ShiftsScheduleForm({
 										field.state.meta.isValid,
 										submissionAttempts,
 									);
+									const isNextDay =
+										values.startTime &&
+										field.state.value &&
+										field.state.value < values.startTime;
+
 									return (
 										<Field data-invalid={isInvalid}>
-											<FieldLabel htmlFor={field.name}>
-												End Time <RequiredStar />
+											<FieldLabel>
+												End Time <RequiredStar />{" "}
+												<Badge variant="secondary">Auto-Filled</Badge>
+												{isNextDay && (
+													<Badge variant="secondary">Next Day</Badge>
+												)}
 											</FieldLabel>
-											<TimePicker
+											<Input
 												id={field.name}
+												type="time"
 												value={field.state.value}
-												onChange={(v) => field.handleChange(v)}
-												onBlur={field.handleBlur}
-												disabled={isPending || readOnly}
-												placeholder="Select time"
+												onChange={(e) => field.handleChange(e.target.value)}
 												aria-invalid={isInvalid}
+												readOnly
+												tabIndex={-1}
+												className="pointer-events-none"
 											/>
 											{isInvalid && (
 												<FieldError errors={field.state.meta.errors} />

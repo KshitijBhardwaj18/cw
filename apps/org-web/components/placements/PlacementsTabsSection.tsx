@@ -27,7 +27,7 @@ export function PlacementsTabsSection({
 	onTabChange,
 	tabCounts,
 	table,
-}: PlacementsTabsSectionProps) {
+}: Readonly<PlacementsTabsSectionProps>) {
 	return (
 		<Tabs
 			value={activeTab}

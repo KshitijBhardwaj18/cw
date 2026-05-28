@@ -86,7 +86,7 @@ export function BillingInvoiceView({
 	formatCurrency,
 	formatPeriod,
 	canMutateInvoice = true,
-}: BillingInvoiceViewProps) {
+}: Readonly<BillingInvoiceViewProps>) {
 	const { columns } = useInvoiceLineItemsColumns({
 		onFlagItem: onFlagLineItem,
 		formatCurrency,

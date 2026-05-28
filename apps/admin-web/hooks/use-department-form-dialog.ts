@@ -2,7 +2,7 @@
 
 import { DepartmentType } from "@repo/shared";
 import { useForm } from "@tanstack/react-form";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useInfiniteLinkedOccupations } from "@/queries/organization-occupations.query";
 import {
@@ -21,8 +21,8 @@ const defaultFormValues: DepartmentFormSchemaValues = {
 	name: "",
 	departmentType: DepartmentType.CLINICAL,
 	costCenter: "",
-	organizationOccupationId: "",
-	organizationSpecialtyId: "",
+	organizationOccupationIds: [],
+	organizationSpecialtyIds: [],
 	relatedUserIds: [],
 };
 
@@ -100,9 +100,8 @@ export function useDepartmentFormDialog({
 				name: value.name,
 				departmentType: value.departmentType,
 				costCenter: value.costCenter?.trim() || undefined,
-				organizationOccupationId:
-					value.organizationOccupationId?.trim() || null,
-				organizationSpecialtyId: value.organizationSpecialtyId?.trim() || null,
+				organizationOccupationIds: value.organizationOccupationIds ?? [],
+				organizationSpecialtyIds: value.organizationSpecialtyIds ?? [],
 				relatedUserIds: value.relatedUserIds?.length
 					? value.relatedUserIds
 					: undefined,
@@ -126,14 +125,15 @@ export function useDepartmentFormDialog({
 	});
 
 	const handleClose = () => {
-		form.reset(defaultFormValues);
 		onOpenChange(false);
 	};
 
+	const wasOpenRef = useRef(false);
 	useEffect(() => {
-		if (open) {
+		if (open && !wasOpenRef.current) {
 			form.reset(defaultFormValues);
 		}
+		wasOpenRef.current = open;
 	}, [open, form]);
 
 	const isPending = createMutation.isPending;

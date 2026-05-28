@@ -1,9 +1,15 @@
+import {
+	formatCurrency,
+	parseUsdNumberInput,
+	USD_CURRENCY_CODE,
+	USD_LOCALE,
+} from "@repo/shared";
 import { Checkbox } from "@repo/ui/components/checkbox";
 import { Field, FieldError, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { Textarea } from "@repo/ui/components/textarea";
 import RequiredStar from "@repo/ui/general/RequiredStar";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 export interface FormFieldApi<TValue = string> {
 	name: string;
@@ -35,7 +41,7 @@ function FormFieldWrapper({
 	name,
 	required = false,
 	children,
-}: FormFieldWrapperProps) {
+}: Readonly<FormFieldWrapperProps>) {
 	const invalid = meta.isTouched && !meta.isValid;
 	return (
 		<Field data-invalid={invalid}>
@@ -74,7 +80,7 @@ export function FormInput({
 	maxLength,
 	readOnly,
 	onChange,
-}: FormInputProps) {
+}: Readonly<FormInputProps>) {
 	return (
 		<FormFieldWrapper
 			meta={field.state.meta}
@@ -119,7 +125,7 @@ export function FormNumberInput({
 	label,
 	required,
 	placeholder,
-}: FormNumberInputProps) {
+}: Readonly<FormNumberInputProps>) {
 	return (
 		<FormFieldWrapper
 			meta={field.state.meta}
@@ -137,6 +143,105 @@ export function FormNumberInput({
 					onChange={(e) =>
 						field.handleChange(e.target.value ? Number(e.target.value) : null)
 					}
+					aria-invalid={invalid}
+					placeholder={placeholder}
+				/>
+			)}
+		</FormFieldWrapper>
+	);
+}
+
+// --- Currency (USD) ---
+
+interface FormCurrencyInputProps {
+	field: FormFieldApi<number | null>;
+	label: string;
+	required?: boolean;
+	placeholder?: string;
+	minimumFractionDigits?: number;
+	maximumFractionDigits?: number;
+}
+
+/**
+ * Money input: stores a number; keeps US currency formatting (symbol + grouping) while typing.
+ */
+export function FormCurrencyInput({
+	field,
+	label,
+	required,
+	placeholder,
+	minimumFractionDigits = 0,
+	maximumFractionDigits = 2,
+}: Readonly<FormCurrencyInputProps>) {
+	const [isFocused, setIsFocused] = useState(false);
+	const [editBuffer, setEditBuffer] = useState<string | null>(null);
+
+	const formatAmount = (n: number | null) => {
+		if (n == null) return "";
+		return formatCurrency(
+			n,
+			USD_CURRENCY_CODE,
+			USD_LOCALE,
+			minimumFractionDigits,
+			maximumFractionDigits,
+		);
+	};
+
+	const displayValue =
+		isFocused && editBuffer !== null
+			? editBuffer
+			: formatAmount(field.state.value ?? null);
+
+	const moveCaretToEnd = () => {
+		queueMicrotask(() => {
+			const el = document.getElementById(field.name) as HTMLInputElement | null;
+			if (el && document.activeElement === el) {
+				const len = el.value.length;
+				el.setSelectionRange(len, len);
+			}
+		});
+	};
+
+	return (
+		<FormFieldWrapper
+			meta={field.state.meta}
+			name={field.name}
+			label={label}
+			required={required}
+		>
+			{(invalid) => (
+				<Input
+					id={field.name}
+					name={field.name}
+					type="text"
+					inputMode="decimal"
+					autoComplete="off"
+					value={displayValue}
+					onFocus={() => {
+						setIsFocused(true);
+						setEditBuffer(formatAmount(field.state.value ?? null));
+					}}
+					onChange={(e) => {
+						const raw = e.target.value;
+						if (raw.trim() === "") {
+							setEditBuffer("");
+							field.handleChange(null);
+							return;
+						}
+						const parsed = parseUsdNumberInput(raw);
+						field.handleChange(parsed);
+						if (parsed !== null) {
+							setEditBuffer(formatAmount(parsed));
+							moveCaretToEnd();
+						} else {
+							setEditBuffer(raw);
+						}
+					}}
+					onBlur={() => {
+						setIsFocused(false);
+						setEditBuffer(null);
+						field.handleBlur();
+					}}
 					aria-invalid={invalid}
 					placeholder={placeholder}
 				/>
@@ -163,7 +268,7 @@ export function FormTextarea({
 	placeholder,
 	rows = 4,
 	maxLength,
-}: FormTextareaProps) {
+}: Readonly<FormTextareaProps>) {
 	return (
 		<FormFieldWrapper
 			meta={field.state.meta}
@@ -212,7 +317,7 @@ export function FormCheckboxGroup({
 	required,
 	options,
 	idPrefix,
-}: FormCheckboxGroupProps) {
+}: Readonly<FormCheckboxGroupProps>) {
 	const toggle = (val: string, checked: boolean | "indeterminate") => {
 		field.handleChange(
 			checked

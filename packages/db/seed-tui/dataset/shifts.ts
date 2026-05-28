@@ -29,14 +29,14 @@ export interface SeedShiftData {
 	totalShiftHours: number;
 	shiftType: ShiftType;
 	occupationId: string;
-	specialtyId: string;
+	specialtyIds: string[];
 	departmentId: string;
 	locationId: string;
 	shiftRate: number;
 	vendorRate: number;
 	totalCost: number;
 	status: PerDiemShiftStatus;
-	isPublic: boolean;
+	isUrgent?: boolean;
 	assignments?: {
 		candidateId: string;
 		vendorId: string;
@@ -64,7 +64,7 @@ export const getShiftsDataset = (orgId: string): SeedShiftData[] => {
 			name: "ICU Day Shift",
 			occId: OCCUPATION_ID.RN,
 			deptId: DEPT_ID.ICU,
-			type: "DAYS" as ShiftType,
+			type: "DAY" as ShiftType,
 			hours: 12,
 			rate: 85,
 		},
@@ -73,7 +73,7 @@ export const getShiftsDataset = (orgId: string): SeedShiftData[] => {
 			name: "ER Night Shift",
 			occId: OCCUPATION_ID.RN,
 			deptId: DEPT_ID.ED,
-			type: "NIGHTS" as ShiftType,
+			type: "NIGHT" as ShiftType,
 			hours: 12,
 			rate: 95,
 		},
@@ -82,7 +82,7 @@ export const getShiftsDataset = (orgId: string): SeedShiftData[] => {
 			name: "Rehab Day Shift",
 			occId: OCCUPATION_ID.PT,
 			deptId: DEPT_ID.REHAB,
-			type: "DAYS" as ShiftType,
+			type: "DAY" as ShiftType,
 			hours: 8,
 			rate: 75,
 		},
@@ -91,15 +91,15 @@ export const getShiftsDataset = (orgId: string): SeedShiftData[] => {
 			name: "Med-Surg Evening",
 			occId: OCCUPATION_ID.LPN,
 			deptId: DEPT_ID.MEDSURG,
-			type: "EVENINGS" as ShiftType,
+			type: "FLEXIBLE" as ShiftType,
 			hours: 8,
 			rate: 62,
 		},
 	];
 
 	const candidates = [
-		{ id: CANDIDATE_ID.ISABELLE, vendorId: VENDOR_ID.ELITE },
-		{ id: CANDIDATE_ID.MICHAEL, vendorId: VENDOR_ID.HEALTHPRO },
+		{ id: CANDIDATE_ID.SARAH_P, vendorId: VENDOR_ID.GLOBAL },
+		{ id: CANDIDATE_ID.MARCUS_V, vendorId: VENDOR_ID.GLOBAL },
 		{ id: CANDIDATE_ID.EMILY, vendorId: VENDOR_ID.ALLIED },
 		{ id: CANDIDATE_ID.JENNIFER, vendorId: VENDOR_ID.ELITE },
 	];
@@ -125,14 +125,14 @@ export const getShiftsDataset = (orgId: string): SeedShiftData[] => {
 			totalShiftHours: template.hours,
 			shiftType: template.type,
 			occupationId: template.occId,
-			specialtyId: SPECIALTY_ID.GEN,
+			specialtyIds: [SPECIALTY_ID.GEN],
 			departmentId: template.deptId,
 			locationId: location.id,
 			shiftRate: template.rate,
 			vendorRate: template.rate - 5,
 			totalCost: template.hours * template.rate,
 			status: "COMPLETED",
-			isPublic: true,
+			isUrgent: i === 1,
 			assignments: [
 				{
 					candidateId: candidate.id,
@@ -152,8 +152,8 @@ export const getShiftsDataset = (orgId: string): SeedShiftData[] => {
 			shiftCounter++;
 			const template = templates[(d * 4 + i) % templates.length];
 			const location = locations[(d * 4 + i) % locations.length];
-			const isFilled = i < 3;
-			const status = isFilled ? "IN_PROGRESS" : "OPEN";
+			const status = i < 2 ? "OPEN" : "IN_PROGRESS";
+			const isUrgent = i % 2 === 1;
 
 			const shift: SeedShiftData = {
 				id: getDeterministicId(`${SEED_PREFIX}shift-auto-${d}-${i}`),
@@ -161,22 +161,22 @@ export const getShiftsDataset = (orgId: string): SeedShiftData[] => {
 				shiftTemplateId: template.id,
 				shiftNumber: `SFT-${shiftCounter}`,
 				shiftDate,
-				startTime: template.type === "NIGHTS" ? "19:00" : "07:00",
-				endTime: template.type === "NIGHTS" ? "07:00" : "19:00",
+				startTime: template.type === "NIGHT" ? "19:00" : "07:00",
+				endTime: template.type === "NIGHT" ? "07:00" : "19:00",
 				totalShiftHours: template.hours,
 				shiftType: template.type,
 				occupationId: template.occId,
-				specialtyId: SPECIALTY_ID.GEN,
+				specialtyIds: [SPECIALTY_ID.GEN],
 				departmentId: template.deptId,
 				locationId: location.id,
 				shiftRate: template.rate,
 				vendorRate: template.rate - 5,
 				totalCost: template.hours * template.rate,
 				status: status as PerDiemShiftStatus,
-				isPublic: true,
+				isUrgent,
 			};
 
-			if (isFilled) {
+			if (status === "IN_PROGRESS") {
 				const candidate = candidates[(d * 4 + i) % candidates.length];
 				shift.assignments = [
 					{

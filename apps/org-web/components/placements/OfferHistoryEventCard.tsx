@@ -7,6 +7,7 @@ import type {
 	OfferHistoryEventType,
 } from "@/constants/placement-offer-history";
 import { OFFER_EVENT_BADGE_CONFIG } from "@/constants/placement-offer-history";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 const ACTIVE_BADGE_CLASS = "bg-emerald-100 text-emerald-800";
 
@@ -14,7 +15,10 @@ interface OfferHistoryEventCardProps {
 	event: OfferHistoryEvent;
 }
 
-export function OfferHistoryEventCard({ event }: OfferHistoryEventCardProps) {
+export function OfferHistoryEventCard({
+	event,
+}: Readonly<OfferHistoryEventCardProps>) {
+	const { fmtDateTimeZone } = useUserTimezone();
 	const eventConfig = OFFER_EVENT_BADGE_CONFIG[
 		event.eventType as OfferHistoryEventType
 	] ?? {
@@ -44,13 +48,9 @@ export function OfferHistoryEventCard({ event }: OfferHistoryEventCardProps) {
 						</Badge>
 					</div>
 					<div className="text-right">
-						<p className="text-sm font-medium">{event.performedAt}</p>
-						{event.performedAtTime && (
-							<p className="text-sm text-muted-foreground">
-								{event.performedAtTime}
-								{event.timezone ? ` ${event.timezone}` : ""}
-							</p>
-						)}
+						<p className="text-sm font-medium">
+							{fmtDateTimeZone(event.performedAt)}
+						</p>
 					</div>
 				</div>
 				<div className="mt-2 space-y-1">

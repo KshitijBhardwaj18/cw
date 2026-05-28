@@ -1,9 +1,11 @@
 "use client";
 
+import { coerceYmdOrIsoToUtcInstant } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { Trash2 } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { PlacementNote } from "@/types/placement";
 
 interface PlacementNoteCardProps {
@@ -11,7 +13,13 @@ interface PlacementNoteCardProps {
 	onDelete?: (note: PlacementNote) => void;
 }
 
-export function PlacementNoteCard({ note, onDelete }: PlacementNoteCardProps) {
+export function PlacementNoteCard({
+	note,
+	onDelete,
+}: Readonly<PlacementNoteCardProps>) {
+	const { fmtDateTime } = useUserTimezone();
+	const created = coerceYmdOrIsoToUtcInstant(note.createdAt);
+	const createdLabel = created ? fmtDateTime(created) : note.createdAt;
 	return (
 		<Card className="border">
 			<CardContent>
@@ -21,7 +29,7 @@ export function PlacementNoteCard({ note, onDelete }: PlacementNoteCardProps) {
 							Note
 						</Badge>
 						<span className="text-muted-foreground text-sm">
-							{note.createdAt}
+							{createdLabel}
 						</span>
 					</div>
 					{onDelete && (

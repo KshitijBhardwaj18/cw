@@ -10,9 +10,9 @@ import { candidatePlacementsListPath } from "@/utils/candidate-portal-routes";
 
 export function CandidatePlacementDetailPageContent({
 	placementId,
-}: {
+}: Readonly<{
 	placementId: string;
-}) {
+}>) {
 	const { organizationId, orgLoading, isReady, detailQuery } =
 		useCandidatePlacementDetailPage(placementId);
 

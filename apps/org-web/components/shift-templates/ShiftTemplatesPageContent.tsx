@@ -169,8 +169,11 @@ export function ShiftTemplatesPageContent() {
 								durationHours: editTemplate.durationHours,
 								baseRate: editTemplate.baseRate,
 								limitShiftVisibility: editTemplate.limitShiftVisibility,
-								visibilityUnlockHours:
-									editTemplate.visibilityUnlockHours ?? undefined,
+								visibilityUnlockDuration:
+									editTemplate.visibilityUnlockDuration ?? undefined,
+								visibilityUnlockUnit:
+									(editTemplate.visibilityUnlockUnit as ShiftTemplateFormValues["visibilityUnlockUnit"]) ??
+									undefined,
 								baseBillRate: editTemplate.baseBillRate ?? undefined,
 								vendorRateMarkupPercent:
 									editTemplate.vendorRateMarkupPercent ?? undefined,

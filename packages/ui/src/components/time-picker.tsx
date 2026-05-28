@@ -27,7 +27,7 @@ function getTimeOptions(): string[] {
 	return options;
 }
 
-const TIME_OPTIONS = getTimeOptions();
+export const TIME_OPTIONS = getTimeOptions();
 
 function parseTime(value: string): Date | undefined {
 	if (!value) return undefined;
@@ -54,6 +54,8 @@ export interface TimePickerProps {
 	className?: string;
 	"aria-invalid"?: boolean;
 	onBlur?: () => void;
+	disabledOptions?: string[];
+	min?: string;
 }
 
 export function TimePicker({
@@ -65,7 +67,9 @@ export function TimePicker({
 	className,
 	"aria-invalid": ariaInvalid,
 	onBlur,
-}: TimePickerProps) {
+	disabledOptions,
+	min,
+}: Readonly<TimePickerProps>) {
 	const [open, setOpen] = React.useState(false);
 	const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -116,7 +120,7 @@ export function TimePicker({
 				</div>
 			</PopoverTrigger>
 			<PopoverContent
-				className="z-[100] w-auto p-0"
+				className="z-100 w-auto p-0"
 				align="start"
 				// Wheel events must not bubble to e.g. DialogContent (overflow-auto) or the list won’t scroll.
 				onWheel={(e) => e.stopPropagation()}
@@ -125,20 +129,26 @@ export function TimePicker({
 					ref={scrollRef}
 					className="h-[240px] w-[140px] overflow-y-auto overflow-x-hidden overscroll-contain p-1"
 				>
-					{TIME_OPTIONS.map((option) => (
-						<button
-							key={option}
-							type="button"
-							data-time-option={option}
-							className={cn(
-								"flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-								value === option && "bg-accent text-accent-foreground",
-							)}
-							onClick={() => handleSelect(option)}
-						>
-							{formatDisplay(option)}
-						</button>
-					))}
+					{TIME_OPTIONS.map((option) => {
+						const isDisabled =
+							disabledOptions?.includes(option) || Boolean(min && option < min);
+						return (
+							<button
+								key={option}
+								type="button"
+								disabled={isDisabled}
+								data-time-option={option}
+								className={cn(
+									"flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-left text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+									value === option && "bg-accent text-accent-foreground",
+									isDisabled && "pointer-events-none opacity-30",
+								)}
+								onClick={() => handleSelect(option)}
+							>
+								{formatDisplay(option)}
+							</button>
+						);
+					})}
 				</div>
 			</PopoverContent>
 		</Popover>

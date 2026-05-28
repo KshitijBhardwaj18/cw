@@ -36,6 +36,7 @@ export function orgDelegationPlugin(opts: {
 						organizationId: z.string().uuid(),
 						callbackURL: z.string().url(),
 						issuedByUserId: z.string().uuid(),
+						consumeOrigin: z.string().url().optional(),
 					}),
 					metadata: { SERVER_ONLY: true },
 				},
@@ -53,7 +54,9 @@ export function orgDelegationPlugin(opts: {
 						expiresAt: new Date(Date.now() + ttlSeconds * 1000),
 					});
 
-					const origin = new URL(ctx.context.baseURL).origin;
+					const origin = ctx.body.consumeOrigin
+						? new URL(ctx.body.consumeOrigin).origin
+						: new URL(ctx.context.baseURL).origin;
 					const basePath = (
 						ctx.context.options.basePath ?? "/api/auth"
 					).replace(/\/$/, "");

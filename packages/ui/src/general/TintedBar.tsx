@@ -44,7 +44,7 @@ export function TintedBar({
 	statusLabel,
 	icon: Icon,
 	className,
-}: TintedBarProps) {
+}: Readonly<TintedBarProps>) {
 	const styles = TINTED_BAR_TONE_STYLES[tone];
 	return (
 		<div

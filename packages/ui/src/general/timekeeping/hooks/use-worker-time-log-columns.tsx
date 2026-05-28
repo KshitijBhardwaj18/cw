@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDateRange } from "@repo/shared";
+import { formatDateRange, TimesheetEntryStatus } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { cn } from "@repo/ui/lib/utils";
@@ -114,9 +114,9 @@ export function useWorkerTimeLogColumns({
 					const log = row.original;
 					return (
 						<div className="text-right">
-							{log.status === "APPROVED" ? (
+							{log.status === TimesheetEntryStatus.APPROVED ? (
 								<Badge variant="success">Approved</Badge>
-							) : log.status === "DISPUTED" ? (
+							) : log.status === TimesheetEntryStatus.DISPUTED ? (
 								<Badge variant="destructive">Disputed</Badge>
 							) : approvalActionsEnabled ? (
 								<div className="flex items-center justify-end gap-2">

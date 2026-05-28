@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@repo/ui/components/button";
 import {
 	Card,
@@ -8,6 +10,7 @@ import {
 } from "@repo/ui/components/card";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { WorkforceListCardItem } from "@/types/workforce-list";
 
 type WorkforceListCardProps = {
@@ -20,8 +23,10 @@ export function WorkforceListCard({
 	list,
 	onDelete,
 	canDelete = false,
-}: WorkforceListCardProps) {
+}: Readonly<WorkforceListCardProps>) {
 	const router = useRouter();
+	const { fmtShortDate } = useUserTimezone();
+	const updatedLabel = fmtShortDate(list.updatedAt);
 
 	return (
 		<Card
@@ -63,7 +68,7 @@ export function WorkforceListCard({
 					<span>
 						{list.memberCount} member{list.memberCount === 1 ? "" : "s"}
 					</span>
-					<span>Updated {list.updatedAt}</span>
+					<span>Updated {updatedLabel}</span>
 				</div>
 			</CardFooter>
 		</Card>

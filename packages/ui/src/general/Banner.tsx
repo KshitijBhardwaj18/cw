@@ -26,7 +26,7 @@ export const Banner = ({
 	className,
 	flow = "kv",
 	tintedText = false,
-}: BannerProps) => (
+}: Readonly<BannerProps>) => (
 	<Card
 		className={cn(
 			"flex flex-row",

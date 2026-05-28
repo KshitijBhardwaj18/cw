@@ -66,7 +66,7 @@ export const getComplianceDataset = () => {
 			expirationRuleValue: 365,
 			expirationRuleUnit: ExpirationRuleUnit.DAYS,
 			responseStyle: ComplianceListItemResponseStyle.PENDING_FILE_UPLOAD,
-			displayToCandidate: false,
+			displayToCandidate: true,
 		},
 		{
 			id: COMPLIANCE_ITEM_ID.CRIMINAL_BACKGROUND_CHECK,
@@ -84,7 +84,7 @@ export const getComplianceDataset = () => {
 			category: ComplianceListItemCategory.BACKGROUND_AND_IDENTIFICATION,
 			expirationType: ComplianceListItemExpirationType.EXPIRATION_DATE,
 			responseStyle: ComplianceListItemResponseStyle.PENDING_FILE_UPLOAD,
-			displayToCandidate: false,
+			displayToCandidate: true,
 		},
 		{
 			id: COMPLIANCE_ITEM_ID.DRUG_SCREENING,
@@ -94,7 +94,7 @@ export const getComplianceDataset = () => {
 			expirationRuleValue: 365,
 			expirationRuleUnit: ExpirationRuleUnit.DAYS,
 			responseStyle: ComplianceListItemResponseStyle.PENDING_FILE_UPLOAD,
-			displayToCandidate: false,
+			displayToCandidate: true,
 		},
 		{
 			id: COMPLIANCE_ITEM_ID.PASSPORT,

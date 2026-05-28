@@ -1,5 +1,7 @@
 /** Mirrors org-web `services/timekeeping.service` types for admin explicit-org API. */
 
+import type { TimesheetEntryStatus } from "@repo/shared";
+
 export type TimekeepingStats = {
 	totalEntries: number;
 	fileUploads: number;
@@ -23,7 +25,7 @@ export type TimeEntryLog = {
 	breakMinutes: number;
 	notes: string | null;
 	disputes?: { id: string; description: string }[];
-	status: "PENDING" | "APPROVED" | "REJECTED" | "DISPUTED";
+	status: TimesheetEntryStatus;
 	dataSource: "FILE_UPLOAD" | "MOBILE_APP" | "MANUAL" | "INTEGRATION";
 	approvalSource: string | null;
 	approvedAt: string | null;

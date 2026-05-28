@@ -38,7 +38,6 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	TimekeepingProvider,
 	useTimekeepingContext,
@@ -86,9 +85,7 @@ function TimekeepingPageInner() {
 		[ability],
 	);
 	const visibleTabs = useMemo(() => new Set(allowedTabs), [allowedTabs]);
-
-	const { id: orgId } = useOrgContext();
-	const { data: disputeCounts } = useDisputeStatusCounts(orgId);
+	const { data: disputeCounts } = useDisputeStatusCounts();
 	const openDisputeCount = disputeCounts?.open ?? 0;
 	const totalDisputes =
 		(disputeCounts?.open ?? 0) +
@@ -116,21 +113,21 @@ function TimekeepingPageInner() {
 
 	const ctx = useTimekeepingContext();
 
-	const { data: missingTimeStats } = useMissingTimeStats(orgId);
-	const { data: policy } = useTimekeepingPolicy(orgId);
-	const updatePolicy = useUpdateTimekeepingPolicy(orgId);
+	const { data: missingTimeStats } = useMissingTimeStats();
+	const { data: policy } = useTimekeepingPolicy();
+	const updatePolicy = useUpdateTimekeepingPolicy();
 
-	const { data: payCodeStats } = usePayCodeStats(orgId);
+	const { data: payCodeStats } = usePayCodeStats();
 	const [payCodePage, setPayCodePage] = useState(1);
-	const { data: payCodesPage } = usePayCodes(orgId, {
+	const { data: payCodesPage } = usePayCodes({
 		page: payCodePage,
 		limit: PAY_CODES_PAGE_SIZE,
 	});
 
 	const currentYear = new Date().getFullYear();
 	const [holidayPage, setHolidayPage] = useState(1);
-	const { data: holidayStats } = useHolidayStats(orgId, currentYear);
-	const { data: holidaysPage } = useHolidays(orgId, {
+	const { data: holidayStats } = useHolidayStats(currentYear);
+	const { data: holidaysPage } = useHolidays({
 		year: currentYear,
 		page: holidayPage,
 		limit: HOLIDAYS_PAGE_SIZE,
@@ -477,7 +474,6 @@ function TimekeepingPageInner() {
 			<InternalUploadDialog
 				isOpen={uploadOpen}
 				onClose={() => setUploadOpen(false)}
-				orgId={orgId}
 			/>
 		</div>
 	);

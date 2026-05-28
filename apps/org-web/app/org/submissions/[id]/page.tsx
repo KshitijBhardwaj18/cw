@@ -6,7 +6,7 @@ type SubmissionDetailPageProps = {
 
 export default async function SubmissionDetailPage({
 	params,
-}: SubmissionDetailPageProps) {
+}: Readonly<SubmissionDetailPageProps>) {
 	const { id } = await params;
 	return <SubmissionDetailPageContent submissionId={id} />;
 }

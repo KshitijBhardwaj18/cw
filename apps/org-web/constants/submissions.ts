@@ -1,13 +1,18 @@
-export type SubmissionStageKey =
-	| "SUBMITTED"
-	| "QUALIFIED"
-	| "SHORTLISTED"
-	| "INTERVIEW_SCHEDULED"
-	| "INTERVIEW_COMPLETED"
-	| "OFFERED"
-	| "ACCEPTED"
-	| "WITHDRAWN"
-	| "REJECTED";
+import { SUBMISSION_STAGE_OPTIONS, SubmissionStage } from "@repo/shared";
+
+export {
+	ACTIVE_SUBMISSION_STAGES,
+	SUBMISSION_STAGE_ALL_VALUES,
+	SUBMISSION_STAGE_OPTIONS as SUBMISSION_STAGE_SELECT_OPTIONS,
+	SubmissionStage,
+} from "@repo/shared";
+
+/**
+ * String-union alias for `SubmissionStage` — kept for backward compat so existing
+ * code that annotates `stage: SubmissionStageKey` or compares `stage === "SUBMITTED"`
+ * keeps compiling without changes. New code should use `SubmissionStage` directly.
+ */
+export type SubmissionStageKey = `${SubmissionStage}`;
 
 export type SubmissionAgingBucket = "OVERDUE" | "NEAR" | "WITHIN";
 
@@ -33,58 +38,38 @@ export interface SubmissionListRow {
 	agingDeadlineAt: string | null;
 }
 
-export const SUBMISSION_STAGE_TABS: {
-	stage: SubmissionStageKey;
-	label: string;
-	icon:
-		| "file"
-		| "user"
-		| "calendar"
-		| "calendarClock"
-		| "check"
-		| "offer"
-		| "gift"
-		| "withdraw"
-		| "reject";
-}[] = [
-	{ stage: "SUBMITTED", label: "Submitted", icon: "file" },
-	{ stage: "QUALIFIED", label: "Qualified", icon: "user" },
-	{ stage: "SHORTLISTED", label: "Shortlisted", icon: "calendar" },
-	{
-		stage: "INTERVIEW_SCHEDULED",
-		label: "Interview Scheduled",
-		icon: "calendarClock",
-	},
-	{
-		stage: "INTERVIEW_COMPLETED",
-		label: "Interview Completed",
-		icon: "check",
-	},
-	{ stage: "OFFERED", label: "Offer", icon: "offer" },
-	{ stage: "ACCEPTED", label: "Accepted", icon: "gift" },
-	{ stage: "WITHDRAWN", label: "Withdrawn", icon: "withdraw" },
-	{ stage: "REJECTED", label: "Rejected", icon: "reject" },
-];
+/**
+ * Icon name for each submission stage (UI-only; lives in app, not shared package).
+ * Labels come from `SUBMISSION_STAGE_OPTIONS` in `@repo/shared`.
+ */
+const STAGE_ICONS = {
+	[SubmissionStage.SUBMITTED]: "file",
+	[SubmissionStage.QUALIFIED]: "user",
+	[SubmissionStage.SHORTLISTED]: "calendar",
+	[SubmissionStage.INTERVIEW_SCHEDULED]: "calendarClock",
+	[SubmissionStage.INTERVIEW_COMPLETED]: "check",
+	[SubmissionStage.OFFERED]: "offer",
+	[SubmissionStage.ACCEPTED]: "gift",
+	[SubmissionStage.WITHDRAWN]: "withdraw",
+	[SubmissionStage.REJECTED]: "reject",
+} as const satisfies Record<
+	SubmissionStage,
+	| "file"
+	| "user"
+	| "calendar"
+	| "calendarClock"
+	| "check"
+	| "offer"
+	| "gift"
+	| "withdraw"
+	| "reject"
+>;
 
-/** Select / dropdown options for hiring stage (value + label). */
-export const SUBMISSION_STAGE_SELECT_OPTIONS: {
-	value: SubmissionStageKey;
-	label: string;
-}[] = SUBMISSION_STAGE_TABS.map((t) => ({
-	value: t.stage,
-	label: t.label,
+export const SUBMISSION_STAGE_TABS = SUBMISSION_STAGE_OPTIONS.map((opt) => ({
+	stage: opt.value as SubmissionStageKey,
+	label: opt.label,
+	icon: STAGE_ICONS[opt.value],
 }));
-
-/** Stages that represent an active pipeline entry (excludes terminal WITHDRAWN/REJECTED). */
-export const ACTIVE_SUBMISSION_STAGES: SubmissionStageKey[] = [
-	"SUBMITTED",
-	"QUALIFIED",
-	"SHORTLISTED",
-	"INTERVIEW_SCHEDULED",
-	"INTERVIEW_COMPLETED",
-	"OFFERED",
-	"ACCEPTED",
-];
 
 export type SubmissionAgingFilter = "ALL" | SubmissionAgingBucket;
 

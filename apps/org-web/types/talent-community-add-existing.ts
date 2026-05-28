@@ -1,20 +1,11 @@
-import type { CandidateWorkforceType } from "@repo/shared";
+import type {
+	CandidateSource,
+	CandidateWorkforceType,
+	SubmissionStage,
+} from "@repo/shared";
 
-/** Prisma `CandidateSource` */
-export type CandidateSourceValue = "DIRECT" | "VENDOR" | "PREVIOUS_WORKER";
-
-/** Prisma `SubmissionStage` plus inactive when candidate is not active */
-export type AddExistingTalentStatusValue =
-	| "INACTIVE"
-	| "SUBMITTED"
-	| "QUALIFIED"
-	| "SHORTLISTED"
-	| "INTERVIEW_SCHEDULED"
-	| "INTERVIEW_COMPLETED"
-	| "OFFERED"
-	| "ACCEPTED"
-	| "WITHDRAWN"
-	| "REJECTED";
+/** Prisma `SubmissionStage` plus inactive when candidate has no active submission. */
+export type AddExistingTalentStatusValue = "INACTIVE" | SubmissionStage;
 
 export interface AddExistingTalentCandidateRow {
 	id: string;
@@ -25,6 +16,6 @@ export interface AddExistingTalentCandidateRow {
 	workforceType: CandidateWorkforceType | null;
 	occupation: string;
 	specialty: string;
-	source: CandidateSourceValue;
+	source: CandidateSource;
 	status: AddExistingTalentStatusValue;
 }

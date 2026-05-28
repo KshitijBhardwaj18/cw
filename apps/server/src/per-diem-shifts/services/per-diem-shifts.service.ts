@@ -4,26 +4,23 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@repo/db";
-import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
 import { PrismaService } from "src/prisma/prisma.service";
 import type { CancelPerDiemShiftDto } from "../dto/per-diem-shifts/cancel-per-diem-shift.dto";
 import type { CreatePerDiemShiftDto } from "../dto/per-diem-shifts/create-per-diem-shift.dto";
 import type { PerDiemShiftsQueryDto } from "../dto/per-diem-shifts/per-diem-shifts-query.dto";
+import type { UpdatePerDiemShiftDto } from "../dto/per-diem-shifts/update-per-diem-shift.dto";
 
 @Injectable()
 export class PerDiemShiftsService {
-	constructor(
-		private readonly prisma: PrismaService,
-		private readonly backgroundJobs: BackgroundJobsService,
-	) {}
+	constructor(private readonly prisma: PrismaService) {}
 
 	private parseShiftDate(shiftDate: string) {
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(shiftDate)) {
-			throw new BadRequestException("shiftDate must be in YYYY-MM-DD format");
+			throw new BadRequestException("Shift date must be in YYYY-MM-DD format.");
 		}
 		const d = new Date(`${shiftDate}T00:00:00.000Z`);
 		if (Number.isNaN(d.getTime())) {
-			throw new BadRequestException("Invalid shiftDate");
+			throw new BadRequestException("Enter a valid shift date.");
 		}
 		return d;
 	}
@@ -33,7 +30,7 @@ export class PerDiemShiftsService {
 			where: { id: orgId },
 			select: { id: true },
 		});
-		if (!org) throw new NotFoundException("Organization not found");
+		if (!org) throw new NotFoundException("Organization not found.");
 
 		const template = await this.prisma.shiftTemplate.findFirst({
 			where: { id: dto.shiftTemplateId, organizationId: orgId },
@@ -44,10 +41,12 @@ export class PerDiemShiftsService {
 				locationId: true,
 			},
 		});
-		if (!template) throw new NotFoundException("Shift template not found");
+		if (!template) throw new NotFoundException("Shift template not found.");
 
 		const shiftDate = this.parseShiftDate(dto.shiftDate);
 		const totalCost = dto.totalShiftHours * dto.shiftRate;
+
+		const specialtyIds = Array.from(new Set(dto.specialtyIds ?? []));
 
 		const created = await this.prisma.perDiemShift.create({
 			data: {
@@ -59,16 +58,24 @@ export class PerDiemShiftsService {
 				totalShiftHours: dto.totalShiftHours,
 				shiftType: dto.shiftType,
 				occupationId: template.occupationId,
-				specialtyId: dto.specialtyId ?? null,
 				departmentId: template.departmentId,
 				locationId: template.locationId,
 				shiftRate: dto.shiftRate,
 				vendorRate: dto.vendorRate,
 				totalCost,
-				isPublic: dto.isPublic ?? true,
 				isUrgent: dto.isUrgent ?? false,
+				publishedAt: new Date(),
 				createdById: userId,
 				updatedById: userId,
+				...(specialtyIds.length > 0
+					? {
+							specialties: {
+								create: specialtyIds.map((specialtyId) => ({
+									specialtyId,
+								})),
+							},
+						}
+					: {}),
 			},
 			select: {
 				id: true,
@@ -81,25 +88,21 @@ export class PerDiemShiftsService {
 				shiftRate: true,
 				vendorRate: true,
 				totalCost: true,
-				isPublic: true,
 				isUrgent: true,
 				createdAt: true,
 			},
 		});
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			orgId,
-		);
 		return created;
 	}
 
 	private parseDateFilter(date: string | undefined) {
 		if (!date?.trim()) return null;
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-			throw new BadRequestException("date must be in YYYY-MM-DD format");
+			throw new BadRequestException("Date must be in YYYY-MM-DD format.");
 		}
 		const d = new Date(`${date}T00:00:00.000Z`);
 		if (Number.isNaN(d.getTime())) {
-			throw new BadRequestException("Invalid date");
+			throw new BadRequestException("Enter a valid date.");
 		}
 		return d.toISOString().slice(0, 10);
 	}
@@ -143,7 +146,7 @@ export class PerDiemShiftsService {
 		}
 
 		// Only Day↔Night patterns are flagged as safety conflicts
-		const OPPOSING: Record<string, string> = { DAYS: "NIGHTS", NIGHTS: "DAYS" };
+		const OPPOSING: Record<string, string> = { DAY: "NIGHT", NIGHT: "DAY" };
 
 		const conflictSet = new Set<string>();
 		for (const item of claimed) {
@@ -168,7 +171,7 @@ export class PerDiemShiftsService {
 			where: { id: orgId },
 			select: { id: true },
 		});
-		if (!org) throw new NotFoundException("Organization not found");
+		if (!org) throw new NotFoundException("Organization not found.");
 
 		const page = query.page ?? 1;
 		const limit = query.limit ?? 10;
@@ -211,10 +214,14 @@ export class PerDiemShiftsService {
 				: {}),
 			...(query.specialty
 				? {
-						specialty: {
-							name: {
-								contains: query.specialty,
-								mode: "insensitive",
+						specialties: {
+							some: {
+								specialty: {
+									name: {
+										contains: query.specialty,
+										mode: "insensitive",
+									},
+								},
 							},
 						},
 					}
@@ -269,7 +276,6 @@ export class PerDiemShiftsService {
 				select: {
 					id: true,
 					status: true,
-					isPublic: true,
 					shiftDate: true,
 					startTime: true,
 					endTime: true,
@@ -280,7 +286,9 @@ export class PerDiemShiftsService {
 					totalCost: true,
 					createdAt: true,
 					occupation: { select: { name: true } },
-					specialty: { select: { name: true } },
+					specialties: {
+						select: { specialty: { select: { name: true } } },
+					},
 					department: { select: { name: true } },
 					location: { select: { name: true } },
 					shiftTemplate: { select: { templateName: true } },
@@ -339,12 +347,17 @@ export class PerDiemShiftsService {
 					id: s.id,
 					title: `${s.shiftTemplate?.templateName ?? "Per Diem Shift"} - ${s.occupation.name}`,
 					status: s.status,
-					isPublic: s.isPublic,
 					date: s.shiftDate.toISOString().slice(0, 10),
 					timeRange: `${s.startTime} - ${s.endTime}`,
 					ratePerHour: s.shiftRate,
 					occupation: s.occupation.name,
-					specialty: s.specialty?.name ?? "—",
+					specialty:
+						s.specialties.length > 0
+							? s.specialties
+									.map((ss) => ss.specialty.name)
+									.filter(Boolean)
+									.join(", ")
+							: "—",
 					department: s.department?.name ?? "—",
 					location: s.location.name,
 					claimedBy: claimed?.candidate.user.name ?? null,
@@ -372,6 +385,7 @@ export class PerDiemShiftsService {
 				IN_PROGRESS: countsByStatus.IN_PROGRESS ?? 0,
 				COMPLETED: countsByStatus.COMPLETED ?? 0,
 				CANCELLED: countsByStatus.CANCELLED ?? 0,
+				EXPIRED: countsByStatus.EXPIRED ?? 0,
 			},
 		};
 	}
@@ -460,7 +474,6 @@ export class PerDiemShiftsService {
 						select: {
 							id: true,
 							status: true,
-							isPublic: true,
 							shiftDate: true,
 							startTime: true,
 							endTime: true,
@@ -471,7 +484,9 @@ export class PerDiemShiftsService {
 							totalCost: true,
 							createdAt: true,
 							occupation: { select: { name: true } },
-							specialty: { select: { name: true } },
+							specialties: {
+								select: { specialty: { select: { name: true } } },
+							},
 							department: { select: { name: true } },
 							location: { select: { id: true, name: true } },
 							shiftTemplate: { select: { templateName: true } },
@@ -498,7 +513,6 @@ export class PerDiemShiftsService {
 			id: string;
 			title: string;
 			status: string;
-			isPublic: boolean;
 			date: string;
 			timeRange: string;
 			ratePerHour: number;
@@ -549,12 +563,17 @@ export class PerDiemShiftsService {
 				id: s.id,
 				title: `${s.shiftTemplate?.templateName ?? "Per Diem Shift"} - ${s.occupation.name}`,
 				status: s.status,
-				isPublic: s.isPublic,
 				date: s.shiftDate.toISOString().slice(0, 10),
 				timeRange: `${s.startTime} - ${s.endTime}`,
 				ratePerHour: s.shiftRate,
 				occupation: s.occupation.name,
-				specialty: s.specialty?.name ?? "—",
+				specialty:
+					s.specialties.length > 0
+						? s.specialties
+								.map((ss) => ss.specialty.name)
+								.filter(Boolean)
+								.join(", ")
+						: "—",
 				department: s.department?.name ?? "—",
 				location: s.location.name,
 				claimedBy: claimed?.candidate.user.name ?? null,
@@ -630,6 +649,158 @@ export class PerDiemShiftsService {
 		};
 	}
 
+	async findOne(orgId: string, shiftId: string) {
+		const shift = await this.prisma.perDiemShift.findFirst({
+			where: { id: shiftId, organizationId: orgId },
+			select: {
+				id: true,
+				status: true,
+				shiftTemplateId: true,
+				shiftDate: true,
+				startTime: true,
+				endTime: true,
+				shiftType: true,
+				totalShiftHours: true,
+				shiftRate: true,
+				vendorRate: true,
+				isUrgent: true,
+				publishedAt: true,
+				occupation: { select: { id: true, name: true } },
+				department: { select: { id: true, name: true } },
+				location: { select: { id: true, name: true } },
+				specialties: {
+					select: { specialty: { select: { id: true, name: true } } },
+				},
+				shiftTemplate: {
+					select: {
+						id: true,
+						templateName: true,
+						baseRate: true,
+						baseBillRate: true,
+						vendorRateMarkupPercent: true,
+						durationHours: true,
+						shiftType: true,
+						occupation: { select: { id: true, name: true } },
+						department: { select: { id: true, name: true } },
+						location: { select: { id: true, name: true } },
+					},
+				},
+				assignments: { select: { id: true }, take: 1 },
+			},
+		});
+		if (!shift) throw new NotFoundException("Shift not found.");
+
+		return {
+			id: shift.id,
+			status: shift.status,
+			shiftTemplateId: shift.shiftTemplateId,
+			shiftDate: shift.shiftDate.toISOString().slice(0, 10),
+			startTime: shift.startTime,
+			endTime: shift.endTime,
+			shiftType: shift.shiftType,
+			totalShiftHours: shift.totalShiftHours,
+			shiftRate: shift.shiftRate,
+			vendorRate: shift.vendorRate,
+			isUrgent: shift.isUrgent,
+			occupation: shift.occupation,
+			department: shift.department,
+			location: shift.location,
+			specialtyIds: shift.specialties.map((s) => s.specialty.id),
+			specialties: shift.specialties.map((s) => s.specialty),
+			shiftTemplate: shift.shiftTemplate,
+			hasAssignments: shift.assignments.length > 0,
+			isEditable: shift.status === "OPEN" && shift.assignments.length === 0,
+		};
+	}
+
+	async update(
+		orgId: string,
+		shiftId: string,
+		dto: UpdatePerDiemShiftDto,
+		userId: string,
+	) {
+		const shift = await this.prisma.perDiemShift.findFirst({
+			where: { id: shiftId, organizationId: orgId },
+			select: {
+				id: true,
+				status: true,
+				assignments: { select: { id: true }, take: 1 },
+			},
+		});
+		if (!shift) throw new NotFoundException("Shift not found.");
+		if (shift.status !== "OPEN") {
+			throw new BadRequestException(
+				"Only open shifts can be edited. Cancel and recreate if changes are needed.",
+			);
+		}
+		if (shift.assignments.length > 0) {
+			throw new BadRequestException(
+				"This shift has already been claimed and can no longer be edited.",
+			);
+		}
+
+		const data: Prisma.PerDiemShiftUpdateInput = {
+			updatedBy: { connect: { id: userId } },
+		};
+		if (dto.shiftDate !== undefined)
+			data.shiftDate = this.parseShiftDate(dto.shiftDate);
+		if (dto.startTime !== undefined) data.startTime = dto.startTime;
+		if (dto.endTime !== undefined) data.endTime = dto.endTime;
+		if (dto.shiftType !== undefined) data.shiftType = dto.shiftType;
+		if (dto.totalShiftHours !== undefined)
+			data.totalShiftHours = dto.totalShiftHours;
+		if (dto.shiftRate !== undefined) data.shiftRate = dto.shiftRate;
+		if (dto.vendorRate !== undefined) data.vendorRate = dto.vendorRate;
+		if (dto.isUrgent !== undefined) data.isUrgent = dto.isUrgent;
+
+		if (dto.totalShiftHours !== undefined || dto.shiftRate !== undefined) {
+			const hours =
+				dto.totalShiftHours ??
+				(
+					await this.prisma.perDiemShift.findUniqueOrThrow({
+						where: { id: shiftId },
+						select: { totalShiftHours: true },
+					})
+				).totalShiftHours;
+			const rate =
+				dto.shiftRate ??
+				(
+					await this.prisma.perDiemShift.findUniqueOrThrow({
+						where: { id: shiftId },
+						select: { shiftRate: true },
+					})
+				).shiftRate;
+			data.totalCost = hours * rate;
+		}
+
+		const specialtyIds =
+			dto.specialtyIds !== undefined
+				? Array.from(new Set(dto.specialtyIds))
+				: null;
+
+		await this.prisma.$transaction(async (tx) => {
+			await tx.perDiemShift.update({
+				where: { id: shiftId },
+				data,
+				select: { id: true },
+			});
+
+			if (specialtyIds !== null) {
+				await tx.perDiemShiftSpecialty.deleteMany({ where: { shiftId } });
+				if (specialtyIds.length > 0) {
+					await tx.perDiemShiftSpecialty.createMany({
+						data: specialtyIds.map((specialtyId) => ({
+							shiftId,
+							specialtyId,
+						})),
+					});
+				}
+			}
+		});
+
+		return this.findOne(orgId, shiftId);
+	}
+
 	async cancel(
 		orgId: string,
 		shiftId: string,
@@ -640,10 +811,10 @@ export class PerDiemShiftsService {
 			where: { id: shiftId, organizationId: orgId },
 			select: { id: true, status: true },
 		});
-		if (!shift) throw new NotFoundException("Shift not found");
+		if (!shift) throw new NotFoundException("Shift not found.");
 
 		if (shift.status === "COMPLETED") {
-			throw new BadRequestException("Completed shifts cannot be cancelled");
+			throw new BadRequestException("Completed shifts cannot be cancelled.");
 		}
 		if (shift.status === "CANCELLED") {
 			return { success: true };
@@ -654,9 +825,6 @@ export class PerDiemShiftsService {
 			data: { status: "CANCELLED" as const, updatedById: userId },
 			select: { id: true },
 		});
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			orgId,
-		);
 
 		return { success: true };
 	}

@@ -152,7 +152,7 @@ async function seedCandidateComplianceAndPriorityTags(
 type DemoRequisitionPick = {
 	id: string;
 	organizationOccupationId: string | null;
-	organizationSpecialtyId: string | null;
+	organizationSpecialtyIds: string[];
 };
 
 async function ensureDemoQuestionnaires(
@@ -179,9 +179,10 @@ async function ensureDemoQuestionnaires(
 		return null;
 	}
 
-	let orgSpecRow = requisition.organizationSpecialtyId
+	const firstSpecialtyId = requisition.organizationSpecialtyIds[0] ?? null;
+	let orgSpecRow = firstSpecialtyId
 		? await prisma.organizationSpecialty.findUnique({
-				where: { id: requisition.organizationSpecialtyId },
+				where: { id: firstSpecialtyId },
 				select: { id: true },
 			})
 		: null;
@@ -549,7 +550,9 @@ export async function seedOrgSubmissionsDemo(
 		select: {
 			id: true,
 			organizationOccupationId: true,
-			organizationSpecialtyId: true,
+			requisitionSpecialties: {
+				select: { organizationSpecialtyId: true },
+			},
 			organizationOccupation: { select: { occupationId: true } },
 		},
 	});
@@ -568,7 +571,7 @@ export async function seedOrgSubmissionsDemo(
 			startDate: new Date("2026-01-05T12:00:00.000Z"),
 			endDate: new Date("2026-04-05T12:00:00.000Z"),
 			billRate: 95,
-			shiftType: ShiftType.NIGHTS,
+			shiftType: ShiftType.NIGHT,
 			hoursPerWeek: 36,
 			startTime: "7:00 PM",
 			endTime: "7:00 AM",
@@ -640,7 +643,9 @@ export async function seedOrgSubmissionsDemo(
 		{
 			id: requisition.id,
 			organizationOccupationId: requisition.organizationOccupationId,
-			organizationSpecialtyId: requisition.organizationSpecialtyId,
+			organizationSpecialtyIds: requisition.requisitionSpecialties.map(
+				(s) => s.organizationSpecialtyId,
+			),
 		},
 	);
 
@@ -671,8 +676,8 @@ export async function seedOrgSubmissionsDemo(
 				city: "Boston",
 				state: "MA",
 				zipCode: "02108",
-				yearsOfExperience: 5,
-				preferredShiftTypes: ["Night Shift", "12-hour shifts"],
+				totalProfessionalExperienceBand: "Y3_5",
+				preferredShiftTypes: [ShiftType.NIGHT],
 				availableFrom: new Date("2025-02-01T12:00:00.000Z"),
 			},
 			update: {
@@ -683,8 +688,8 @@ export async function seedOrgSubmissionsDemo(
 				city: "Boston",
 				state: "MA",
 				zipCode: "02108",
-				yearsOfExperience: 5,
-				preferredShiftTypes: ["Night Shift", "12-hour shifts"],
+				totalProfessionalExperienceBand: "Y3_5",
+				preferredShiftTypes: [ShiftType.NIGHT],
 				availableFrom: new Date("2025-02-01T12:00:00.000Z"),
 			},
 		});

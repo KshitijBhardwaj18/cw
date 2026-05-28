@@ -56,7 +56,7 @@ export function PlacementsContent({
 	detailBasePath,
 	fixedVendorId,
 	showEndAction,
-}: PlacementsContentProps) {
+}: Readonly<PlacementsContentProps>) {
 	const ability = useAbility();
 	const showEndPlacementAction =
 		showEndAction && ability.can(Action.Update, "Placement");
@@ -198,6 +198,9 @@ export function PlacementsContent({
 							limit={limit}
 							setLimit={setLimit}
 							pageSizeOptions={PAGE_SIZE_OPTIONS}
+							totalItems={totalCount}
+							itemLabel="placement"
+							itemLabelPlural="placements"
 						/>
 					)}
 				</>

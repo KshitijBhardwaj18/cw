@@ -45,7 +45,7 @@ export function DisputeInvoiceSheet({
 	payCodes = [],
 	onSubmit,
 	isSubmitting = false,
-}: DisputeInvoiceSheetProps) {
+}: Readonly<DisputeInvoiceSheetProps>) {
 	const [files, setFiles] = useState<File[]>([]);
 	const [reason, setReason] = useState("");
 

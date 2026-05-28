@@ -6,8 +6,15 @@ export const CANDIDATE_SUBMISSIONS_PAGE_SIZE = 10;
 export const candidateSubmissionsKeys = {
 	all: ["candidate-submissions"] as const,
 	stats: () => [...candidateSubmissionsKeys.all, "stats"] as const,
-	list: (tab: string, page: number, limit: number) =>
-		[...candidateSubmissionsKeys.all, "list", tab, page, limit] as const,
+	list: (tab: string, page: number, limit: number, search: string) =>
+		[
+			...candidateSubmissionsKeys.all,
+			"list",
+			tab,
+			page,
+			limit,
+			search,
+		] as const,
 	detail: (submissionId: string) =>
 		[...candidateSubmissionsKeys.all, "detail", submissionId] as const,
 };

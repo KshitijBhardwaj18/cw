@@ -27,16 +27,17 @@ import { Textarea } from "@repo/ui/components/textarea";
 import RequiredStar from "@repo/ui/general/RequiredStar";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useStore } from "@tanstack/react-form";
-import { MessageSquare, Send } from "lucide-react";
+import { Loader2, MessageSquare, Send } from "lucide-react";
 import { useState } from "react";
 import { useCandidateSupportRequestForm } from "@/hooks/candidate/use-candidate-support-request-form";
 import { SUPPORT_CATEGORY_OPTIONS } from "@/schemas/candidate-support.schema";
 
 export function SupportDirectAssistanceCard() {
 	const [open, setOpen] = useState(false);
-	const { form, resetToDefaults } = useCandidateSupportRequestForm({
-		onSubmitted: () => setOpen(false),
-	});
+	const { form, resetToDefaults, isSubmitting } =
+		useCandidateSupportRequestForm({
+			onSubmitted: () => setOpen(false),
+		});
 
 	const submissionAttempts = useStore(
 		form.store,
@@ -177,6 +178,7 @@ export function SupportDirectAssistanceCard() {
 								<Button
 									type="button"
 									variant="outline"
+									disabled={isSubmitting}
 									onClick={() => {
 										resetToDefaults();
 										setOpen(false);
@@ -184,9 +186,18 @@ export function SupportDirectAssistanceCard() {
 								>
 									Cancel
 								</Button>
-								<Button type="submit" className="gap-2">
-									<Send className="size-4" aria-hidden />
-									Submit Request
+								<Button type="submit" className="gap-2" disabled={isSubmitting}>
+									{isSubmitting ? (
+										<>
+											<Loader2 className="size-4 animate-spin" aria-hidden />
+											Sending…
+										</>
+									) : (
+										<>
+											<Send className="size-4" aria-hidden />
+											Submit Request
+										</>
+									)}
 								</Button>
 							</div>
 						</form>

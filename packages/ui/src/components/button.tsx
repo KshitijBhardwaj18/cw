@@ -46,7 +46,7 @@ function Button({
 	size = "sm",
 	asChild = false,
 	...props
-}: ButtonProps) {
+}: Readonly<ButtonProps>) {
 	const Comp = asChild ? Slot : "button";
 
 	return (

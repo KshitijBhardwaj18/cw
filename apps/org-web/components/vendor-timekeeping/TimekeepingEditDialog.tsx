@@ -28,13 +28,26 @@ import { Textarea } from "@repo/ui/components/textarea";
 import { TimePicker } from "@repo/ui/components/time-picker";
 import { formFieldShowInvalid } from "@repo/ui/lib/form-field-display";
 import { useForm, useStore } from "@tanstack/react-form";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useDialogFormEntitySnapshot } from "@/hooks/use-dialog-form-entity-snapshot";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	type VendorTimekeepingFormValues,
 	vendorTimekeepingSchema,
 } from "@/schemas/vendor-timekeeping.schema";
 import type { VendorTimekeepingEntry } from "@/types/vendor-timekeeping";
 import { clockStringToHHmmForPicker } from "@/utils/time-entry";
+
+function getTimekeepingFormDefaults(
+	e: VendorTimekeepingEntry | null | undefined,
+): VendorTimekeepingFormValues {
+	return {
+		startTime: e ? clockStringToHHmmForPicker(e.startTime) : "",
+		endTime: e ? clockStringToHHmmForPicker(e.endTime) : "",
+		payCodeId: e?.payCode?.id ?? null,
+		note: e?.note ?? "",
+	} as VendorTimekeepingFormValues;
+}
 
 interface TimekeepingEditDialogProps {
 	isOpen: boolean;
@@ -54,14 +67,13 @@ export function TimekeepingEditDialog({
 	entry,
 	onSave,
 	payCodeOptions,
-}: TimekeepingEditDialogProps) {
+}: Readonly<TimekeepingEditDialogProps>) {
+	const { fmtCalendarDate } = useUserTimezone();
+	const snapshotEntry = useDialogFormEntitySnapshot(isOpen, entry);
+	const displayEntry = entry ?? snapshotEntry;
+
 	const form = useForm({
-		defaultValues: {
-			startTime: entry ? clockStringToHHmmForPicker(entry.startTime) : "",
-			endTime: entry ? clockStringToHHmmForPicker(entry.endTime) : "",
-			payCodeId: entry?.payCode?.id ?? null,
-			note: entry?.note ?? "",
-		} as VendorTimekeepingFormValues,
+		defaultValues: getTimekeepingFormDefaults(snapshotEntry),
 		validators: { onSubmit: vendorTimekeepingSchema },
 		onSubmit: async ({ value }) => {
 			onSave(value);
@@ -74,21 +86,23 @@ export function TimekeepingEditDialog({
 		(s) => s.submissionAttempts ?? 0,
 	);
 
+	const wasOpenRef = useRef(false);
 	useEffect(() => {
-		if (entry && isOpen) {
-			form.reset({
-				startTime: clockStringToHHmmForPicker(entry.startTime),
-				endTime: clockStringToHHmmForPicker(entry.endTime),
-				payCodeId: entry.payCode?.id ?? null,
-				note: entry.note ?? "",
-			});
+		if (isOpen && !wasOpenRef.current && snapshotEntry) {
+			form.reset(getTimekeepingFormDefaults(snapshotEntry));
 		}
-	}, [entry, isOpen, form]);
+		wasOpenRef.current = isOpen;
+	}, [isOpen, snapshotEntry, form]);
 
-	if (!entry) return null;
+	if (!displayEntry) return null;
 
 	return (
-		<Dialog open={isOpen} onOpenChange={onClose}>
+		<Dialog
+			open={isOpen}
+			onOpenChange={(next) => {
+				if (!next) onClose();
+			}}
+		>
 			<DialogContent className="max-h-[90dvh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Edit Timecard</DialogTitle>
@@ -99,15 +113,23 @@ export function TimekeepingEditDialog({
 						<DetailItem
 							flow="row"
 							label="Candidate"
-							value={entry.candidateName}
+							value={displayEntry.candidateName}
 						/>
-						<DetailItem flow="row" label="Job Title" value={entry.jobTitle} />
+						<DetailItem
+							flow="row"
+							label="Job Title"
+							value={displayEntry.jobTitle}
+						/>
 						<DetailItem
 							flow="row"
 							label="Organization"
-							value={entry.organization}
+							value={displayEntry.organization}
 						/>
-						<DetailItem flow="row" label="Date" value={entry.date} />
+						<DetailItem
+							flow="row"
+							label="Date"
+							value={fmtCalendarDate(displayEntry.date)}
+						/>
 					</CardContent>
 				</Card>
 

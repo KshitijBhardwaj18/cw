@@ -1,17 +1,19 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { CandidatePreferredContractLength } from "@repo/db";
+import {
+	CandidateExperienceBand,
+	CandidatePreferredContractLength,
+	ShiftType,
+} from "@repo/db";
 import { Transform } from "class-transformer";
 import {
 	IsArray,
 	IsBoolean,
 	IsEnum,
-	IsInt,
+	IsISO8601,
 	IsOptional,
 	IsString,
 	IsUUID,
-	Max,
 	MaxLength,
-	Min,
 	MinLength,
 } from "class-validator";
 
@@ -59,18 +61,6 @@ export class OnboardingProgressMePatchDto {
 	@IsUUID()
 	occupationId?: string;
 
-	@ApiPropertyOptional({ description: "Years of experience" })
-	@IsOptional()
-	@Transform(({ value }) =>
-		value === "" || value === null || value === undefined
-			? undefined
-			: Number(value),
-	)
-	@IsInt()
-	@Min(0)
-	@Max(50)
-	yearsOfExperience?: number;
-
 	@ApiPropertyOptional({ description: "Specialty IDs" })
 	@IsOptional()
 	@IsArray()
@@ -83,11 +73,15 @@ export class OnboardingProgressMePatchDto {
 	@IsUUID("4", { each: true })
 	locationIds?: string[];
 
-	@ApiPropertyOptional({ description: "Preferred shift types" })
+	@ApiPropertyOptional({
+		enum: ShiftType,
+		isArray: true,
+		description: "Preferred shift types",
+	})
 	@IsOptional()
 	@IsArray()
-	@IsString({ each: true })
-	preferredShiftTypes?: string[];
+	@IsEnum(ShiftType, { each: true })
+	preferredShiftTypes?: ShiftType[];
 
 	@ApiPropertyOptional({ description: "Willing to relocate" })
 	@IsOptional()
@@ -102,4 +96,21 @@ export class OnboardingProgressMePatchDto {
 	@IsArray()
 	@IsEnum(CandidatePreferredContractLength, { each: true })
 	preferredContractLengths?: CandidatePreferredContractLength[];
+
+	@ApiPropertyOptional({ enum: CandidateExperienceBand })
+	@IsOptional()
+	@IsEnum(CandidateExperienceBand)
+	totalProfessionalExperienceBand?: CandidateExperienceBand;
+
+	@ApiPropertyOptional({ description: "Earliest available start date (ISO)" })
+	@IsOptional()
+	@IsISO8601()
+	earliestStartDate?: string;
+
+	@ApiPropertyOptional({ description: "Most recent job title" })
+	@IsOptional()
+	@Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+	@IsString()
+	@MaxLength(200)
+	recentJobTitle?: string;
 }

@@ -2,6 +2,7 @@
 
 import { ActiveSessionsCard as ActiveSessionsCardView } from "@repo/ui/general/ActiveSessionsCard";
 import { useProfileSessions } from "@/hooks/use-profile-sessions";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 type ActiveSessionsCardProps = {
 	currentSessionToken: string | undefined;
@@ -9,7 +10,8 @@ type ActiveSessionsCardProps = {
 
 export function ActiveSessionsCard({
 	currentSessionToken,
-}: ActiveSessionsCardProps) {
+}: Readonly<ActiveSessionsCardProps>) {
+	const { fmtDateTimeZone } = useUserTimezone();
 	const { sessions, loadingSessions, revokeSession } =
 		useProfileSessions(currentSessionToken);
 
@@ -19,6 +21,7 @@ export function ActiveSessionsCard({
 			sessions={sessions}
 			loadingSessions={loadingSessions}
 			onRevokeSession={revokeSession}
+			formatDateTime={fmtDateTimeZone}
 		/>
 	);
 }

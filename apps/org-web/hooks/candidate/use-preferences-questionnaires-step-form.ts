@@ -18,7 +18,7 @@ export function usePreferencesQuestionnairesStepForm({
 	onContinue,
 	onValuesChange,
 }: UsePreferencesQuestionnairesStepFormProps) {
-	const mergedBase: PreferencesQuestionnairesFormValues = {
+	const mergedBase = {
 		preferredContractLengths: [],
 		preferredShiftTypes: [],
 		earliestStartDate: "",
@@ -28,7 +28,7 @@ export function usePreferencesQuestionnairesStepForm({
 		occupationCertifications: [],
 		occupationQuestionnaireCompleted: false,
 		...initialValues,
-	};
+	} as PreferencesQuestionnairesFormValues;
 
 	const defaultValues: PreferencesQuestionnairesFormValues = {
 		...mergedBase,

@@ -1,19 +1,36 @@
 import {
 	BadRequestException,
 	ConflictException,
+	ForbiddenException,
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
 import {
 	CandidateComplianceStatus,
+	CandidateExperienceBand,
 	ConditionType,
+	OfferEventType,
 	OrganizationVendorStatus,
+	PlacementComplianceItemSource,
 	Prisma,
 	RequisitionStatus,
 	SubmissionStage,
 } from "@repo/db";
+import {
+	agingRuleThresholdToHours,
+	EXTERNAL_WORKFORCE_TYPES,
+	SUBMISSION_STAGE_ALL_VALUES,
+	SUBMISSION_STAGE_TO_TRANSITION,
+} from "@repo/shared";
+import { AgingRulesService } from "src/aging-rules/services/aging-rules.service";
 import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
+import { FilesService } from "src/files/files.service";
 import { PrismaService } from "src/prisma/prisma.service";
+import { recomputeRequisitionFillState } from "src/requisitions/utils/recompute-requisition-fill-state";
+import {
+	isRequisitionLockedForNewActivity,
+	requisitionLockedReason,
+} from "src/requisitions/utils/requisition-locked-statuses";
 import type { CreateCandidateSubmissionDto } from "./dto/create-candidate-submission.dto";
 import type { QuerySubmissionsDto } from "./dto/query-submissions.dto";
 import type { QuerySubmissionsAgingStatsDto } from "./dto/query-submissions-aging-stats.dto";
@@ -32,37 +49,15 @@ type SubmissionListWhereQuery = {
 
 const SUBMISSIONS_LIST_ALL_MAX = 500;
 
-const ALL_SUBMISSION_STAGES: SubmissionStage[] = [
-	SubmissionStage.SUBMITTED,
-	SubmissionStage.QUALIFIED,
-	SubmissionStage.SHORTLISTED,
-	SubmissionStage.INTERVIEW_SCHEDULED,
-	SubmissionStage.INTERVIEW_COMPLETED,
-	SubmissionStage.OFFERED,
-	SubmissionStage.ACCEPTED,
-	SubmissionStage.WITHDRAWN,
-	SubmissionStage.REJECTED,
-];
+/** Mirrors `@repo/shared` — shared enum values match Prisma `SubmissionStage`. */
+const ALL_SUBMISSION_STAGES =
+	SUBMISSION_STAGE_ALL_VALUES as unknown as SubmissionStage[];
 
-const SUBMISSION_STAGE_SLA_HOURS: Record<SubmissionStage, number | null> = {
-	[SubmissionStage.SUBMITTED]: 48,
-	[SubmissionStage.QUALIFIED]: 72,
-	[SubmissionStage.SHORTLISTED]: 72,
-	[SubmissionStage.INTERVIEW_SCHEDULED]: 48,
-	[SubmissionStage.INTERVIEW_COMPLETED]: 48,
-	[SubmissionStage.OFFERED]: 72,
-	[SubmissionStage.ACCEPTED]: null,
-	[SubmissionStage.WITHDRAWN]: null,
-	[SubmissionStage.REJECTED]: null,
-};
+type StageSlaHoursMap = Record<SubmissionStage, number | null>;
 
 const NEAR_DEADLINE_SLA_HOURS = 12;
 
 const MS_PER_HOUR = 60 * 60 * 1000;
-
-function submissionStageSlaHours(stage: SubmissionStage): number | null {
-	return SUBMISSION_STAGE_SLA_HOURS[stage];
-}
 
 const ORG_SUBMISSION_LIST_INCLUDE = {
 	candidate: { include: { user: true } },
@@ -102,7 +97,11 @@ const ORG_SUBMISSION_DETAIL_INCLUDE = {
 			location: true,
 			department: true,
 			organizationOccupation: { include: { occupation: true } },
-			organizationSpecialty: { include: { specialty: true } },
+			requisitionSpecialties: {
+				include: {
+					organizationSpecialty: { include: { specialty: true } },
+				},
+			},
 			hiringManager: {
 				include: {
 					departmentUsers: { include: { department: true } },
@@ -156,12 +155,115 @@ function parseRtosJsonOnly(
 	return out;
 }
 
+function experienceBandLabel(band: CandidateExperienceBand | null): string {
+	switch (band) {
+		case CandidateExperienceBand.LT_1:
+			return "<1 year";
+		case CandidateExperienceBand.Y1_2:
+			return "1-2 years";
+		case CandidateExperienceBand.Y3_5:
+			return "3-5 years";
+		case CandidateExperienceBand.Y6_9:
+			return "6-9 years";
+		case CandidateExperienceBand.Y10_PLUS:
+			return "10+ years";
+		default:
+			return "—";
+	}
+}
+
 function formatUsShortDate(d: Date): string {
-	return new Intl.DateTimeFormat("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	}).format(d);
+	return d.toISOString();
+}
+
+export type SubmissionHistoryEventType =
+	| "SUBMITTED"
+	| "QUALIFIED"
+	| "SHORTLISTED"
+	| "INTERVIEW_SCHEDULED"
+	| "INTERVIEW_COMPLETED"
+	| "OFFER_EXTENDED"
+	| "ACCEPTED"
+	| "WITHDRAWN"
+	| "REJECTED";
+
+export type SubmissionHistoryActorKind = "user" | "vendor";
+
+export type SubmissionHistoryEntry = {
+	id: string;
+	type: SubmissionHistoryEventType;
+	title: string;
+	at: string;
+	actorLabel: string;
+	actorKind: SubmissionHistoryActorKind;
+	body: string | null;
+};
+
+const SUBMISSION_HISTORY_TITLE: Record<SubmissionHistoryEventType, string> = {
+	SUBMITTED: "Application submitted",
+	QUALIFIED: "Marked qualified",
+	SHORTLISTED: "Shortlisted",
+	INTERVIEW_SCHEDULED: "Interview scheduled",
+	INTERVIEW_COMPLETED: "Interview completed",
+	OFFER_EXTENDED: "Offer extended",
+	ACCEPTED: "Offer accepted",
+	WITHDRAWN: "Withdrawn",
+	REJECTED: "Rejected",
+};
+
+function buildSubmissionHistoryEntries(args: {
+	submissionId: string;
+	vendorName: string;
+	hiringManagerName: string;
+	summaryNote: string | null;
+	row: Pick<
+		OrgSubmissionDetailPayload,
+		| "submittedAt"
+		| "qualifiedAt"
+		| "shortlistedAt"
+		| "interviewScheduledAt"
+		| "interviewCompletedAt"
+		| "offerExtendedAt"
+		| "acceptedAt"
+		| "withdrawnAt"
+		| "rejectedAt"
+		| "rejectionReason"
+		| "withdrawalReason"
+	>;
+}): SubmissionHistoryEntry[] {
+	const { submissionId, vendorName, hiringManagerName, summaryNote, row } =
+		args;
+	const trimmedSummary = summaryNote?.trim() || null;
+	const entries: SubmissionHistoryEntry[] = [];
+	const push = (
+		type: SubmissionHistoryEventType,
+		at: Date | null | undefined,
+		reason: string | null = null,
+	) => {
+		if (!at) return;
+		const isSubmitted = type === "SUBMITTED";
+		const atIso = at.toISOString();
+		entries.push({
+			id: `${submissionId}-${type}-${atIso}`,
+			type,
+			title: SUBMISSION_HISTORY_TITLE[type],
+			at: atIso,
+			actorLabel: isSubmitted ? vendorName : hiringManagerName,
+			actorKind: isSubmitted ? "vendor" : "user",
+			body: isSubmitted ? trimmedSummary : reason?.trim() || null,
+		});
+	};
+	push("SUBMITTED", row.submittedAt);
+	push("QUALIFIED", row.qualifiedAt);
+	push("SHORTLISTED", row.shortlistedAt);
+	push("INTERVIEW_SCHEDULED", row.interviewScheduledAt);
+	push("INTERVIEW_COMPLETED", row.interviewCompletedAt);
+	push("OFFER_EXTENDED", row.offerExtendedAt);
+	push("ACCEPTED", row.acceptedAt);
+	push("WITHDRAWN", row.withdrawnAt, row.withdrawalReason ?? null);
+	push("REJECTED", row.rejectedAt, row.rejectionReason ?? null);
+	// Newest first so the FE renders the most recent entry at the top.
+	return entries.sort((a, b) => b.at.localeCompare(a.at));
 }
 
 function submissionStatusBadgeFromStage(stage: SubmissionStage): string {
@@ -182,7 +284,7 @@ function submissionStatusBadgeFromStage(stage: SubmissionStage): string {
 		case SubmissionStage.REJECTED:
 			return "Rejected";
 		default:
-			return String(stage).replaceAll("_", " ");
+			return String(stage).replace(/_/g, " ");
 	}
 }
 
@@ -241,10 +343,10 @@ function buildCoreQuestionsFromCandidate(
 			value: formatUsShortDate(candidate.availableFrom),
 		});
 	}
-	if (candidate.yearsOfExperience != null) {
+	if (candidate.totalProfessionalExperienceBand != null) {
 		rows.push({
 			label: "Years of Experience",
-			value: `${candidate.yearsOfExperience} years`,
+			value: experienceBandLabel(candidate.totalProfessionalExperienceBand),
 		});
 	}
 	if (candidate.zipCode?.trim()) {
@@ -258,9 +360,10 @@ function mapComplianceFromCandidate(
 ): {
 	statusLabel: string;
 	items: {
+		complianceListItemId: string;
 		title: string;
 		meta: string;
-		documentUrl: string | null;
+		hasDocument: boolean;
 		status: CandidateComplianceStatus;
 	}[];
 	candidatePortal: {
@@ -282,7 +385,7 @@ function mapComplianceFromCandidate(
 		(c) => c.status === CandidateComplianceStatus.APPROVED,
 	);
 	const anyPending = compliances.some(
-		(c) => c.status === CandidateComplianceStatus.PENDING,
+		(c) => c.status === CandidateComplianceStatus.PENDING_REVIEW,
 	);
 	const statusLabel = allApproved
 		? "Complete"
@@ -299,9 +402,10 @@ function mapComplianceFromCandidate(
 		}
 		parts.push(`Status: ${c.status}`);
 		return {
+			complianceListItemId: c.complianceListItemId,
 			title: c.complianceListItem.name,
 			meta: parts.join(" · "),
-			documentUrl: c.documentUrl ?? null,
+			hasDocument: !!c.documentUrl?.trim(),
 			status: c.status,
 		};
 	});
@@ -310,7 +414,8 @@ function mapComplianceFromCandidate(
 		(c) =>
 			c.status === CandidateComplianceStatus.MISSING ||
 			c.status === CandidateComplianceStatus.EXPIRED ||
-			(c.status === CandidateComplianceStatus.PENDING &&
+			c.status === CandidateComplianceStatus.REJECTED ||
+			(c.status === CandidateComplianceStatus.PENDING_REVIEW &&
 				(c.documentUrl == null || c.documentUrl.trim() === "")),
 	).length;
 	const showDocumentsBanner = needsDocCount > 0;
@@ -526,7 +631,98 @@ export class SubmissionsService {
 	constructor(
 		private readonly prisma: PrismaService,
 		private readonly backgroundJobs: BackgroundJobsService,
+		private readonly filesService: FilesService,
+		private readonly agingRulesService: AgingRulesService,
 	) {}
+
+	async getOrgSubmissionDocumentSignedUrl(
+		organizationId: string,
+		submissionId: string,
+		complianceListItemId: string,
+	): Promise<{ signedUrl: string }> {
+		await this.ensureOrgExists(organizationId);
+		const submission = await this.prisma.submission.findFirst({
+			where: { id: submissionId, organizationId },
+			select: { candidateId: true },
+		});
+		if (!submission) {
+			throw new NotFoundException("Submission not found.");
+		}
+
+		const cc = await this.prisma.candidateCompliance.findUnique({
+			where: {
+				candidateId_complianceListItemId: {
+					candidateId: submission.candidateId,
+					complianceListItemId,
+				},
+			},
+			select: { documentUrl: true },
+		});
+		if (!cc?.documentUrl?.trim()) {
+			throw new NotFoundException("No document on file.");
+		}
+
+		const signedUrl = await this.filesService.getSignedUrl(cc.documentUrl);
+		return { signedUrl };
+	}
+
+	/**
+	 * Blocks candidate apply when one or more required compliance documents
+	 * (declared via `RequisitionAcceptanceCriterion`) are not on file for the
+	 * candidate. A document counts as on-file if a `CandidateCompliance` row
+	 * exists with a non-empty `documentUrl` and is not expired.
+	 *
+	 * Approval (status === APPROVED) is intentionally NOT required: candidates
+	 * should be able to apply once they have uploaded a doc, even before the
+	 * org verifies it. EXPIRED docs do not satisfy the requirement.
+	 */
+	private async assertCandidateMeetsRequisitionDocuments(
+		candidateId: string,
+		acceptanceCriteria: Array<{
+			complianceListItemId: string;
+			complianceListItem: { name: string };
+		}>,
+	): Promise<void> {
+		if (acceptanceCriteria.length === 0) return;
+
+		const requiredItemIds = acceptanceCriteria.map(
+			(c) => c.complianceListItemId,
+		);
+		const complianceRows = await this.prisma.candidateCompliance.findMany({
+			where: {
+				candidateId,
+				complianceListItemId: { in: requiredItemIds },
+			},
+			select: {
+				complianceListItemId: true,
+				status: true,
+				documentUrl: true,
+				expiryDate: true,
+			},
+		});
+		const ccByItem = new Map(
+			complianceRows.map((cc) => [cc.complianceListItemId, cc]),
+		);
+
+		const now = new Date();
+		const missingNames: string[] = [];
+		for (const criterion of acceptanceCriteria) {
+			const cc = ccByItem.get(criterion.complianceListItemId);
+			const hasDoc = !!cc?.documentUrl?.trim();
+			const isExpired =
+				cc?.status === CandidateComplianceStatus.EXPIRED ||
+				(cc?.expiryDate != null && cc.expiryDate <= now);
+			if (!hasDoc || isExpired) {
+				missingNames.push(criterion.complianceListItem.name);
+			}
+		}
+
+		if (missingNames.length > 0) {
+			throw new BadRequestException(
+				`Upload required document${missingNames.length === 1 ? "" : "s"} before applying: ${missingNames.join(", ")}.`,
+			);
+		}
+	}
 
 	private async applyAutomaticTagging(
 		organizationId: string,
@@ -667,7 +863,7 @@ export class SubmissionsService {
 			select: { id: true },
 		});
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 	}
 
@@ -685,16 +881,42 @@ export class SubmissionsService {
 		return row?.department.name ?? "—";
 	}
 
+	private async resolveStageSlaHours(
+		organizationId: string,
+	): Promise<StageSlaHoursMap> {
+		const byTransition =
+			await this.agingRulesService.resolveByTransition(organizationId);
+		const out = {} as StageSlaHoursMap;
+		for (const stage of ALL_SUBMISSION_STAGES) {
+			const transition = SUBMISSION_STAGE_TO_TRANSITION[stage];
+			if (!transition) {
+				out[stage] = null;
+				continue;
+			}
+			const rule = byTransition[transition];
+			if (!rule?.isConfigured || !rule.isEnabled) {
+				out[stage] = null;
+				continue;
+			}
+			out[stage] = agingRuleThresholdToHours(
+				rule.thresholdValue,
+				rule.thresholdUnit,
+			);
+		}
+		return out;
+	}
+
 	private computeListRowAging(
 		stage: SubmissionStage,
 		stageEnteredAt: Date,
 		now: Date,
+		slaHoursByStage: StageSlaHoursMap,
 	): {
 		agingBucket: "OVERDUE" | "NEAR" | "WITHIN";
 		slaLabel: "OVERDUE" | "NEAR" | "ON_TIME";
 		agingDeadlineAt: string | null;
 	} {
-		const hours = submissionStageSlaHours(stage);
+		const hours = slaHoursByStage[stage];
 		if (hours == null) {
 			return {
 				agingBucket: "WITHIN",
@@ -725,10 +947,13 @@ export class SubmissionsService {
 		};
 	}
 
-	private submissionAgingOverdueWhere(now: Date): Prisma.SubmissionWhereInput {
+	private submissionAgingOverdueWhere(
+		now: Date,
+		slaHoursByStage: StageSlaHoursMap,
+	): Prisma.SubmissionWhereInput {
 		const parts: Prisma.SubmissionWhereInput[] = [];
 		for (const stage of ALL_SUBMISSION_STAGES) {
-			const h = submissionStageSlaHours(stage);
+			const h = slaHoursByStage[stage];
 			if (h == null) continue;
 			const cut = new Date(now.getTime() - h * MS_PER_HOUR);
 			parts.push({
@@ -738,10 +963,13 @@ export class SubmissionsService {
 		return parts.length > 0 ? { OR: parts } : { id: { in: [] } };
 	}
 
-	private submissionAgingNearWhere(now: Date): Prisma.SubmissionWhereInput {
+	private submissionAgingNearWhere(
+		now: Date,
+		slaHoursByStage: StageSlaHoursMap,
+	): Prisma.SubmissionWhereInput {
 		const parts: Prisma.SubmissionWhereInput[] = [];
 		for (const stage of ALL_SUBMISSION_STAGES) {
-			const h = submissionStageSlaHours(stage);
+			const h = slaHoursByStage[stage];
 			if (h == null) continue;
 			const overdueCut = new Date(now.getTime() - h * MS_PER_HOUR);
 			const nearUpper = new Date(
@@ -758,10 +986,13 @@ export class SubmissionsService {
 		return parts.length > 0 ? { OR: parts } : { id: { in: [] } };
 	}
 
-	private submissionAgingWithinWhere(now: Date): Prisma.SubmissionWhereInput {
+	private submissionAgingWithinWhere(
+		now: Date,
+		slaHoursByStage: StageSlaHoursMap,
+	): Prisma.SubmissionWhereInput {
 		const parts: Prisma.SubmissionWhereInput[] = [];
 		for (const stage of ALL_SUBMISSION_STAGES) {
-			const h = submissionStageSlaHours(stage);
+			const h = slaHoursByStage[stage];
 			if (h == null) continue;
 			const lower = new Date(
 				now.getTime() + NEAR_DEADLINE_SLA_HOURS * MS_PER_HOUR - h * MS_PER_HOUR,
@@ -786,6 +1017,7 @@ export class SubmissionsService {
 		organizationId: string,
 		row: OrgSubmissionListPayload,
 		now: Date,
+		slaHoursByStage: StageSlaHoursMap,
 	) {
 		const { candidate, requisition, vendor } = row;
 		const user = candidate.user;
@@ -796,7 +1028,12 @@ export class SubmissionsService {
 		const occupationLabel =
 			requisition.organizationOccupation?.occupation?.name ?? "—";
 		const jobTitle = requisition.jobTitle?.trim() || occupationLabel;
-		const aging = this.computeListRowAging(row.stage, row.stageEnteredAt, now);
+		const aging = this.computeListRowAging(
+			row.stage,
+			row.stageEnteredAt,
+			now,
+			slaHoursByStage,
+		);
 		return {
 			id: row.id,
 			stage: row.stage,
@@ -853,8 +1090,14 @@ export class SubmissionsService {
 				},
 				{
 					requisition: {
-						organizationSpecialty: {
-							specialty: { name: { contains: q, mode: "insensitive" } },
+						requisitionSpecialties: {
+							some: {
+								organizationSpecialty: {
+									specialty: {
+										name: { contains: q, mode: "insensitive" },
+									},
+								},
+							},
 						},
 					},
 				},
@@ -876,7 +1119,7 @@ export class SubmissionsService {
 	private buildOrgSubmissionListWhere(
 		organizationId: string,
 		query: SubmissionListWhereQuery,
-		options: { omitAging?: boolean } = {},
+		options: { omitAging?: boolean; slaHoursByStage?: StageSlaHoursMap } = {},
 	): Prisma.SubmissionWhereInput {
 		const and: Prisma.SubmissionWhereInput[] = [
 			{ organizationId },
@@ -910,15 +1153,17 @@ export class SubmissionsService {
 		if (
 			!options.omitAging &&
 			query.agingBucket &&
-			query.agingBucket !== "ALL"
+			query.agingBucket !== "ALL" &&
+			options.slaHoursByStage
 		) {
 			const now = new Date();
+			const sla = options.slaHoursByStage;
 			if (query.agingBucket === "OVERDUE") {
-				and.push(this.submissionAgingOverdueWhere(now));
+				and.push(this.submissionAgingOverdueWhere(now, sla));
 			} else if (query.agingBucket === "NEAR") {
-				and.push(this.submissionAgingNearWhere(now));
+				and.push(this.submissionAgingNearWhere(now, sla));
 			} else if (query.agingBucket === "WITHIN") {
-				and.push(this.submissionAgingWithinWhere(now));
+				and.push(this.submissionAgingWithinWhere(now, sla));
 			}
 		}
 
@@ -973,6 +1218,7 @@ export class SubmissionsService {
 		WITHIN: number;
 	}> {
 		await this.ensureOrgExists(organizationId);
+		const slaHoursByStage = await this.resolveStageSlaHours(organizationId);
 		const baseForAging = this.buildOrgSubmissionListWhere(
 			organizationId,
 			query,
@@ -983,14 +1229,27 @@ export class SubmissionsService {
 			this.prisma.submission.count({ where: baseForAging }),
 			this.prisma.submission.count({
 				where: {
-					AND: [baseForAging, this.submissionAgingOverdueWhere(now)],
+					AND: [
+						baseForAging,
+						this.submissionAgingOverdueWhere(now, slaHoursByStage),
+					],
 				},
 			}),
 			this.prisma.submission.count({
-				where: { AND: [baseForAging, this.submissionAgingNearWhere(now)] },
+				where: {
+					AND: [
+						baseForAging,
+						this.submissionAgingNearWhere(now, slaHoursByStage),
+					],
+				},
 			}),
 			this.prisma.submission.count({
-				where: { AND: [baseForAging, this.submissionAgingWithinWhere(now)] },
+				where: {
+					AND: [
+						baseForAging,
+						this.submissionAgingWithinWhere(now, slaHoursByStage),
+					],
+				},
 			}),
 		]);
 		return { ALL: all, OVERDUE: overdue, NEAR: near, WITHIN: within };
@@ -1001,8 +1260,11 @@ export class SubmissionsService {
 		query: QuerySubmissionsDto,
 	) {
 		await this.ensureOrgExists(organizationId);
+		const slaHoursByStage = await this.resolveStageSlaHours(organizationId);
 
-		const listWhere = this.buildOrgSubmissionListWhere(organizationId, query);
+		const listWhere = this.buildOrgSubmissionListWhere(organizationId, query, {
+			slaHoursByStage,
+		});
 		const now = new Date();
 
 		if (query.all) {
@@ -1019,7 +1281,7 @@ export class SubmissionsService {
 			});
 			return {
 				data: rows.map((r) =>
-					this.mapOrgSubmissionListRow(organizationId, r, now),
+					this.mapOrgSubmissionListRow(organizationId, r, now, slaHoursByStage),
 				),
 				total,
 				page: 1,
@@ -1045,7 +1307,7 @@ export class SubmissionsService {
 
 		return {
 			data: rows.map((r) =>
-				this.mapOrgSubmissionListRow(organizationId, r, now),
+				this.mapOrgSubmissionListRow(organizationId, r, now, slaHoursByStage),
 			),
 			total,
 			page,
@@ -1123,8 +1385,14 @@ export class SubmissionsService {
 		organizationId: string,
 		row: OrgSubmissionListPayload,
 		now: Date,
+		slaHoursByStage: StageSlaHoursMap,
 	) {
-		const list = this.mapOrgSubmissionListRow(organizationId, row, now);
+		const list = this.mapOrgSubmissionListRow(
+			organizationId,
+			row,
+			now,
+			slaHoursByStage,
+		);
 		return {
 			id: list.id,
 			jobTitle: list.jobTitle,
@@ -1138,7 +1406,7 @@ export class SubmissionsService {
 	async listCandidateSubmissionsPaginated(
 		userId: string,
 		organizationId: string,
-		query: { page?: number; limit?: number; tab?: string },
+		query: { page?: number; limit?: number; tab?: string; search?: string },
 	) {
 		await this.ensureOrgExists(organizationId);
 		const candidate = await this.prisma.candidate.findFirst({
@@ -1156,14 +1424,45 @@ export class SubmissionsService {
 			candidateId: candidate.id,
 			organizationId,
 		};
-		const where: Prisma.SubmissionWhereInput = tabWhere
-			? { AND: [baseWhere, tabWhere] }
-			: baseWhere;
+		const search = query.search?.trim();
+		const searchWhere: Prisma.SubmissionWhereInput | null = search
+			? {
+					OR: [
+						{
+							requisition: {
+								jobTitle: { contains: search, mode: "insensitive" },
+							},
+						},
+						{
+							requisition: {
+								organizationOccupation: {
+									occupation: {
+										name: { contains: search, mode: "insensitive" },
+									},
+								},
+							},
+						},
+						{
+							requisition: {
+								location: {
+									name: { contains: search, mode: "insensitive" },
+								},
+							},
+						},
+					],
+				}
+			: null;
+		const conditions = [baseWhere, tabWhere, searchWhere].filter(
+			(c): c is Prisma.SubmissionWhereInput => c != null,
+		);
+		const where: Prisma.SubmissionWhereInput =
+			conditions.length > 1 ? { AND: conditions } : baseWhere;
 
 		const page = query.page ?? 1;
 		const limit = Math.min(Math.max(query.limit ?? 10, 1), 100);
 		const skip = (page - 1) * limit;
 		const now = new Date();
+		const slaHoursByStage = await this.resolveStageSlaHours(organizationId);
 
 		const [rows, total] = await Promise.all([
 			this.prisma.submission.findMany({
@@ -1178,7 +1477,12 @@ export class SubmissionsService {
 
 		return {
 			data: rows.map((r) =>
-				this.mapCandidateSubmissionListRow(organizationId, r, now),
+				this.mapCandidateSubmissionListRow(
+					organizationId,
+					r,
+					now,
+					slaHoursByStage,
+				),
 			),
 			total,
 			page,
@@ -1252,11 +1556,13 @@ export class SubmissionsService {
 	private mapOrgSubmissionDetail(
 		organizationId: string,
 		row: OrgSubmissionDetailPayload,
+		slaHoursByStage: StageSlaHoursMap,
 	) {
 		const list = this.mapOrgSubmissionListRow(
 			organizationId,
 			row as unknown as OrgSubmissionListPayload,
 			new Date(),
+			slaHoursByStage,
 		);
 		const { candidate, requisition } = row;
 		const user = candidate.user;
@@ -1267,8 +1573,17 @@ export class SubmissionsService {
 		].filter((p): p is string => typeof p === "string" && p.trim() !== "");
 		const address = addressParts.length > 0 ? addressParts.join(", ") : "—";
 
-		const specialtyName =
-			requisition.organizationSpecialty?.specialty?.name ?? "—";
+		const specialtyName = (() => {
+			const names = (requisition.requisitionSpecialties ?? [])
+				.map(
+					(s: { organizationSpecialty: { specialty: { name: string } } }) =>
+						s.organizationSpecialty.specialty.name,
+				)
+				.filter(Boolean);
+			if (names.length === 0) return "—";
+			if (names.length === 1) return names[0];
+			return `${names[0]} (+${names.length - 1})`;
+		})();
 		const compliance = mapComplianceFromCandidate(
 			candidate.candidateCompliances,
 		);
@@ -1302,11 +1617,23 @@ export class SubmissionsService {
 			specificSpecialty: specialtyName,
 			rtos: parseRtosJsonOnly(row.rtos),
 			submissionStatusBadge: submissionStatusBadgeFromStage(row.stage),
+			interview: {
+				scheduledAt: row.interviewDate?.toISOString() ?? null,
+				location: row.interviewLocation,
+				notes: row.interviewNotes,
+			},
 			coreQuestions: buildCoreQuestionsFromCandidate(candidate),
 			occupationalQuestionnaire,
 			specialtyQuestionnaire,
 			priorityFactors,
 			compliance,
+			historyEntries: buildSubmissionHistoryEntries({
+				submissionId: row.id,
+				vendorName: list.vendorName,
+				hiringManagerName: list.hiringManagerName,
+				summaryNote: row.summaryNote,
+				row,
+			}),
 		};
 	}
 
@@ -1317,9 +1644,10 @@ export class SubmissionsService {
 			include: ORG_SUBMISSION_DETAIL_INCLUDE,
 		});
 		if (!row) {
-			throw new NotFoundException("Submission not found");
+			throw new NotFoundException("Submission not found.");
 		}
-		return this.mapOrgSubmissionDetail(organizationId, row);
+		const slaHoursByStage = await this.resolveStageSlaHours(organizationId);
+		return this.mapOrgSubmissionDetail(organizationId, row, slaHoursByStage);
 	}
 
 	async getCandidateSubmissionDetail(
@@ -1346,9 +1674,14 @@ export class SubmissionsService {
 			include: ORG_SUBMISSION_DETAIL_INCLUDE,
 		});
 		if (!row) {
-			throw new NotFoundException("Submission not found");
+			throw new NotFoundException("Submission not found.");
 		}
-		const detail = this.mapOrgSubmissionDetail(organizationId, row);
+		const slaHoursByStage = await this.resolveStageSlaHours(organizationId);
+		const detail = this.mapOrgSubmissionDetail(
+			organizationId,
+			row,
+			slaHoursByStage,
+		);
 		return {
 			...detail,
 			applicationTimeline: buildApplicationTimelineFromSubmission(row),
@@ -1380,7 +1713,7 @@ export class SubmissionsService {
 			select: { id: true, stage: true },
 		});
 		if (!existing) {
-			throw new NotFoundException("Submission not found");
+			throw new NotFoundException("Submission not found.");
 		}
 		const terminal = new Set<SubmissionStage>([
 			SubmissionStage.WITHDRAWN,
@@ -1404,9 +1737,6 @@ export class SubmissionsService {
 				...submissionStageMilestoneUpdate(SubmissionStage.WITHDRAWN, now),
 			},
 		});
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			organizationId,
-		);
 
 		return this.getCandidateSubmissionDetail(
 			userId,
@@ -1436,13 +1766,23 @@ export class SubmissionsService {
 				organizationId,
 				candidateId: candidate.id,
 			},
-			select: { id: true, stage: true },
+			select: {
+				id: true,
+				stage: true,
+				requisitionId: true,
+				requisition: { select: { status: true } },
+			},
 		});
 		if (!existing) {
-			throw new NotFoundException("Submission not found");
+			throw new NotFoundException("Submission not found.");
 		}
 		if (existing.stage !== SubmissionStage.OFFERED) {
 			throw new BadRequestException("Only an active offer can be accepted.");
+		}
+		if (isRequisitionLockedForNewActivity(existing.requisition.status)) {
+			throw new BadRequestException(
+				requisitionLockedReason(existing.requisition.status),
+			);
 		}
 
 		const now = new Date();
@@ -1455,9 +1795,34 @@ export class SubmissionsService {
 				...submissionStageMilestoneUpdate(SubmissionStage.ACCEPTED, now),
 			},
 		});
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			organizationId,
-		);
+
+		const placement = await this.prisma.placement.findFirst({
+			where: { submissionId },
+			select: { id: true, billRate: true, startDate: true },
+		});
+		if (placement) {
+			await this.prisma.placement.update({
+				where: { id: placement.id },
+				data: {
+					acceptedAt: now,
+					acceptedById: userId,
+					updatedBy: userId,
+				},
+			});
+			await this.prisma.placementOfferHistory.create({
+				data: {
+					placementId: placement.id,
+					eventType: OfferEventType.OFFER_ACCEPTED,
+					description: "Offer accepted by candidate",
+					billRateSnapshot: placement.billRate ?? null,
+					startDateSnapshot: placement.startDate ?? null,
+					performedById: userId,
+					performedAt: now,
+				},
+			});
+		}
+
+		await recomputeRequisitionFillState(this.prisma, existing.requisitionId);
 
 		return this.getCandidateSubmissionDetail(
 			userId,
@@ -1475,6 +1840,9 @@ export class SubmissionsService {
 			startDate?: string;
 			endDate?: string;
 			billRate?: number;
+			interviewDate?: string;
+			interviewLocation?: string;
+			interviewNotes?: string;
 		},
 	) {
 		await this.ensureOrgExists(organizationId);
@@ -1482,24 +1850,66 @@ export class SubmissionsService {
 			where: { id: submissionId, organizationId },
 			select: {
 				id: true,
+				stage: true,
 				candidateId: true,
 				requisitionId: true,
 				vendorId: true,
 				requisition: {
 					select: {
+						status: true,
 						locationId: true,
 						departmentId: true,
 						hiringManagerId: true,
 						jobTitle: true,
+						unitName: true,
+						lengthWeeks: true,
+						shiftType: true,
+						startTime: true,
+						endTime: true,
+						hoursPerWeek: true,
 					},
 				},
 			},
 		});
 		if (!existing) {
-			throw new NotFoundException("Submission not found");
+			throw new NotFoundException("Submission not found.");
+		}
+
+		// Block forward progression on a closed/filled/cancelled requisition.
+		// Reject / withdraw still allowed so org can clean up in-flight submissions.
+		const FORWARD_STAGES: ReadonlySet<SubmissionStage> = new Set([
+			SubmissionStage.OFFERED,
+			SubmissionStage.ACCEPTED,
+		]);
+		if (
+			FORWARD_STAGES.has(stage) &&
+			isRequisitionLockedForNewActivity(existing.requisition.status)
+		) {
+			throw new BadRequestException(
+				requisitionLockedReason(existing.requisition.status),
+			);
 		}
 
 		const now = new Date();
+		let interviewDateValue: Date | undefined;
+		if (stage === SubmissionStage.INTERVIEW_SCHEDULED) {
+			if (!dto.interviewDate) {
+				throw new BadRequestException(
+					"Interview date is required when scheduling an interview.",
+				);
+			}
+			const parsed = new Date(dto.interviewDate);
+			if (Number.isNaN(parsed.getTime())) {
+				throw new BadRequestException(
+					"Interview date must be a valid datetime.",
+				);
+			}
+			if (parsed.getTime() <= now.getTime()) {
+				throw new BadRequestException("Interview date must be in the future.");
+			}
+			interviewDateValue = parsed;
+		}
+
 		await this.prisma.submission.update({
 			where: { id: submissionId },
 			data: {
@@ -1507,31 +1917,94 @@ export class SubmissionsService {
 				stageEnteredAt: now,
 				updatedBy: userId,
 				...(dto.billRate != null ? { billingRate: dto.billRate } : {}),
+				...(interviewDateValue ? { interviewDate: interviewDateValue } : {}),
+				...(stage === SubmissionStage.INTERVIEW_SCHEDULED &&
+				dto.interviewLocation !== undefined
+					? { interviewLocation: dto.interviewLocation.trim() || null }
+					: {}),
+				...(stage === SubmissionStage.INTERVIEW_SCHEDULED &&
+				dto.interviewNotes !== undefined
+					? { interviewNotes: dto.interviewNotes.trim() || null }
+					: {}),
 				...submissionStageMilestoneUpdate(stage, now),
 			},
 		});
 
+		const previousStage = existing.stage;
+
 		if (stage === SubmissionStage.OFFERED) {
 			const existingPlacement = await this.prisma.placement.findFirst({
 				where: { submissionId },
-				select: { id: true },
+				select: {
+					id: true,
+					startDate: true,
+					endDate: true,
+					billRate: true,
+				},
 			});
 			if (existingPlacement) {
+				const nextStartDate = dto.startDate
+					? new Date(dto.startDate)
+					: undefined;
+				const nextEndDate = dto.endDate ? new Date(dto.endDate) : undefined;
+				const nextBillRate = dto.billRate ?? undefined;
+
+				const startDateChanged =
+					nextStartDate !== undefined &&
+					(existingPlacement.startDate?.getTime() ?? null) !==
+						nextStartDate.getTime();
+				const endDateChanged =
+					nextEndDate !== undefined &&
+					(existingPlacement.endDate?.getTime() ?? null) !==
+						nextEndDate.getTime();
+				const billRateChanged =
+					nextBillRate !== undefined &&
+					existingPlacement.billRate !== nextBillRate;
+
 				await this.prisma.placement.update({
 					where: { id: existingPlacement.id },
 					data: {
-						startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-						endDate: dto.endDate ? new Date(dto.endDate) : undefined,
-						billRate: dto.billRate ?? undefined,
+						startDate: nextStartDate,
+						endDate: nextEndDate,
+						billRate: nextBillRate,
 						updatedBy: userId,
 					},
 				});
+
+				if (startDateChanged || endDateChanged || billRateChanged) {
+					const changes: string[] = [];
+					if (billRateChanged) changes.push("bill rate");
+					if (startDateChanged) changes.push("start date");
+					if (endDateChanged) changes.push("end date");
+					await this.prisma.placementOfferHistory.create({
+						data: {
+							placementId: existingPlacement.id,
+							eventType: startDateChanged
+								? OfferEventType.START_DATE_ADJUSTED
+								: OfferEventType.OFFER_MODIFIED,
+							description: `Offer updated: ${changes.join(", ")}`,
+							billRateSnapshot: nextBillRate ?? null,
+							startDateSnapshot: nextStartDate ?? null,
+							performedById: userId,
+							performedAt: now,
+						},
+					});
+				}
+
+				await this.backgroundJobs.enqueueComplianceRelatedSummaries(
+					existing.candidateId,
+					existingPlacement.id,
+				);
 			} else {
 				const placementCount = await this.prisma.placement.count({
 					where: { organizationId },
 				});
 				const placementNumber = `PLM-${String(placementCount + 1).padStart(5, "0")}`;
-				await this.prisma.placement.create({
+				const offerStartDate = dto.startDate
+					? new Date(dto.startDate)
+					: undefined;
+				const offerEndDate = dto.endDate ? new Date(dto.endDate) : undefined;
+				const newPlacement = await this.prisma.placement.create({
 					data: {
 						placementNumber,
 						organizationId,
@@ -1543,19 +2016,125 @@ export class SubmissionsService {
 						departmentId: existing.requisition.departmentId ?? undefined,
 						hiringManagerId: existing.requisition.hiringManagerId ?? undefined,
 						jobTitle: existing.requisition.jobTitle ?? undefined,
-						startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-						endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+						unitName: existing.requisition.unitName ?? undefined,
+						totalWeeks: existing.requisition.lengthWeeks ?? undefined,
+						shiftType: existing.requisition.shiftType ?? undefined,
+						shiftStartTime: existing.requisition.startTime ?? undefined,
+						shiftEndTime: existing.requisition.endTime ?? undefined,
+						hoursPerWeek: existing.requisition.hoursPerWeek ?? undefined,
+						startDate: offerStartDate,
+						endDate: offerEndDate,
 						billRate: dto.billRate ?? undefined,
 						createdBy: userId,
 						updatedBy: userId,
+					},
+					select: { id: true },
+				});
+
+				await this.prisma.placementOfferHistory.createMany({
+					data: [
+						{
+							placementId: newPlacement.id,
+							eventType: OfferEventType.PLACEMENT_CREATED,
+							description: "Placement record created",
+							performedById: userId,
+							performedAt: now,
+						},
+						{
+							placementId: newPlacement.id,
+							eventType: OfferEventType.OFFER_EXTENDED,
+							description: "Offer extended to candidate",
+							billRateSnapshot: dto.billRate ?? null,
+							startDateSnapshot: offerStartDate ?? null,
+							performedById: userId,
+							performedAt: now,
+						},
+					],
+				});
+
+				const reqCriteria =
+					await this.prisma.requisitionAcceptanceCriterion.findMany({
+						where: { requisitionId: existing.requisitionId },
+						select: { complianceListItemId: true },
+					});
+				if (reqCriteria.length > 0) {
+					await this.prisma.placementComplianceItem.createMany({
+						data: reqCriteria.map((c) => ({
+							placementId: newPlacement.id,
+							complianceListItemId: c.complianceListItemId,
+							source: PlacementComplianceItemSource.REQUISITION,
+							isRequired: true,
+						})),
+						skipDuplicates: true,
+					});
+				}
+
+				await this.backgroundJobs.enqueueComplianceRelatedSummaries(
+					existing.candidateId,
+					newPlacement.id,
+				);
+			}
+		}
+
+		if (
+			stage === SubmissionStage.ACCEPTED &&
+			previousStage === SubmissionStage.OFFERED
+		) {
+			const placement = await this.prisma.placement.findFirst({
+				where: { submissionId },
+				select: { id: true, billRate: true, startDate: true },
+			});
+			if (placement) {
+				await this.prisma.placement.update({
+					where: { id: placement.id },
+					data: {
+						acceptedAt: now,
+						acceptedById: userId,
+						updatedBy: userId,
+					},
+				});
+				await this.prisma.placementOfferHistory.create({
+					data: {
+						placementId: placement.id,
+						eventType: OfferEventType.OFFER_ACCEPTED,
+						description: "Offer accepted",
+						billRateSnapshot: placement.billRate ?? null,
+						startDateSnapshot: placement.startDate ?? null,
+						performedById: userId,
+						performedAt: now,
 					},
 				});
 			}
 		}
 
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			organizationId,
-		);
+		if (
+			(stage === SubmissionStage.REJECTED ||
+				stage === SubmissionStage.WITHDRAWN) &&
+			previousStage === SubmissionStage.OFFERED
+		) {
+			const placement = await this.prisma.placement.findFirst({
+				where: { submissionId },
+				select: { id: true, billRate: true, startDate: true },
+			});
+			if (placement) {
+				await this.prisma.placementOfferHistory.create({
+					data: {
+						placementId: placement.id,
+						eventType: OfferEventType.OFFER_DECLINED,
+						description:
+							stage === SubmissionStage.WITHDRAWN
+								? "Offer withdrawn"
+								: "Offer rejected",
+						billRateSnapshot: placement.billRate ?? null,
+						startDateSnapshot: placement.startDate ?? null,
+						performedById: userId,
+						performedAt: now,
+					},
+				});
+			}
+		}
+
+		await recomputeRequisitionFillState(this.prisma, existing.requisitionId);
 
 		return this.getOrgSubmission(organizationId, submissionId);
 	}
@@ -1569,11 +2148,22 @@ export class SubmissionsService {
 
 		const candidate = await this.prisma.candidate.findFirst({
 			where: { userId, organizationId },
-			select: { id: true },
+			select: { id: true, workforceType: true },
 		});
 		if (!candidate) {
 			throw new NotFoundException(
 				"Candidate profile not found for this organization",
+			);
+		}
+
+		if (
+			candidate.workforceType &&
+			(EXTERNAL_WORKFORCE_TYPES as readonly string[]).includes(
+				candidate.workforceType,
+			)
+		) {
+			throw new ForbiddenException(
+				"External/vendor-managed candidates cannot submit direct job applications",
 			);
 		}
 
@@ -1583,13 +2173,26 @@ export class SubmissionsService {
 				organizationId,
 				status: RequisitionStatus.PUBLISHED,
 			},
-			select: { id: true },
+			select: {
+				id: true,
+				acceptanceCriteria: {
+					select: {
+						complianceListItemId: true,
+						complianceListItem: { select: { name: true } },
+					},
+				},
+			},
 		});
 		if (!requisition) {
 			throw new NotFoundException(
 				"Job posting not found or no longer available",
 			);
 		}
+
+		await this.assertCandidateMeetsRequisitionDocuments(
+			candidate.id,
+			requisition.acceptanceCriteria,
+		);
 
 		const nonReapplicableStages: SubmissionStage[] = [
 			SubmissionStage.SUBMITTED,
@@ -1629,9 +2232,6 @@ export class SubmissionsService {
 			},
 			select: { id: true, stage: true, submittedAt: true },
 		});
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			organizationId,
-		);
 
 		await this.applyAutomaticTagging(organizationId, candidate.id);
 
@@ -1732,9 +2332,6 @@ export class SubmissionsService {
 			},
 			select: { id: true, stage: true, submittedAt: true },
 		});
-		await this.backgroundJobs.enqueueMonthlyMetricSnapshotForOrganization(
-			organizationId,
-		);
 
 		await this.applyAutomaticTagging(organizationId, candidate.id);
 

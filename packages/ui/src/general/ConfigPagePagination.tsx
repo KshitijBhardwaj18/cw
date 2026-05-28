@@ -19,7 +19,7 @@ export function ConfigPagePagination({
 	page,
 	totalPages,
 	onPageChange,
-}: ConfigPagePaginationProps) {
+}: Readonly<ConfigPagePaginationProps>) {
 	const pageSafe = Math.min(page, Math.max(1, totalPages));
 
 	if (totalPages <= 1) return null;

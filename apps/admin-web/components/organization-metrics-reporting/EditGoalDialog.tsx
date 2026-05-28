@@ -27,7 +27,7 @@ export function EditGoalDialog({
 	onOpenChange,
 	kpi,
 	onSave,
-}: EditGoalDialogProps) {
+}: Readonly<EditGoalDialogProps>) {
 	const [value, setValue] = useState("");
 
 	useEffect(() => {

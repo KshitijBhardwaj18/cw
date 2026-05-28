@@ -1,9 +1,18 @@
 import {
+	CandidateExperienceBand,
 	CandidateInviteStatus,
+	CandidatePreferredContractLength,
 	CandidateSource,
 	CandidateWorkforceType,
+	ShiftType,
 } from "@repo/db";
-import { getDeterministicId, SEED_PREFIX } from "../utils";
+import {
+	getDeterministicId,
+	SAMPLE_PDF_URL,
+	SEED_EMAIL_DOMAIN,
+	SEED_PREFIX,
+} from "../utils";
+import { LOCATION_ID } from "./locations";
 import { OCCUPATION_ID } from "./occupations";
 import { SPECIALTY_ID } from "./specialties";
 import { USER_ID } from "./users";
@@ -20,6 +29,30 @@ export interface SeedCandidate {
 	inviteStatus?: CandidateInviteStatus | null;
 	invitedAt?: Date;
 	specialtyIds?: string[];
+	preferredShiftTypes?: ShiftType[];
+	preferredContractLengths?: CandidatePreferredContractLength[];
+	preferredLocationIds?: string[];
+	totalProfessionalExperienceBand?: CandidateExperienceBand;
+	city?: string;
+	state?: string;
+	streetAddress?: string;
+	zipCode?: string;
+	resumeUrl?: string;
+	availableFrom?: Date;
+	recentJobTitle?: string;
+	dateOfBirth?: Date;
+	lastFourSsn?: string;
+	skillsChecklistFileKey?: string;
+	onboardingCompletedAt?: Date;
+	professionalReferences?: {
+		id: string;
+		fullName: string;
+		title: string;
+		organization: string;
+		relationship: string;
+		phone: string;
+		email: string;
+	}[];
 }
 
 export const CANDIDATE_ID = {
@@ -44,13 +77,17 @@ export const CANDIDATE_ID = {
 		`${SEED_PREFIX}candidate-thomas-a-talent`,
 	),
 	PATRICIA_W_TALENT: getDeterministicId(
-		`${SEED_PREFIX}candidate-patricia-w-talent`,
+		`patricia.w.talent@${SEED_EMAIL_DOMAIN}`,
 	),
+	SAM_T_GLOBAL: getDeterministicId(`sam.t.talent@${SEED_EMAIL_DOMAIN}`),
 	JESSICA_T_NEW: getDeterministicId(`${SEED_PREFIX}candidate-jessica-t-new`),
 	RACHEL_M_NEW: getDeterministicId(`${SEED_PREFIX}candidate-rachel-m-new`),
 	NICOLE_H_NEW: getDeterministicId(`${SEED_PREFIX}candidate-nicole-h-new`),
 	DANIEL_B_NEW: getDeterministicId(`${SEED_PREFIX}candidate-daniel-b-new`),
 	LISA_D_NEW: getDeterministicId(`${SEED_PREFIX}candidate-lisa-d-new`),
+	MARCUS_V: getDeterministicId(`${SEED_PREFIX}candidate-quinn-marcus-v`),
+	SARAH_P: getDeterministicId(`${SEED_PREFIX}candidate-quinn-sarah-p`),
+	DAVID_L: getDeterministicId(`${SEED_PREFIX}candidate-quinn-david-l`),
 	ROBERT_M_NEW: getDeterministicId(`${SEED_PREFIX}candidate-robert-m-new`),
 	KAREN_W_NEW: getDeterministicId(`${SEED_PREFIX}candidate-karen-w-new`),
 	JAMES_W_INVITED: getDeterministicId(
@@ -83,6 +120,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "RN981423",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.ICU],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y3_5,
+			city: "Boston",
+			state: "MA",
 		},
 		{
 			id: CANDIDATE_ID.SARAH_J_TALENT,
@@ -94,6 +134,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "RN990011",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.ICU],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y3_5,
+			city: "Seattle",
+			state: "WA",
 		},
 		{
 			id: CANDIDATE_ID.MICHAEL,
@@ -116,6 +159,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "LPN556677",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.MEDSURG],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y6_9,
+			city: "Denver",
+			state: "CO",
 		},
 		{
 			id: CANDIDATE_ID.DAVID_K_TALENT,
@@ -127,17 +173,31 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "RT112233",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.TELE],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y3_5,
+			city: "Phoenix",
+			state: "AZ",
 		},
 		{
 			id: CANDIDATE_ID.AMANDA_B_TALENT,
 			userId: USER_ID.AMANDA_B_TALENT,
 			occupationId: OCCUPATION_ID.RN,
-			vendorId: VENDOR_ID.MEDSTAFF,
+			vendorId: VENDOR_ID.GLOBAL,
 			source: CandidateSource.VENDOR,
 			workforceType: CandidateWorkforceType.EXTERNAL_VENDOR_PER_DIEM,
 			licenseNumber: "RN445566",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.ER],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y6_9,
+			city: "New York",
+			state: "NY",
+			streetAddress: "222 Broadway",
+			zipCode: "10001",
+			preferredShiftTypes: [ShiftType.NIGHT, ShiftType.DAY],
+			preferredContractLengths: [
+				CandidatePreferredContractLength.WEEKS_4_12,
+				CandidatePreferredContractLength.MONTHS_3,
+			],
+			preferredLocationIds: [LOCATION_ID.MAIN, LOCATION_ID.URGENT],
 		},
 		{
 			id: CANDIDATE_ID.JAMES_W_TALENT,
@@ -149,17 +209,28 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "OT778811",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.ORTHO],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y6_9,
+			city: "Portland",
+			state: "OR",
 		},
 		{
 			id: CANDIDATE_ID.CHRIS_L_TALENT,
 			userId: USER_ID.CHRIS_L_TALENT,
 			occupationId: OCCUPATION_ID.RN,
-			vendorId: null,
-			source: CandidateSource.DIRECT,
+			vendorId: VENDOR_ID.GLOBAL,
+			source: CandidateSource.VENDOR,
 			workforceType: CandidateWorkforceType.INTERNAL_FLOAT_POOL,
 			licenseNumber: "RN990022",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.MEDSURG],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y10_PLUS,
+			city: "San Francisco",
+			state: "CA",
+			preferredShiftTypes: [ShiftType.DAY],
+			preferredContractLengths: [
+				CandidatePreferredContractLength.OPEN_TO_ANYTHING,
+			],
+			preferredLocationIds: [LOCATION_ID.MAIN],
 		},
 		{
 			id: CANDIDATE_ID.JENNIFER,
@@ -171,6 +242,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "CNA889900",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.GEN],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y1_2,
+			city: "Las Vegas",
+			state: "NV",
 		},
 		{
 			id: CANDIDATE_ID.DAVID,
@@ -182,6 +256,31 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "RN112233",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.MEDSURG],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y10_PLUS,
+			city: "Philadelphia",
+			state: "PA",
+		},
+		{
+			id: CANDIDATE_ID.SAM_T_GLOBAL,
+			userId: USER_ID.SAM_T_GLOBAL,
+			occupationId: OCCUPATION_ID.RN,
+			vendorId: VENDOR_ID.GLOBAL,
+			source: CandidateSource.VENDOR,
+			workforceType: CandidateWorkforceType.EXTERNAL_VENDOR_PER_DIEM,
+			licenseNumber: "RN-SAM-001",
+			inviteStatus: CandidateInviteStatus.ACCEPTED,
+			specialtyIds: [SPECIALTY_ID.ICU, SPECIALTY_ID.ER],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y10_PLUS,
+			city: "Los Angeles",
+			state: "CA",
+			streetAddress: "555 Hollywood Blvd",
+			zipCode: "90028",
+			preferredShiftTypes: [ShiftType.NIGHT, ShiftType.DAY],
+			preferredContractLengths: [
+				CandidatePreferredContractLength.WEEKS_4_12,
+				CandidatePreferredContractLength.MONTHS_3,
+			],
+			preferredLocationIds: [LOCATION_ID.MAIN, LOCATION_ID.URGENT],
 		},
 		{
 			id: CANDIDATE_ID.JAMES,
@@ -193,6 +292,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "RN112244",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.ER],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y6_9,
+			city: "Atlanta",
+			state: "GA",
 		},
 		{
 			id: CANDIDATE_ID.EMILY,
@@ -204,6 +306,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "PT556677",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.ORTHO],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y6_9,
+			city: "San Diego",
+			state: "CA",
 		},
 		{
 			id: CANDIDATE_ID.JESSICA_T_NEW,
@@ -215,6 +320,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "RN334455",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.MEDSURG],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y3_5,
+			city: "Nashville",
+			state: "TN",
 		},
 		{
 			id: CANDIDATE_ID.RACHEL_M_NEW,
@@ -226,6 +334,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "MA667788",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.GEN],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y3_5,
+			city: "Chicago",
+			state: "IL",
 		},
 		{
 			id: CANDIDATE_ID.NICOLE_H_NEW,
@@ -237,6 +348,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			licenseNumber: "SLP990033",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.GEN],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y10_PLUS,
+			city: "Houston",
+			state: "TX",
 		},
 		{
 			id: CANDIDATE_ID.DANIEL_B_NEW,
@@ -253,12 +367,17 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			id: CANDIDATE_ID.LISA_D_NEW,
 			userId: USER_ID.LISA_D_NEW,
 			occupationId: OCCUPATION_ID.PT,
-			vendorId: null,
-			source: CandidateSource.DIRECT,
+			vendorId: VENDOR_ID.GLOBAL,
+			source: CandidateSource.VENDOR,
 			workforceType: null,
 			licenseNumber: "PT556699",
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			specialtyIds: [SPECIALTY_ID.ORTHO],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y3_5,
+			city: "Chicago",
+			state: "IL",
+			streetAddress: "333 Michigan Ave",
+			zipCode: "60601",
 		},
 		{
 			id: CANDIDATE_ID.ELENA,
@@ -271,6 +390,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			inviteStatus: CandidateInviteStatus.PENDING,
 			invitedAt: new Date("2026-03-25T10:00:00Z"),
 			specialtyIds: [SPECIALTY_ID.ICU],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y3_5,
+			city: "Salt Lake City",
+			state: "UT",
 		},
 		{
 			id: CANDIDATE_ID.SARAH,
@@ -283,6 +405,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			inviteStatus: CandidateInviteStatus.PENDING,
 			invitedAt: new Date("2026-03-26T11:00:00Z"),
 			specialtyIds: [SPECIALTY_ID.ORTHO],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y6_9,
+			city: "Denver",
+			state: "CO",
 		},
 		{
 			id: CANDIDATE_ID.MARCUS,
@@ -295,6 +420,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			inviteStatus: CandidateInviteStatus.PENDING,
 			invitedAt: new Date("2026-03-24T09:00:00Z"),
 			specialtyIds: [SPECIALTY_ID.GEN],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y1_2,
+			city: "Orlando",
+			state: "FL",
 		},
 		{
 			id: CANDIDATE_ID.JAMES_W_INVITED,
@@ -307,6 +435,9 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			inviteStatus: CandidateInviteStatus.PENDING,
 			invitedAt: new Date("2026-03-27T14:00:00Z"),
 			specialtyIds: [SPECIALTY_ID.ER],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y10_PLUS,
+			city: "Phoenix",
+			state: "AZ",
 		},
 		{
 			id: CANDIDATE_ID.LISA_T_INVITED,
@@ -348,13 +479,18 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			id: CANDIDATE_ID.ROBERT_T_INVITED,
 			userId: USER_ID.ROBERT_T_INVITED,
 			occupationId: OCCUPATION_ID.RN,
-			vendorId: null,
-			source: CandidateSource.DIRECT,
+			vendorId: VENDOR_ID.GLOBAL,
+			source: CandidateSource.VENDOR,
 			workforceType: null,
 			licenseNumber: "RN889933",
 			inviteStatus: CandidateInviteStatus.PENDING,
 			invitedAt: new Date("2026-03-21T08:00:00Z"),
 			specialtyIds: [SPECIALTY_ID.ICU],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y6_9,
+			city: "Miami",
+			state: "FL",
+			streetAddress: "888 Ocean Dr",
+			zipCode: "33139",
 		},
 		{
 			id: CANDIDATE_ID.AMANDA_BROOKS_LEADERSHIP,
@@ -367,6 +503,129 @@ export const getCandidatesDataset = (): SeedCandidate[] => {
 			inviteStatus: CandidateInviteStatus.ACCEPTED,
 			invitedAt: new Date(Date.now() - 3600000 * 24 * 10),
 			specialtyIds: [SPECIALTY_ID.SURGERY],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y10_PLUS,
+			city: "Dallas",
+			state: "TX",
+		},
+		{
+			id: CANDIDATE_ID.MARCUS_V,
+			userId: USER_ID.QUINN_MARCUS_V,
+			occupationId: OCCUPATION_ID.RN,
+			vendorId: VENDOR_ID.GLOBAL,
+			source: CandidateSource.VENDOR,
+			workforceType: CandidateWorkforceType.EXTERNAL_VENDOR_LTO,
+			licenseNumber: "RN-QUINN-101",
+			inviteStatus: CandidateInviteStatus.ACCEPTED,
+			specialtyIds: [SPECIALTY_ID.ICU],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y6_9,
+			city: "Dallas",
+			state: "TX",
+			streetAddress: "123 Maple Ave",
+			zipCode: "75201",
+		},
+		{
+			id: CANDIDATE_ID.SARAH_P,
+			userId: USER_ID.QUINN_SARAH_P,
+			occupationId: OCCUPATION_ID.RN,
+			vendorId: VENDOR_ID.GLOBAL,
+			source: CandidateSource.VENDOR,
+			workforceType: CandidateWorkforceType.EXTERNAL_VENDOR_LTO,
+			licenseNumber: "RN-QUINN-102",
+			inviteStatus: CandidateInviteStatus.ACCEPTED,
+			specialtyIds: [SPECIALTY_ID.ER],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y3_5,
+			city: "Austin",
+			state: "TX",
+			streetAddress: "456 Oak St",
+			zipCode: "78701",
+			resumeUrl: SAMPLE_PDF_URL,
+			preferredLocationIds: [
+				LOCATION_ID.MAIN,
+				LOCATION_ID.DOWNTOWN,
+				LOCATION_ID.REHAB,
+				LOCATION_ID.URGENT,
+			],
+			preferredShiftTypes: [ShiftType.DAY, ShiftType.NIGHT],
+			preferredContractLengths: [
+				CandidatePreferredContractLength.PER_DIEM,
+				CandidatePreferredContractLength.WEEKS_4_12,
+				CandidatePreferredContractLength.MONTHS_3,
+			],
+			availableFrom: new Date("2026-06-01"),
+			recentJobTitle: "ER Nurse",
+			dateOfBirth: new Date("1992-05-15"),
+			lastFourSsn: "1234",
+			skillsChecklistFileKey: SAMPLE_PDF_URL,
+			onboardingCompletedAt: new Date(),
+			professionalReferences: [
+				{
+					id: getDeterministicId(`${SEED_PREFIX}ref-sarah-1`),
+					fullName: "Dr. Emily Smith",
+					title: "Chief of Medicine",
+					organization: "City Hospital",
+					relationship: "Former Supervisor",
+					phone: "+15551112222",
+					email: "emily.smith@cityhospital.com",
+				},
+				{
+					id: getDeterministicId(`${SEED_PREFIX}ref-sarah-2`),
+					fullName: "John Doe",
+					title: "Nursing Manager",
+					organization: "Metro Clinic",
+					relationship: "Colleague",
+					phone: "+15553334444",
+					email: "john.doe@metroclinic.com",
+				},
+			],
+		},
+		{
+			id: CANDIDATE_ID.DAVID_L,
+			userId: USER_ID.QUINN_DAVID_L,
+			occupationId: OCCUPATION_ID.LPN,
+			vendorId: VENDOR_ID.GLOBAL,
+			source: CandidateSource.VENDOR,
+			workforceType: CandidateWorkforceType.EXTERNAL_VENDOR_LTO,
+			licenseNumber: "LPN-QUINN-103",
+			inviteStatus: CandidateInviteStatus.ACCEPTED,
+			specialtyIds: [SPECIALTY_ID.GEN],
+			totalProfessionalExperienceBand: CandidateExperienceBand.Y10_PLUS,
+			city: "Houston",
+			state: "TX",
+			streetAddress: "789 Pine Rd",
+			zipCode: "77001",
+			resumeUrl: SAMPLE_PDF_URL,
+			preferredLocationIds: [LOCATION_ID.MAIN, LOCATION_ID.REHAB],
+			preferredShiftTypes: [ShiftType.DAY],
+			preferredContractLengths: [
+				CandidatePreferredContractLength.MONTHS_3_6,
+				CandidatePreferredContractLength.MONTHS_6_9,
+			],
+			availableFrom: new Date("2026-05-20"),
+			recentJobTitle: "LPN Charge Nurse",
+			dateOfBirth: new Date("1985-11-22"),
+			lastFourSsn: "5678",
+			skillsChecklistFileKey: SAMPLE_PDF_URL,
+			onboardingCompletedAt: new Date(),
+			professionalReferences: [
+				{
+					id: getDeterministicId(`${SEED_PREFIX}ref-david-1`),
+					fullName: "Robert Wilson",
+					title: "Director of Nursing",
+					organization: "Healthcare First",
+					relationship: "Supervisor",
+					phone: "+15557778888",
+					email: "r.wilson@healthcarefirst.com",
+				},
+				{
+					id: getDeterministicId(`${SEED_PREFIX}ref-david-2`),
+					fullName: "Linda Garcia",
+					title: "Senior LPN",
+					organization: "County Health",
+					relationship: "Peer",
+					phone: "+15559990000",
+					email: "l.garcia@countyhealth.com",
+				},
+			],
 		},
 	];
 

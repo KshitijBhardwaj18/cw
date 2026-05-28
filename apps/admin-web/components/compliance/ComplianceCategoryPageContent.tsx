@@ -30,7 +30,7 @@ interface ComplianceCategoryPageContentProps {
 
 export function ComplianceCategoryPageContent({
 	category,
-}: ComplianceCategoryPageContentProps) {
+}: Readonly<ComplianceCategoryPageContentProps>) {
 	const { ability } = useAuth();
 	const canCreateCompliance = ability.can(Action.Create, "ComplianceListItem");
 	const [createOpen, setCreateOpen] = useState(false);

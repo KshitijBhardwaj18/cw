@@ -5,6 +5,7 @@ import { Skeleton } from "@repo/ui/components/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/tabs";
 import PaginationControls from "@repo/ui/general/PaginationControls";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
+import { cn } from "@repo/ui/lib/utils";
 import { Send, Sparkles, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useVendorRequisitionCandidates } from "@/queries/vendor-requisitions.queries";
@@ -20,6 +21,7 @@ interface RequisitionCandidatesContentProps {
 	enabled?: boolean;
 	showSubmittedTab?: boolean;
 	onViewCandidate: (candidate: Candidate) => void;
+	className?: string;
 }
 
 export function RequisitionCandidatesContent({
@@ -27,7 +29,8 @@ export function RequisitionCandidatesContent({
 	enabled = true,
 	showSubmittedTab = true,
 	onViewCandidate,
-}: RequisitionCandidatesContentProps) {
+	className,
+}: Readonly<RequisitionCandidatesContentProps>) {
 	const [activeTab, setActiveTab] =
 		useState<VendorRequisitionCandidatesTab>("interested");
 	const [page, setPage] = useState(1);
@@ -99,7 +102,7 @@ export function RequisitionCandidatesContent({
 	const rows = listQuery.data?.data ?? [];
 
 	return (
-		<div className="px-6 pb-2">
+		<div className={cn("pb-2 px-6", className)}>
 			<Tabs
 				value={activeTab}
 				onValueChange={(v) => setActiveTab(v as VendorRequisitionCandidatesTab)}

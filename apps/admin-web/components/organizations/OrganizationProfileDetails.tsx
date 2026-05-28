@@ -44,7 +44,7 @@ type OrganizationProfileDetailsProps = {
 
 export function OrganizationProfileDetails({
 	organization,
-}: OrganizationProfileDetailsProps) {
+}: Readonly<OrganizationProfileDetailsProps>) {
 	const {
 		form,
 		initialValues,

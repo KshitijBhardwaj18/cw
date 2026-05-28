@@ -27,7 +27,7 @@ export function OccupationColumn({
 	emptyMessage,
 	checkboxIdPrefix,
 	isLoading = false,
-}: OccupationColumnProps) {
+}: Readonly<OccupationColumnProps>) {
 	const occupationsList = Array.isArray(occupations) ? occupations : [];
 	return (
 		<div className="relative">

@@ -27,8 +27,12 @@ export function departmentToFormValues(
 		departmentType:
 			dept.departmentType as DepartmentFormSchemaValues["departmentType"],
 		costCenter: dept.costCenter ?? "",
-		organizationOccupationId: dept.organizationOccupationId ?? "",
-		organizationSpecialtyId: dept.organizationSpecialtyId ?? "",
+		organizationOccupationIds:
+			dept.departmentOccupations?.map((row) => row.organizationOccupation.id) ??
+			[],
+		organizationSpecialtyIds:
+			dept.departmentSpecialties?.map((row) => row.organizationSpecialty.id) ??
+			[],
 		relatedUserIds:
 			dept.departmentUsers?.map((du: { user: { id: string } }) => du.user.id) ??
 			[],
@@ -166,9 +170,8 @@ export function useDepartmentEditForm({
 				name: value.name,
 				departmentType: value.departmentType,
 				costCenter: value.costCenter?.trim() || undefined,
-				organizationOccupationId:
-					value.organizationOccupationId?.trim() || null,
-				organizationSpecialtyId: value.organizationSpecialtyId?.trim() || null,
+				organizationOccupationIds: value.organizationOccupationIds ?? [],
+				organizationSpecialtyIds: value.organizationSpecialtyIds ?? [],
 				relatedUserIds: value.relatedUserIds ?? [],
 			};
 

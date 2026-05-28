@@ -33,7 +33,7 @@ export function OrganizationVendorsList({
 	onSearchChange,
 	hasActiveSearch,
 	onPageChange,
-}: OrganizationVendorsListProps) {
+}: Readonly<OrganizationVendorsListProps>) {
 	const { ability } = useAuth();
 	const [createOpen, setCreateOpen] = useState(false);
 	const canCreate = ability.can(Action.Update, "Organization");

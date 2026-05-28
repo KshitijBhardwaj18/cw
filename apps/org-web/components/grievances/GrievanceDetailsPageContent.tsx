@@ -34,7 +34,6 @@ import {
 	mapGrievanceTaskStatusToUi,
 	nextGrievanceTaskApiStatus,
 } from "@/constants/grievances";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useGrievanceDetail,
 	useUpdateGrievanceTask,
@@ -66,18 +65,12 @@ function statusBadgeVariant(
 
 export function GrievanceDetailsPageContent({
 	grievanceId,
-}: GrievanceDetailsPageContentProps) {
+}: Readonly<GrievanceDetailsPageContentProps>) {
 	const ability = useAbility();
 	const canEditGrievance = ability.can(Action.Update, "Grievance");
-
-	const { id: orgId } = useOrgContext();
-	const {
-		data: detail,
-		isLoading,
-		isError,
-	} = useGrievanceDetail(orgId, grievanceId);
-	const updateTask = useUpdateGrievanceTask(orgId, grievanceId);
-	const membersQuery = useOrgMembersForPicker(orgId);
+	const { data: detail, isLoading, isError } = useGrievanceDetail(grievanceId);
+	const updateTask = useUpdateGrievanceTask(grievanceId);
+	const membersQuery = useOrgMembersForPicker();
 	const [createTaskOpen, setCreateTaskOpen] = useState(false);
 
 	const memberOptions = useMemo(
@@ -305,7 +298,6 @@ export function GrievanceDetailsPageContent({
 				<CreateGrievanceTaskDialog
 					open={createTaskOpen}
 					onOpenChange={setCreateTaskOpen}
-					orgId={orgId}
 					grievanceId={grievanceId}
 					memberOptions={memberOptions}
 				/>

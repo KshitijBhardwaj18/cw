@@ -5,7 +5,7 @@ export const createShiftSchema = z.object({
 	startTime: z.string().min(1, "Start time is required"),
 	endTime: z.string().min(1, "End time is required"),
 	occupation: z.string().min(1, "Occupation is required"),
-	specialtyId: z.string().uuid().optional().or(z.literal("")),
+	specialtyIds: z.array(z.string().uuid()),
 	shiftRatePerHour: z.coerce.number().min(0, "Shift rate must be 0 or greater"),
 	vendorRatePerHour: z.coerce
 		.number()

@@ -24,7 +24,7 @@ export function CandidateJobApplySectionCard({
 	children,
 	headerClassName,
 	contentClassName,
-}: CandidateJobApplySectionCardProps) {
+}: Readonly<CandidateJobApplySectionCardProps>) {
 	return (
 		<Card>
 			<CardHeader className={headerClassName}>

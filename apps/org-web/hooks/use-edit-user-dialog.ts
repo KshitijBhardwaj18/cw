@@ -28,14 +28,12 @@ const emptyForm = (): EditUserFormState => ({
 export function useEditUserDialog({
 	open,
 	user,
-	orgId,
 }: {
 	open: boolean;
 	user: User | null;
-	orgId: string;
 }) {
 	const [formData, setFormData] = useState<EditUserFormState>(emptyForm);
-	const { data: departmentOptions = [] } = useOrgDepartmentsForUsers(orgId);
+	const { data: departmentOptions = [] } = useOrgDepartmentsForUsers();
 
 	const allDeptIds = useMemo(
 		() => departmentOptions.map((d) => d.id),

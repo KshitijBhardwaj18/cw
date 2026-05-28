@@ -1,8 +1,12 @@
-import type { ComplianceChecklistType } from "@repo/shared";
+import {
+	type ComplianceChecklistItemPhase,
+	type ComplianceChecklistType,
+	DEFAULT_TIMEZONE,
+	formatTzShortDate,
+	type OrganizationTimezone,
+} from "@repo/shared";
 
 export type { ComplianceChecklistType };
-
-export type ChecklistItemPhase = "SUBMISSION" | "PLACEMENT";
 
 export interface RequisitionComplianceChecklistCardItem {
 	id: string;
@@ -15,7 +19,7 @@ export interface RequisitionComplianceChecklistCardItem {
 	complianceItemIds: string[];
 	checklistItems: {
 		complianceListItemId: string;
-		phase: ChecklistItemPhase;
+		phase: ComplianceChecklistItemPhase;
 	}[];
 }
 
@@ -25,9 +29,10 @@ export interface ComplianceItemOption {
 	description?: string;
 	category: string;
 	tracksExpiration?: boolean;
+	displayToCandidate?: boolean;
 }
 
-export type ComplianceItemUsageType = ChecklistItemPhase;
+export type ComplianceItemUsageType = ComplianceChecklistItemPhase;
 
 export interface ComplianceItemUsageRow {
 	id: string;
@@ -35,12 +40,13 @@ export interface ComplianceItemUsageRow {
 	category: string;
 	expirationRequired: boolean;
 	displayToCandidate: boolean;
-	checklistPhase?: ChecklistItemPhase;
+	checklistPhase?: ComplianceChecklistItemPhase;
 }
 
 export function toCardItem(
 	checklist: ComplianceChecklistType,
 	linkedRequisitionCount = 0,
+	tz: OrganizationTimezone = DEFAULT_TIMEZONE,
 ): RequisitionComplianceChecklistCardItem {
 	return {
 		id: checklist.id,
@@ -48,15 +54,11 @@ export function toCardItem(
 		description: checklist.description ?? undefined,
 		checklistItemCount: checklist.items.length,
 		linkedRequisitionCount,
-		lastModified: new Date(checklist.updatedAt).toLocaleDateString("en-US", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		}),
+		lastModified: formatTzShortDate(checklist.updatedAt, tz),
 		complianceItemIds: checklist.items.map((i) => i.complianceListItemId),
 		checklistItems: checklist.items.map((i) => ({
 			complianceListItemId: i.complianceListItemId,
-			phase: i.phase as ChecklistItemPhase,
+			phase: i.phase as ComplianceChecklistItemPhase,
 		})),
 	};
 }

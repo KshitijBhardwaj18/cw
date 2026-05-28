@@ -27,7 +27,7 @@ export function VendorProfileForm({
 	createMutation,
 	updateMutation,
 	router,
-}: VendorProfileFormProps) {
+}: Readonly<VendorProfileFormProps>) {
 	const {
 		form,
 		isSubmitting,

@@ -6,7 +6,7 @@ type FinalInvoiceDetailPageProps = {
 
 export default async function FinalInvoiceDetailPage({
 	params,
-}: FinalInvoiceDetailPageProps) {
+}: Readonly<FinalInvoiceDetailPageProps>) {
 	const { id } = await params;
 	return <FinalInvoiceDetailPageContent id={id} />;
 }

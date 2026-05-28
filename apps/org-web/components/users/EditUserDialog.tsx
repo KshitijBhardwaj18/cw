@@ -32,7 +32,6 @@ import type { UpdateOrgMemberPayload } from "@/services/organizations.service";
 import type { User } from "@/types/user";
 
 interface EditUserDialogProps {
-	orgId: string;
 	user: User | null;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -41,13 +40,12 @@ interface EditUserDialogProps {
 }
 
 export function EditUserDialog({
-	orgId,
 	user,
 	open,
 	onOpenChange,
 	onSave,
 	isSubmitting = false,
-}: EditUserDialogProps) {
+}: Readonly<EditUserDialogProps>) {
 	const {
 		formData,
 		setField,
@@ -57,7 +55,7 @@ export function EditUserDialog({
 		toggleDepartment,
 		isDeptChecked,
 		roleOptions,
-	} = useEditUserDialog({ open, user, orgId });
+	} = useEditUserDialog({ open, user });
 
 	const handleSave = () => {
 		if (!user) return;

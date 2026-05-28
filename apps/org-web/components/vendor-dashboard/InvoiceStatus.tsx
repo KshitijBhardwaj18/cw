@@ -40,7 +40,7 @@ type InvoiceStatusProps = {
 	}>;
 };
 
-export function InvoiceStatus({ items }: InvoiceStatusProps) {
+export function InvoiceStatus({ items }: Readonly<InvoiceStatusProps>) {
 	return (
 		<Card>
 			<CardHeader>

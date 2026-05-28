@@ -67,23 +67,31 @@ export interface PaginatedLocationsResponse {
 	totalPages: number;
 }
 
-/** Department with location, occupation, specialty, and related users */
 export type OrganizationDepartmentType = Prisma.DepartmentGetPayload<{
 	include: {
 		location: { select: { id: true; name: true } };
-		organizationOccupation: {
+		departmentOccupations: {
 			select: {
-				id: true;
-				occupation: {
-					select: { id: true; name: true; acronym: true };
+				organizationOccupation: {
+					select: {
+						id: true;
+						occupation: {
+							select: { id: true; name: true; acronym: true };
+						};
+					};
 				};
 			};
 		};
-		organizationSpecialty: {
+		departmentSpecialties: {
 			select: {
-				id: true;
-				specialty: {
-					select: { id: true; name: true; acronym: true };
+				organizationSpecialty: {
+					select: {
+						id: true;
+						organizationOccupationId: true;
+						specialty: {
+							select: { id: true; name: true; acronym: true };
+						};
+					};
 				};
 			};
 		};

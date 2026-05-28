@@ -77,6 +77,27 @@ export class CandidateMatchesController {
 		);
 	}
 
+	@Post("me/matches/:requisitionId/submit-for-vendor-review")
+	@HttpCode(HttpStatus.OK)
+	@Permissions({ action: Action.Create, subject: "CandidateSavedRequisition" })
+	@ApiOperation({
+		summary:
+			"External candidate 'Submit for me' — flag this job for vendor review and submission",
+	})
+	@ApiResponse({ status: 200, description: "Submitted for vendor review" })
+	@ApiResponse({ status: 404, description: "Job not found" })
+	submitForVendorReview(
+		@Session() session: UserSession,
+		@Param("requisitionId", ParseUUIDPipe) requisitionId: string,
+	) {
+		const organizationId = requireActiveOrganizationId(session);
+		return this.service.submitRequisitionForVendorReview(
+			session.user.id,
+			organizationId,
+			requisitionId,
+		);
+	}
+
 	@Delete("me/matches/:requisitionId/save")
 	@HttpCode(HttpStatus.OK)
 	@Permissions({ action: Action.Delete, subject: "CandidateSavedRequisition" })

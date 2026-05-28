@@ -14,7 +14,9 @@ export type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AuthProvider = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	const { data: session, isPending: isSessionPending, error } = useSession();
 	const router = useRouter();
 
@@ -24,8 +26,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 	}, [session]);
 
 	useEffect(() => {
-		if (!isSessionPending && !session && error) {
-			toast.error(error?.message ?? "Session expired. Please sign in again.");
+		if (isSessionPending || session) return;
+		if (error) {
+			toast.error(error.message ?? "Session expired. Please sign in again.");
 			authClient
 				.signOut()
 				.then((data) => {
@@ -37,8 +40,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 				.catch((err) => {
 					toast.error(err.message || "Failed to sign out");
 				});
+			return;
 		}
+		router.push("/sign-in");
 	}, [isSessionPending, session, error, router]);
+
+	if (!isSessionPending && !session) {
+		return null;
+	}
 
 	if (isSessionPending || !ability || !session) {
 		return (

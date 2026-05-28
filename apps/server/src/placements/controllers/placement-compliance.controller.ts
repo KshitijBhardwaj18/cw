@@ -21,6 +21,7 @@ import { Session, type UserSession } from "@thallesp/nestjs-better-auth";
 import { Permissions } from "src/common/decorators/permissions.decorator";
 import { PermissionsGuard } from "src/common/guards/permissions.guard";
 import { requireActiveOrganizationId } from "src/common/utils/require-active-organization-id";
+import { resolveComplianceViewerScope } from "src/common/utils/resolve-compliance-viewer-scope";
 import { AddPlacementComplianceItemDto } from "../dto/add-placement-compliance-item.dto";
 import { BulkAddPlacementComplianceItemsDto } from "../dto/bulk-add-placement-compliance-items.dto";
 import { QueryCredentialsDto } from "../dto/query-credentials.dto";
@@ -128,9 +129,11 @@ export class PlacementComplianceController {
 		@Session() session: UserSession,
 	) {
 		const orgId = requireActiveOrganizationId(session);
+		const viewerScope = resolveComplianceViewerScope(session.user.role);
 		return this.placementComplianceService.getPlacementCompliance(
 			orgId,
 			placementId,
+			viewerScope,
 		);
 	}
 
@@ -202,9 +205,34 @@ export class PlacementComplianceController {
 		@Session() session: UserSession,
 	) {
 		const orgId = requireActiveOrganizationId(session);
+		const viewerScope = resolveComplianceViewerScope(session.user.role);
 		return this.placementComplianceService.getPlacementCredentialDetail(
 			orgId,
 			placementId,
+			viewerScope,
+		);
+	}
+
+	@Post(
+		":placementId/compliance-items/:complianceListItemId/mark-link-submitted",
+	)
+	@ApiOperation({
+		summary:
+			"Mark a LINK-type placement compliance item as submitted (org acting on behalf)",
+	})
+	@Permissions({ action: Action.Update, subject: "Credentials" })
+	markLinkSubmittedForPlacement(
+		@Param("placementId", ParseUUIDPipe) placementId: string,
+		@Param("complianceListItemId", ParseUUIDPipe)
+		complianceListItemId: string,
+		@Session() session: UserSession,
+	) {
+		const orgId = requireActiveOrganizationId(session);
+		return this.placementComplianceService.markComplianceLinkSubmittedForPlacement(
+			orgId,
+			placementId,
+			complianceListItemId,
+			session.user.id,
 		);
 	}
 
@@ -242,7 +270,13 @@ export class PlacementComplianceController {
 				file: { type: "string", format: "binary" },
 				expiryDate: {
 					type: "string",
-					description: "Optional ISO date for document expiry",
+					description:
+						"ISO date for document expiry (required when item uses EXPIRATION_DATE)",
+				},
+				issueDate: {
+					type: "string",
+					description:
+						"ISO date for document issue (required when item uses EXPIRATION_RULE)",
 				},
 			},
 		},
@@ -260,7 +294,7 @@ export class PlacementComplianceController {
 		@Session() session: UserSession,
 	) {
 		if (!file?.buffer?.length) {
-			throw new BadRequestException("File is required");
+			throw new BadRequestException("File is required.");
 		}
 		const orgId = requireActiveOrganizationId(session);
 		return this.placementComplianceService.uploadCandidateComplianceDocument(
@@ -269,6 +303,7 @@ export class PlacementComplianceController {
 			complianceListItemId,
 			file,
 			dto.expiryDate,
+			dto.issueDate,
 			session.user.id,
 		);
 	}

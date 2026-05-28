@@ -1,6 +1,5 @@
-import { EmploymentType } from "@repo/db";
-import { format } from "date-fns";
-import { enUS } from "date-fns/locale";
+import { EmploymentType, OrganizationTimezone } from "@repo/db";
+import { TIMEZONE_IANA_MAP } from "@repo/shared";
 
 export function formatUsdPerHour(
 	value: number | null | undefined,
@@ -11,16 +10,33 @@ export function formatUsdPerHour(
 
 export function formatLongDate(d: Date | null | undefined): string {
 	if (!d) return "—";
-	return format(d, "MMMM d, yyyy", { locale: enUS });
+	return d.toISOString();
 }
 
 export function formatShortDate(d: Date | null | undefined): string {
 	if (!d) return "—";
-	return format(d, "MMM d, yyyy", { locale: enUS });
+	return d.toISOString();
+}
+
+/**
+ * Short calendar-style label in the organization's timezone (for API-built prose).
+ */
+export function formatShortDateInOrgTz(
+	d: Date | null | undefined,
+	orgTimezone: OrganizationTimezone,
+): string {
+	if (!d) return "—";
+	const iana = TIMEZONE_IANA_MAP[orgTimezone];
+	return d.toLocaleString("en-US", {
+		timeZone: iana,
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+	});
 }
 
 export function formatTimeEt(d: Date): string {
-	return format(d, "h:mm a zzz", { locale: enUS });
+	return d.toISOString();
 }
 
 export function employmentTypeLabel(

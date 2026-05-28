@@ -8,6 +8,7 @@ export * from "./msp.type";
 export * from "./occupation.type";
 export * from "./organization.type";
 export type { PagePaginatedResponse } from "./pagination.type";
+export * from "./postal-address.type";
 export * from "./profile.type";
 export * from "./shift-routing.type";
 export * from "./shift-template.type";

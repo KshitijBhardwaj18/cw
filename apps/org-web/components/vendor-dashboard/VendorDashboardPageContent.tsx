@@ -16,6 +16,7 @@ import {
 import { useMemo, useState } from "react";
 import { QUICK_ACTIONS } from "@/constants/vendor/dashboard";
 import { useAuth } from "@/contexts/auth.context";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	type FinancialPeriodValue,
 	useVendorDashboardQuery,
@@ -32,6 +33,7 @@ import { UpcomingShifts } from "./UpcomingShifts";
 
 function VendorDashboardPageContent() {
 	const { ability, session } = useAuth();
+	const { fmtDateTime } = useUserTimezone();
 	const dashboardQuery = useVendorDashboardQuery();
 	const dashboard = dashboardQuery.data;
 	const isVendorViewOnly =
@@ -55,6 +57,14 @@ function VendorDashboardPageContent() {
 		useState<FinancialPeriodValue>("this-month");
 	const financialQuery = useVendorFinancialQuery(financialPeriod);
 	const financial = financialQuery.data ?? dashboard?.financial;
+
+	const recentActivityItems = useMemo(() => {
+		const items = dashboard?.recentActivity ?? [];
+		return items.map((item) => ({
+			...item,
+			time: fmtDateTime(item.time),
+		}));
+	}, [dashboard?.recentActivity, fmtDateTime]);
 
 	const summaryStats = dashboard
 		? [
@@ -193,12 +203,18 @@ function VendorDashboardPageContent() {
 
 			<section className="grid grid-cols-1 gap-6 md:grid-cols-2">
 				<ComplianceAlerts alerts={dashboard?.complianceAlerts ?? []} />
-				<RecentActivity items={dashboard?.recentActivity ?? []} />
+				<RecentActivity items={recentActivityItems} />
 			</section>
 
 			<OffersOverview
 				allowOfferActions={!isVendorViewOnly}
-				offers={dashboard?.offers ?? { overdue: [], pending: [] }}
+				offers={
+					dashboard?.offers ?? {
+						overdueThresholdLabel: "Not configured",
+						overdue: [],
+						pending: [],
+					}
+				}
 			/>
 			<UpcomingShifts
 				allowClaim={!isVendorViewOnly}

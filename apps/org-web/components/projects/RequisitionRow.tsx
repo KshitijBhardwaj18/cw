@@ -4,6 +4,7 @@ import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { cn } from "@repo/ui/lib/utils";
 import { Briefcase, Calendar, DollarSign, MapPin, X } from "lucide-react";
+import type { ProjectRequisitionStatus } from "@/types/project";
 
 interface RequisitionRowProps {
 	requisitionId: string;
@@ -14,9 +15,35 @@ interface RequisitionRowProps {
 	openPositions: number;
 	specialty: string;
 	startDateLabel: string;
-	status: "Open" | "Closed" | "On Hold";
+	status: ProjectRequisitionStatus;
 	onRemove: () => void;
 }
+
+const STATUS_LABELS: Record<ProjectRequisitionStatus, string> = {
+	DRAFT: "Draft",
+	ACTIVE: "Active",
+	INACTIVE: "Inactive",
+	PENDING_APPROVAL: "Pending Approval",
+	APPROVED: "Approved",
+	PUBLISHED: "Published",
+	ON_HOLD: "On Hold",
+	FILLED: "Filled",
+	CANCELLED: "Cancelled",
+	CLOSED: "Closed",
+};
+
+const STATUS_CLASSES: Record<ProjectRequisitionStatus, string> = {
+	DRAFT: "bg-slate-100 text-slate-700 border-slate-200",
+	ACTIVE: "bg-green-100 text-green-700 border-green-200",
+	INACTIVE: "bg-gray-100 text-gray-700 border-gray-200",
+	PENDING_APPROVAL: "bg-amber-100 text-amber-700 border-amber-200",
+	APPROVED: "bg-blue-100 text-blue-700 border-blue-200",
+	PUBLISHED: "bg-green-100 text-green-700 border-green-200",
+	ON_HOLD: "bg-amber-100 text-amber-700 border-amber-200",
+	FILLED: "bg-violet-100 text-violet-700 border-violet-200",
+	CANCELLED: "bg-red-100 text-red-700 border-red-200",
+	CLOSED: "bg-gray-100 text-gray-700 border-gray-200",
+};
 
 export function RequisitionRow({
 	requisitionId,
@@ -29,7 +56,7 @@ export function RequisitionRow({
 	startDateLabel,
 	status,
 	onRemove,
-}: RequisitionRowProps) {
+}: Readonly<RequisitionRowProps>) {
 	return (
 		<div className="group border-t px-6 py-5 transition-colors hover:bg-accent/50">
 			<div className="flex items-start justify-between gap-4">
@@ -45,15 +72,10 @@ export function RequisitionRow({
 							variant="secondary"
 							className={cn(
 								"font-medium h-5 px-2 text-[10px] uppercase tracking-wider shrink-0",
-								status === "Open" &&
-									"bg-green-100 text-green-700 border-green-200",
-								status === "On Hold" &&
-									"bg-amber-100 text-amber-700 border-amber-200",
-								status === "Closed" &&
-									"bg-gray-100 text-gray-700 border-gray-200",
+								STATUS_CLASSES[status],
 							)}
 						>
-							{status}
+							{STATUS_LABELS[status]}
 						</Badge>
 					</div>
 

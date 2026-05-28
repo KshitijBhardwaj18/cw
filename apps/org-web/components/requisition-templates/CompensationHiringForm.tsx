@@ -1,5 +1,6 @@
 "use client";
 
+import { InterviewType } from "@repo/shared";
 import { Button } from "@repo/ui/components/button";
 import {
 	Card,
@@ -43,7 +44,7 @@ const defaultValues: RequisitionTemplateCompensationFormValues = {
 	numberOfPositions: 1,
 	incentiveType: "",
 	incentiveAmount: undefined,
-	interviewRequired: undefined,
+	interviewRequired: InterviewType.CLIENT_INTERVIEW,
 	hiringManagerId: undefined,
 };
 
@@ -63,7 +64,7 @@ export function CompensationHiringForm({
 	isPending = false,
 	initialValues,
 	readOnly = false,
-}: CompensationHiringFormProps) {
+}: Readonly<CompensationHiringFormProps>) {
 	const form = useForm({
 		defaultValues: initialValues ?? defaultValues,
 		validators: {
@@ -286,7 +287,7 @@ export function CompensationHiringForm({
 									return (
 										<Field data-invalid={isInvalid}>
 											<FieldLabel htmlFor={field.name}>
-												Interview Required
+												Interview Required <RequiredStar />
 											</FieldLabel>
 											<Select
 												value={field.state.value ?? ""}

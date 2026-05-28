@@ -1,3 +1,6 @@
+"use client";
+
+import { shortId } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -9,7 +12,9 @@ import {
 } from "@repo/ui/components/card";
 import { DetailItem } from "@repo/ui/components/detail-item";
 import { Calendar, MapPin, Pencil, Send } from "lucide-react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { ClaimableShift } from "@/types/vendor-claim-shifts";
+import { formatVendorShiftBoundaryTime } from "@/utils/time-entry";
 
 interface ShiftCardProps {
 	shift: ClaimableShift;
@@ -24,8 +29,11 @@ export function ShiftCard({
 	onAction,
 	type,
 	showPrimaryAction = true,
-}: ShiftCardProps) {
+}: Readonly<ShiftCardProps>) {
+	const { fmtCalendarDate } = useUserTimezone();
 	const isAvailable = type === "available";
+	const dateLabel = fmtCalendarDate(shift.date);
+	const clockLabel = `${formatVendorShiftBoundaryTime(shift.startTime)} – ${formatVendorShiftBoundaryTime(shift.endTime)}`;
 
 	return (
 		<Card>
@@ -46,7 +54,9 @@ export function ShiftCard({
 						>
 							{shift.urgency} Urgency
 						</Badge>
-						<Badge variant="inactive">{shift.id}</Badge>
+						<Badge variant="inactive" title={shift.id}>
+							{shortId(shift.id)}
+						</Badge>
 					</div>
 					<div className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
 						<div className="flex min-w-0 max-w-full items-center gap-1">
@@ -87,20 +97,13 @@ export function ShiftCard({
 				</div>
 				<div className="border-t pt-4">
 					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-						<DetailItem label="Date" value={shift.date} icon={Calendar} />
-						<DetailItem
-							label="Shift Time"
-							value={`${shift.startTime} - ${shift.endTime}`}
-						/>
+						<DetailItem label="Date" value={dateLabel} icon={Calendar} />
+						<DetailItem label="Shift Time" value={clockLabel} />
 						<DetailItem label="Duration" value={shift.duration} />
 						<DetailItem
 							label="Bill Rate"
 							value={shift.billRate}
 							valueClassName="text-primary font-bold"
-						/>
-						<DetailItem
-							label="Openings"
-							value={`${shift.openings} available`}
 						/>
 					</div>
 				</div>

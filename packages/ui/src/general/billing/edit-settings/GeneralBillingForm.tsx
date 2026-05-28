@@ -17,7 +17,7 @@ interface GeneralBillingFormProps {
 export function GeneralBillingForm({
 	state,
 	onChange,
-}: GeneralBillingFormProps) {
+}: Readonly<GeneralBillingFormProps>) {
 	const sameAsBilling = state.remittanceSameAsBilling;
 
 	const billingAddrVal = sameAsBilling

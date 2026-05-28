@@ -16,17 +16,17 @@ export function SpendSavingsSummaryCards({
 	topCostCenterName,
 	projectedAnnualUsd,
 	className,
-}: SpendSavingsSummaryCardsProps) {
+}: Readonly<SpendSavingsSummaryCardsProps>) {
 	return (
 		<div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-3", className)}>
 			<TintedMetricCard
 				tone="emerald"
-				title="Avg Savings per Cost Center"
+				title="Avg Savings per Department"
 				value={formatCurrency(avgPerCenterUsd)}
 			/>
 			<TintedMetricCard
 				tone="sky"
-				title="Top Performing Cost Center"
+				title="Top Performing Department"
 				value={topCostCenterName}
 			/>
 			<TintedMetricCard

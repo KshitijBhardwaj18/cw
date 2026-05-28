@@ -3,16 +3,19 @@
 import { Card, CardContent } from "@repo/ui/components/card";
 import { cn } from "@repo/ui/lib/utils";
 import { TrendingUp } from "lucide-react";
+import type { VendorJobBoardCandidateStatus } from "@/types/vendor-jobs-board";
+import { formatVendorJobBoardCandidateStatus } from "@/utils/vendor-job-board-candidate-status";
 
 interface CandidateMatchCardProps {
 	matchScore: number;
-	status: string;
+	status: VendorJobBoardCandidateStatus;
 }
 
 export function CandidateMatchCard({
 	matchScore,
 	status,
-}: CandidateMatchCardProps) {
+}: Readonly<CandidateMatchCardProps>) {
+	const statusLabel = formatVendorJobBoardCandidateStatus(status);
 	const numericScore = matchScore;
 	const isExcellent = numericScore >= 90;
 	const isGood = numericScore >= 80 && numericScore < 90;
@@ -67,7 +70,7 @@ export function CandidateMatchCard({
 						!isExcellent && !isGood && "text-amber-800",
 					)}
 				>
-					{status}
+					{statusLabel}
 				</h2>
 			</CardContent>
 		</Card>

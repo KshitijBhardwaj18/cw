@@ -14,7 +14,6 @@ import {
 	REQUISITION_TEMPLATE_SHIFT_TYPE_OPTIONS,
 	REQUISITION_TEMPLATE_TYPE_OPTIONS,
 } from "@/constants/requisition-templates";
-import { useOrgContext } from "@/contexts/org-context";
 import {
 	useActiveComplianceListItems,
 	useComplianceChecklist,
@@ -39,16 +38,13 @@ export function useJobPostingReviewConfirmStep({
 	onSubmit,
 	isSubmitting = false,
 }: UseJobPostingReviewConfirmStepProps) {
-	const { id: orgId } = useOrgContext();
 	const templateQuery = useRequisitionTemplate(
-		orgId,
 		values.templateSelection.templateId || null,
 	);
 	const checklistMetaQuery = useComplianceChecklist(
-		orgId,
 		values.jobDetails.complianceTemplateId,
 	);
-	const membersQuery = useOrgMembersForPicker(orgId, {
+	const membersQuery = useOrgMembersForPicker({
 		role: MemberRole.HIRING_MANAGER,
 	});
 	const locationsQuery = useShiftTemplateLocations();
@@ -109,12 +105,13 @@ export function useJobPostingReviewConfirmStep({
 	}, [selectedOccupationOption?.name, values.jobDetails.occupation]);
 
 	const specialtyLabel = useMemo(() => {
-		const id = values.jobDetails.specialty;
-		if (!id) return "—";
-		const fromOrg = selectedOccupationOption?.organizationSpecialties?.find(
-			(s) => s.id === id,
-		);
-		return fromOrg?.name ?? id;
+		const ids = values.jobDetails.specialty ?? [];
+		if (ids.length === 0) return "—";
+		const options = selectedOccupationOption?.organizationSpecialties ?? [];
+		const names = ids
+			.map((id) => options.find((s) => s.id === id)?.name ?? id)
+			.filter(Boolean);
+		return names.join(", ");
 	}, [
 		selectedOccupationOption?.organizationSpecialties,
 		values.jobDetails.specialty,

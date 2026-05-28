@@ -1,6 +1,6 @@
 "use client";
 
-import { formatUsdLedger } from "@repo/shared";
+import { enumToTitleText, formatUsdLedger } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Smartphone, Upload } from "lucide-react";
@@ -97,7 +97,9 @@ export function useInvoiceApprovalColumns() {
 			accessorKey: "status",
 			cell: ({ row }) => (
 				<div className="text-right">
-					<Badge variant="success">{row.original.status}</Badge>
+					<Badge variant="success">
+						{enumToTitleText(row.original.status)}
+					</Badge>
 				</div>
 			),
 		},

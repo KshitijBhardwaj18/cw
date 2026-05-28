@@ -16,7 +16,7 @@ export function SlugPreviewField({
 	orgName,
 	excludeOrganizationId,
 	onLoadingChange,
-}: SlugPreviewFieldProps) {
+}: Readonly<SlugPreviewFieldProps>) {
 	const [debouncedName] = useDebouncedValue(orgName.trim(), { wait: 400 });
 
 	const { data, isFetching } = useSlugSuggestion(

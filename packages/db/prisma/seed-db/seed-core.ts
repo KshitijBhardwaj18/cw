@@ -4,12 +4,12 @@ import { createPrismaClient } from "../../lib/create-prisma-client";
 const prisma = createPrismaClient();
 
 const SEED_USER = {
-	email: "nilesh@heizen.work",
-	name: "Admin User",
-	phoneNumber: "+19876543210",
+	email: "bala@heizen.work",
+	name: "Bala Heizen",
+	phoneNumber: "+1234567890",
 	timeZone: "EASTERN",
-	title: "Admin",
-	officePhone: "+19876543210",
+	title: "Senior Software Engineer",
+	officePhone: "+1234567890",
 	status: "ACTIVE" as const,
 	role: "SUPER_ADMIN" as const,
 };
@@ -34,18 +34,6 @@ const CRITERIA: Array<{
 		name: "Contract Length",
 		description:
 			"Match candidates based on their availability for the contract duration",
-	},
-	{
-		key: MatchingCriterionKey.OCCUPATION,
-		name: "Occupation",
-		description:
-			"Match candidates based on their occupation alignment with job requirements",
-	},
-	{
-		key: MatchingCriterionKey.SPECIALTIES,
-		name: "Specialties",
-		description:
-			"Match candidates based on their specialty qualifications and expertise",
 	},
 ];
 

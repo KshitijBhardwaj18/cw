@@ -6,7 +6,7 @@ type OrganizationUsersPageProps = {
 
 export default async function OrganizationUsersPage({
 	params,
-}: OrganizationUsersPageProps) {
+}: Readonly<OrganizationUsersPageProps>) {
 	const { organizationId } = await params;
 	return (
 		<OrganizationUserEnrollmentPageContent organizationId={organizationId} />

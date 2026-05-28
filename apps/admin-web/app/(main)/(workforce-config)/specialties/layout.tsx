@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 
 export default function SpecialtiesSegmentLayout({
 	children,
-}: {
+}: Readonly<{
 	children: React.ReactNode;
-}) {
+}>) {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.Read, subject: "Specialty" }]}

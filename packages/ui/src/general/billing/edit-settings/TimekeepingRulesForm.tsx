@@ -14,7 +14,7 @@ interface TimekeepingRulesFormProps {
 export function TimekeepingRulesForm({
 	state,
 	onChange,
-}: TimekeepingRulesFormProps) {
+}: Readonly<TimekeepingRulesFormProps>) {
 	return (
 		<div className="space-y-4">
 			<h3 className="text-sm font-bold text-foreground px-1">

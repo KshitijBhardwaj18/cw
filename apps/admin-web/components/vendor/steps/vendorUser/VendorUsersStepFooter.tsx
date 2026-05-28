@@ -11,7 +11,7 @@ interface VendorUsersStepFooterProps {
 export function VendorUsersStepFooter({
 	onBack,
 	onNext,
-}: VendorUsersStepFooterProps) {
+}: Readonly<VendorUsersStepFooterProps>) {
 	const router = useRouter();
 
 	return (

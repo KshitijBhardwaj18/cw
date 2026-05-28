@@ -52,4 +52,17 @@ export class BillingSpendAnalyticsController {
 		const orgId = requireActiveOrganizationId(session);
 		return this.spendAnalyticsService.listOpenCommittedBreakdown(orgId, query);
 	}
+
+	@Get("spend-analytics/savings-by-department")
+	@ApiOperation({
+		summary: "Savings (canceled requisitions) grouped by department",
+	})
+	@Permissions({ action: Action.List, subject: "SpendAnalytics" })
+	getSavingsByDepartment(
+		@Session() session: UserSession,
+		@Query() query: QuerySpendAnalyticsDto,
+	) {
+		const orgId = requireActiveOrganizationId(session);
+		return this.spendAnalyticsService.getSavingsByDepartment(orgId, query);
+	}
 }

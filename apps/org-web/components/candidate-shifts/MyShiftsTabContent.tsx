@@ -14,6 +14,7 @@ import { SubmitTimecardDialog } from "./SubmitTimecardDialog";
 
 interface MyShiftsTabContentProps {
 	workerType: CandidateWorkerType;
+	isInternalWorkforce?: boolean;
 	shifts: CandidateShiftListItem[];
 	pagination: {
 		currentPage: number;
@@ -21,14 +22,16 @@ interface MyShiftsTabContentProps {
 		goToPage: (page: number) => void;
 		limit: number;
 		setLimit: (limit: number) => void;
+		totalItems?: number;
 	};
 }
 
 export function MyShiftsTabContent({
 	workerType,
+	isInternalWorkforce = false,
 	shifts,
 	pagination,
-}: MyShiftsTabContentProps) {
+}: Readonly<MyShiftsTabContentProps>) {
 	const [isTimecardOpen, setIsTimecardOpen] = useState(false);
 	const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 	const [selectedShift, setSelectedShift] =
@@ -95,12 +98,17 @@ export function MyShiftsTabContent({
 					key={shift.id}
 					shift={shift}
 					workerType={workerType}
+					isInternalWorkforce={isInternalWorkforce}
 					onAction={handleAction}
 					onClick={handleCardClick}
 				/>
 			))}
 
-			<PaginationControls {...pagination} />
+			<PaginationControls
+				{...pagination}
+				itemLabel="shift"
+				itemLabelPlural="shifts"
+			/>
 		</div>
 	);
 }

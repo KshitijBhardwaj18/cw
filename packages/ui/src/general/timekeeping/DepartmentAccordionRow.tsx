@@ -33,7 +33,7 @@ export function DepartmentAccordionRow({
 	onDisputeLog,
 	defaultOpen = false,
 	approvalActionsEnabled = true,
-}: DepartmentAccordionRowProps) {
+}: Readonly<DepartmentAccordionRowProps>) {
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 
 	const totalRegular = department.workers.reduce(

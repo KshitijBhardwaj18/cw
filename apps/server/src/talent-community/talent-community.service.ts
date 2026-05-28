@@ -6,21 +6,13 @@ import {
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
-import {
-	CandidateInviteStatus,
-	CandidateSource,
-	CandidateWorkforceType,
-	type SubmissionStage,
-	UserRole,
-} from "@repo/db";
+import { CandidateInviteStatus, CandidateSource, UserRole } from "@repo/db";
 import { getWorkforceBucket, WorkforceBucket } from "@repo/shared";
 import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
 import { auth } from "src/common/auth";
 import { config } from "src/common/config";
 import { PrismaService } from "src/prisma/prisma.service";
-import type { AddExistingCandidatesDto } from "./dto/add-existing-candidates.dto";
 import type { CandidateActivityQueryDto } from "./dto/candidate-activity-query.dto";
-import type { ExistingTalentQueryDto } from "./dto/existing-talent-query.dto";
 import type { InviteCandidateDto } from "./dto/invite-candidate.dto";
 import {
 	type TalentCommunityQueryDto,
@@ -44,6 +36,10 @@ const CANDIDATE_INCLUDE = {
 	candidateSpecialties: {
 		include: { specialty: { select: { id: true, name: true, acronym: true } } },
 	},
+	candidateTags: {
+		orderBy: { id: "asc" as const },
+		include: { tag: { select: { id: true, name: true } } },
+	},
 	vendor: { select: { id: true, name: true } },
 	placements: {
 		select: { status: true },
@@ -57,18 +53,25 @@ const CANDIDATE_PROFILE_INCLUDE = {
 	candidateCompliances: {
 		select: {
 			id: true,
-			documentName: true,
-			category: true,
 			status: true,
 			expiryDate: true,
 			updatedAt: true,
+			complianceListItem: {
+				select: { name: true, category: true },
+			},
 		},
 		orderBy: { updatedAt: "desc" as const },
 		take: 20,
 	},
 } as const;
 
-type ExistingTalentStatus = "INACTIVE" | SubmissionStage;
+export type ComplianceSeverity = "ok" | "warning" | "danger";
+
+function complianceStatusSeverity(status: string): ComplianceSeverity {
+	if (status === "APPROVED") return "ok";
+	if (status === "PENDING") return "warning";
+	return "danger";
+}
 
 @Injectable()
 export class TalentCommunityService {
@@ -95,7 +98,7 @@ export class TalentCommunityService {
 			select: { id: true },
 		});
 		if (!org) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 	}
 
@@ -125,17 +128,22 @@ export class TalentCommunityService {
 
 		const existing = await this.prisma.user.findUnique({
 			where: { email: dto.email },
-			select: { id: true },
+			select: { id: true, role: true },
 		});
 
 		if (existing) {
+			if (existing.role !== UserRole.CANDIDATE_USER) {
+				throw new ConflictException(
+					"This email cannot be added as a candidate.",
+				);
+			}
 			const alreadyCandidate = await this.prisma.candidate.findFirst({
 				where: { userId: existing.id, organizationId: orgId },
 				select: { id: true },
 			});
 			if (alreadyCandidate) {
 				throw new ConflictException(
-					"A candidate with this email already exists in this organization",
+					"A candidate with this email already exists in this organization.",
 				);
 			}
 		}
@@ -176,6 +184,16 @@ export class TalentCommunityService {
 				include: CANDIDATE_INCLUDE,
 			});
 
+			await tx.candidateSummary.create({
+				data: {
+					candidateId: newCandidate.id,
+					organizationId: orgId,
+					vendorId: options?.vendorId ?? null,
+					occupationId: dto.occupationId,
+					primarySpecialtyId: dto.specialtyIds?.[0] ?? null,
+				},
+			});
+
 			await tx.activityLogOrg.create({
 				data: {
 					organizationId: orgId,
@@ -198,7 +216,7 @@ export class TalentCommunityService {
 			select: { slug: true },
 		});
 		if (!orgSlug) {
-			throw new NotFoundException("Organization not found");
+			throw new NotFoundException("Organization not found.");
 		}
 		const magicToken = randomBytes(32).toString("base64url"); // 43-char URL-safe string
 		const ctx = await auth.$context;
@@ -208,8 +226,11 @@ export class TalentCommunityService {
 			expiresAt: new Date(Date.now() + MAGIC_LINK_EXPIRY_SECONDS * 1000),
 		});
 
-		const callbackUrl = `${config.urls.orgPortalBaseUrl.replace("://", `://${orgSlug.slug}.`)}/candidate/sign-up?step=0&invite=true`;
-		const magicLinkUrl = `${config.betterAuthUrl}/api/auth/org/magic-link/verify?token=${magicToken}&callbackURL=${encodeURIComponent(callbackUrl)}`;
+		const orgSubdomainOrigin = new URL(
+			config.urls.orgPortalBaseUrl.replace("://", `://${orgSlug.slug}.`),
+		).origin;
+		const callbackUrl = `${orgSubdomainOrigin}/candidate/sign-up?step=0&invite=true`;
+		const magicLinkUrl = `${orgSubdomainOrigin}/api/auth/org/magic-link/verify?token=${magicToken}&callbackURL=${encodeURIComponent(callbackUrl)}`;
 
 		await this.backgroundJobsService.createInviteCandidateJob(
 			orgId,
@@ -254,6 +275,13 @@ export class TalentCommunityService {
 
 		const INVITED_STATUSES = [CandidateInviteStatus.PENDING];
 
+		const notPendingOrNullInviteStatus = {
+			OR: [
+				{ inviteStatus: { notIn: INVITED_STATUSES } },
+				{ inviteStatus: null },
+			],
+		};
+
 		const tabFilter = (() => {
 			switch (query.tab) {
 				case TalentCommunityTab.INVITED:
@@ -261,20 +289,19 @@ export class TalentCommunityService {
 				case TalentCommunityTab.NEW_UNASSIGNED:
 					return {
 						workforceType: null,
-						inviteStatus: { notIn: INVITED_STATUSES },
+						...notPendingOrNullInviteStatus,
 					};
 				default:
 					return {
 						workforceType: { not: null },
-						inviteStatus: { notIn: INVITED_STATUSES },
+						...notPendingOrNullInviteStatus,
 					};
 			}
 		})();
 
-		const workforceTypeFilter =
-			query.workforceType && query.tab !== TalentCommunityTab.NEW_UNASSIGNED
-				? { workforceType: query.workforceType }
-				: {};
+		const workforceTypeFilter = query.workforceType
+			? { workforceType: query.workforceType }
+			: {};
 
 		const inviteStatusFilter =
 			query.inviteStatus && query.tab === TalentCommunityTab.INVITED
@@ -313,14 +340,14 @@ export class TalentCommunityService {
 				where: {
 					organizationId: orgId,
 					workforceType: { not: null },
-					inviteStatus: { notIn: INVITED_STATUSES },
+					...notPendingOrNullInviteStatus,
 				},
 			}),
 			this.prisma.candidate.count({
 				where: {
 					organizationId: orgId,
 					workforceType: null,
-					inviteStatus: { notIn: INVITED_STATUSES },
+					...notPendingOrNullInviteStatus,
 				},
 			}),
 			this.prisma.candidate.count({
@@ -345,182 +372,6 @@ export class TalentCommunityService {
 		};
 	}
 
-	private getLatestSubmissionStageStatus(
-		submissions: { stage: SubmissionStage }[],
-	): ExistingTalentStatus {
-		return submissions[0]?.stage ?? "INACTIVE";
-	}
-
-	async getExistingCandidates(orgId: string, query: ExistingTalentQueryDto) {
-		await this.ensureOrgExists(orgId);
-
-		const page = query.page ?? 1;
-		const limit = query.limit ?? 20;
-		const skip = (page - 1) * limit;
-
-		const statusWhere = (() => {
-			if (!query.status || query.status === "all") return {};
-			if (query.status === "INACTIVE") {
-				return { submissions: { none: {} } };
-			}
-			return {
-				submissions: {
-					some: { stage: query.status as SubmissionStage },
-				},
-			};
-		})();
-
-		const searchFilter = query.search
-			? {
-					OR: [
-						{
-							user: {
-								name: {
-									contains: query.search,
-									mode: "insensitive" as const,
-								},
-							},
-						},
-						{
-							user: {
-								email: {
-									contains: query.search,
-									mode: "insensitive" as const,
-								},
-							},
-						},
-						{
-							occupation: {
-								name: {
-									contains: query.search,
-									mode: "insensitive" as const,
-								},
-							},
-						},
-					],
-				}
-			: {};
-
-		const where = {
-			organizationId: null,
-			...(query.workforceType
-				? { workforceType: query.workforceType as CandidateWorkforceType }
-				: {}),
-			...(query.source ? { source: query.source as CandidateSource } : {}),
-			...searchFilter,
-			...statusWhere,
-		};
-
-		const [candidates, total] = await Promise.all([
-			this.prisma.candidate.findMany({
-				where,
-				include: {
-					user: {
-						select: { id: true, name: true, email: true, phoneNumber: true },
-					},
-					occupation: { select: { id: true, name: true, acronym: true } },
-					candidateSpecialties: {
-						include: {
-							specialty: { select: { id: true, name: true, acronym: true } },
-						},
-					},
-					submissions: {
-						select: { stage: true, createdAt: true },
-						orderBy: { createdAt: "desc" },
-						take: 1,
-					},
-				},
-				skip,
-				take: limit,
-				orderBy: { updatedAt: "desc" },
-			}),
-			this.prisma.candidate.count({ where }),
-		]);
-
-		const data = candidates.map((candidate) => {
-			const status = this.getLatestSubmissionStageStatus(candidate.submissions);
-			return {
-				id: candidate.id,
-				name: candidate.user.name,
-				email: candidate.user.email,
-				workforceGroup: candidate.workforceGroup ?? "—",
-				workforceType: candidate.workforceType,
-				occupation: candidate.occupation.name,
-				specialty: candidate.candidateSpecialties[0]?.specialty?.name ?? "—",
-				source: candidate.source ?? CandidateSource.DIRECT,
-				status,
-			};
-		});
-
-		return {
-			data,
-			total,
-			page,
-			limit,
-			totalPages: Math.ceil(total / limit),
-		};
-	}
-
-	async addExistingCandidates(
-		orgId: string,
-		dto: AddExistingCandidatesDto,
-		updatedByUserId: string,
-	) {
-		await this.ensureOrgExists(orgId);
-		const actorMeta = await this.getActorMeta(updatedByUserId);
-
-		const existingCandidates = await this.prisma.candidate.findMany({
-			where: { id: { in: dto.candidateIds } },
-			select: { id: true, organizationId: true },
-		});
-
-		if (existingCandidates.length !== dto.candidateIds.length) {
-			throw new NotFoundException("One or more candidates were not found");
-		}
-
-		const invalidCandidates = existingCandidates.filter(
-			(candidate) => candidate.organizationId !== null,
-		);
-		if (invalidCandidates.length > 0) {
-			throw new ConflictException(
-				"One or more selected candidates are already assigned to an organization",
-			);
-		}
-
-		const result = await this.prisma.$transaction(async (tx) => {
-			const updateResult = await tx.candidate.updateMany({
-				where: { id: { in: dto.candidateIds }, organizationId: null },
-				data: {
-					organizationId: orgId,
-					updatedBy: updatedByUserId,
-				},
-			});
-
-			await tx.activityLogOrg.createMany({
-				data: dto.candidateIds.map((candidateId) => ({
-					organizationId: orgId,
-					userId: actorMeta.userId,
-					userEmail: actorMeta.userEmail ?? undefined,
-					userName: actorMeta.userName ?? undefined,
-					action: CandidateActivityAction.AddedToTalentCommunity,
-					entityType: CANDIDATE_ENTITY_TYPE,
-					entityId: candidateId,
-					description: "Added to Talent Community",
-				})),
-			});
-
-			return updateResult;
-		});
-
-		for (const id of dto.candidateIds) {
-			await this.backgroundJobsService.enqueueCandidateSummary(id);
-		}
-
-		return {
-			addedCount: result.count,
-		};
-	}
-
 	async getCandidateProfile(orgId: string, candidateId: string) {
 		await this.ensureOrgExists(orgId);
 
@@ -529,10 +380,32 @@ export class TalentCommunityService {
 			include: CANDIDATE_PROFILE_INCLUDE,
 		});
 		if (!candidate) {
-			throw new NotFoundException("Candidate not found in this organization");
+			throw new NotFoundException("Candidate not found in this organization.");
 		}
 
-		return candidate;
+		const { candidateCompliances, ...rest } = candidate;
+		const mappedCompliances = candidateCompliances.map((c) => ({
+			id: c.id,
+			documentName: c.complianceListItem.name,
+			category: c.complianceListItem.category,
+			status: c.status,
+			severity: complianceStatusSeverity(c.status),
+			expiryDate: c.expiryDate,
+			updatedAt: c.updatedAt,
+		}));
+		const verifiedCount = mappedCompliances.filter(
+			(c) => c.severity === "ok",
+		).length;
+		const totalCount = mappedCompliances.length;
+		return {
+			...rest,
+			candidateCompliances: mappedCompliances,
+			complianceSummary: {
+				total: totalCount,
+				verified: verifiedCount,
+				allVerified: totalCount > 0 && verifiedCount === totalCount,
+			},
+		};
 	}
 
 	async updateCandidateWorkforceType(
@@ -549,14 +422,14 @@ export class TalentCommunityService {
 			select: { id: true, workforceType: true, vendorId: true },
 		});
 		if (!candidate) {
-			throw new NotFoundException("Candidate not found in this organization");
+			throw new NotFoundException("Candidate not found in this organization.");
 		}
 
 		const isExternalWorkforceType =
 			getWorkforceBucket(dto.workforceType) === WorkforceBucket.EXTERNAL;
 		if (isExternalWorkforceType && !dto.vendorId) {
 			throw new BadRequestException(
-				"vendorId is required for external/vendor workforce types",
+				"Select a vendor for external/vendor workforce types.",
 			);
 		}
 		if (dto.vendorId) {
@@ -580,6 +453,9 @@ export class TalentCommunityService {
 				data: {
 					workforceType: dto.workforceType,
 					vendorId: isExternalWorkforceType ? dto.vendorId : null,
+					...(isExternalWorkforceType
+						? { source: CandidateSource.VENDOR }
+						: {}),
 					updatedBy: updatedByUserId,
 				},
 				include: CANDIDATE_INCLUDE,
@@ -625,7 +501,7 @@ export class TalentCommunityService {
 			select: { id: true },
 		});
 		if (!candidate) {
-			throw new NotFoundException("Candidate not found in this organization");
+			throw new NotFoundException("Candidate not found in this organization.");
 		}
 
 		const limit = query.limit ?? 20;

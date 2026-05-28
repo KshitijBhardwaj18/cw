@@ -6,7 +6,7 @@ type PageProps = {
 
 export default async function SpecialtyQuestionnairePage({
 	params,
-}: PageProps) {
+}: Readonly<PageProps>) {
 	const { organizationId, orgSpecialtyId } = await params;
 
 	return (

@@ -82,7 +82,7 @@ export function RequisitionTypeSelectionCards({
 	disabled = false,
 	actionText = "Select this type →",
 	className,
-}: RequisitionTypeSelectionCardsProps) {
+}: Readonly<RequisitionTypeSelectionCardsProps>) {
 	return (
 		<div
 			className={cn(

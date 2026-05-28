@@ -65,7 +65,7 @@ export function ComplianceFormDialog({
 	open,
 	onOpenChange,
 	item,
-}: ComplianceFormDialogProps) {
+}: Readonly<ComplianceFormDialogProps>) {
 	const {
 		form,
 		fileInputRef,
@@ -88,6 +88,30 @@ export function ComplianceFormDialog({
 		form.store,
 		(s) => s.submissionAttempts ?? 0,
 	);
+
+	const handleResponseStyleChange = (val: string) => {
+		const next = val as ComplianceListItemResponseStyle;
+		form.setFieldValue("responseStyle", next);
+		const needsFile =
+			next === ComplianceListItemResponseStyle.DOWNLOAD_AND_UPLOAD ||
+			next === ComplianceListItemResponseStyle.LINK;
+		if (!needsFile) {
+			clearFileOnResponseStyleChange();
+		}
+		form.setFieldValue(
+			"displayToCandidate",
+			next !== ComplianceListItemResponseStyle.INTERNAL_TASK,
+		);
+	};
+
+	const handleExpirationTypeChange = (val: string) => {
+		form.setFieldValue(
+			"expirationType",
+			val as ComplianceListItemExpirationType,
+		);
+		form.setFieldValue("expirationRuleValue", null);
+		form.setFieldValue("expirationRuleUnit", null);
+	};
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
@@ -208,13 +232,7 @@ export function ComplianceFormDialog({
 											</FieldLabel>
 											<Select
 												value={field.state.value}
-												onValueChange={(val) => {
-													field.handleChange(
-														val as ComplianceListItemExpirationType,
-													);
-													form.setFieldValue("expirationRuleValue", null);
-													form.setFieldValue("expirationRuleUnit", null);
-												}}
+												onValueChange={handleExpirationTypeChange}
 											>
 												<SelectTrigger
 													id={field.name}
@@ -421,18 +439,7 @@ export function ComplianceFormDialog({
 											</FieldLabel>
 											<Select
 												value={field.state.value}
-												onValueChange={(val) => {
-													field.handleChange(
-														val as ComplianceListItemResponseStyle,
-													);
-													const needsFile =
-														val ===
-															ComplianceListItemResponseStyle.DOWNLOAD_AND_UPLOAD ||
-														val === ComplianceListItemResponseStyle.LINK;
-													if (!needsFile) {
-														clearFileOnResponseStyleChange();
-													}
-												}}
+												onValueChange={handleResponseStyleChange}
 											>
 												<SelectTrigger
 													id={field.name}
@@ -665,29 +672,40 @@ export function ComplianceFormDialog({
 								)}
 							</form.Field>
 
-							<form.Field name="displayToCandidate">
-								{(field) => (
-									<div className="flex items-center gap-2.5">
-										<Checkbox
-											id={field.name}
-											checked={field.state.value}
-											disabled={isPending}
-											onCheckedChange={(checked) =>
-												field.handleChange(checked === true)
-											}
-										/>
-										<Label
-											htmlFor={field.name}
-											className="cursor-pointer font-normal"
-										>
-											Display To Candidate{" "}
-											<span className="text-muted-foreground text-sm">
-												(Show in candidate portal compliance wallet)
-											</span>
-										</Label>
-									</div>
-								)}
-							</form.Field>
+							<form.Subscribe selector={(s) => s.values.responseStyle}>
+								{(responseStyle) => {
+									const isInternalTask =
+										responseStyle ===
+										ComplianceListItemResponseStyle.INTERNAL_TASK;
+									return (
+										<form.Field name="displayToCandidate">
+											{(field) => (
+												<div className="flex items-center gap-2.5">
+													<Checkbox
+														id={field.name}
+														checked={field.state.value}
+														disabled={isPending || isInternalTask}
+														onCheckedChange={(checked) =>
+															field.handleChange(checked === true)
+														}
+													/>
+													<Label
+														htmlFor={field.name}
+														className="cursor-pointer font-normal"
+													>
+														Display To Candidate{" "}
+														<span className="text-muted-foreground text-sm">
+															{isInternalTask
+																? "(Internal task — not shown to candidates or vendors)"
+																: "(Show in candidate portal compliance wallet)"}
+														</span>
+													</Label>
+												</div>
+											)}
+										</form.Field>
+									);
+								}}
+							</form.Subscribe>
 
 							<form.Field name="status">
 								{(field) => (

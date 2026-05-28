@@ -40,7 +40,7 @@ export class ProgramUsersService {
 			ability.cannot(Action.Create, subject("User", { role: dto.role } as User))
 		) {
 			throw new ForbiddenException(
-				`You are not allowed to create a user with ${dto.role} role`,
+				"You are not allowed to create a user with this role.",
 			);
 		}
 		if (dto.mspId) {
@@ -52,9 +52,7 @@ export class ProgramUsersService {
 			select: { id: true, role: true },
 		});
 		if (existing) {
-			throw new ConflictException(
-				`Email ${dto.email} is already associated with a ${existing.role} account`,
-			);
+			throw new ConflictException("An account already exists with this email.");
 		}
 
 		return this.prisma.user.create({
@@ -82,11 +80,11 @@ export class ProgramUsersService {
 			select: { role: true },
 		});
 		if (!oldUser) {
-			throw new NotFoundException("User not found");
+			throw new NotFoundException("User not found.");
 		}
 		if (session.user.id === id) {
 			throw new ForbiddenException(
-				"You are not allowed to update your own user",
+				"You are not allowed to update your own account.",
 			);
 		}
 		if (
@@ -96,7 +94,7 @@ export class ProgramUsersService {
 			)
 		) {
 			throw new ForbiddenException(
-				`You are not allowed to update a user with ${oldUser.role} role`,
+				"You are not allowed to update a user with this role.",
 			);
 		}
 		if (dto.mspId) {
@@ -127,11 +125,11 @@ export class ProgramUsersService {
 			select: { role: true },
 		});
 		if (!user) {
-			throw new NotFoundException("User not found");
+			throw new NotFoundException("User not found.");
 		}
 		if (session.user.id === id) {
 			throw new ForbiddenException(
-				"You are not allowed to delete your own user",
+				"You are not allowed to delete your own account.",
 			);
 		}
 		if (
@@ -141,7 +139,7 @@ export class ProgramUsersService {
 			)
 		) {
 			throw new ForbiddenException(
-				`You are not allowed to delete a user with ${user.role} role`,
+				"You are not allowed to delete a user with this role.",
 			);
 		}
 		await this.prisma.user.delete({ where: { id } });
@@ -156,7 +154,7 @@ export class ProgramUsersService {
 		await this.usersService.validateMspExists(mspId);
 		if (!["PROGRAM_MANAGER", "COMPLIANCE_MANAGER"].includes(role)) {
 			throw new ForbiddenException(
-				`MSP users can only be ${isUpdate ? "updated" : "created"} for PROGRAM_MANAGER or COMPLIANCE_MANAGER roles`,
+				`MSP users can only be ${isUpdate ? "updated" : "created"} for Program Manager or Compliance Manager roles.`,
 			);
 		}
 	}

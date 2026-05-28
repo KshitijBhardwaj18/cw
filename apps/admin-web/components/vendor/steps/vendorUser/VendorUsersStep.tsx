@@ -9,7 +9,7 @@ interface VendorUsersStepProps {
 	vendorId: string;
 }
 
-export function VendorUsersStep({ vendorId }: VendorUsersStepProps) {
+export function VendorUsersStep({ vendorId }: Readonly<VendorUsersStepProps>) {
 	const router = useRouter();
 
 	const handleNext = () => {

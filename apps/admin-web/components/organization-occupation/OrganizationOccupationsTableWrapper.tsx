@@ -22,7 +22,7 @@ export function OrganizationOccupationsTableWrapper({
 	data,
 	organizationId,
 	linkedOccupationIds,
-}: OrganizationOccupationsTableWrapperProps) {
+}: Readonly<OrganizationOccupationsTableWrapperProps>) {
 	const rows = toOrganizationOccupationTableRows(data);
 	const replaceMutation = useReplaceOccupationsForOrganization(organizationId);
 	const [unlinkTarget, setUnlinkTarget] =

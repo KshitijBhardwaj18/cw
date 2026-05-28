@@ -29,7 +29,7 @@ export function UpdateRatesDialog({
 	onSave,
 	isSaving = false,
 	disabled = false,
-}: UpdateRatesDialogProps) {
+}: Readonly<UpdateRatesDialogProps>) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [tempMspRate, setTempMspRate] = useState(mspRate);
 	const [tempSaasRate, setTempSaasRate] = useState(saasRate);

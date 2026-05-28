@@ -19,6 +19,18 @@ const occupationInclude = {
 	},
 } as const;
 
+function diffOrgOccupations(
+	existing: { occupationId: string }[],
+	desired: string[],
+): { toAdd: string[]; toRemove: string[] } {
+	const existingSet = new Set(existing.map((e) => e.occupationId));
+	const desiredSet = new Set(desired);
+	return {
+		toAdd: desired.filter((id) => !existingSet.has(id)),
+		toRemove: [...existingSet].filter((id) => !desiredSet.has(id)),
+	};
+}
+
 @Injectable()
 export class OccupationsService {
 	constructor(
@@ -155,7 +167,7 @@ export class OccupationsService {
 		});
 
 		if (!occupation) {
-			throw new NotFoundException(`Occupation with id ${id} not found`);
+			throw new NotFoundException("Occupation not found.");
 		}
 
 		const currentSpecIds =
@@ -241,167 +253,144 @@ export class OccupationsService {
 		});
 
 		if (!occupation) {
-			throw new NotFoundException(`Occupation with id ${id} not found`);
+			throw new NotFoundException("Occupation not found.");
 		}
 
 		await this.prismaService.occupation.delete({ where: { id } });
 	}
 
 	async linkOccupationsToOrganization(dto: LinkOrgOccupationsInput) {
-		const organization = await this.prismaService.organization.findUnique({
-			where: { id: dto.organizationId },
-		});
-		if (!organization) {
-			throw new NotFoundException(
-				`Organization with id ${dto.organizationId} not found`,
-			);
-		}
-
-		const uniqueOccupationIds = [...new Set(dto.occupationIds)];
-		const existingOccupations = await this.prismaService.occupation.findMany({
-			where: {
-				id: { in: uniqueOccupationIds },
-				status: $Enums.OccupationStatus.ACTIVE,
-			},
-			select: { id: true },
-		});
-		const foundIds = new Set(existingOccupations.map((o) => o.id));
-		const missingIds = uniqueOccupationIds.filter((id) => !foundIds.has(id));
-		if (missingIds.length > 0) {
-			throw new NotFoundException(
-				`Occupation(s) not found or inactive: ${missingIds.join(", ")}`,
-			);
-		}
+		await this.requireOrganization(dto.organizationId);
+		const desired = [...new Set(dto.occupationIds)];
 
 		return this.prismaService.$transaction(async (tx) => {
-			const result = await tx.organizationOccupation.createMany({
-				data: uniqueOccupationIds.map((occupationId) => ({
-					occupationId: occupationId,
+			const existing = await tx.organizationOccupation.findMany({
+				where: {
 					organizationId: dto.organizationId,
-					createdBy: dto.userId,
-					updatedBy: dto.userId,
-				})),
-				skipDuplicates: true,
+					occupationId: { in: desired },
+				},
+				select: { occupationId: true },
 			});
-			if (result.count > 0) {
-				const created = await tx.organizationOccupation.findMany({
-					where: {
-						organizationId: dto.organizationId,
-						occupationId: { in: uniqueOccupationIds },
-					},
-					select: { id: true },
-				});
-				await this.complianceWalletTemplateService.createTemplatesForOrgOccupations(
-					dto.organizationId,
-					created.map((c) => c.id),
-					dto.userId,
-					tx,
-				);
-			}
-			return result;
+			const alreadyLinked = new Set(existing.map((r) => r.occupationId));
+			const toAdd = desired.filter((id) => !alreadyLinked.has(id));
+
+			await this.assertOccupationsAllowed(tx, toAdd, alreadyLinked);
+			return this.linkOccupationsInTx(tx, {
+				organizationId: dto.organizationId,
+				occupationIds: toAdd,
+				userId: dto.userId,
+			});
 		});
 	}
 
 	async unlinkOccupationsFromOrganization(dto: UnlinkOrgOccupationsInput) {
-		const uniqueOccupationIds = [...new Set(dto.occupationIds)];
 		return this.prismaService.organizationOccupation.deleteMany({
 			where: {
 				organizationId: dto.organizationId,
-				occupationId: { in: uniqueOccupationIds },
+				occupationId: { in: [...new Set(dto.occupationIds)] },
 			},
 		});
 	}
 
 	async replaceOccupationsForOrganization(dto: ReplaceOrgOccupationsInput) {
-		const organization = await this.prismaService.organization.findUnique({
-			where: { id: dto.organizationId },
-		});
-		if (!organization) {
-			throw new NotFoundException(
-				`Organization with id ${dto.organizationId} not found`,
-			);
-		}
-
-		const uniqueOccupationIds = [...new Set(dto.occupationIds)];
-
-		if (uniqueOccupationIds.length > 0) {
-			const [occupations, linkedOccupations] = await Promise.all([
-				this.prismaService.occupation.findMany({
-					where: { id: { in: uniqueOccupationIds } },
-					select: { id: true, status: true },
-				}),
-				this.prismaService.organizationOccupation.findMany({
-					where: {
-						organizationId: dto.organizationId,
-						occupationId: { in: uniqueOccupationIds },
-					},
-					select: { occupationId: true },
-				}),
-			]);
-			const occupationMap = new Map(occupations.map((o) => [o.id, o.status]));
-			const linkedIds = new Set(linkedOccupations.map((lo) => lo.occupationId));
-			const missingIds = uniqueOccupationIds.filter(
-				(id) => !occupationMap.has(id),
-			);
-			if (missingIds.length > 0) {
-				throw new NotFoundException(
-					`Occupation(s) not found: ${missingIds.join(", ")}`,
-				);
-			}
-			const invalidInactive = uniqueOccupationIds.filter((id) => {
-				const status = occupationMap.get(id);
-				const isLinked = linkedIds.has(id);
-				return status === $Enums.OccupationStatus.INACTIVE && !isLinked;
-			});
-			if (invalidInactive.length > 0) {
-				throw new BadRequestException(
-					`Cannot link inactive occupation(s): ${invalidInactive.join(", ")}`,
-				);
-			}
-		}
-
-		const existing = await this.prismaService.organizationOccupation.findMany({
-			where: { organizationId: dto.organizationId },
-			select: { occupationId: true },
-		});
-		const existingIds = new Set(existing.map((e) => e.occupationId));
-		const newIds = new Set(uniqueOccupationIds);
-		const toDelete = [...existingIds].filter((id) => !newIds.has(id));
-		const toAdd = uniqueOccupationIds.filter((id) => !existingIds.has(id));
+		await this.requireOrganization(dto.organizationId);
+		const desired = [...new Set(dto.occupationIds)];
 
 		await this.prismaService.$transaction(async (tx) => {
-			if (toDelete.length > 0) {
+			const existing = await tx.organizationOccupation.findMany({
+				where: { organizationId: dto.organizationId },
+				select: { occupationId: true },
+			});
+			const { toAdd, toRemove } = diffOrgOccupations(existing, desired);
+			const linkedSet = new Set(existing.map((e) => e.occupationId));
+
+			await this.assertOccupationsAllowed(tx, toAdd, linkedSet);
+
+			if (toRemove.length > 0) {
 				await tx.organizationOccupation.deleteMany({
 					where: {
 						organizationId: dto.organizationId,
-						occupationId: { in: toDelete },
+						occupationId: { in: toRemove },
 					},
 				});
 			}
-			if (toAdd.length > 0) {
-				await tx.organizationOccupation.createMany({
-					data: toAdd.map((occupationId) => ({
-						occupationId,
-						organizationId: dto.organizationId,
-						createdBy: dto.userId,
-						updatedBy: dto.userId,
-					})),
-				});
-				const added = await tx.organizationOccupation.findMany({
-					where: {
-						organizationId: dto.organizationId,
-						occupationId: { in: toAdd },
-					},
-					select: { id: true },
-				});
-				await this.complianceWalletTemplateService.createTemplatesForOrgOccupations(
-					dto.organizationId,
-					added.map((a) => a.id),
-					dto.userId,
-					tx,
-				);
-			}
+			await this.linkOccupationsInTx(tx, {
+				organizationId: dto.organizationId,
+				occupationIds: toAdd,
+				userId: dto.userId,
+			});
 		});
+	}
+
+	private async requireOrganization(organizationId: string): Promise<void> {
+		const exists = await this.prismaService.organization.findUnique({
+			where: { id: organizationId },
+			select: { id: true },
+		});
+		if (!exists) throw new NotFoundException("Organization not found.");
+	}
+
+	private async assertOccupationsAllowed(
+		tx: Prisma.TransactionClient,
+		occupationIds: string[],
+		alreadyLinked: Set<string>,
+	): Promise<void> {
+		if (occupationIds.length === 0) return;
+		const rows = await tx.occupation.findMany({
+			where: { id: { in: occupationIds } },
+			select: { id: true, status: true },
+		});
+		const byId = new Map(rows.map((r) => [r.id, r.status]));
+		const missing = occupationIds.filter((id) => !byId.has(id));
+		if (missing.length > 0) {
+			throw new NotFoundException(
+				"One or more selected occupations are not available.",
+			);
+		}
+		const invalidInactive = occupationIds.filter(
+			(id) =>
+				byId.get(id) === $Enums.OccupationStatus.INACTIVE &&
+				!alreadyLinked.has(id),
+		);
+		if (invalidInactive.length > 0) {
+			throw new BadRequestException(
+				"One or more selected occupations are inactive and cannot be linked.",
+			);
+		}
+	}
+
+	private async linkOccupationsInTx(
+		tx: Prisma.TransactionClient,
+		input: {
+			organizationId: string;
+			occupationIds: string[];
+			userId: string;
+		},
+	): Promise<{ count: number }> {
+		if (input.occupationIds.length === 0) return { count: 0 };
+		const result = await tx.organizationOccupation.createMany({
+			data: input.occupationIds.map((occupationId) => ({
+				occupationId,
+				organizationId: input.organizationId,
+				createdBy: input.userId,
+				updatedBy: input.userId,
+			})),
+			skipDuplicates: true,
+		});
+		const added = await tx.organizationOccupation.findMany({
+			where: {
+				organizationId: input.organizationId,
+				occupationId: { in: input.occupationIds },
+			},
+			select: { id: true },
+		});
+		await this.complianceWalletTemplateService.createTemplatesForOrgOccupations(
+			input.organizationId,
+			added.map((a) => a.id),
+			input.userId,
+			tx,
+		);
+		return result;
 	}
 
 	async getLinkedOccupationsForOrganization(
@@ -480,5 +469,52 @@ export class OccupationsService {
 			limit: all ? total : limit,
 			totalPages: all ? (total > 0 ? 1 : 0) : Math.ceil(total / limit),
 		};
+	}
+
+	async getOrgEnabledSpecialtiesForOccupation(input: {
+		organizationId: string;
+		organizationOccupationId?: string;
+		occupationId?: string;
+	}): Promise<
+		Array<{
+			id: string;
+			specialtyId: string;
+			name: string;
+			acronym: string | null;
+		}>
+	> {
+		const { organizationId, organizationOccupationId, occupationId } = input;
+		if (!organizationOccupationId && !occupationId) return [];
+
+		const orgOccupation =
+			await this.prismaService.organizationOccupation.findFirst({
+				where: {
+					organizationId,
+					...(organizationOccupationId
+						? { id: organizationOccupationId }
+						: { occupationId }),
+				},
+				select: { id: true },
+			});
+		if (!orgOccupation) return [];
+
+		const rows = await this.prismaService.organizationSpecialty.findMany({
+			where: {
+				organizationId,
+				organizationOccupationId: orgOccupation.id,
+			},
+			select: {
+				id: true,
+				specialty: { select: { id: true, name: true, acronym: true } },
+			},
+			orderBy: { specialty: { name: "asc" } },
+		});
+
+		return rows.map((r) => ({
+			id: r.id,
+			specialtyId: r.specialty.id,
+			name: r.specialty.name,
+			acronym: r.specialty.acronym,
+		}));
 	}
 }

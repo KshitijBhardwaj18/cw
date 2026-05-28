@@ -15,16 +15,51 @@ export type CreatePerDiemShiftInput = {
 	totalShiftHours: number;
 	shiftRate: number;
 	vendorRate: number;
-	specialtyId?: string | null;
-	isPublic?: boolean;
+	specialtyIds?: string[];
 	isUrgent?: boolean;
+};
+
+export type UpdatePerDiemShiftInput = Partial<
+	Omit<CreatePerDiemShiftInput, "shiftTemplateId">
+>;
+
+export type PerDiemShiftDetail = {
+	id: string;
+	status: ShiftStatus;
+	shiftTemplateId: string | null;
+	shiftDate: string;
+	startTime: string;
+	endTime: string;
+	shiftType: ShiftType;
+	totalShiftHours: number;
+	shiftRate: number;
+	vendorRate: number;
+	isUrgent: boolean;
+	occupation: { id: string; name: string };
+	department: { id: string; name: string } | null;
+	location: { id: string; name: string };
+	specialtyIds: string[];
+	specialties: { id: string; name: string }[];
+	shiftTemplate: {
+		id: string;
+		templateName: string;
+		baseRate: number;
+		baseBillRate: number | null;
+		vendorRateMarkupPercent: number | null;
+		durationHours: number;
+		shiftType: ShiftType;
+		occupation: { id: string; name: string };
+		department: { id: string; name: string };
+		location: { id: string; name: string };
+	} | null;
+	hasAssignments: boolean;
+	isEditable: boolean;
 };
 
 export type PerDiemShiftListItem = {
 	id: string;
 	title: string;
 	status: ShiftStatus;
-	isPublic: boolean;
 	date: string;
 	timeRange: string;
 	ratePerHour: number;
@@ -51,6 +86,7 @@ export type PerDiemShiftStatusCounts = {
 	IN_PROGRESS: number;
 	COMPLETED: number;
 	CANCELLED: number;
+	EXPIRED: number;
 };
 
 export type PerDiemShiftListResponse = {
@@ -161,6 +197,19 @@ export class PerDiemShiftsService {
 
 	static async create(input: CreatePerDiemShiftInput) {
 		return ApiClient.post(`${PER_DIEM_SHIFTS_API_URL}`, input);
+	}
+
+	static async findOne(shiftId: string) {
+		return ApiClient.get<PerDiemShiftDetail>(
+			`${PER_DIEM_SHIFTS_API_URL}/${shiftId}`,
+		);
+	}
+
+	static async update(shiftId: string, input: UpdatePerDiemShiftInput) {
+		return ApiClient.patch<PerDiemShiftDetail>(
+			`${PER_DIEM_SHIFTS_API_URL}/${shiftId}`,
+			input,
+		);
 	}
 
 	static async cancel(shiftId: string, input?: { reason?: string }) {

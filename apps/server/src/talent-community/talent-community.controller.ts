@@ -17,9 +17,7 @@ import { Session, UserSession } from "@thallesp/nestjs-better-auth";
 import { Permissions } from "src/common/decorators/permissions.decorator";
 import { PermissionsGuard } from "src/common/guards/permissions.guard";
 import { requireActiveOrganizationId } from "src/common/utils/require-active-organization-id";
-import { AddExistingCandidatesDto } from "./dto/add-existing-candidates.dto";
 import { CandidateActivityQueryDto } from "./dto/candidate-activity-query.dto";
-import { ExistingTalentQueryDto } from "./dto/existing-talent-query.dto";
 import { InviteCandidateDto } from "./dto/invite-candidate.dto";
 import { TalentCommunityQueryDto } from "./dto/talent-community-query.dto";
 import { UpdateCandidateWorkforceTypeDto } from "./dto/update-candidate-workforce-type.dto";
@@ -43,43 +41,6 @@ export class TalentCommunityController {
 	) {
 		const orgId = requireActiveOrganizationId(session);
 		return this.talentCommunityService.findAll(orgId, query);
-	}
-
-	@Get("existing-candidates")
-	@ApiOperation({
-		summary: "List existing candidates that can be added to this org",
-	})
-	@ApiResponse({
-		status: 200,
-		description: "Paginated list of existing candidates outside the org",
-	})
-	@Permissions({ action: Action.List, subject: "TalentCommunity" })
-	async getExistingCandidates(
-		@Session() session: UserSession,
-		@Query() query: ExistingTalentQueryDto,
-	) {
-		const orgId = requireActiveOrganizationId(session);
-		return this.talentCommunityService.getExistingCandidates(orgId, query);
-	}
-
-	@Post("existing-candidates/add")
-	@HttpCode(HttpStatus.OK)
-	@ApiOperation({ summary: "Add selected existing candidates to this org" })
-	@ApiResponse({
-		status: 200,
-		description: "Selected existing candidates added to org talent community",
-	})
-	@Permissions({ action: Action.Update, subject: "TalentCommunity" })
-	async addExistingCandidates(
-		@Session() session: UserSession,
-		@Body() dto: AddExistingCandidatesDto,
-	) {
-		const orgId = requireActiveOrganizationId(session);
-		return this.talentCommunityService.addExistingCandidates(
-			orgId,
-			dto,
-			session.user.id,
-		);
 	}
 
 	@Get("candidates/:candidateId")

@@ -6,7 +6,8 @@ import { usePaginationControls } from "@repo/ui/hooks/use-pagination-controls";
 import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { JOB_SUBMISSION_PRIMARY_ADVANCE } from "@/constants/job-submission-primary-action";
+import type { ScheduleInterviewValues } from "@/components/submissions/ScheduleInterviewDialog";
+import { getSubmissionPrimaryAdvance } from "@/constants/job-submission-primary-action";
 import {
 	SUBMISSION_STAGE_SELECT_OPTIONS,
 	SUBMISSION_STAGE_TABS,
@@ -22,9 +23,9 @@ import {
 const PAGE_SIZE = 10;
 
 export interface UseJobCandidateSubmissionsSectionArgs {
-	orgId: string;
 	jobId: string;
 	allowedStages: readonly SubmissionStageKey[];
+	isInterviewRequired: boolean;
 }
 
 const SUBMISSION_PARAMS = {
@@ -37,14 +38,14 @@ const EMPTY_STAGE_COUNTS: Record<SubmissionStageKey, number> =
 	) as Record<SubmissionStageKey, number>;
 
 export function useJobCandidateSubmissionsSection({
-	orgId,
 	jobId,
 	allowedStages,
+	isInterviewRequired,
 }: UseJobCandidateSubmissionsSectionArgs) {
 	const ability = useAbility();
 
-	const { data: stageCountsData } = useJobSubmissionStageCounts(orgId, jobId, {
-		enabled: !!orgId && !!jobId,
+	const { data: stageCountsData } = useJobSubmissionStageCounts(jobId, {
+		enabled: !!jobId,
 	});
 	const stageCounts = stageCountsData ?? EMPTY_STAGE_COUNTS;
 
@@ -65,9 +66,10 @@ export function useJobCandidateSubmissionsSection({
 	const [historyRow, setHistoryRow] = useState<SubmissionListRow | null>(null);
 	const [rejectRow, setRejectRow] = useState<SubmissionListRow | null>(null);
 	const [offerRow, setOfferRow] = useState<SubmissionListRow | null>(null);
+	const [scheduleInterviewRow, setScheduleInterviewRow] =
+		useState<SubmissionListRow | null>(null);
 
 	const { data: listData, isLoading: listLoading } = useOrgSubmissionsList(
-		orgId,
 		{
 			requisitionId: jobId,
 			stage: activeStage ?? "SUBMITTED",
@@ -75,11 +77,11 @@ export function useJobCandidateSubmissionsSection({
 			limit: PAGE_SIZE,
 		},
 		{
-			enabled: !!orgId && !!jobId && !!activeStage,
+			enabled: !!jobId && !!activeStage,
 		},
 	);
 
-	const updateStage = useUpdateOrgSubmissionStage(orgId);
+	const updateStage = useUpdateOrgSubmissionStage();
 
 	const rows = listData?.data ?? [];
 	const totalPages = listData?.totalPages ?? 0;
@@ -87,7 +89,8 @@ export function useJobCandidateSubmissionsSection({
 
 	const handleAdvance = useCallback(
 		(row: SubmissionListRow) => {
-			const next = JOB_SUBMISSION_PRIMARY_ADVANCE[row.stage];
+			const next = getSubmissionPrimaryAdvance(row.stage, isInterviewRequired);
+
 			if (!next) return;
 			if (
 				!ability.can(
@@ -99,6 +102,10 @@ export function useJobCandidateSubmissionsSection({
 			}
 			if (next.next === "OFFERED") {
 				setOfferRow(row);
+				return;
+			}
+			if (next.next === "INTERVIEW_SCHEDULED") {
+				setScheduleInterviewRow(row);
 				return;
 			}
 			updateStage.mutate(
@@ -117,7 +124,42 @@ export function useJobCandidateSubmissionsSection({
 				},
 			);
 		},
-		[ability, updateStage],
+		[ability, updateStage, isInterviewRequired],
+	);
+
+	const confirmScheduleInterview = useCallback(
+		(values: ScheduleInterviewValues) => {
+			if (!scheduleInterviewRow) return;
+			if (
+				!ability.can(
+					Action.Update,
+					subjectInstance("Submission", { stage: scheduleInterviewRow.stage }),
+				)
+			) {
+				return;
+			}
+			updateStage.mutate(
+				{
+					submissionId: scheduleInterviewRow.id,
+					stage: "INTERVIEW_SCHEDULED",
+					interviewDate: values.interviewDate,
+					interviewLocation: values.interviewLocation,
+					interviewNotes: values.interviewNotes,
+				},
+				{
+					onSuccess: () => {
+						toast.success("Interview scheduled.");
+						setScheduleInterviewRow(null);
+					},
+					onError: (e) => {
+						toast.error(
+							e instanceof Error ? e.message : "Could not schedule interview.",
+						);
+					},
+				},
+			);
+		},
+		[ability, scheduleInterviewRow, updateStage],
 	);
 
 	const confirmOffer = useCallback(
@@ -197,6 +239,8 @@ export function useJobCandidateSubmissionsSection({
 		setRejectRow,
 		offerRow,
 		setOfferRow,
+		scheduleInterviewRow,
+		setScheduleInterviewRow,
 		visibleTabs,
 		rows,
 		totalPages,
@@ -206,5 +250,6 @@ export function useJobCandidateSubmissionsSection({
 		handleAdvance,
 		confirmReject,
 		confirmOffer,
+		confirmScheduleInterview,
 	};
 }

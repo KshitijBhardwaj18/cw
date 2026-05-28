@@ -24,7 +24,7 @@ export function BulkEnrollmentOrganizationUsersDialog({
 	onOpenChange,
 	organizationId,
 	onJobStarted,
-}: BulkEnrollmentOrganizationUsersDialogProps) {
+}: Readonly<BulkEnrollmentOrganizationUsersDialogProps>) {
 	const {
 		fileInputRef,
 		selectedFile,

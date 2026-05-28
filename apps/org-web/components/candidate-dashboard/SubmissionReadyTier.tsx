@@ -25,7 +25,7 @@ export function SubmissionReadyTier({
 	status,
 	icon: Icon,
 	items = [],
-}: SubmissionReadyTierProps) {
+}: Readonly<SubmissionReadyTierProps>) {
 	const isComplete = status === "complete";
 	const isLocked = status === "locked";
 

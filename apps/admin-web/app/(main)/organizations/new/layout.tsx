@@ -13,7 +13,7 @@ type NewOrganizationPageLayoutProps = {
 
 function NewOrganizationPageLayout({
 	children,
-}: NewOrganizationPageLayoutProps) {
+}: Readonly<NewOrganizationPageLayoutProps>) {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.Create, subject: "Organization" }]}

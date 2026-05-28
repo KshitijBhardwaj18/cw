@@ -3,6 +3,7 @@
 import { Card, CardContent } from "@repo/ui/components/card";
 import { Check } from "lucide-react";
 import type { OfferAcceptanceSummary } from "@/constants/placement-offer-history";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 
 interface OfferAcceptanceSummaryCardProps {
 	summary: OfferAcceptanceSummary;
@@ -10,7 +11,11 @@ interface OfferAcceptanceSummaryCardProps {
 
 export function OfferAcceptanceSummaryCard({
 	summary,
-}: OfferAcceptanceSummaryCardProps) {
+}: Readonly<OfferAcceptanceSummaryCardProps>) {
+	const { fmtShortDate } = useUserTimezone();
+	const acceptanceLabel = fmtShortDate(summary.acceptanceDate);
+	const initialStartLabel = fmtShortDate(summary.initialStartDate);
+
 	return (
 		<Card className="border-emerald-200 bg-emerald-50/50">
 			<CardContent>
@@ -34,7 +39,7 @@ export function OfferAcceptanceSummaryCard({
 					</div>
 					<div className="space-y-1">
 						<p className="text-sm text-muted-foreground">Acceptance Date</p>
-						<p className="font-semibold">{summary.acceptanceDate}</p>
+						<p className="font-semibold">{acceptanceLabel}</p>
 					</div>
 					<div className="space-y-1">
 						<p className="text-sm text-muted-foreground">Employment Type</p>
@@ -50,7 +55,7 @@ export function OfferAcceptanceSummaryCard({
 					</div>
 					<div className="space-y-1">
 						<p className="text-sm text-muted-foreground">Initial Start Date</p>
-						<p className="font-semibold">{summary.initialStartDate}</p>
+						<p className="font-semibold">{initialStartLabel}</p>
 					</div>
 				</div>
 			</CardContent>

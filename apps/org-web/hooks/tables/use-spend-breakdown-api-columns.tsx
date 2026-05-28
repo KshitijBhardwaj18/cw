@@ -4,10 +4,11 @@ import { formatCurrency } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import type { SpendAnalyticsRow } from "@/services/billing.service";
-import { fmtShortDate } from "@/utils/format";
 
 export function useSpendBreakdownApiColumns() {
+	const { fmtShortDate } = useUserTimezone();
 	return useMemo<ColumnDef<SpendAnalyticsRow>[]>(
 		() => [
 			{
@@ -77,6 +78,6 @@ export function useSpendBreakdownApiColumns() {
 				),
 			},
 		],
-		[],
+		[fmtShortDate],
 	);
 }

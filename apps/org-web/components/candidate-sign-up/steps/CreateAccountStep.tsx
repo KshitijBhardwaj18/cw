@@ -34,7 +34,7 @@ export function CreateAccountStep({
 	onContinue,
 	onValuesChange,
 	disabledFields,
-}: CreateAccountStepProps) {
+}: Readonly<CreateAccountStepProps>) {
 	const { form } = useCreateAccountStepForm({
 		defaultValues,
 		onContinue,

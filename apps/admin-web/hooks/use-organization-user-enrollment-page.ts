@@ -6,24 +6,30 @@ import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { useQueryClient } from "@tanstack/react-query";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import type { SendOrganizationInvitationDialogRecipient } from "@/components/organizations/SendOrganizationInvitationDialog";
+import { useEnrolledCandidateColumns } from "@/hooks/tables/use-enrolled-candidate-columns";
 import { useEnrolledOrganizationUserColumns } from "@/hooks/tables/use-enrolled-organization-user-columns";
 import { useEnrolledProgramUserColumns } from "@/hooks/tables/use-enrolled-program-user-columns";
 import { useEnrolledVendorUserColumns } from "@/hooks/tables/use-enrolled-vendor-user-columns";
 import {
 	organizationsKeys,
+	useDeleteOrgCandidate,
 	useOrganization,
+	useOrgCandidates,
 	useOrgMembers,
 	useRemoveMember,
+	useSetOrgCandidateActive,
 } from "@/queries/organizations.query";
 import { useBulkEnrollmentStore } from "@/stores/bulk-enrollment.store";
 import type {
+	EnrolledCandidateRow,
 	EnrolledOrganizationUserRow,
 	EnrolledProgramUserRow,
 	EnrolledVendorUserRow,
 } from "@/types/users";
 
-export type EnrollmentTab = "organization" | "program" | "vendor";
+export type EnrollmentTab = "organization" | "program" | "vendor" | "candidate";
 
 function buildOrgEnrolledRows(
 	members: OrgMemberWithUserType[],
@@ -75,6 +81,7 @@ export function useOrganizationUserEnrollmentPage(organizationId: string) {
 		"organization",
 		"program",
 		"vendor",
+		"candidate",
 	]);
 	const [isEnrollDialogOpen, setIsEnrollDialogOpen] = useState(false);
 	const [isEnrollProgramDialogOpen, setIsEnrollProgramDialogOpen] =
@@ -95,6 +102,12 @@ export function useOrganizationUserEnrollmentPage(organizationId: string) {
 	const [vendorPageSize, setVendorPageSize] = useState(10);
 	const [vendorRowSelection, setVendorRowSelection] =
 		useState<RowSelectionState>({});
+	const [candidatePage, setCandidatePage] = useState(1);
+	const [candidatePageSize, setCandidatePageSize] = useState(10);
+	const [candidateToToggle, setCandidateToToggle] =
+		useState<EnrolledCandidateRow | null>(null);
+	const [candidateToDelete, setCandidateToDelete] =
+		useState<EnrolledCandidateRow | null>(null);
 	const [memberToRemove, setMemberToRemove] = useState<{
 		memberId: string;
 		memberName: string;
@@ -148,6 +161,10 @@ export function useOrganizationUserEnrollmentPage(organizationId: string) {
 		setVendorPage(1);
 		setVendorRowSelection({});
 	}, [debouncedSearch]);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset page when search changes
+	useEffect(() => {
+		setCandidatePage(1);
+	}, [debouncedSearch]);
 
 	const handleTabChange = (value: string) => {
 		setActiveTab(value as EnrollmentTab);
@@ -196,6 +213,32 @@ export function useOrganizationUserEnrollmentPage(organizationId: string) {
 	const orgRows = buildOrgEnrolledRows(orgResult?.data ?? []);
 	const programRows = buildProgramEnrolledRows(programResult?.data ?? []);
 	const vendorRows = buildVendorEnrolledRows(vendorResult?.data ?? []);
+
+	const {
+		data: candidateResult,
+		isLoading: candidateLoading,
+		isError: candidateError,
+	} = useOrgCandidates(
+		organizationId,
+		activeTab === "candidate" ? activeSearch : undefined,
+		candidatePage,
+		candidatePageSize,
+	);
+
+	const candidateRows: EnrolledCandidateRow[] = (
+		candidateResult?.data ?? []
+	).map((c) => ({
+		id: c.id,
+		name: c.user.name ?? "",
+		email: c.user.email,
+		occupation: c.occupation.name,
+		workforceType: c.workforceType ? enumToTitleText(c.workforceType) : null,
+		vendorName: c.vendor?.name ?? null,
+		source: c.source ? enumToTitleText(c.source) : null,
+		inviteStatus: c.inviteStatus ? enumToTitleText(c.inviteStatus) : null,
+		isActive: c.isActive,
+		createdAt: c.createdAt,
+	}));
 
 	const handleInviteDialogOpenChange = useCallback((open: boolean) => {
 		setIsInviteDialogOpen(open);
@@ -263,6 +306,63 @@ export function useOrganizationUserEnrollmentPage(organizationId: string) {
 	const { columns: vendorColumns } = useEnrolledVendorUserColumns({
 		onSendInvite: handleSendInviteVendor,
 		onRemove: handleRemoveClick,
+	});
+
+	const setActiveMutation = useSetOrgCandidateActive(organizationId);
+	const deleteCandidateMutation = useDeleteOrgCandidate(organizationId);
+
+	const handleToggleCandidateActive = useCallback(
+		(row: EnrolledCandidateRow) => {
+			setCandidateToToggle(row);
+		},
+		[],
+	);
+	const handleDeleteCandidate = useCallback((row: EnrolledCandidateRow) => {
+		setCandidateToDelete(row);
+	}, []);
+	const handleConfirmToggleActive = useCallback(() => {
+		if (!candidateToToggle) return;
+		setActiveMutation.mutate(
+			{
+				candidateId: candidateToToggle.id,
+				isActive: !candidateToToggle.isActive,
+			},
+			{
+				onSuccess: () => {
+					toast.success(
+						candidateToToggle.isActive
+							? "Candidate deactivated"
+							: "Candidate activated",
+					);
+					setCandidateToToggle(null);
+				},
+				onError: (err) => {
+					toast.error(
+						err instanceof Error ? err.message : "Could not update candidate",
+					);
+				},
+			},
+		);
+	}, [candidateToToggle, setActiveMutation]);
+
+	const handleConfirmDeleteCandidate = useCallback(() => {
+		if (!candidateToDelete) return;
+		deleteCandidateMutation.mutate(candidateToDelete.id, {
+			onSuccess: () => {
+				toast.success("Candidate account closed");
+				setCandidateToDelete(null);
+			},
+			onError: (err) => {
+				toast.error(
+					err instanceof Error ? err.message : "Could not close account",
+				);
+			},
+		});
+	}, [candidateToDelete, deleteCandidateMutation]);
+
+	const { columns: candidateColumns } = useEnrolledCandidateColumns({
+		onToggleActive: handleToggleCandidateActive,
+		onDelete: handleDeleteCandidate,
 	});
 
 	const selectedOrgCount = Object.keys(orgRowSelection).filter(
@@ -369,6 +469,23 @@ export function useOrganizationUserEnrollmentPage(organizationId: string) {
 		setVendorRowSelection,
 		selectedVendorCount,
 		handleBulkSendInviteVendor,
+		candidateResult,
+		candidateLoading,
+		candidateError,
+		candidateRows,
+		candidateColumns,
+		candidatePage,
+		candidatePageSize,
+		setCandidatePage,
+		setCandidatePageSize,
+		candidateToToggle,
+		setCandidateToToggle,
+		candidateToDelete,
+		setCandidateToDelete,
+		handleConfirmToggleActive,
+		handleConfirmDeleteCandidate,
+		setActiveMutation,
+		deleteCandidateMutation,
 		memberToRemove,
 		setMemberToRemove,
 		handleRemoveConfirm,

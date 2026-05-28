@@ -22,7 +22,7 @@ export function HolidaysTabContent({
 	page,
 	totalPages,
 	onPageChange,
-}: HolidaysTabContentProps) {
+}: Readonly<HolidaysTabContentProps>) {
 	const { columns } = useHolidayColumns();
 
 	return (

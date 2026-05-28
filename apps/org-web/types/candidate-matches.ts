@@ -1,3 +1,5 @@
+import type { CandidateComplianceStatus } from "@repo/shared";
+
 export interface MatchBreakdownItem {
 	criterionName: string;
 	matched: boolean;
@@ -8,8 +10,7 @@ export interface CandidateMatchListItem {
 	id: string;
 	jobTitle: string;
 	occupation: string | null;
-	specialty: string | null;
-	specialtyId: string | null;
+	specialties: Array<{ id: string; name: string }>;
 	facilityName: string | null;
 	locationCity: string | null;
 	locationState: string | null;
@@ -36,13 +37,37 @@ export interface CandidateMatchListItem {
 	matchBreakdown: MatchBreakdownItem[];
 }
 
+export type CandidateJobAcceptanceCriterionStatus =
+	`${CandidateComplianceStatus}`;
+
+export interface CandidateJobAcceptanceCriterion {
+	id: string;
+	name: string;
+	satisfied: boolean;
+	responseStyle:
+		| "PENDING_FILE_UPLOAD"
+		| "INTERNAL_TASK"
+		| "DOWNLOAD_AND_UPLOAD"
+		| "LINK";
+	status: CandidateJobAcceptanceCriterionStatus;
+	rejectionReason: string | null;
+	documentName: string | null;
+	expirationDate: string | null;
+	link: string | null;
+	instructionalNotes: string | null;
+	expirationType: "EXPIRATION_DATE" | "EXPIRATION_RULE" | "NON_EXPIRABLE";
+	expirationRuleValue: number | null;
+	expirationRuleUnit: "DAYS" | "MONTHS" | "YEARS" | null;
+}
+
 export interface CandidateMatchDetail extends CandidateMatchListItem {
 	hoursPerWeek: number | null;
 	shiftsPerWeek: number | null;
 	interviewRequired: string | null;
 	whoCanSubmit: string;
 	vendorNotes: string | null;
-	acceptanceCriteria: { id: string; name: string }[];
+	isSubmittedForVendorReview: boolean;
+	acceptanceCriteria: CandidateJobAcceptanceCriterion[];
 }
 
 export interface CandidateMatchesListResponse {

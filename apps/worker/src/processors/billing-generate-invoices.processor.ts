@@ -8,19 +8,15 @@ import {
 import type {
 	BillingGenerateInvoicesJobResult,
 	BillingGenerateInvoicesPayload,
-	BillingRefreshSpendAnalyticsPayload,
 	CandidateWorkforceType,
 	WorkforceBillingFeeType,
 } from "@repo/shared";
 import {
-	BackGroundJobName,
 	EXTERNAL_WORKFORCE_TYPES,
 	INTERNAL_WORKFORCE_TYPES,
 	INVOICE_GROUPING_METHODS,
 	parseIsoDateOnly,
-	SELF_WORKFORCE_TYPES,
 } from "@repo/shared";
-import type { Queue } from "bullmq";
 import {
 	type BillableRow,
 	buildExternalTimesheetBillableRow,
@@ -68,7 +64,6 @@ async function generateInvoiceNumber(prisma: PrismaClient): Promise<string> {
 export async function runBillingGenerateInvoicesProcessor(
 	prisma: PrismaClient,
 	payload: BillingGenerateInvoicesPayload,
-	billingQueue: Queue,
 ): Promise<void> {
 	await prisma.backGroundJob.update({
 		where: { id: payload.jobId },
@@ -170,10 +165,7 @@ export async function runBillingGenerateInvoicesProcessor(
 			]),
 		);
 		const externalTypes = [...EXTERNAL_WORKFORCE_TYPES];
-		const internalTypes = [
-			...INTERNAL_WORKFORCE_TYPES,
-			...SELF_WORKFORCE_TYPES,
-		];
+		const internalTypes = [...INTERNAL_WORKFORCE_TYPES];
 
 		const externalTimesheets = await prisma.timesheet.findMany({
 			where: {
@@ -497,26 +489,6 @@ export async function runBillingGenerateInvoicesProcessor(
 			result.createdLineItems += lineItems.length;
 		}
 
-		const refreshPayload: BillingRefreshSpendAnalyticsPayload = {
-			organizationId: payload.organizationId,
-			periodFrom: payload.periodFrom,
-			periodTo: payload.periodTo,
-		};
-		try {
-			await billingQueue.add(
-				BackGroundJobName.BILLING_REFRESH_SPEND_ANALYTICS,
-				refreshPayload,
-			);
-		} catch (queueError) {
-			const message =
-				queueError instanceof Error
-					? queueError.message
-					: "Failed to enqueue spend analytics refresh job";
-			result.errors.push({ message: `Refresh enqueue failed: ${message}` });
-			throw new Error(
-				`Invoice generation succeeded but refresh enqueue failed: ${message}`,
-			);
-		}
 		await prisma.backGroundJob.update({
 			where: { id: payload.jobId },
 			data: {

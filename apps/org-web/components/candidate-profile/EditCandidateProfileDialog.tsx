@@ -17,7 +17,7 @@ import { PhoneInput } from "@repo/ui/general/PhoneInput";
 import RequiredStar from "@repo/ui/general/RequiredStar";
 import { useForm } from "@tanstack/react-form";
 import { Loader2, Mail } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useUpdateCandidateProfile } from "@/queries/candidate-profile.queries";
 import {
@@ -31,6 +31,9 @@ type EditProfileDialogProps = {
 	profile: CandidateMeOnboarding | null;
 	onSuccess: () => void;
 	trigger: React.ReactNode;
+	/** When set, open state is controlled (e.g. `/profile?edit=contact`). */
+	open?: boolean;
+	onOpenChange?: (open: boolean) => void;
 };
 
 function buildDefaultValues(
@@ -52,8 +55,13 @@ export function EditCandidateProfileDialog({
 	profile,
 	onSuccess,
 	trigger,
-}: EditProfileDialogProps) {
-	const [open, setOpen] = useState(false);
+	open: controlledOpen,
+	onOpenChange: controlledOnOpenChange,
+}: Readonly<EditProfileDialogProps>) {
+	const [internalOpen, setInternalOpen] = useState(false);
+	const isControlled = controlledOpen !== undefined;
+	const open = isControlled ? controlledOpen : internalOpen;
+	const prevControlledOpenRef = useRef(false);
 	const updateMutation = useUpdateCandidateProfile();
 
 	const form = useForm({
@@ -75,7 +83,8 @@ export function EditCandidateProfileDialog({
 					{
 						onSuccess: () => {
 							toast.success("Profile updated successfully");
-							setOpen(false);
+							if (!isControlled) setInternalOpen(false);
+							controlledOnOpenChange?.(false);
 							onSuccess();
 							resolve();
 						},
@@ -95,8 +104,19 @@ export function EditCandidateProfileDialog({
 		if (nextOpen) {
 			form.reset(buildDefaultValues(user, profile));
 		}
-		setOpen(nextOpen);
+		if (!isControlled) {
+			setInternalOpen(nextOpen);
+		}
+		controlledOnOpenChange?.(nextOpen);
 	};
+
+	useEffect(() => {
+		if (!isControlled) return;
+		if (controlledOpen && !prevControlledOpenRef.current) {
+			form.reset(buildDefaultValues(user, profile));
+		}
+		prevControlledOpenRef.current = Boolean(controlledOpen);
+	}, [isControlled, controlledOpen, user, profile, form]);
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>

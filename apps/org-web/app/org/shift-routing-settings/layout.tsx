@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 
 const ShiftRoutingSettingsLayout = ({
 	children,
-}: {
+}: Readonly<{
 	children: React.ReactNode;
-}) => {
+}>) => {
 	return (
 		<PermissionsGuard
 			permissions={[{ action: Action.List, subject: "ShiftRoutingSettings" }]}

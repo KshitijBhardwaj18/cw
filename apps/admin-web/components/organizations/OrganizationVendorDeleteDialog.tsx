@@ -26,7 +26,7 @@ export function OrganizationVendorDeleteDialog({
 	onOpenChange,
 	onConfirm,
 	isPending,
-}: OrganizationVendorDeleteDialogProps) {
+}: Readonly<OrganizationVendorDeleteDialogProps>) {
 	const vendorName = organizationVendor?.vendor.name ?? "this vendor";
 
 	return (

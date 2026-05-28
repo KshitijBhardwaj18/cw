@@ -1,5 +1,12 @@
 /** API: GET .../placements/:placementId/compliance */
 
+import type {
+	CandidateComplianceStatus,
+	ComplianceListItemExpirationType,
+	ComplianceListItemResponseStyle,
+	ExpirationRuleUnit,
+} from "@repo/shared";
+
 export type PlacementComplianceAuditEntry = {
 	event: string;
 	date: string;
@@ -12,7 +19,14 @@ export type PlacementComplianceItemRow = {
 	name: string;
 	category: string;
 	categoryKey: string;
-	status: "missing" | "approved" | "expired" | "pending";
+	status: `${CandidateComplianceStatus}`;
+	rejectionReason: string | null;
+	responseStyle: `${ComplianceListItemResponseStyle}`;
+	link: string | null;
+	expirationType: `${ComplianceListItemExpirationType}`;
+	expirationRuleValue: number | null;
+	expirationRuleUnit: `${ExpirationRuleUnit}` | null;
+	issueDate: string | null;
 	completionDate: string | null;
 	expirationDate: string | null;
 	documentName: string | null;
@@ -36,6 +50,7 @@ export type PlacementComplianceResponse = {
 		missing: number;
 		expired: number;
 		pending: number;
+		rejected: number;
 		total: number;
 	};
 	categories: PlacementComplianceCategory[];

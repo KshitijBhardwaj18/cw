@@ -7,8 +7,8 @@ import {
 	ConfigPageErrorState,
 } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
-import { ConfigPagePagination } from "@repo/ui/general/ConfigPagePagination";
 import { MetricCard } from "@repo/ui/general/MetricCard";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { AlertCircle, Calendar, CheckCircle2, Clock } from "lucide-react";
 import { useVendorOnboarding } from "@/hooks/vendor/use-vendor-onboarding";
 import { VendorOnboardingCandidateSection } from "./VendorOnboardingCandidateSection";
@@ -30,7 +30,9 @@ export function VendorOnboardingPageContent() {
 		pageCount,
 		page,
 		setPage,
-		pageSize,
+		limit,
+		setLimit,
+		pageSizeOptions,
 		weekBucket,
 		setWeekBucket,
 		search,
@@ -38,9 +40,6 @@ export function VendorOnboardingPageContent() {
 		sendOnboardingReminder,
 		isReminderPending,
 	} = useVendorOnboarding();
-
-	const rangeStart = totalRows === 0 ? 0 : (page - 1) * pageSize + 1;
-	const rangeEnd = totalRows === 0 ? 0 : Math.min(page * pageSize, totalRows);
 
 	return (
 		<div className="space-y-10">
@@ -131,16 +130,17 @@ export function VendorOnboardingPageContent() {
 						onSendReminder={sendOnboardingReminder}
 						isReminderPending={isReminderPending}
 					/>
-					<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-						<p className="text-muted-foreground text-sm">
-							Showing {rangeStart}–{rangeEnd} of {totalRows} placements
-						</p>
-						<ConfigPagePagination
-							page={page}
-							totalPages={pageCount}
-							onPageChange={setPage}
-						/>
-					</div>
+					<PaginationControls
+						currentPage={page}
+						pageCount={pageCount}
+						goToPage={setPage}
+						limit={limit}
+						setLimit={setLimit}
+						pageSizeOptions={pageSizeOptions}
+						totalItems={totalRows}
+						itemLabel="placement"
+						itemLabelPlural="placements"
+					/>
 				</>
 			)}
 		</div>

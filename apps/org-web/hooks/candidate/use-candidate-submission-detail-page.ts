@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useUserTimezone } from "@/hooks/use-user-timezone";
 import {
 	candidateSubmissionsKeys,
 	useAcceptCandidateOffer,
@@ -16,6 +18,7 @@ export function useCandidateSubmissionDetailPage(submissionId: string) {
 		isLoading: orgLoading,
 		isReady,
 	} = useCandidateOrganizationId();
+	const { fmtShortDate, fmtDateRange } = useUserTimezone();
 
 	const detailQuery = useQuery({
 		queryKey: organizationId
@@ -31,9 +34,16 @@ export function useCandidateSubmissionDetailPage(submissionId: string) {
 		refetchOnMount: "always",
 	});
 
-	const submission = detailQuery.data
-		? mapCandidateSubmissionDetailResponseToView(detailQuery.data)
-		: undefined;
+	const submission = useMemo(
+		() =>
+			detailQuery.data
+				? mapCandidateSubmissionDetailResponseToView(detailQuery.data, {
+						formatDateLabel: fmtShortDate,
+						formatDateRangeLabel: fmtDateRange,
+					})
+				: undefined,
+		[detailQuery.data, fmtShortDate, fmtDateRange],
+	);
 
 	const withdrawMutation = useWithdrawCandidateSubmission();
 	const acceptMutation = useAcceptCandidateOffer();

@@ -1,10 +1,9 @@
+import type { RequisitionType } from "@repo/shared";
+
 export type RequisitionTemplateStatus = "ACTIVE" | "DRAFT";
 
-export type RequisitionTemplateType =
-	| "LONG_TERM_ORDER"
-	| "PER_DIEM"
-	| "PERMANENT_ROLE"
-	| "INTERNAL_FLEX_POOL";
+/** @deprecated Use `RequisitionType` from `@repo/shared` directly. */
+export type RequisitionTemplateType = RequisitionType;
 
 export interface RequisitionTemplateCardItem {
 	id: string;

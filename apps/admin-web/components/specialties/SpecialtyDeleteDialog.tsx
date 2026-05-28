@@ -15,7 +15,7 @@ export function SpecialtyDeleteDialog({
 	isPending,
 	onConfirm,
 	onOpenChange,
-}: SpecialtyDeleteDialogProps) {
+}: Readonly<SpecialtyDeleteDialogProps>) {
 	return (
 		<CustomAlertDialog
 			isOpen={!!specialty}

@@ -19,7 +19,7 @@ type CriterionRowProps = {
 	index: number;
 };
 
-function CriterionRow({ form, criterion, index }: CriterionRowProps) {
+function CriterionRow({ form, criterion, index }: Readonly<CriterionRowProps>) {
 	const submissionAttempts = useStore(
 		form.store,
 		(s) => s.submissionAttempts ?? 0,
@@ -99,7 +99,7 @@ type MatchingCriteriaCardProps = {
 const MatchingCriteriaCard = ({
 	form,
 	criteria,
-}: MatchingCriteriaCardProps) => {
+}: Readonly<MatchingCriteriaCardProps>) => {
 	if (criteria.length === 0) {
 		return (
 			<Card>

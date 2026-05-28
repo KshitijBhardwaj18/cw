@@ -30,13 +30,6 @@ export class QueryPlacementsDto {
 	search?: string;
 
 	@ApiPropertyOptional({
-		description: "Workforce group filter (matches Placement.workforceGroup)",
-	})
-	@IsOptional()
-	@IsString()
-	workforceType?: string;
-
-	@ApiPropertyOptional({
 		description: "complete | incomplete (best-effort filter on compliance %) ",
 	})
 	@IsOptional()

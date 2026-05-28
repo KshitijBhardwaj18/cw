@@ -15,7 +15,7 @@ type OrganizationDocumentsTabProps = {
 
 export function OrganizationDocumentsTab({
 	organizationId,
-}: OrganizationDocumentsTabProps) {
+}: Readonly<OrganizationDocumentsTabProps>) {
 	const documentsFilters = useListFilters();
 	const addDocumentMutation = useAddOrganizationDocumentMutation();
 	const { data: documents = [], isFetching: documentsLoading } =

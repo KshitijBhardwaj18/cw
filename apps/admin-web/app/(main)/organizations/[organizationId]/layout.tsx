@@ -34,8 +34,8 @@ export async function generateMetadata({
 
 export default function OrganizationDetailLayout({
 	children,
-}: {
+}: Readonly<{
 	children: React.ReactNode;
-}) {
+}>) {
 	return <OrgDetailLayoutClient>{children}</OrgDetailLayoutClient>;
 }

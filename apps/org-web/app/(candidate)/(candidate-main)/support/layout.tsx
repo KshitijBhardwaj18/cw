@@ -6,7 +6,9 @@ export const metadata: Metadata = {
 	title: "Support",
 };
 
-const SupportLayout = ({ children }: { children: React.ReactNode }) => {
+const SupportLayout = ({
+	children,
+}: Readonly<{ children: React.ReactNode }>) => {
 	return (
 		<CandidateMainShell title="Support">
 			<PageContainer>{children}</PageContainer>

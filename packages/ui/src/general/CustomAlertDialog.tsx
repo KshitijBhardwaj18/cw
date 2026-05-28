@@ -42,7 +42,7 @@ export function CustomAlertDialog({
 	icon = <AlertTriangle className="text-destructive size-8" />,
 	iconContainerClassName = "bg-destructive/10",
 	error,
-}: CustomAlertDialogProps) {
+}: Readonly<CustomAlertDialogProps>) {
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
 			<DialogContent className="no-scrollbar w-full sm:max-w-lg overflow-y-auto max-sm:max-w-sm max-sm:rounded-lg">

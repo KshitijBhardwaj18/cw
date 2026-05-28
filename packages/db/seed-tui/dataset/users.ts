@@ -35,6 +35,7 @@ export const USER_ID = {
 	TINA: getDeterministicId(`tina.r@${SEED_EMAIL_DOMAIN}`),
 	VICTOR: getDeterministicId(`victor.c@${SEED_EMAIL_DOMAIN}`),
 	QUINN: getDeterministicId(`quinn.t@${SEED_EMAIL_DOMAIN}`),
+	SAM_T_GLOBAL: getDeterministicId(`sam.t@${SEED_EMAIL_DOMAIN}`),
 	RACHEL: getDeterministicId(`rachel.g@${SEED_EMAIL_DOMAIN}`),
 	SAM: getDeterministicId(`sam.n@${SEED_EMAIL_DOMAIN}`),
 	PETER: getDeterministicId(`peter.m@${SEED_EMAIL_DOMAIN}`),
@@ -74,6 +75,9 @@ export const USER_ID = {
 	AMANDA_BROOKS_LEADERSHIP: getDeterministicId(
 		`amanda.b.leadership@${SEED_EMAIL_DOMAIN}`,
 	),
+	QUINN_MARCUS_V: getDeterministicId(`marcus.v@${SEED_EMAIL_DOMAIN}`),
+	QUINN_SARAH_P: getDeterministicId(`sarah.p@${SEED_EMAIL_DOMAIN}`),
+	QUINN_DAVID_L: getDeterministicId(`david.l@${SEED_EMAIL_DOMAIN}`),
 } as const;
 
 export interface SeedUserData {
@@ -418,6 +422,16 @@ export const getUsersDataset = (): { users: SeedUserData[] } => {
 				},
 			},
 			{
+				id: USER_ID.SAM_T_GLOBAL,
+				name: "Sam T. Global",
+				email: getEmail("sam.t"),
+				title: "Registered Nurse",
+				role: UserRole.CANDIDATE_USER,
+				status: UserStatus.ACTIVE,
+				officePhone: "+13125550304",
+				phoneNumber: "+13129876544",
+			},
+			{
 				id: USER_ID.MARIA,
 				name: "Maria Jackson",
 				email: getEmail("maria.j"),
@@ -578,6 +592,7 @@ export const getUsersDataset = (): { users: SeedUserData[] } => {
 					status: OrganizationMemberStatus.ACTIVE,
 				},
 			},
+
 			{
 				id: USER_ID.RACHEL,
 				name: "Rachel Garcia",
@@ -849,6 +864,30 @@ export const getUsersDataset = (): { users: SeedUserData[] } => {
 				title: "Nurse Manager",
 				role: UserRole.CANDIDATE_USER,
 				status: UserStatus.ACTIVE,
+			},
+			{
+				id: USER_ID.QUINN_MARCUS_V,
+				name: "Marcus Vance",
+				email: getEmail("marcus.v"),
+				role: UserRole.CANDIDATE_USER,
+				status: UserStatus.ACTIVE,
+				phoneNumber: "+12145550011",
+			},
+			{
+				id: USER_ID.QUINN_SARAH_P,
+				name: "Sarah Porter",
+				email: getEmail("sarah.p"),
+				role: UserRole.CANDIDATE_USER,
+				status: UserStatus.ACTIVE,
+				phoneNumber: "+15125550022",
+			},
+			{
+				id: USER_ID.QUINN_DAVID_L,
+				name: "David Lowry",
+				email: getEmail("david.l"),
+				role: UserRole.CANDIDATE_USER,
+				status: UserStatus.ACTIVE,
+				phoneNumber: "+17135550033",
 			},
 		],
 	};

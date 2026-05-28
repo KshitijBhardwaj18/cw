@@ -7,7 +7,10 @@ type DetailSectionProps = {
 	children: ReactNode;
 };
 
-export function DetailSection({ label, children }: DetailSectionProps) {
+export function DetailSection({
+	label,
+	children,
+}: Readonly<DetailSectionProps>) {
 	return (
 		<div>
 			<p className="text-muted-foreground text-sm">{label}</p>

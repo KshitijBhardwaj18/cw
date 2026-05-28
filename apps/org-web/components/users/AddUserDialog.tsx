@@ -35,7 +35,7 @@ export function AddUserDialog({
 	onOpenChange,
 	onSave,
 	isSubmitting = false,
-}: AddUserDialogProps) {
+}: Readonly<AddUserDialogProps>) {
 	const { formData, setField, buildPayload, canSubmit, roleOptions } =
 		useAddUserDialog(open);
 

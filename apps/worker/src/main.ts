@@ -3,7 +3,6 @@ import {
 	BILLING_QUEUE,
 	type BillingCycleRunPayload,
 	type BillingGenerateInvoicesPayload,
-	type BillingRefreshSpendAnalyticsPayload,
 	type BulkEnrollmentFilePayload,
 	type BulkPlatformUsersFilePayload,
 	IMPORTS_QUEUE,
@@ -30,14 +29,16 @@ import { createPrismaClient } from "./prisma.js";
 import {
 	runBillingCycleRunProcessor,
 	runBillingGenerateInvoicesProcessor,
-	runBillingRefreshSpendAnalyticsProcessor,
 	runBulkEnrollmentProcessor,
 	runBulkPlatformUsersProcessor,
+	runExpirePastPerDiemShiftsProcessor,
 	runInviteBulkProcessor,
 	runInviteCandidateProcessor,
 	runInviteSingleProcessor,
 	runMetricSnapshotRecomputeProcessor,
 	runPublishScheduledRequisitionProcessor,
+	runReconcileSummariesProcessor,
+	runRollPlacementStatusesProcessor,
 	runSummaryRecomputeProcessor,
 	runTimekeepingBulkReminderProcessor,
 	runTimekeepingReminderProcessor,
@@ -54,15 +55,70 @@ async function run() {
 	const bucket = getS3Bucket();
 	const billingQueue = new Queue(BILLING_QUEUE, { connection });
 	const metricsQueue = new Queue(METRICS_QUEUE, { connection });
+	const summaryPlacementQueue = new Queue(SUMMARY_PLACEMENT_QUEUE, {
+		connection,
+	});
+	const summaryCandidateQueue = new Queue(SUMMARY_CANDIDATE_QUEUE, {
+		connection,
+	});
 
-	// Register a global monthly metric recompute on the 1st of each month at midnight UTC.
-	// Runs for all organizations that have active metrics. Uses upsert semantics (jobId is stable).
+	for (const staleSchedulerId of [
+		"metric-snapshot-monthly-all-orgs",
+		"metric-snapshot-daily-open-DAILY",
+		"metric-snapshot-daily-open-WEEKLY",
+	]) {
+		try {
+			await metricsQueue.removeJobScheduler(staleSchedulerId);
+		} catch {
+			// no-op
+		}
+	}
+
+	// Recompute OrganizationMetricSnapshot once per day at 02:00 UTC for the current MONTHLY bucket.
 	await metricsQueue.add(
 		BackGroundJobName.METRIC_SNAPSHOT_RECOMPUTE,
 		{ periodType: "MONTHLY" } satisfies MetricSnapshotRecomputePayload,
 		{
-			jobId: "metric-snapshot-monthly-all-orgs",
-			repeat: { pattern: "0 0 1 * *", tz: "UTC" },
+			jobId: "metric-snapshot-daily-open-MONTHLY",
+			repeat: { pattern: "0 2 * * *", tz: "UTC" },
+			removeOnComplete: 10,
+			removeOnFail: false,
+		},
+	);
+
+	// Self-heal reconciliation: enqueue summary recomputes for any placement / candidate whose PlacementSummary / CandidateSummary is missing or older than 24h.
+	await metricsQueue.add(
+		BackGroundJobName.RECONCILE_SUMMARIES,
+		{},
+		{
+			jobId: "reconcile-summaries-daily",
+			repeat: { pattern: "0 3 * * *", tz: "UTC" },
+			removeOnComplete: 10,
+			removeOnFail: false,
+		},
+	);
+
+	// Daily at 00:05 UTC: mark every OPEN per-diem shift whose date has passed as EXPIRED.
+	await metricsQueue.add(
+		BackGroundJobName.EXPIRE_PAST_PER_DIEM_SHIFTS,
+		{},
+		{
+			jobId: "expire-past-per-diem-shifts-daily",
+			repeat: { pattern: "5 0 * * *", tz: "UTC" },
+			removeOnComplete: 10,
+			removeOnFail: false,
+		},
+	);
+
+	// Daily at 00:10 UTC: flip UPCOMING placements whose startDate has arrived
+	// to ACTIVE. Keeps the placement.status column authoritative so callers that
+	// read raw status (badges, reports, billing) don't see stale UPCOMING rows.
+	await metricsQueue.add(
+		BackGroundJobName.ROLL_PLACEMENT_STATUSES,
+		{},
+		{
+			jobId: "roll-placement-statuses-daily",
+			repeat: { pattern: "10 0 * * *", tz: "UTC" },
 			removeOnComplete: 10,
 			removeOnFail: false,
 		},
@@ -135,7 +191,6 @@ async function run() {
 					await runBillingGenerateInvoicesProcessor(
 						prisma,
 						job.data as BillingGenerateInvoicesPayload,
-						billingQueue,
 					);
 					break;
 				case BackGroundJobName.BILLING_CYCLE_RUN:
@@ -143,12 +198,6 @@ async function run() {
 						prisma,
 						job.data as BillingCycleRunPayload,
 						billingQueue,
-					);
-					break;
-				case BackGroundJobName.BILLING_REFRESH_SPEND_ANALYTICS:
-					await runBillingRefreshSpendAnalyticsProcessor(
-						prisma,
-						job.data as BillingRefreshSpendAnalyticsPayload,
 					);
 					break;
 				default:
@@ -195,6 +244,18 @@ async function run() {
 						prisma,
 						job.data as MetricSnapshotRecomputePayload,
 					);
+					break;
+				case BackGroundJobName.RECONCILE_SUMMARIES:
+					await runReconcileSummariesProcessor(prisma, {
+						summaryPlacementQueue,
+						summaryCandidateQueue,
+					});
+					break;
+				case BackGroundJobName.EXPIRE_PAST_PER_DIEM_SHIFTS:
+					await runExpirePastPerDiemShiftsProcessor(prisma);
+					break;
+				case BackGroundJobName.ROLL_PLACEMENT_STATUSES:
+					await runRollPlacementStatusesProcessor(prisma);
 					break;
 				default:
 					throw new Error(`Unknown job: ${job.name}`);
@@ -273,6 +334,8 @@ async function run() {
 		await Promise.all([
 			billingQueue.close(),
 			metricsQueue.close(),
+			summaryPlacementQueue.close(),
+			summaryCandidateQueue.close(),
 			importsWorker.close(),
 			billingWorker.close(),
 			notificationsWorker.close(),

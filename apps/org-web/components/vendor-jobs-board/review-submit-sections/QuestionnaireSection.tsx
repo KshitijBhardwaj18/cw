@@ -10,7 +10,7 @@ export interface QuestionnaireSectionProps {
 export function QuestionnaireSection({
 	form,
 	isEditing,
-}: QuestionnaireSectionProps) {
+}: Readonly<QuestionnaireSectionProps>) {
 	const rows = useStore(form.store, (s) => s.values.questionnaire) ?? [];
 
 	const byScope = {

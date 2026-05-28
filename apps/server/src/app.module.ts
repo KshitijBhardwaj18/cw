@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { AuthModule } from "@thallesp/nestjs-better-auth";
+import { AgingRulesModule } from "./aging-rules/aging-rules.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { BackgroundJobsModule } from "./background-jobs/background-jobs.module";
@@ -11,6 +12,7 @@ import { authAdmin, authOrg } from "./common/auth";
 import { AuthHooksService } from "./common/auth-hooks.service";
 import { heizenLoggerConfig } from "./common/openobserve";
 import { PortalAuthGuard } from "./common/portal-auth.guard";
+import { TenantAffinityGuard } from "./common/tenant-affinity.guard";
 import { ComplianceModule } from "./compliance/compliance.module";
 import { ComplianceChecklistModule } from "./compliance-checklist/compliance-checklist.module";
 import { ComplianceWalletTemplateModule } from "./compliance-wallet-template/compliance-wallet-template.module";
@@ -29,6 +31,7 @@ import { PlacementsModule } from "./placements/placements.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ProjectsModule } from "./projects/projects.module";
 import { QuestionnaireModule } from "./questionnaire/questionnaire.module";
+import { RequisitionAttentionRulesModule } from "./requisition-attention-rules/requisition-attention-rules.module";
 import { RequisitionTemplatesModule } from "./requisition-templates/requisition-templates.module";
 import { RequisitionsModule } from "./requisitions/requisitions.module";
 import { ShiftRoutingModule } from "./shift-routing/shift-routing.module";
@@ -85,6 +88,8 @@ import { WorkforceListsModule } from "./workforce-lists/workforce-lists.module";
 		ShiftRoutingModule,
 		WorkforceListsModule,
 		PerDiemShiftsModule,
+		AgingRulesModule,
+		RequisitionAttentionRulesModule,
 		RequisitionTemplatesModule,
 		RequisitionsModule,
 		ProjectsModule,
@@ -97,6 +102,7 @@ import { WorkforceListsModule } from "./workforce-lists/workforce-lists.module";
 		AppService,
 		AuthHooksService,
 		{ provide: APP_GUARD, useClass: PortalAuthGuard },
+		{ provide: APP_GUARD, useClass: TenantAffinityGuard },
 	],
 })
 export class AppModule {}

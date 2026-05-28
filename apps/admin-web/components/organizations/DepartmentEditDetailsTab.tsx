@@ -72,7 +72,7 @@ export function DepartmentEditDetailsTab({
 	orgMembers,
 	onLocationsScrollToBottom,
 	onOccupationsScrollToBottom,
-}: DepartmentEditDetailsTabProps) {
+}: Readonly<DepartmentEditDetailsTabProps>) {
 	const [addUserOpen, setAddUserOpen] = useState(false);
 	const submissionAttempts = useStore(
 		form.store,
@@ -126,8 +126,8 @@ export function DepartmentEditDetailsTab({
 											value={field.state.value}
 											onValueChange={(v) => {
 												field.handleChange(v as typeof field.state.value);
-												form.setFieldValue("organizationOccupationId", "");
-												form.setFieldValue("organizationSpecialtyId", "");
+												form.setFieldValue("organizationOccupationIds", []);
+												form.setFieldValue("organizationSpecialtyIds", []);
 											}}
 										>
 											<SelectTrigger
@@ -252,23 +252,38 @@ export function DepartmentEditDetailsTab({
 							)}
 						</form.Field>
 
-						<form.Field name="organizationOccupationId">
+						<form.Field name="organizationOccupationIds">
 							{(field) => (
 								<Field>
-									<FieldLabel htmlFor={field.name}>Occupation</FieldLabel>
+									<FieldLabel htmlFor={field.name}>Occupations</FieldLabel>
 									<MultiSelect
-										values={field.state.value ? [field.state.value] : []}
-										onValuesChange={(v) => {
-											field.handleChange(v[0] ?? "");
-											form.setFieldValue("organizationSpecialtyId", "");
+										values={field.state.value ?? []}
+										onValuesChange={(next) => {
+											field.handleChange(next);
+											const allowedOrgSpecIds = new Set(
+												orgOccupations
+													.filter((o) => next.includes(o.id))
+													.flatMap((o) => o.specialties ?? [])
+													.map((s) => s.id),
+											);
+											const currentSpecs =
+												form.getFieldValue("organizationSpecialtyIds") ?? [];
+											const filtered = currentSpecs.filter((id) =>
+												allowedOrgSpecIds.has(id),
+											);
+											if (filtered.length !== currentSpecs.length) {
+												form.setFieldValue(
+													"organizationSpecialtyIds",
+													filtered,
+												);
+											}
 										}}
-										single
 									>
 										<MultiSelectTrigger
 											disabled={isPendingDetails}
 											className="w-full"
 										>
-											<MultiSelectValue placeholder="Select occupation" />
+											<MultiSelectValue placeholder="Select occupations" />
 										</MultiSelectTrigger>
 										<MultiSelectContent
 											search={{
@@ -302,31 +317,39 @@ export function DepartmentEditDetailsTab({
 						</form.Field>
 
 						<form.Subscribe
-							selector={(state) => state.values.organizationOccupationId}
+							selector={(state) => state.values.organizationOccupationIds}
 						>
-							{(selectedOccupationId) => {
-								const selectedOccupation = orgOccupations.find(
-									(o) => o.id === selectedOccupationId,
-								);
-								const specialtyOptions = selectedOccupation?.specialties ?? [];
+							{(selectedOccupationIds) => {
+								const selectedSet = new Set(selectedOccupationIds ?? []);
+								const specialtyOptions = orgOccupations
+									.filter((o) => selectedSet.has(o.id))
+									.flatMap((o) =>
+										(o.specialties ?? []).map((s) => ({
+											...s,
+											occupationName:
+												o.occupation?.name ?? o.occupation?.acronym ?? "",
+										})),
+									);
+								const hasOccupation = selectedSet.size > 0;
 								return (
-									<form.Field name="organizationSpecialtyId">
+									<form.Field name="organizationSpecialtyIds">
 										{(field) => (
 											<Field>
-												<FieldLabel htmlFor={field.name}>Specialty</FieldLabel>
+												<FieldLabel htmlFor={field.name}>
+													Specialties
+												</FieldLabel>
 												<MultiSelect
-													values={field.state.value ? [field.state.value] : []}
-													onValuesChange={(v) => field.handleChange(v[0] ?? "")}
-													single
+													values={field.state.value ?? []}
+													onValuesChange={(next) => field.handleChange(next)}
 												>
 													<MultiSelectTrigger
-														disabled={isPendingDetails || !selectedOccupationId}
+														disabled={isPendingDetails || !hasOccupation}
 														className="w-full"
 													>
 														<MultiSelectValue
 															placeholder={
-																selectedOccupationId
-																	? "Select specialty"
+																hasOccupation
+																	? "Select specialties"
 																	: "Select an occupation first"
 															}
 														/>
@@ -348,11 +371,9 @@ export function DepartmentEditDetailsTab({
 																<span className="font-medium">
 																	{s.specialty?.name ?? s.specialty?.acronym}
 																</span>
-																{s.specialty?.acronym && (
-																	<span className="text-muted-foreground ml-2 text-xs">
-																		{s.specialty.acronym}
-																	</span>
-																)}
+																<span className="text-muted-foreground ml-2 text-xs">
+																	{s.occupationName}
+																</span>
 															</MultiSelectItem>
 														))}
 													</MultiSelectContent>

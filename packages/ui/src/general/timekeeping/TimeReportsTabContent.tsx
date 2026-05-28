@@ -42,7 +42,7 @@ export function TimeReportsTabContent({
 	state,
 	handlers,
 	pagination,
-}: TimeReportsTabContentProps) {
+}: Readonly<TimeReportsTabContentProps>) {
 	const { columns } = useTimeReportColumns(state.groupBy);
 
 	const [groupTablePages, setGroupTablePages] = useState<

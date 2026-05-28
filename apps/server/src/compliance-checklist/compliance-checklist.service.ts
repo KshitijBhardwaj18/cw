@@ -103,7 +103,7 @@ export class ComplianceChecklistService {
 			select: CHECKLIST_SELECT,
 		});
 		if (!checklist) {
-			throw new NotFoundException(`Compliance checklist ${id} not found`);
+			throw new NotFoundException("Compliance checklist not found.");
 		}
 		return checklist;
 	}
@@ -143,7 +143,7 @@ export class ComplianceChecklistService {
 			select: { id: true },
 		});
 		if (!existing) {
-			throw new NotFoundException(`Compliance checklist ${id} not found`);
+			throw new NotFoundException("Compliance checklist not found.");
 		}
 
 		if (dto.complianceListItemIds) {
@@ -187,7 +187,7 @@ export class ComplianceChecklistService {
 			},
 		});
 		if (!existing) {
-			throw new NotFoundException(`Compliance checklist ${id} not found`);
+			throw new NotFoundException("Compliance checklist not found.");
 		}
 		if (
 			existing.requisitions.length > 0 ||

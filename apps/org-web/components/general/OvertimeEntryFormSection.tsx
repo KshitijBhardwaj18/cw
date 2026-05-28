@@ -27,7 +27,7 @@ interface OvertimeEntryFormSectionProps {
 export function OvertimeEntryFormSection({
 	form,
 	defaultDate,
-}: OvertimeEntryFormSectionProps) {
+}: Readonly<OvertimeEntryFormSectionProps>) {
 	const initialDate = React.useMemo(() => {
 		try {
 			return formatLocalDateToIso(parseISO(defaultDate));

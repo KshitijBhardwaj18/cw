@@ -10,7 +10,6 @@ import {
 import { CustomTable } from "@repo/ui/general/CustomTable";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Briefcase } from "lucide-react";
-import { PLACEMENTS_PAGE_SIZE } from "@/constants/placements";
 import type { PlacementListMockRow } from "@/types/placements";
 
 export type PlacementsTableCardProps = {
@@ -25,7 +24,7 @@ export function PlacementsTableCard({
 	columns,
 	totalFiltered,
 	isLoading,
-}: PlacementsTableCardProps) {
+}: Readonly<PlacementsTableCardProps>) {
 	if (totalFiltered === 0 && !isLoading) {
 		return (
 			<Empty className="border-muted/50 py-12">
@@ -47,9 +46,7 @@ export function PlacementsTableCard({
 			data={rows}
 			columns={columns}
 			enableSorting
-			enablePagination
-			paginationMode="client"
-			pageSize={PLACEMENTS_PAGE_SIZE}
+			enablePagination={false}
 			emptyState={null}
 			isLoading={isLoading}
 			loadingLabel="Loading placements..."

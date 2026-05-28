@@ -22,13 +22,13 @@ import {
 } from "@repo/ui/general/ConfigPageEmptyState";
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { CustomTable } from "@repo/ui/general/CustomTable";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { ScrollableLineTabsRow } from "@repo/ui/general/ScrollableLineTabsRow";
 import { useTabSwitch } from "@repo/ui/hooks/use-tab-switch";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { ChevronDown, Plus, Users } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { AccessBlockedState } from "@/components/general/AccessBlockedState";
-import { useOrgContext } from "@/contexts/org-context";
 import { useTalentCommunityColumns } from "@/hooks/tables/use-talent-community-columns";
 import {
 	TALENT_COMMUNITY_PARAMS,
@@ -69,7 +69,6 @@ const TAB_CHECKS: Record<TalentCommunityTab, TabAbilityCheck> = {
 };
 
 export function TalentCommunityContent() {
-	const { id: orgId } = useOrgContext();
 	const ability = useAbility();
 
 	const allowedTabs = useMemo(
@@ -110,13 +109,14 @@ export function TalentCommunityContent() {
 		setPage,
 		pageSize,
 		setLimit,
+		pageSizeOptions,
 		workforceTypeFilter,
 		statusFilter,
 		query,
 		filterConfigs,
 	} = useTalentCommunityFilters({ activeTab });
 
-	const { data, isLoading, isError } = useTalentCommunity(orgId, {
+	const { data, isLoading, isError } = useTalentCommunity({
 		tab: activeTab,
 		...query,
 	});
@@ -142,6 +142,7 @@ export function TalentCommunityContent() {
 	);
 
 	const total = data?.total ?? 0;
+	const pageCount = Math.ceil(total / pageSize) || 1;
 
 	if (allowedTabs.length === 0) {
 		return (
@@ -180,18 +181,6 @@ export function TalentCommunityContent() {
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end" className="w-56">
-								<DropdownMenuItem
-									className="cursor-pointer gap-2 py-2.5"
-									onSelect={() => setAddExistingDialogOpen(true)}
-								>
-									<Users className="text-muted-foreground size-4 shrink-0" />
-									<div>
-										<p className="font-medium text-sm">Add Existing Talent</p>
-										<p className="text-muted-foreground text-xs">
-											From past applicants or workers
-										</p>
-									</div>
-								</DropdownMenuItem>
 								<DropdownMenuItem
 									className="cursor-pointer gap-2 py-2.5"
 									onSelect={() => setInviteDialogOpen(true)}
@@ -259,53 +248,55 @@ export function TalentCommunityContent() {
 					description="Please try again or contact support if the problem persists."
 				/>
 			) : (
-				<CustomTable
-					data={data?.data ?? []}
-					columns={columns}
-					enablePagination
-					paginationMode="server"
-					totalCount={data?.total ?? 0}
-					currentPage={page}
-					pageSize={pageSize}
-					onPaginationChange={(newPage, newLimit) => {
-						setPage(newPage);
-						setLimit(newLimit);
-					}}
-					emptyState={
-						<ConfigPageEmptyState
-							hasSearch={false}
-							emptyTitle={
-								activeTab === "invited"
-									? "No invited candidates yet"
-									: activeTab === "new"
-										? "No new / unassigned talent"
-										: "No talent community members yet"
-							}
-							emptyMessage={
-								activeTab === "invited"
-									? "Use the Add Candidate button to invite someone."
-									: "Talent will appear here once added."
-							}
-							icon={Users}
-						/>
-					}
-				/>
+				<>
+					<CustomTable
+						data={data?.data ?? []}
+						columns={columns}
+						enablePagination={false}
+						emptyState={
+							<ConfigPageEmptyState
+								hasSearch={false}
+								emptyTitle={
+									activeTab === "invited"
+										? "No invited candidates yet"
+										: activeTab === "new"
+											? "No new / unassigned talent"
+											: "No talent community members yet"
+								}
+								emptyMessage={
+									activeTab === "invited"
+										? "Use the Add Candidate button to invite someone."
+										: "Talent will appear here once added."
+								}
+								icon={Users}
+							/>
+						}
+					/>
+					<PaginationControls
+						currentPage={page}
+						pageCount={pageCount}
+						goToPage={setPage}
+						limit={pageSize}
+						setLimit={setLimit}
+						pageSizeOptions={pageSizeOptions}
+						totalItems={total}
+						itemLabel="candidate"
+						itemLabelPlural="candidates"
+					/>
+				</>
 			)}
 
 			<AddExistingTalentDialog
 				open={addExistingDialogOpen}
 				onOpenChange={setAddExistingDialogOpen}
-				orgId={orgId}
 			/>
 
 			<InviteCandidateDialog
 				open={inviteDialogOpen}
 				onOpenChange={setInviteDialogOpen}
-				orgId={orgId}
 			/>
 
 			<CandidateProfileSheet
-				orgId={orgId}
 				candidate={profileCandidate}
 				open={profileCandidate !== null}
 				onOpenChange={(nextOpen) => {

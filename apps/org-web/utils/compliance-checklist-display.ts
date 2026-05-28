@@ -10,5 +10,6 @@ export function complianceChecklistToItemOptions(
 		name: row.complianceListItem.name,
 		category: row.complianceListItem.category,
 		tracksExpiration: row.complianceListItem.expirationType !== "NON_EXPIRABLE",
+		displayToCandidate: row.complianceListItem.displayToCandidate,
 	}));
 }

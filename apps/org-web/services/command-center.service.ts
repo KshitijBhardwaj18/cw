@@ -24,6 +24,8 @@ export type CommandCenterOperationsResponse = {
 		| "overdue-submissions"
 		| "aging-qualified"
 		| "aging-shortlisted"
+		| "interview-delayed"
+		| "offer-pending"
 		| "overdue-offers"
 		| "delayed-onboarding",
 		number
@@ -33,11 +35,58 @@ export type CommandCenterOperationsResponse = {
 	rowsTotal: number;
 	page: number;
 	limit: number;
+	/** False when the org's requisition attention rules haven't been configured by the admin. */
+	requisitionAttentionRulesConfigured: boolean;
+	/** False when the org's candidate-side aging rules haven't been configured by the admin. */
+	candidateAgingRulesConfigured: boolean;
+	requisitionCardDescriptions: Record<
+		"slow-time-to-fill" | "no-submissions" | "low-submissions",
+		string
+	>;
+	candidateCardDescriptions: Record<
+		| "overdue-submissions"
+		| "aging-qualified"
+		| "aging-shortlisted"
+		| "interview-delayed"
+		| "offer-pending"
+		| "overdue-offers"
+		| "delayed-onboarding",
+		string
+	>;
+	requisitionCardConfigured: Record<
+		"slow-time-to-fill" | "no-submissions" | "low-submissions",
+		boolean
+	>;
+	candidateCardConfigured: Record<
+		| "overdue-submissions"
+		| "aging-qualified"
+		| "aging-shortlisted"
+		| "interview-delayed"
+		| "offer-pending"
+		| "overdue-offers"
+		| "delayed-onboarding",
+		boolean
+	>;
+	requisitionCardActive: Record<
+		"slow-time-to-fill" | "no-submissions" | "low-submissions",
+		boolean
+	>;
+	candidateCardActive: Record<
+		| "overdue-submissions"
+		| "aging-qualified"
+		| "aging-shortlisted"
+		| "interview-delayed"
+		| "offer-pending"
+		| "overdue-offers"
+		| "delayed-onboarding",
+		boolean
+	>;
 };
 
 export type CommandCenterPerformanceResponse = {
 	summaryStats: PerformanceSummaryStatApiItem[];
 	groupedMetrics: PerformanceMetricGroupApiItem[];
+	lastRefreshedAt: string | null;
 };
 
 export type CommandCenterActiveWorkforceResponse = {

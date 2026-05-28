@@ -1,6 +1,7 @@
 "use client";
 
 import { Action, useAbility } from "@repo/casl";
+import { getComplianceListItemCategoryLabel } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import {
 	Card,
@@ -29,6 +30,7 @@ import {
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ComplianceRejectDialog } from "@/components/document-wallet/ComplianceRejectDialog";
 import { useCredentialEntryDetails } from "@/hooks/use-credential-entry-details";
 import type {
 	CredentialComplianceItem,
@@ -50,7 +52,7 @@ type ActionDialogState = {
 export function CredentialEntryDetailsPageContent({
 	entryType,
 	entryId,
-}: CredentialEntryDetailsPageContentProps) {
+}: Readonly<CredentialEntryDetailsPageContentProps>) {
 	const {
 		record,
 		isLoading,
@@ -68,6 +70,26 @@ export function CredentialEntryDetailsPageContent({
 		open: false,
 		item: null,
 	});
+	const [rejectItem, setRejectItem] = useState<CredentialComplianceItem | null>(
+		null,
+	);
+
+	const handleStatusChange = (
+		item: CredentialComplianceItem,
+		status: CredentialComplianceItem["status"],
+	) => {
+		if (status === "REJECTED") {
+			setRejectItem(item);
+			return;
+		}
+		updateStatus({ itemId: item.id, status });
+	};
+
+	const handleRejectConfirm = (reason: string) => {
+		if (!rejectItem) return;
+		updateStatus({ itemId: rejectItem.id, status: "REJECTED", notes: reason });
+		setRejectItem(null);
+	};
 
 	const searchParams = useSearchParams();
 	const highlightComplianceItemId = searchParams.get("item");
@@ -310,7 +332,8 @@ export function CredentialEntryDetailsPageContent({
 										{required.name}
 									</p>
 									<p className="text-muted-foreground mt-1 text-xs">
-										Category: {required.category}
+										Category:{" "}
+										{getComplianceListItemCategoryLabel(required.category)}
 									</p>
 								</div>
 								<div className="text-right">
@@ -349,12 +372,7 @@ export function CredentialEntryDetailsPageContent({
 							key={category.name}
 							category={category}
 							canEdit={canEditCredentials}
-							onStatusChange={(item, status) =>
-								updateStatus({
-									itemId: item.id,
-									status,
-								})
-							}
+							onStatusChange={handleStatusChange}
 							onUploadDocument={openUploadDialog}
 						/>
 					))}
@@ -371,6 +389,13 @@ export function CredentialEntryDetailsPageContent({
 					}
 				}}
 				onSubmitUpload={uploadDocument}
+			/>
+
+			<ComplianceRejectDialog
+				open={!!rejectItem}
+				onOpenChange={(o) => !o && setRejectItem(null)}
+				itemName={rejectItem?.name ?? null}
+				onConfirm={handleRejectConfirm}
 			/>
 		</div>
 	);

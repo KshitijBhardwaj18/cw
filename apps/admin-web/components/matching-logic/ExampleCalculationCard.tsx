@@ -21,7 +21,7 @@ type ExampleCalculationContentProps = {
 
 function ExampleCalculationContent({
 	localCriteria,
-}: ExampleCalculationContentProps) {
+}: Readonly<ExampleCalculationContentProps>) {
 	const activeWithWeight = localCriteria.filter(
 		(c) => c.active && c.weight > 0,
 	);
@@ -67,7 +67,7 @@ type ExampleCalculationCardProps = {
 
 const ExampleCalculationCard = ({
 	localCriteria,
-}: ExampleCalculationCardProps) => {
+}: Readonly<ExampleCalculationCardProps>) => {
 	const [open, setOpen] = useState(false);
 
 	return (

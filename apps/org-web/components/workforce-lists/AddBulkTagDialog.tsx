@@ -27,7 +27,7 @@ export function AddBulkTagDialog({
 	onOpenChange,
 	listName,
 	onConfirm,
-}: AddBulkTagDialogProps) {
+}: Readonly<AddBulkTagDialogProps>) {
 	const form = useForm({
 		defaultValues: {
 			tagName: "",

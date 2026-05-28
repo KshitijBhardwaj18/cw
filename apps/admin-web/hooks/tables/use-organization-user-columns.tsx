@@ -1,5 +1,6 @@
 "use client";
 
+import { enumToTitleText } from "@repo/shared";
 import { Badge } from "@repo/ui/components/badge";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
@@ -8,12 +9,6 @@ import {
 	ORGANIZATION_USERS_COLUMN_KEYS,
 } from "@/constants/tables/organization-users";
 import type { OrganizationUserTableRow } from "@/types/users";
-
-const formatEnumLabel = (value: string) =>
-	value
-		.split("_")
-		.map((part) => part.charAt(0) + part.slice(1).toLowerCase())
-		.join(" ");
 
 export const useOrganizationUserColumns = () => {
 	const columns = useMemo<ColumnDef<OrganizationUserTableRow>[]>(
@@ -63,7 +58,7 @@ export const useOrganizationUserColumns = () => {
 				header: ORGANIZATION_USERS_COLUMN_HEADERS.role,
 				cell: ({ row }) => (
 					<Badge variant="secondary">
-						{formatEnumLabel(row.original.role)}
+						{enumToTitleText(row.original.role)}
 					</Badge>
 				),
 			},
@@ -74,7 +69,7 @@ export const useOrganizationUserColumns = () => {
 					<Badge
 						variant={row.original.status === "ACTIVE" ? "success" : "inactive"}
 					>
-						{formatEnumLabel(row.original.status)}
+						{enumToTitleText(row.original.status)}
 					</Badge>
 				),
 			},

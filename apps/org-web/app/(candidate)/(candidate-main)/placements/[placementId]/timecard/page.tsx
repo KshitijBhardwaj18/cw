@@ -17,7 +17,9 @@ export async function generateMetadata(_props: PageProps): Promise<Metadata> {
 	};
 }
 
-export default async function PlacementTimecardPage({ params }: PageProps) {
+export default async function PlacementTimecardPage({
+	params,
+}: Readonly<PageProps>) {
 	const { placementId } = await params;
 
 	return (

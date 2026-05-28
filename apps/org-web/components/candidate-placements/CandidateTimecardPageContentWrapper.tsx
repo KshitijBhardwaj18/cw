@@ -10,9 +10,9 @@ import { candidatePlacementsListPath } from "@/utils/candidate-portal-routes";
 
 export function CandidateTimecardPageContentWrapper({
 	placementId,
-}: {
+}: Readonly<{
 	placementId: string;
-}) {
+}>) {
 	const { organizationId, orgLoading, isReady, timecardsQuery } =
 		useCandidateTimecardPage(placementId);
 

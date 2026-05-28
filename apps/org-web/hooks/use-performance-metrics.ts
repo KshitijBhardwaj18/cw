@@ -115,6 +115,7 @@ export function usePerformanceMetrics() {
 		applyCustomDateRange,
 		summaryStats,
 		groupedMetrics,
+		lastRefreshedAt: performanceQuery.data?.lastRefreshedAt ?? null,
 		isLoading: performanceQuery.isLoading,
 		isError: performanceQuery.isError,
 		showCustomDateInputs: isCustom,

@@ -4,7 +4,7 @@ type PageProps = { params: Promise<{ organizationId: string }> };
 
 export default async function OrganizationMetricsReportingPage({
 	params,
-}: PageProps) {
+}: Readonly<PageProps>) {
 	const { organizationId } = await params;
 	return <MetricsReportingPageContent organizationId={organizationId} />;
 }

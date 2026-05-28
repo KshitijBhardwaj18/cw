@@ -2,6 +2,7 @@
 
 import { ConfigPageHeader } from "@repo/ui/general/ConfigPageHeader";
 import { CustomTable } from "@repo/ui/general/CustomTable";
+import PaginationControls from "@repo/ui/general/PaginationControls";
 import { SearchWithFilters } from "@repo/ui/shared/SearchWithFilters";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -20,7 +21,9 @@ export function InvoicesPageContent() {
 		setFiltersExpanded,
 		page,
 		setPage,
-		query,
+		limit,
+		setLimit,
+		pageSizeOptions,
 		listQuery,
 		summaryQuery,
 		filterConfigs,
@@ -95,15 +98,21 @@ export function InvoicesPageContent() {
 				data={rows}
 				columns={columns}
 				enableSorting
-				enablePagination
-				paginationMode="server"
-				totalCount={total}
-				pageSize={query.limit}
-				currentPage={page}
-				onPaginationChange={(nextPage) => setPage(nextPage)}
+				enablePagination={false}
 				emptyState={null}
 				isLoading={listQuery.isLoading}
 				loadingLabel="Loading invoices..."
+			/>
+			<PaginationControls
+				currentPage={page}
+				pageCount={Math.max(1, Math.ceil(total / limit))}
+				goToPage={setPage}
+				limit={limit}
+				setLimit={setLimit}
+				pageSizeOptions={pageSizeOptions}
+				totalItems={total}
+				itemLabel="invoice"
+				itemLabelPlural="invoices"
 			/>
 
 			<InvoiceBreakdownDialog

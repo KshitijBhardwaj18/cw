@@ -31,7 +31,7 @@ export function DetailInputField({
 	name,
 	required = false,
 	errors = [],
-}: DetailInputFieldProps) {
+}: Readonly<DetailInputFieldProps>) {
 	const id = useId();
 	const isInvalid = errors.length > 0;
 

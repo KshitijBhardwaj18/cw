@@ -5,12 +5,17 @@ import {
 } from "@nestjs/common";
 import {
 	CandidateComplianceStatus,
+	CandidateExperienceBand,
 	CandidateInviteStatus,
 	CandidateSource,
 	type Prisma,
 } from "@repo/db";
-import type { PagePaginatedResponse } from "@repo/shared";
+import {
+	type PagePaginatedResponse,
+	VendorCandidatePortalStatus,
+} from "@repo/shared";
 import { BackgroundJobsService } from "src/background-jobs/background-jobs.service";
+import { matchableCandidatesWhere } from "src/common/utils/matchable-candidates-where";
 import { PrismaService } from "src/prisma/prisma.service";
 import type { InviteCandidateDto } from "src/talent-community/dto/invite-candidate.dto";
 import { TalentCommunityService } from "src/talent-community/talent-community.service";
@@ -62,7 +67,7 @@ function parseCandidateRtosForJobBoard(
 	return out;
 }
 
-export type VendorCandidatePortalStatus = "ACTIVE" | "ONBOARDING" | "INACTIVE";
+export { VendorCandidatePortalStatus };
 
 export type VendorCandidateListRow = {
 	id: string;
@@ -73,10 +78,13 @@ export type VendorCandidateListRow = {
 	specialty: string;
 	occupationName: string;
 	locationLine: string;
-	yearsExperienceLabel: string;
+	experienceBandLabel: string;
 	source: "VENDOR" | "DIRECT" | "PREVIOUS_WORKER";
+	/** True when the organization's compliance wallet expects at least one item for this candidate. */
+	documentsRequired: boolean;
 	documentsComplete: boolean;
 	status: VendorCandidatePortalStatus;
+	tags: string[];
 };
 
 export type VendorCandidateMetrics = {
@@ -94,7 +102,7 @@ const LIST_SELECT = {
 	source: true,
 	city: true,
 	state: true,
-	yearsOfExperience: true,
+	totalProfessionalExperienceBand: true,
 	occupation: { select: { name: true } },
 	user: {
 		select: { name: true, email: true, phoneNumber: true },
@@ -103,6 +111,10 @@ const LIST_SELECT = {
 		take: 3,
 		orderBy: { id: "asc" as const },
 		include: { specialty: { select: { name: true, acronym: true } } },
+	},
+	candidateTags: {
+		orderBy: { id: "asc" as const },
+		select: { tag: { select: { name: true } } },
 	},
 	summary: {
 		select: {
@@ -117,14 +129,14 @@ function mapPortalStatus(
 	isActive: boolean,
 	inviteStatus: CandidateInviteStatus | null,
 ): VendorCandidatePortalStatus {
-	if (!isActive) return "INACTIVE";
+	if (!isActive) return VendorCandidatePortalStatus.INACTIVE;
 	if (
 		inviteStatus === CandidateInviteStatus.PENDING ||
 		inviteStatus === CandidateInviteStatus.EXPIRED
 	) {
-		return "ONBOARDING";
+		return VendorCandidatePortalStatus.ONBOARDING;
 	}
-	return "ACTIVE";
+	return VendorCandidatePortalStatus.ACTIVE;
 }
 
 function statusFilterWhere(
@@ -156,9 +168,21 @@ function locationLine(city: string | null, state: string | null): string {
 	return parts.length > 0 ? parts.join(", ") : "—";
 }
 
-function yearsExperienceLabel(years: number | null): string {
-	if (years == null || Number.isNaN(years)) return "—";
-	return `${years} yr${years === 1 ? "" : "s"}`;
+function experienceBandLabel(band: CandidateExperienceBand | null): string {
+	switch (band) {
+		case CandidateExperienceBand.LT_1:
+			return "<1 year";
+		case CandidateExperienceBand.Y1_2:
+			return "1-2 years";
+		case CandidateExperienceBand.Y3_5:
+			return "3-5 years";
+		case CandidateExperienceBand.Y6_9:
+			return "6-9 years";
+		case CandidateExperienceBand.Y10_PLUS:
+			return "10+ years";
+		default:
+			return "—";
+	}
 }
 
 function specialtyLabel(
@@ -173,6 +197,14 @@ function specialtyLabel(
 	return base;
 }
 
+function documentsRequiredFromWalletSummary(
+	summary: {
+		walletTotalComplianceItems: number;
+	} | null,
+): boolean {
+	return (summary?.walletTotalComplianceItems ?? 0) > 0;
+}
+
 function documentsCompleteFromWalletSummary(
 	summary: {
 		walletTotalComplianceItems: number;
@@ -180,10 +212,13 @@ function documentsCompleteFromWalletSummary(
 		walletLastComplianceUpdatedAt: Date | null;
 	} | null,
 ): boolean {
+	// Require the wallet calc to have run at least once before claiming "complete"
+	// (avoids reporting success on uncomputed defaults). Then: no requirements OR
+	// all approved counts as complete — matches the document wallet status rule.
 	if (summary?.walletLastComplianceUpdatedAt == null) return false;
 	const total = summary.walletTotalComplianceItems;
-	if (total === 0) return false;
-	return summary.walletApprovedComplianceItems === total;
+	const approved = summary.walletApprovedComplianceItems;
+	return total === 0 || approved === total;
 }
 
 function mapSource(
@@ -235,15 +270,17 @@ export class VendorCandidatesService {
 				this.prisma.$queryRaw<[{ count: bigint }]>`
 					SELECT COUNT(*)::bigint AS count
 					FROM "candidate" c
-					INNER JOIN "candidate_summary" cs ON cs."candidateId" = c.id
+					LEFT JOIN "candidate_summary" cs ON cs."candidateId" = c.id
 					WHERE c."organizationId" = ${orgId}::uuid
 						AND c."vendorId" = ${vendorId}::uuid
 						AND cs."walletLastComplianceUpdatedAt" IS NOT NULL
-						AND cs."walletTotalComplianceItems" > 0
-						AND cs."walletApprovedComplianceItems" = cs."walletTotalComplianceItems"
+						AND (
+							cs."walletTotalComplianceItems" = 0
+							OR cs."walletApprovedComplianceItems" = cs."walletTotalComplianceItems"
+						)
 				`,
 			]);
-		const docsComplete = Number(docsCompleteRow[0]?.count ?? 0n);
+		const docsComplete = Number(docsCompleteRow[0]?.count ?? 0);
 
 		const total = totalCandidates;
 		const docsCompleteLabel = total === 0 ? "0/0" : `${docsComplete}/${total}`;
@@ -310,6 +347,14 @@ export class VendorCandidatesService {
 			...this.baseWhere(orgId, vendorId),
 			...statusFilterWhere(dto.status),
 			...(searchWhere ? searchWhere : {}),
+			...(dto.occupationId ? { occupationId: dto.occupationId } : {}),
+			...(dto.specialtyId
+				? {
+						candidateSpecialties: {
+							some: { specialtyId: dto.specialtyId },
+						},
+					}
+				: {}),
 		};
 
 		const [total, rows] = await Promise.all([
@@ -335,10 +380,104 @@ export class VendorCandidatesService {
 				specialty: specialtyLabel(r.candidateSpecialties),
 				occupationName: r.occupation?.name?.trim() || "—",
 				locationLine: locationLine(r.city, r.state),
-				yearsExperienceLabel: yearsExperienceLabel(r.yearsOfExperience),
+				experienceBandLabel: experienceBandLabel(
+					r.totalProfessionalExperienceBand,
+				),
 				source: mapSource(r.source),
+				documentsRequired: documentsRequiredFromWalletSummary(r.summary),
 				documentsComplete: documentsCompleteFromWalletSummary(r.summary),
 				status,
+				tags: r.candidateTags.map((ct) => ct.tag.name),
+			};
+		});
+
+		return {
+			data,
+			total,
+			page,
+			limit,
+			totalPages: Math.ceil(total / limit) || 1,
+		};
+	}
+
+	async listSubmittableForRequisition(
+		orgId: string,
+		vendorId: string,
+		requisition: {
+			id: string;
+			occupationId: string;
+			specialtyIds: string[];
+		},
+		dto: { page?: number; limit?: number; search?: string },
+	): Promise<PagePaginatedResponse<VendorCandidateListRow>> {
+		const page = dto.page ?? 1;
+		const limit = dto.limit ?? 20;
+		const skip = (page - 1) * limit;
+
+		const search = dto.search?.trim();
+		const searchWhere: Prisma.CandidateWhereInput | undefined = search
+			? {
+					OR: [
+						{ user: { name: { contains: search, mode: "insensitive" } } },
+						{ user: { email: { contains: search, mode: "insensitive" } } },
+						{
+							candidateSpecialties: {
+								some: {
+									specialty: {
+										OR: [
+											{ name: { contains: search, mode: "insensitive" } },
+											{ acronym: { contains: search, mode: "insensitive" } },
+										],
+									},
+								},
+							},
+						},
+					],
+				}
+			: undefined;
+
+		const where: Prisma.CandidateWhereInput = {
+			...matchableCandidatesWhere({
+				organizationId: orgId,
+				vendorId,
+				requisitionId: requisition.id,
+				occupationId: requisition.occupationId,
+				specialtyIds: requisition.specialtyIds,
+			}),
+			...(searchWhere ?? {}),
+		};
+
+		const [total, rows] = await Promise.all([
+			this.prisma.candidate.count({ where }),
+			this.prisma.candidate.findMany({
+				where,
+				select: LIST_SELECT,
+				orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+				skip,
+				take: limit,
+			}),
+		]);
+
+		const data: VendorCandidateListRow[] = rows.map((r, i) => {
+			const status = mapPortalStatus(r.isActive, r.inviteStatus);
+			const name = r.user.name?.trim() || "—";
+			return {
+				id: r.id,
+				displayId: skip + i + 1,
+				name,
+				email: r.user.email ?? "—",
+				phone: r.user.phoneNumber?.trim() ? r.user.phoneNumber : "—",
+				specialty: specialtyLabel(r.candidateSpecialties),
+				occupationName: r.occupation?.name?.trim() || "—",
+				locationLine: locationLine(r.city, r.state),
+				experienceBandLabel: experienceBandLabel(
+					r.totalProfessionalExperienceBand,
+				),
+				source: mapSource(r.source),
+				documentsRequired: documentsRequiredFromWalletSummary(r.summary),
+				documentsComplete: documentsCompleteFromWalletSummary(r.summary),
+				status,
+				tags: r.candidateTags.map((ct) => ct.tag.name),
 			};
 		});
 
@@ -387,7 +526,7 @@ export class VendorCandidatesService {
 				city: true,
 				state: true,
 				zipCode: true,
-				yearsOfExperience: true,
+				totalProfessionalExperienceBand: true,
 				preferredShiftTypes: true,
 				availableFrom: true,
 				isAvailable: true,
@@ -433,7 +572,7 @@ export class VendorCandidatesService {
 		});
 
 		if (!row) {
-			throw new NotFoundException("Candidate not found for this vendor");
+			throw new NotFoundException("Candidate not found for this vendor.");
 		}
 
 		const mergeTarget =
@@ -516,7 +655,7 @@ export class VendorCandidatesService {
 			city: row.city,
 			state: row.state,
 			zipCode: row.zipCode,
-			yearsOfExperience: row.yearsOfExperience,
+			experienceBand: row.totalProfessionalExperienceBand,
 			preferredShiftTypes: row.preferredShiftTypes ?? [],
 			availableFrom: row.availableFrom,
 			isAvailable: row.isAvailable,
@@ -544,7 +683,7 @@ export class VendorCandidatesService {
 		});
 
 		if (!candidate) {
-			throw new NotFoundException("Candidate not found for this vendor");
+			throw new NotFoundException("Candidate not found for this vendor.");
 		}
 
 		let targetOccupationId = candidate.occupationId;
@@ -571,7 +710,7 @@ export class VendorCandidatesService {
 			});
 			if (!orgOcc) {
 				throw new BadRequestException(
-					"Candidate occupation must be linked to the organization before assigning specialties",
+					"Link the candidate's occupation to the organization before assigning specialties.",
 				);
 			}
 			const valid = await this.prisma.organizationSpecialty.findMany({

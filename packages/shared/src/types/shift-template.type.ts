@@ -13,7 +13,8 @@ export type ShiftTemplateListItem = Prisma.ShiftTemplateGetPayload<{
 		baseBillRate: true;
 		vendorRateMarkupPercent: true;
 		limitShiftVisibility: true;
-		visibilityUnlockHours: true;
+		visibilityUnlockDuration: true;
+		visibilityUnlockUnit: true;
 		offerIncentive: true;
 		incentiveByHour: true;
 		incentiveByShift: true;
@@ -38,7 +39,9 @@ export interface PaginatedShiftTemplatesResponse {
 
 export interface OrgOccupationSpecialtyOption {
 	id: string;
+	specialtyId: string;
 	name: string;
+	acronym: string | null;
 }
 
 export interface OrgOccupationOption {
@@ -55,6 +58,19 @@ export interface OrgDepartmentOption {
 	location: { id: string; name: string };
 	/** Present when set on the department record (e.g. spend / filters). */
 	costCenter?: string | null;
+	departmentOccupations?: Array<{
+		organizationOccupation: {
+			id: string;
+			occupation: { id: string; name: string; acronym: string | null };
+		};
+	}>;
+	departmentSpecialties?: Array<{
+		organizationSpecialty: {
+			id: string;
+			organizationOccupationId: string;
+			specialty: { id: string; name: string; acronym: string | null };
+		};
+	}>;
 }
 
 export interface OrgLocationOption {

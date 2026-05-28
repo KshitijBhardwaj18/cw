@@ -33,7 +33,7 @@ export function OrganizationLocationsList({
 	onSearchChange,
 	hasActiveSearch,
 	onPageChange,
-}: OrganizationLocationsListProps) {
+}: Readonly<OrganizationLocationsListProps>) {
 	const { ability } = useAuth();
 	const [createOpen, setCreateOpen] = useState(false);
 	const canCreateLocation = ability.can(Action.Create, "Organization");

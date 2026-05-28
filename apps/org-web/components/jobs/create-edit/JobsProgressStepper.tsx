@@ -32,7 +32,7 @@ export function JobsProgressStepper({
 	currentStep,
 	onStepClick,
 	disableNavigation = false,
-}: JobsProgressStepperProps) {
+}: Readonly<JobsProgressStepperProps>) {
 	return (
 		<div className="flex w-full items-center px-2 py-4">
 			{JOB_POSTING_STEPS.map((step, index) => {

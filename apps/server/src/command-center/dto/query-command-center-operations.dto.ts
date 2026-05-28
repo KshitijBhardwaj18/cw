@@ -9,6 +9,8 @@ const OPERATION_FILTER_KEYS = [
 	"overdue-submissions",
 	"aging-qualified",
 	"aging-shortlisted",
+	"interview-delayed",
+	"offer-pending",
 	"overdue-offers",
 	"delayed-onboarding",
 ] as const;

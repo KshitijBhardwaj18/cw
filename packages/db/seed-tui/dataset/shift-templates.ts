@@ -1,4 +1,4 @@
-import { ShiftType } from "@repo/db";
+import { type DelayUnit, ShiftType } from "@repo/db";
 import { getDeterministicId, SEED_PREFIX } from "../utils";
 import { DEPT_ID } from "./departments";
 import { LOCATION_ID } from "./locations";
@@ -29,6 +29,9 @@ export const getShiftTemplatesDataset = (
 	shiftType: ShiftType;
 	durationHours: number;
 	baseRate: number;
+	limitShiftVisibility?: boolean;
+	visibilityUnlockDuration?: number | null;
+	visibilityUnlockUnit?: DelayUnit | null;
 	baseBillRate?: number;
 	vendorRateMarkupPercent?: number;
 	createdById: string;
@@ -41,7 +44,7 @@ export const getShiftTemplatesDataset = (
 			occupationAcronym: "RN",
 			departmentId: DEPT_ID.ICU,
 			locationId: LOCATION_ID.MAIN,
-			shiftType: ShiftType.DAYS,
+			shiftType: ShiftType.DAY,
 			durationHours: 12,
 			baseRate: 85,
 			baseBillRate: 0,
@@ -55,7 +58,7 @@ export const getShiftTemplatesDataset = (
 			occupationAcronym: "RN",
 			departmentId: DEPT_ID.ED,
 			locationId: LOCATION_ID.MAIN,
-			shiftType: ShiftType.NIGHTS,
+			shiftType: ShiftType.NIGHT,
 			durationHours: 12,
 			baseRate: 95,
 			baseBillRate: 0,
@@ -69,11 +72,12 @@ export const getShiftTemplatesDataset = (
 			occupationAcronym: "PT",
 			departmentId: DEPT_ID.REHAB,
 			locationId: LOCATION_ID.MAIN,
-			shiftType: ShiftType.DAYS,
+			shiftType: ShiftType.DAY,
 			durationHours: 8,
 			baseRate: 75,
 			baseBillRate: 0,
 			vendorRateMarkupPercent: 20,
+			limitShiftVisibility: true,
 			createdById: USER_ID.DAVID_J,
 		},
 		{
@@ -83,7 +87,7 @@ export const getShiftTemplatesDataset = (
 			occupationAcronym: "LPN",
 			departmentId: DEPT_ID.MEDSURG,
 			locationId: LOCATION_ID.MAIN,
-			shiftType: ShiftType.EVENINGS,
+			shiftType: ShiftType.FLEXIBLE,
 			durationHours: 8,
 			baseRate: 62,
 			baseBillRate: 0,
@@ -97,11 +101,12 @@ export const getShiftTemplatesDataset = (
 			occupationAcronym: "RN",
 			departmentId: DEPT_ID.ICU,
 			locationId: LOCATION_ID.MAIN,
-			shiftType: ShiftType.NIGHTS,
+			shiftType: ShiftType.NIGHT,
 			durationHours: 12,
 			baseRate: 92,
 			baseBillRate: 0,
 			vendorRateMarkupPercent: 15,
+			limitShiftVisibility: true,
 			createdById: USER_ID.ALICE,
 		},
 	];

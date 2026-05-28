@@ -86,6 +86,7 @@ export type TimekeepingInternalUploadPayload = {
 	s3Key: string;
 	fileName: string;
 	uploadedById: string;
+	vendorId?: string;
 };
 
 export type TimekeepingReminderJobResult = {
@@ -140,19 +141,8 @@ export type BillingGenerateInvoicesJobResult = {
 	errors: Array<{ timesheetId?: string; message: string }>;
 };
 
-export type BillingRefreshSpendAnalyticsPayload = {
-	organizationId: string;
-	periodFrom: string;
-	periodTo: string;
-};
-
-export type BillingRefreshSpendAnalyticsJobResult = {
-	refreshed: boolean;
-	error?: string;
-};
-
 export type MetricSnapshotRecomputePayload = {
-	organizationId: string;
+	organizationId?: string;
 	periodType: "DAILY" | "WEEKLY" | "MONTHLY";
 	periodStart?: string;
 	periodEnd?: string;
