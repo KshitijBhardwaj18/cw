@@ -1,2 +1,0 @@
-export const INVITE_TOKEN_BYTES = 32;
-export const INVITE_TOKEN_EXPIRY_HOURS = 24;

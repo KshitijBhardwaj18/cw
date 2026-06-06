@@ -1,9 +1,0 @@
-export { AuthService } from "./auth.service";
-export { ComplianceService } from "./compliance.service";
-export { ComplianceWalletTemplateService } from "./compliance-wallet-template.service";
-export { DashboardService } from "./dashboard.service";
-export { MatchingLogicService } from "./matching-logic.service";
-export { OccupationsService } from "./occupations.service";
-export { QuestionnaireService } from "./questionnaire.service";
-export { SpecialtiesService } from "./specialties.service";
-export { UsersService } from "./users.service";

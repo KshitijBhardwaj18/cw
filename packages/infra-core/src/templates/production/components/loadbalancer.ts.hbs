@@ -1,0 +1,65 @@
+{{#if hasAlb}}
+import * as aws from "@pulumi/aws"
+import { vpc, albSg, publicSubnet1, publicSubnet2 } from "./networking"
+
+const prefix = "{{prefix}}"
+
+// ── Application Load Balancer ─────────────────────────────────────────────────
+export const alb = new aws.lb.LoadBalancer(`${prefix}-alb`, {
+  loadBalancerType: "application",
+  securityGroups:   [albSg.id],
+  subnets:          [publicSubnet1.id, publicSubnet2.id],
+  enableHttp2:      true,
+  tags: { Name: `${prefix}-alb` },
+})
+
+// ── Target Groups (only for services attached to this ALB) ────────
+{{#each servicesWithAlb}}
+export const {{camel name}}Tg = new aws.lb.TargetGroup(`${prefix}-{{name}}-tg`, {
+  name:                "{{tgName}}",
+  port:                {{port}},
+  protocol:            "HTTP",
+  targetType:          "ip",
+  vpcId:               vpc.id,
+  deregistrationDelay: 30,
+  healthCheck: {
+    enabled:            true,
+    path:               "{{#if healthCheck}}{{healthCheck.path}}{{else}}/{{/if}}",
+    port:               "traffic-port",
+    protocol:           "HTTP",
+    matcher:            "{{#if healthCheck}}{{healthCheck.codes}}{{else}}200-499{{/if}}",
+    interval:           30,
+    timeout:            5,
+    healthyThreshold:   3,
+    unhealthyThreshold: 2,
+  },
+  tags: { Name: `${prefix}-{{name}}-tg` },
+})
+{{/each}}
+
+// ── HTTP Listener — routes to default service by default ──────────────────────
+export const httpListener = new aws.lb.Listener(`${prefix}-http`, {
+  loadBalancerArn: alb.arn,
+  port:            80,
+  protocol:        "HTTP",
+  defaultActions: [{{#if defaultTargetGroupVar}}{
+    type:           "forward",
+    targetGroupArn: {{defaultTargetGroupVar}}.arn,
+  }{{else}}{
+    type: "fixed-response",
+    fixedResponse: { contentType: "text/plain", statusCode: "503", messageBody: "No services available" },
+  }{{/if}}],
+})
+
+// ── Host-based routing (only for services with a custom domain) ───────────────
+{{#each servicesWithDomain}}
+{{#if domain}}
+new aws.lb.ListenerRule(`${prefix}-{{name}}-rule`, {
+  listenerArn: httpListener.arn,
+  priority:    {{inc @index}}0,
+  actions:     [{ type: "forward", targetGroupArn: {{camel name}}Tg.arn }],
+  conditions:  [{ hostHeader: { values: ["{{domain}}"] } }],
+})
+{{/if}}
+{{/each}}
+{{/if}}

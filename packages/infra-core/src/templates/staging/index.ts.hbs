@@ -1,0 +1,15 @@
+{{#if hasAlb}}import { alb } from "./components/loadbalancer"
+{{/if}}{{#if hasDatabase}}import { db } from "./components/store"
+{{/if}}{{#if hasCache}}import { redis } from "./components/store"
+{{/if}}{{#if hasStorage}}import { bucket } from "./components/store"
+{{/if}}import { cluster{{#each services}}, {{camel name}}Service{{/each}} } from "./components/compute"
+import { vpc } from "./components/networking"
+
+{{#if hasAlb}}export const albDnsName    = alb.dnsName
+{{/if}}export const clusterName   = cluster.name
+export const vpcId          = vpc.id
+{{#each services}}export const {{camel name}}ServiceName = {{camel name}}Service.name
+{{/each}}{{#if hasDatabase}}export const dbEndpoint    = db.endpoint
+{{/if}}{{#if hasCache}}export const redisEndpoint = redis.cacheNodes.apply((nodes: any[]) => nodes[0].address)
+{{/if}}{{#if hasStorage}}export const bucketName    = bucket.bucket
+{{/if}}

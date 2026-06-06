@@ -1,8 +1,0 @@
-import TimeApprovalPageContent from "@/components/organization-time-approval/TimeApprovalPageContent";
-
-type PageProps = { params: Promise<{ organizationId: string }> };
-
-export default async function Page({ params }: Readonly<PageProps>) {
-	const { organizationId } = await params;
-	return <TimeApprovalPageContent organizationId={organizationId} />;
-}

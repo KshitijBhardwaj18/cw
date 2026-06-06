@@ -1,0 +1,50 @@
+{
+  "name": "@heizen/infra-core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./analyzer": {
+      "types": "./dist/analyzer/index.d.ts",
+      "default": "./dist/analyzer/index.js"
+    },
+    "./generator": {
+      "types": "./dist/generator/index.d.ts",
+      "default": "./dist/generator/index.js"
+    },
+    "./pulumi": {
+      "types": "./dist/pulumi/index.d.ts",
+      "default": "./dist/pulumi/index.js"
+    },
+    "./github": {
+      "types": "./dist/github/token.d.ts",
+      "default": "./dist/github/token.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc && cp -R src/templates dist/templates"
+  },
+  "dependencies": {
+    "@heizen/shared": "workspace:*",
+    "@ai-sdk/anthropic": "^1.0.0",
+    "@aws-sdk/client-s3": "^3.693.0",
+    "@aws-sdk/client-sts": "^3.693.0",
+    "@octokit/auth-app": "^7.1.1",
+    "@pulumi/aws": "^6.0.0",
+    "@pulumi/pulumi": "^3.137.0",
+    "ai": "^4.0.0",
+    "handlebars": "^4.7.8",
+    "simple-git": "^3.27.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "typescript": "^5.6.3"
+  }
+}
