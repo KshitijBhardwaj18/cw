@@ -78,6 +78,69 @@ export async function runPulumiUp(
   return { outputs: upResult.outputs as Record<string, unknown> };
 }
 
+export interface PulumiDestroyOptions {
+  workDir: string;
+  stackName: string;
+  backendBucket: string;
+  passphrase: string;
+  awsCreds: AwsCredentials;
+  /** Same config secrets used at deploy time. Pulumi needs them to
+   *  decrypt the prior state and re-resolve any `cfg.X` references in
+   *  the program before tearing it down. */
+  configSecrets: Record<string, string>;
+  /** Whether to also remove the empty stack from the backend after a
+   *  successful destroy. Defaults to true — we don't keep dead stacks. */
+  removeStack?: boolean;
+  onOutput?: (line: string) => void;
+}
+
+/**
+ * Tears down all resources in a Pulumi stack via the Automation API.
+ *
+ * Mirrors runPulumiUp's setup (same workspace, same env vars, same
+ * config) but calls stack.destroy() instead of stack.up(). After a
+ * clean destroy we also drop the stack itself from the backend so the
+ * next `pulumi up` against the same prefix starts fresh — not
+ * resurrected-from-half-empty-state.
+ */
+export async function runPulumiDestroy(
+  options: PulumiDestroyOptions,
+): Promise<void> {
+  const {
+    workDir,
+    stackName,
+    backendBucket,
+    passphrase,
+    awsCreds,
+    configSecrets,
+    removeStack = true,
+    onOutput,
+  } = options;
+
+  const envVars = workspaceEnvVars(awsCreds, backendBucket, passphrase);
+
+  const stack = await pulumi.LocalWorkspace.selectStack(
+    { stackName, workDir },
+    { envVars },
+  );
+
+  // Set the same secrets used during `up` so the destroy program can
+  // re-evaluate (e.g. cfg.dbPassword references in the generated
+  // index.ts). Without these Pulumi raises "missing required
+  // configuration variable" before destroy even starts.
+  for (const [key, value] of Object.entries(configSecrets)) {
+    await stack.setConfig(key, { value, secret: true });
+  }
+
+  await stack.destroy({ onOutput: onOutput ?? (() => {}) });
+
+  if (removeStack) {
+    // Removes the empty stack record from the S3 backend. Safe because
+    // destroy already removed every managed resource.
+    await stack.workspace.removeStack(stackName);
+  }
+}
+
 export interface StackResourceExport {
   urn: string;
   type: string;

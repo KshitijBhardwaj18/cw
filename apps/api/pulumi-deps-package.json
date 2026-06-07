@@ -5,7 +5,7 @@
   "description": "Shared Pulumi SDK + AWS provider deps. Symlinked into each deploy workdir via PULUMI_BASE_DEPS_DIR to skip re-install per deploy.",
   "dependencies": {
     "@pulumi/pulumi": "^3.0.0",
-    "@pulumi/aws": "^6.0.0"
+    "@pulumi/aws": "^7.0.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

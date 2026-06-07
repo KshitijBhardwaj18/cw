@@ -5,3 +5,4 @@ export { getInstallationToken, getInstallationManageUrl, getInstallationMeta } f
 export type { GithubInstallationMeta } from "./github/token";
 export { analyze } from "./analyzer";
 export type { AnalyzeOptions, IndexingStepCallback } from "./analyzer";
+export { parseComposeYaml, findAndParseCompose } from "./analyzer/compose";

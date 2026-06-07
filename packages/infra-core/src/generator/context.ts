@@ -1,6 +1,7 @@
 import type { HeizenConfig } from "../types/config";
 import type { HeizenEnvConfig } from "../types/env-config";
 import { DB_PRESETS, CACHE_PRESETS } from "../types/presets";
+import { LIGHTSAIL_BUNDLE_PRESETS } from "@heizen/shared";
 import type { TemplateContext, ServiceCtx, ConfigVar } from "./types";
 
 function camelize(str: string): string {
@@ -22,6 +23,51 @@ export function buildTemplateContext(
   envCfg: HeizenEnvConfig,
 ): TemplateContext {
   const prefix = `${cfg.project}-${cfg.env}`;
+
+  // Lightsail (staging) template uses a much smaller context. None of
+  // the ECS-specific computation (services, scaling, ALB rules, RDS)
+  // applies. We pass the bundleId from the preset and let cloud-init
+  // do the rest via Pulumi config secrets supplied by the worker.
+  if (cfg.env === "staging") {
+    const bundleKey = cfg.lightsailBundle ?? "small";
+    const bundle = LIGHTSAIL_BUNDLE_PRESETS[bundleKey];
+    return {
+      prefix,
+      project: cfg.project,
+      env: cfg.env,
+      region: cfg.region,
+      domain: cfg.domain ?? "",
+      ecrImage: cfg.ecr.image,
+      ecrTag: cfg.ecr.tag,
+      fullImage: `${cfg.ecr.image}:${cfg.ecr.tag}`,
+      // The Lightsail template reads {{bundleId}}; the rest of these
+      // fields are required by the TemplateContext shape but unused.
+      bundleId: bundle.bundleId,
+      natEnabled: false,
+      natIsDual: false,
+      natIsSingle: false,
+      vpcCidr: "10.0.0.0/16",
+      ecsPortRangeFrom: 0,
+      ecsPortRangeTo: 0,
+      hasAlb: false,
+      hasDatabase: false,
+      hasCache: false,
+      hasStorage: false,
+      needsRdsSg: false,
+      needsRedisSg: false,
+      database: null,
+      cache: null,
+      services: [],
+      servicesWithDomain: [],
+      servicesWithPort: [],
+      servicesWithAlb: [],
+      defaultTargetGroupVar: "",
+      configExports: [],
+      logRetentionDays: 7,
+      containerInsights: false,
+    };
+  }
+
   const hasDatabase = cfg.database.engine === "postgres";
   const hasCache = cfg.cache.engine === "redis";
   const hasStorage = cfg.storage.enabled;
@@ -193,9 +239,15 @@ export function buildTemplateContext(
           dbName: cfg.database.dbName ?? cfg.project.replace(/-/g, "_"),
           dbUser: `${cfg.project.replace(/-/g, "_")}_admin`,
           multiAz: cfg.database.multiAz ?? false,
+          // Kept for legacy staging template which still reads this; the
+          // production template hardcodes false to keep `pulumi destroy`
+          // working without manual AWS unprotect dance.
           deletionProtection: cfg.database.deletionProtection ?? false,
           backupRetentionDays: cfg.database.backupRetentionDays ?? 7,
-          allocatedStorage: 20,
+          // Map storage to the DB size preset rather than a fixed 20GB.
+          // A db.t4g.large with 8GB RAM on 20GB storage would auto-scale
+          // or run out within a week of normal use.
+          allocatedStorage: DB_PRESETS[cfg.database.size!].allocatedStorageGb,
           storageType: "gp3",
           engineVersion: "16.4",
           encrypted: true,

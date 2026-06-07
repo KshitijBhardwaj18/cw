@@ -123,6 +123,11 @@ model Environment {
   imageUri             String?
   setupComplete        Boolean         @default(false)
   heizenConfig         Json?
+  // Parsed docker-compose.yml from the last indexing run. Used by the
+  // Lightsail (staging) template to drive routing UI without re-cloning
+  // at form-render time. Source of truth at deploy is the live repo.
+  composeServicesCache Json?
+  composeFetchedAt     DateTime?
   stackOutputs         Json?
   status               EnvironmentStatus @default(NOT_DEPLOYED)
   lastDeployedAt       DateTime?
@@ -155,6 +160,10 @@ model Deployment {
   id             String           @id @default(cuid())
   environmentId  String
   triggeredBy    String
+  // DEPLOY = pulumi up (default — existing rows preserve their meaning).
+  // DESTROY = pulumi destroy. Separate row per teardown so the audit
+  // trail and log stream work identically to a deploy.
+  kind           DeploymentKind   @default(DEPLOY)
   commitSha      String?
   commitMessage  String?
   imageUri       String?
@@ -261,6 +270,11 @@ enum DeploymentStatus {
   CANCELLED
 }
 
+enum DeploymentKind {
+  DEPLOY
+  DESTROY
+}
+
 enum DeploymentPhase {
   PULUMI
   SYSTEM
@@ -284,6 +298,7 @@ enum GithubAccountType {
 
 enum AuditAction {
   DEPLOY_TRIGGERED
+  DESTROY_TRIGGERED
   ENV_VARS_REPLACED
   GITHUB_CONNECTION_ADDED
   GITHUB_CONNECTION_REMOVED

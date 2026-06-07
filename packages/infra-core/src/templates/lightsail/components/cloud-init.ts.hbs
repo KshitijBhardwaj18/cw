@@ -1,0 +1,148 @@
+import * as pulumi from "@pulumi/pulumi"
+import * as cfg from "./config"
+
+// cloud-init runs as root on first boot only. Subsequent reboots run
+// the systemd unit we install at the end (heizen-stack.service) to
+// re-up the compose stack against locally cached images.
+//
+// Idempotency guard: `/opt/heizen/.bootstrapped` is touched on success.
+// If user_data is somehow re-invoked (rare), we early-exit.
+//
+// All file content arrives base64-encoded via Pulumi config so we can
+// embed it in a heredoc without worrying about quote escaping. The
+// 16KB user_data limit is real (Lightsail enforces it); the worker
+// short-circuits and refuses to render if the rendered script exceeds
+// 15500 bytes (margin for the systemd unit).
+export const userData = pulumi
+  .all([
+    cfg.composeB64,
+    cfg.caddyfileB64,
+    cfg.envFileB64,
+    cfg.caddyDockerComposeB64,
+    cfg.ecrAccessKey ?? pulumi.output(""),
+    cfg.ecrSecretKey ?? pulumi.output(""),
+    cfg.ecrSessionToken ?? pulumi.output(""),
+  ])
+  .apply(
+    ([
+      composeB64,
+      caddyfileB64,
+      envFileB64,
+      caddyDockerComposeB64,
+      ecrAccessKey,
+      ecrSecretKey,
+      ecrSessionToken,
+    ]) => {
+      const ecrRegistry = cfg.ecrRegistry
+      const region = "{{region}}"
+
+      const ecrLoginBlock = ecrRegistry
+        ? `
+# ECR login (only if registry was provided). Creds are short-lived STS
+# tokens; we unset them after login so they don't sit in the environment.
+export AWS_ACCESS_KEY_ID="${ecrAccessKey}"
+export AWS_SECRET_ACCESS_KEY="${ecrSecretKey}"
+export AWS_SESSION_TOKEN="${ecrSessionToken}"
+export AWS_DEFAULT_REGION="${region}"
+if ! command -v aws >/dev/null 2>&1; then
+  apt-get install -y awscli
+fi
+aws ecr get-login-password --region "${region}" \\
+  | docker login --username AWS --password-stdin "${ecrRegistry}"
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_DEFAULT_REGION
+`
+        : "# (No ECR registry configured — skipping docker login.)"
+
+      return `#!/bin/bash
+set -euxo pipefail
+exec > >(tee -a /var/log/heizen-init.log) 2>&1
+
+if [ -f /opt/heizen/.bootstrapped ]; then
+  echo "[heizen] already bootstrapped — exiting cleanly."
+  exit 0
+fi
+
+echo "[heizen] bootstrapping at $(date -u +%FT%TZ)"
+
+# Wait for apt locks held by Ubuntu's automatic-updates timer. Without
+# this, the first apt-get install races and fails ~25% of the time.
+for i in $(seq 1 60); do
+  if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \\
+     && ! fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
+    break
+  fi
+  echo "[heizen] waiting for apt locks (attempt $i)..."
+  sleep 5
+done
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y ca-certificates curl gnupg
+
+# Install Docker (official convenience script — simpler than the repo
+# dance and pinned-version-safe for fresh boxes).
+if ! command -v docker >/dev/null 2>&1; then
+  curl -fsSL https://get.docker.com | sh
+fi
+systemctl enable --now docker
+
+mkdir -p /opt/heizen /etc/caddy
+
+# Decode all the blobs the platform sent us into files on disk. base64
+# -d expects no surrounding whitespace; we trust Pulumi to produce
+# clean output.
+echo "${composeB64}" | base64 -d > /opt/heizen/docker-compose.yml
+echo "${caddyDockerComposeB64}" | base64 -d > /opt/heizen/docker-compose.caddy.yml
+echo "${caddyfileB64}" | base64 -d > /etc/caddy/Caddyfile
+echo "${envFileB64}" | base64 -d > /opt/heizen/.env
+
+# Lock down the env file — it contains secrets.
+chmod 600 /opt/heizen/.env
+chown root:root /opt/heizen/.env
+
+${ecrLoginBlock}
+
+# Pull + run. -f flags load both the user's compose and the platform's
+# Caddy compose into a single project so Caddy joins the user's
+# default network and can resolve service names directly.
+cd /opt/heizen
+docker compose \\
+  -f docker-compose.yml \\
+  -f docker-compose.caddy.yml \\
+  --env-file .env \\
+  pull
+
+docker compose \\
+  -f docker-compose.yml \\
+  -f docker-compose.caddy.yml \\
+  --env-file .env \\
+  up -d --remove-orphans
+
+# Install a systemd unit so the stack comes back after reboots. The
+# unit shells through bash -c so docker compose's multi-arg form works.
+cat > /etc/systemd/system/heizen-stack.service <<'UNIT'
+[Unit]
+Description=Heizen platform stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+WorkingDirectory=/opt/heizen
+ExecStart=/bin/bash -c 'docker compose -f docker-compose.yml -f docker-compose.caddy.yml --env-file .env up -d --remove-orphans'
+ExecStop=/bin/bash -c 'docker compose -f docker-compose.yml -f docker-compose.caddy.yml --env-file .env down'
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable heizen-stack.service
+
+touch /opt/heizen/.bootstrapped
+echo "[heizen] bootstrap complete at $(date -u +%FT%TZ)"
+`
+    },
+  )

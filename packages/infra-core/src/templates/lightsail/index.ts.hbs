@@ -1,0 +1,13 @@
+// Lightsail-based deploy: single VM running user's docker-compose
+// behind a Caddy container that does host-based routing + HTTPS.
+//
+// Resources are intentionally minimal — one Instance, one StaticIp,
+// one Attachment, one PublicPorts rule. Everything else (Docker,
+// Caddy, the user's stack) is bootstrapped by cloud-init at first
+// boot. No ALB, no RDS, no managed services.
+import { instance, staticIp } from "./components/instance"
+
+export const instanceName = instance.name
+export const staticIpAddress = staticIp.ipAddress
+export const region = "{{region}}"
+export const bundleId = "{{bundleId}}"

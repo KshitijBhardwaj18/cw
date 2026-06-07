@@ -54,6 +54,19 @@ export class DeploymentsController {
     return this.deployments.get(orgId, projectId, envId, deployId);
   }
 
+  // Destroy is implemented as a Deployment row with kind=DESTROY. The
+  // existing log stream + status websocket fan-out work without changes
+  // because the worker dispatches on `deployment.kind`.
+  @Post("destroy")
+  destroy(
+    @CurrentOrg() orgId: string,
+    @CurrentUser() user: { id: string },
+    @Param("projectId") projectId: string,
+    @Param("envId") envId: string,
+  ) {
+    return this.deployments.destroy(orgId, projectId, envId, user.id);
+  }
+
   @Post(":deployId/cancel")
   cancel(
     @CurrentOrg() orgId: string,

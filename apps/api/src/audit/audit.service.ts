@@ -5,6 +5,7 @@ import { PRISMA } from "../prisma/prisma.module";
 
 type AuditActionName =
   | "DEPLOY_TRIGGERED"
+  | "DESTROY_TRIGGERED"
   | "ENV_VARS_REPLACED"
   | "GITHUB_CONNECTION_ADDED"
   | "GITHUB_CONNECTION_REMOVED"

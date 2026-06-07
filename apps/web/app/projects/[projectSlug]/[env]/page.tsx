@@ -4,12 +4,14 @@ import { Suspense, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Copy, Check, ExternalLink, X } from "lucide-react";
-import type { HeizenConfig } from "@heizen/shared";
+import type { HeizenConfig, ParsedCompose } from "@heizen/shared";
 import { ConnectGitHub } from "@/components/github/ConnectGitHub";
 import { IndexingProgress } from "@/components/github/IndexingProgress";
 import { IndexingResults } from "@/components/indexing/IndexingResults";
 import { DeployForm } from "@/components/deploy/DeployForm";
 import { DeployingState } from "@/components/deploy/DeployingState";
+import { DestroyDialog } from "@/components/deploy/DestroyDialog";
+import { LightsailEndpointsCard } from "@/components/deploy/LightsailEndpointsCard";
 import { CostEstimator } from "@/components/deploy/CostEstimator";
 import { ResourceGraph } from "@/components/resources/ResourceGraph";
 import { EnvVarTable } from "@/components/env-vars/EnvVarTable";
@@ -35,6 +37,7 @@ interface Environment {
   type: string;
   status: string;
   heizenConfig: HeizenConfig | null;
+  composeServicesCache: ParsedCompose | null;
   lastDeployedAt: string | null;
   stackOutputs: Record<string, unknown> | null;
 }
@@ -322,7 +325,10 @@ function EnvironmentPageContent({
     );
   }
 
-  if (environment.status === "DEPLOYING") {
+  if (environment.status === "DEPLOYING" || environment.status === "DESTROYING") {
+    // DeployingState reads the most recent active deployment and uses
+    // its `kind` field to switch labels (Deploying vs Destroying), so
+    // we route both env statuses through the same component.
     return (
       <DeployingState
         projectId={project.id}
@@ -333,9 +339,51 @@ function EnvironmentPageContent({
     );
   }
 
+  if (environment.status === "DESTROYED") {
+    return (
+      <div className="mx-auto max-w-md p-6 text-center">
+        <div className="rounded-lg border border-border bg-card p-8">
+          <h2 className="text-base font-medium capitalize">
+            {envType} environment destroyed
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            All AWS resources have been torn down. Project settings,
+            GitHub connection, and env vars are preserved — you can
+            redeploy at any time.
+          </p>
+          <Button
+            size="sm"
+            className="mt-6"
+            onClick={() => setShowDeployForm(true)}
+          >
+            Redeploy {envType}
+          </Button>
+        </div>
+        {showDeployForm && (
+          <DeployForm
+            projectId={project.id}
+            environmentId={environment.id}
+            envType={envType}
+            initialConfig={
+              environment.heizenConfig ??
+              buildDefaultHeizenConfig(projectSlug, envType)
+            }
+            onDeploy={handleDeploy}
+            onClose={() => setShowDeployForm(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
   if (environment.status === "LIVE" && environment.heizenConfig) {
     const outputs = environment.stackOutputs as Record<string, string> | null;
     const appUrl = outputs?.albDnsName ? `http://${outputs.albDnsName}` : null;
+    // Lightsail envs expose a static IP via stackOutputs. When present
+    // we render the Lightsail-specific Endpoints card instead of the
+    // ALB CNAME card.
+    const lightsailIp =
+      typeof outputs?.staticIpAddress === "string" ? outputs.staticIpAddress : null;
 
     return (
       <div className="mx-auto max-w-5xl space-y-6 p-6">
@@ -350,9 +398,18 @@ function EnvironmentPageContent({
               </span>
             )}
           </div>
-          <Button size="sm" onClick={() => setShowDeployForm(true)}>
-            Redeploy
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button size="sm" onClick={() => setShowDeployForm(true)}>
+              Redeploy
+            </Button>
+            <DestroyDialog
+              projectId={project.id}
+              envId={environment.id}
+              envType={envType}
+              projectName={projectSlug}
+              onDestroyStarted={() => void load(projectSlug, envType)}
+            />
+          </div>
         </div>
 
         <Tabs defaultValue={defaultTab}>
@@ -369,6 +426,13 @@ function EnvironmentPageContent({
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            {lightsailIp && environment.heizenConfig.routing && (
+              <LightsailEndpointsCard
+                staticIp={lightsailIp}
+                routing={environment.heizenConfig.routing}
+              />
+            )}
+            {!lightsailIp && (
             <div className="grid gap-3 lg:grid-cols-2">
               <div className="rounded-lg border border-border bg-card p-4">
                 <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
@@ -433,13 +497,16 @@ function EnvironmentPageContent({
                 )}
               </div>
             </div>
+            )}
 
+            {!lightsailIp && (
             <div>
               <p className="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">
                 Infrastructure
               </p>
               <ResourceGraph resources={resources} />
             </div>
+            )}
           </TabsContent>
 
           <TabsContent value="variables">
@@ -472,6 +539,7 @@ function EnvironmentPageContent({
             <IndexingResults
               config={environment.heizenConfig}
               missingEnvCount={missingEnvCount}
+              compose={environment.composeServicesCache}
             />
             {suggestionCount > 0 && (
               <div className="mt-3 flex items-start gap-2 rounded-lg border border-warning/20 bg-warning/5 px-3 py-2.5">

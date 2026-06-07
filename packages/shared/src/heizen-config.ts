@@ -59,6 +59,10 @@ export interface HeizenConfig {
     size?: CacheSize;
   };
   storage: { enabled: boolean };
+  // Lightsail (staging) only — see zod schema below.
+  lightsailBundle?: "nano" | "micro" | "small" | "medium" | "large";
+  routing?: Record<string, { domain: string; containerPort: number }>;
+  caddyEmail?: string;
 }
 
 /**
@@ -99,6 +103,30 @@ export const serviceConfigSchema = z.object({
   inheritEnvFrom: z.string().optional(),
 });
 
+// ─── Lightsail routing (defined here because heizenConfigSchema below
+// references it) ────────────────────────────────────────────────────────
+// Maps a compose service name to a public domain. Used by the Lightsail
+// (staging) deploy path to generate the Caddyfile. ECS template ignores
+// this — it derives routing from services[].domain instead.
+export const routingEntrySchema = z.object({
+  domain: z.string().min(1),
+  /** Container port on the compose service to forward to. Must match
+   *  one of the ports the compose service exposes. */
+  containerPort: z.number().int().positive(),
+});
+
+export type RoutingEntry = z.infer<typeof routingEntrySchema>;
+
+export const lightsailBundleSchema = z.enum([
+  "nano",
+  "micro",
+  "small",
+  "medium",
+  "large",
+]);
+
+export type LightsailBundle = z.infer<typeof lightsailBundleSchema>;
+
 export const heizenConfigSchema = z.object({
   version: z.literal(1),
   project: z.string().min(1),
@@ -129,10 +157,52 @@ export const heizenConfigSchema = z.object({
     size: z.enum(["micro", "small", "medium"]).optional(),
   }),
   storage: z.object({ enabled: z.boolean() }),
+
+  // ── Lightsail (staging) only ──────────────────────────────────────────
+  // Lightsail instance bundle. Sized like the ECS DB presets but on the
+  // VM side. Defaults to "small" if unset.
+  lightsailBundle: lightsailBundleSchema.optional(),
+  // Per compose-service routing for Caddy on the Lightsail box. Key is
+  // the service name from docker-compose.yml. Ignored by the ECS
+  // (production) template.
+  routing: z.record(z.string(), routingEntrySchema).optional(),
+  // Email registered with Let's Encrypt for cert renewal notifications.
+  // Falls back to the platform admin email at deploy time when unset.
+  caddyEmail: z.string().optional(),
 });
+
+// Parsed docker-compose.yml surfaced by the indexer. Optional because
+// not every repo has one — ECS-only projects skip this entirely.
+export const composePortSchema = z.object({
+  host: z.number().nullable(),
+  container: z.number(),
+  protocol: z.enum(["tcp", "udp"]),
+});
+
+export const composeServiceSchema = z.object({
+  name: z.string(),
+  image: z.string().nullable(),
+  hasBuild: z.boolean(),
+  ports: z.array(composePortSchema),
+  envRefs: z.array(z.string()),
+  hasVolumes: z.boolean(),
+  dependsOn: z.array(z.string()),
+});
+
+export const parsedComposeSchema = z.object({
+  filePath: z.string(),
+  raw: z.string(),
+  services: z.array(composeServiceSchema),
+});
+
+export type ComposePort = z.infer<typeof composePortSchema>;
+export type ComposeService = z.infer<typeof composeServiceSchema>;
+export type ParsedCompose = z.infer<typeof parsedComposeSchema>;
 
 export const analyzerResultSchema = z.object({
   config: heizenConfigSchema,
+  compose: parsedComposeSchema.nullable().optional(),
 });
 
 export type AnalyzerResult = z.infer<typeof analyzerResultSchema>;
+

@@ -145,7 +145,10 @@ export const {{camel name}}Service = new aws.ecs.Service(`${prefix}-{{name}}`, {
   }],
   {{/if}}{{/if}}deploymentCircuitBreaker: { enable: true, rollback: true },
   enableExecuteCommand: true,
-  forceNewDeployment:   true,
+  // ECS automatically triggers a new rolling deployment when the task
+  // definition ARN changes (which happens on every env var or image
+  // tag update). forceNewDeployment: true forced a redeploy on every
+  // `pulumi up` regardless, which caused unnecessary container churn.
   tags: { Name: `${prefix}-{{name}}` },
 }{{#if ../hasAlb}}{{#if targetGroupVar}}, {
   dependsOn: [httpListener],

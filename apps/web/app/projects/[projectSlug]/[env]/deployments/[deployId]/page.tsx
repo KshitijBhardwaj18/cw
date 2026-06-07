@@ -12,20 +12,25 @@ import { useDeploymentStatus } from "@/hooks/useWebSocket";
 import { useSse } from "@/hooks/useSse";
 import type { DeploymentLogPayload } from "@heizen/shared";
 
-const STEPS = [
-  {
-    key: "setup",
-    label: "Setup",
-    activeStatuses: ["QUEUED"],
-    doneAfter: ["DEPLOYING", "SUCCESS"],
-  },
-  {
-    key: "deploy",
-    label: "Deploy",
-    activeStatuses: ["DEPLOYING"],
-    doneAfter: ["SUCCESS"],
-  },
-] as const;
+// Step labels switch on deployment.kind. The middle step's "active"
+// happens during DEPLOYING regardless of kind (the deployment status
+// enum is shared) — we only rename what the user reads.
+function buildSteps(kind: "DEPLOY" | "DESTROY") {
+  return [
+    {
+      key: "setup",
+      label: "Setup",
+      activeStatuses: ["QUEUED"],
+      doneAfter: ["DEPLOYING", "SUCCESS"],
+    },
+    {
+      key: "run",
+      label: kind === "DESTROY" ? "Destroy" : "Deploy",
+      activeStatuses: ["DEPLOYING"],
+      doneAfter: ["SUCCESS"],
+    },
+  ] as const;
+}
 
 type StepState = "waiting" | "active" | "done" | "failed";
 
@@ -50,6 +55,7 @@ function DeploymentDetailContent({
   const [projectSlug, setProjectSlug] = useState("");
   const [envType, setEnvType] = useState("");
   const [status, setStatus] = useState("QUEUED");
+  const [kind, setKind] = useState<"DEPLOY" | "DESTROY">("DEPLOY");
   const [createdAt, setCreatedAt] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -84,12 +90,15 @@ function DeploymentDetailContent({
               setEnvId(environment.id);
               const deployment = await api<{
                 status: string;
+                kind?: "DEPLOY" | "DESTROY";
                 createdAt: string;
               }>(
                 `/api/projects/${project.id}/environments/${environment.id}/deployments/${id}`,
               );
+              setKind(deployment.kind ?? "DEPLOY");
               setStatus(deployment.status);
               setCreatedAt(deployment.createdAt);
+              setKind(deployment.kind ?? "DEPLOY");
             }
           }
         } catch (err) {
@@ -107,11 +116,13 @@ function DeploymentDetailContent({
     }
   });
 
+  const steps = useMemo(() => buildSteps(kind), [kind]);
+
   const stepStates = useMemo<StepState[]>(() => {
     const failed = status === "FAILED";
     const cancelled = status === "CANCELLED";
 
-    return STEPS.map((step) => {
+    return steps.map((step) => {
       if (cancelled) return "done";
 
       const isActive = (
@@ -126,7 +137,7 @@ function DeploymentDetailContent({
           const hasPulumiLogs = logs.some((l) => l.phase === "PULUMI");
           return hasPulumiLogs ? "done" : "failed";
         }
-        if (step.key === "deploy") {
+        if (step.key === "run") {
           const hasLogPhases = logs.some((l) => l.phase === "PULUMI");
           return hasLogPhases ? "failed" : "waiting";
         }
@@ -160,7 +171,7 @@ function DeploymentDetailContent({
         </Link>
         <div className="mt-4 flex items-center gap-3">
           <h1 className="text-base font-semibold">
-            Deployment {deployId.slice(0, 8)}
+            {kind === "DESTROY" ? "Destroy" : "Deployment"} {deployId.slice(0, 8)}
           </h1>
           <StatusBadge status={status} />
         </div>
@@ -171,7 +182,7 @@ function DeploymentDetailContent({
 
       <div className="rounded-lg border border-border bg-card/50 p-5">
         <div className="flex items-center gap-2">
-          {STEPS.map((step, i) => {
+          {steps.map((step, i) => {
             const state = stepStates[i];
             return (
               <div key={step.key} className="flex flex-1 items-center gap-2">
@@ -203,7 +214,7 @@ function DeploymentDetailContent({
                     {step.label}
                   </span>
                 </div>
-                {i < STEPS.length - 1 && (
+                {i < steps.length - 1 && (
                   <div className="mb-5 h-px flex-1 bg-border" />
                 )}
               </div>

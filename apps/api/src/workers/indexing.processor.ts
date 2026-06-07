@@ -99,10 +99,19 @@ export class IndexingProcessor extends WorkerHost {
 
       await this.prisma.environment.update({
         where: { id: environmentId },
-        data: { heizenConfig: JSON.parse(JSON.stringify(result.config)) },
+        data: {
+          heizenConfig: JSON.parse(JSON.stringify(result.config)),
+          composeServicesCache: result.compose
+            ? JSON.parse(JSON.stringify(result.compose))
+            : null,
+          composeFetchedAt: result.compose ? new Date() : null,
+        },
       });
 
-      this.indexingSse.emit(projectId, { step: "complete", data: result.config });
+      this.indexingSse.emit(projectId, {
+        step: "complete",
+        data: { ...result.config, compose: result.compose },
+      });
 
       this.gateway.emitIndexingComplete(project.organizationId, {
         projectId,

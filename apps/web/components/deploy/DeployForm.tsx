@@ -17,7 +17,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { CostEstimator } from "./CostEstimator";
+import { LightsailRoutingSection } from "./LightsailRoutingSection";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import type { ParsedCompose } from "@heizen/shared";
 
 interface Props {
   projectId: string;
@@ -58,6 +61,24 @@ const LEGACY_CPU: Record<string, { cpu: number; memory: number }> = {
   large: { cpu: 1024, memory: 2048 },
 };
 
+/**
+ * Mirrors context.ts `defaultService` logic. First frontend with a port
+ * is the ALB's default target; first backend with a port if no
+ * frontend exists. All OTHER port-exposing non-worker services need
+ * a domain to be reachable through the ALB.
+ */
+function findDefaultServiceName(services: ServiceConfig[]): string | null {
+  const albEligible = services.filter(
+    (s) => s.type !== "worker" && s.port != null,
+  );
+  return (
+    albEligible.find((s) => s.type === "frontend")?.name ??
+    albEligible.find((s) => s.type === "backend")?.name ??
+    albEligible[0]?.name ??
+    null
+  );
+}
+
 function normalizeConfig(cfg: HeizenConfig): HeizenConfig {
   return {
     ...cfg,
@@ -83,9 +104,23 @@ interface ServiceCardProps {
   service: ServiceConfig;
   onUpdate: (patch: Partial<ServiceConfig>) => void;
   onRemove?: () => void;
+  /** True when this service won't be reachable through the ALB unless it
+   *  has a domain. Used to flip the per-service domain field into a
+   *  warning state — second+ frontends + any backend exposed via ALB
+   *  rules NEED a host header to be routed. */
+  domainRequired?: boolean;
+  /** When domainRequired and domain is missing — the parent computes
+   *  this so the warning copy is consistent across the form. */
+  domainMissingWarning?: string;
 }
 
-function ServiceCard({ service, onUpdate, onRemove }: ServiceCardProps) {
+function ServiceCard({
+  service,
+  onUpdate,
+  onRemove,
+  domainRequired,
+  domainMissingWarning,
+}: ServiceCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const cpuOption =
@@ -290,6 +325,48 @@ function ServiceCard({ service, onUpdate, onRemove }: ServiceCardProps) {
               </div>
             </div>
           )}
+          {!isWorker && (
+            <div>
+              <p className="mb-1 text-xs text-muted-foreground">
+                Domain{" "}
+                {domainRequired ? (
+                  <span className="text-warning-foreground">
+                    ⚠ required for routing
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/70">
+                    (optional · drives ALB host-based routing)
+                  </span>
+                )}
+              </p>
+              <Input
+                value={service.domain ?? ""}
+                onChange={(e) =>
+                  onUpdate({ domain: e.target.value.trim() || undefined })
+                }
+                placeholder="api.example.com"
+                className={cn(
+                  "h-7 text-xs font-mono",
+                  domainRequired && !service.domain && "border-warning",
+                )}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {domainRequired && !service.domain ? (
+                  <span className="text-warning-foreground">
+                    {domainMissingWarning ??
+                      "Without a domain, this service won't be reachable via the ALB."}
+                  </span>
+                ) : (
+                  <>
+                    Leave blank to use the ALB default route. After deploy,
+                    point a CNAME at the ALB DNS shown on the env page.
+                  </>
+                )}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -318,6 +395,9 @@ export function DeployForm({
   const [deployError, setDeployError] = useState<string | null>(null);
   const [copiedEnvId, setCopiedEnvId] = useState(false);
   const [missingCount, setMissingCount] = useState(0);
+  const [compose, setCompose] = useState<ParsedCompose | null>(null);
+
+  const isLightsail = envType === "staging";
 
   const copyEnvironmentId = async () => {
     await navigator.clipboard.writeText(environmentId);
@@ -331,11 +411,13 @@ export function DeployForm({
       awsRoleArn: string | null;
       region: string | null;
       imageUri: string | null;
+      composeServicesCache: ParsedCompose | null;
     }>(`/api/projects/${projectId}/environments/${environmentId}`)
       .then((env) => {
         if (env.awsAccountId) setAwsAccountId(env.awsAccountId);
         if (env.awsRoleArn) setAwsRoleArn(env.awsRoleArn);
         if (env.imageUri) setImageUri(env.imageUri);
+        if (env.composeServicesCache) setCompose(env.composeServicesCache);
       })
       .catch(() => {});
   }, [projectId, environmentId]);
@@ -488,31 +570,63 @@ export function DeployForm({
                 : "Review and edit your configuration. All fields are customizable."}
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Services</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={addService}
-                  className="gap-1.5 text-xs"
-                >
-                  <Plus size={12} /> Add Service
-                </Button>
+            {isLightsail ? (
+              <LightsailRoutingSection
+                config={config}
+                compose={compose}
+                onConfigChange={updateConfig}
+              />
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Services</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={addService}
+                    className="gap-1.5 text-xs"
+                  >
+                    <Plus size={12} /> Add Service
+                  </Button>
+                </div>
+
+                {(() => {
+                  const defaultName = findDefaultServiceName(config.services);
+                  return config.services.map((service, idx) => {
+                    const isAlbEligible =
+                      service.type !== "worker" && service.port != null;
+                    const isDefault =
+                      isAlbEligible && service.name === defaultName;
+                    // Non-default ALB-eligible services need a domain to
+                    // get a ListenerRule generated; without one, the ALB
+                    // sends everything to the default service and this
+                    // service is unreachable from outside.
+                    const domainRequired = isAlbEligible && !isDefault;
+                    return (
+                      <ServiceCard
+                        key={idx}
+                        service={service}
+                        onUpdate={(patch) => updateService(idx, patch)}
+                        onRemove={
+                          config.services.length > 1
+                            ? () => removeService(idx)
+                            : undefined
+                        }
+                        domainRequired={domainRequired}
+                        domainMissingWarning={
+                          service.type === "frontend"
+                            ? "Another frontend is already the default. Set a domain or this app won't be reachable."
+                            : "Backends without a domain aren't routed by the ALB. Add one or expose via the default service."
+                        }
+                      />
+                    );
+                  });
+                })()}
               </div>
+            )}
 
-              {config.services.map((service, idx) => (
-                <ServiceCard
-                  key={idx}
-                  service={service}
-                  onUpdate={(patch) => updateService(idx, patch)}
-                  onRemove={
-                    config.services.length > 1 ? () => removeService(idx) : undefined
-                  }
-                />
-              ))}
-            </div>
-
+            {!isLightsail && (
+            <>
             <div className="space-y-3">
               <p className="text-sm font-medium">Infrastructure</p>
 
@@ -689,6 +803,8 @@ export function DeployForm({
                 />
               </div>
             </div>
+            </>
+            )}
 
             <CostEstimator config={config} />
 

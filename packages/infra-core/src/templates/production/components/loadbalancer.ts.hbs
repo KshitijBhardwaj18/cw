@@ -16,7 +16,10 @@ export const alb = new aws.lb.LoadBalancer(`${prefix}-alb`, {
 // ── Target Groups (only for services attached to this ALB) ────────
 {{#each servicesWithAlb}}
 export const {{camel name}}Tg = new aws.lb.TargetGroup(`${prefix}-{{name}}-tg`, {
-  name:                "{{tgName}}",
+  // Physical name omitted on purpose — let Pulumi auto-name. A fixed
+  // name collides between similarly-named stacks and blocks the
+  // replace-during-destroy cycle (AWS keeps the name reserved for a
+  // few minutes after delete, so the recreate races and fails).
   port:                {{port}},
   protocol:            "HTTP",
   targetType:          "ip",

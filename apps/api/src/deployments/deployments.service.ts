@@ -131,6 +131,116 @@ export class DeploymentsService {
     return deployment;
   }
 
+  async destroy(
+    orgId: string,
+    projectId: string,
+    envId: string,
+    triggeredBy: string,
+  ) {
+    const env = await this.environments.get(orgId, projectId, envId);
+
+    // Nothing to tear down — env was never deployed or is already a
+    // tombstone. Refusing here keeps the audit log clean and avoids a
+    // queued job that would immediately fail.
+    if (env.status === "NOT_DEPLOYED" || env.status === "DESTROYED") {
+      throw new BadRequestException(
+        `Environment is ${env.status.toLowerCase()} — nothing to destroy.`,
+      );
+    }
+    if (!env.heizenConfig) {
+      throw new BadRequestException(
+        "Environment has no rendered config — was it ever deployed?",
+      );
+    }
+    if (!env.awsRoleArn || !env.region) {
+      throw new BadRequestException(
+        "AWS configuration missing — can't reach the stack to destroy it.",
+      );
+    }
+    if (!env.pulumiBackendBucket || !env.pulumiStackName) {
+      throw new BadRequestException(
+        "Stack metadata missing — env was never deployed, nothing to destroy.",
+      );
+    }
+
+    // Same in-flight check as create(): one Pulumi operation at a time
+    // per environment. A second destroy clashes; a deploy mid-destroy
+    // is even worse.
+    const inFlight = await this.prisma.deployment.findFirst({
+      where: {
+        environmentId: envId,
+        status: { in: ["QUEUED", "DEPLOYING"] },
+      },
+      select: { id: true, status: true, kind: true },
+    });
+    if (inFlight) {
+      throw new ConflictException(
+        `Another ${inFlight.kind.toLowerCase()} (${inFlight.id}) is already ${inFlight.status.toLowerCase()}. Wait for it to complete or cancel it.`,
+      );
+    }
+
+    const deployment = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.deployment.create({
+        data: {
+          environmentId: envId,
+          triggeredBy,
+          kind: "DESTROY",
+          status: "QUEUED",
+        },
+      });
+
+      await tx.environment.update({
+        where: { id: envId },
+        data: { status: "DESTROYING" },
+      });
+
+      await this.audit.logInTx(tx, {
+        actorId: triggeredBy,
+        action: "DESTROY_TRIGGERED",
+        resourceType: "ENVIRONMENT",
+        resourceId: envId,
+        metadata: { deploymentId: created.id, projectId, env: env.type },
+      });
+
+      return created;
+    });
+
+    try {
+      await this.deploymentQueue.add(
+        "deploy",
+        {
+          deploymentId: deployment.id,
+          environmentId: envId,
+          projectId,
+        },
+        {
+          jobId: deployment.id,
+          attempts: 1,
+          removeOnComplete: 50,
+          removeOnFail: 100,
+        },
+      );
+    } catch (queueErr) {
+      await this.prisma.deployment.update({
+        where: { id: deployment.id },
+        data: {
+          status: "FAILED",
+          errorMessage: `Failed to enqueue: ${queueErr instanceof Error ? queueErr.message : "unknown"}`,
+          completedAt: new Date(),
+        },
+      });
+      await this.prisma.environment.update({
+        where: { id: envId },
+        data: { status: env.status as "LIVE" | "FAILED" | "NOT_DEPLOYED" },
+      });
+      throw new ServiceUnavailableException(
+        "Could not enqueue destroy — the job queue may be unavailable",
+      );
+    }
+
+    return deployment;
+  }
+
   async list(orgId: string, projectId: string, envId: string) {
     await this.environments.get(orgId, projectId, envId);
     return this.prisma.deployment.findMany({

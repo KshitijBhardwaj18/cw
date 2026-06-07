@@ -40,6 +40,9 @@ export interface TemplateContext {
   ecrImage: string;
   ecrTag: string;
   fullImage: string;
+  /** Lightsail bundle id (e.g. "small_3_0"). Used by the staging
+   *  template's instance.ts.hbs. Empty/unused in the ECS template. */
+  bundleId?: string;
   natEnabled: boolean;
   natIsDual: boolean;
   natIsSingle: boolean;
